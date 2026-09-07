@@ -24,6 +24,7 @@ from src.ai.script_fact_check import (
     check_script,
     fact_check_and_revise,
     parse_check_answer,
+    sentences,
 )
 from src.video.config import config
 from src.video.config.llm_settings import ScriptFactCheckConfig
@@ -261,6 +262,48 @@ class TestAcceptingARevision:
         accepted, reason = accept_revision(GOOD, split, FLAG, **GUARDS)
         assert accepted is not None, reason
 
+    def test_a_claim_split_by_inner_punctuation_still_matches(self) -> None:
+        """`sentences()` splits on any sentence-final punctuation followed by
+        a space, so an ellipsis or an abbreviation cuts one spoken sentence
+        into two entries -- while the checker copies the whole sentence, as
+        the prompt demands. Matching on equality found neither fragment, so
+        nothing was touchable and a correct repair was refused for altering
+        sentences it never touched, with the record blaming the reviser.
+        """
+        original = (
+            "Your fan gets loud for one reason. "
+            "Open Device Manager, expand Components... then read the Power page. "
+            "Blow the dust out from the outside. "
+            f"{CTA}"
+        )
+        flagged = [
+            FactCheckClaim(
+                claim=(
+                    "Open Device Manager, expand Components... "
+                    "then read the Power page."
+                ),
+                reason="No Power page exists there.",
+                fix="Device Manager has no wattage page.",
+            )
+        ]
+        revised = original.replace(
+            "Open Device Manager, expand Components... then read the Power page.",
+            "Device Manager will not show you the wattage.",
+        )
+        accepted, reason = accept_revision(original, revised, flagged, **GUARDS)
+        assert accepted is not None, reason
+
+    def test_a_pure_reordering_is_refused(self) -> None:
+        """Membership alone let this through: every sentence unchanged,
+        nothing added, the length identical, and the steps of a how-to
+        swapped. The revise prompt forbids re-ordering; this module's own
+        position is that a prompt rule is not a guard.
+        """
+        old = sentences(GOOD)
+        swapped = " ".join([old[0], old[2], old[1], old[3], old[4]])
+        accepted, reason = accept_revision(GOOD, swapped, [], **GUARDS)
+        assert accepted is None and "re-ordered" in reason
+
     def test_a_no_op_revision_is_refused(self) -> None:
         accepted, reason = accept_revision(GOOD, GOOD, FLAG, **GUARDS)
         assert accepted is None and "changed nothing" in reason
@@ -437,12 +480,6 @@ class TestNothingCanLoseTheRender:
         assert out.record["revision"]["reason"] == "disabled"
 
     @pytest.mark.asyncio
-    async def test_zero_rounds_ships_the_original(self) -> None:
-        with patch("google.genai.Client") as client:
-            out = await run(max_rounds=0)
-        assert out.script == GOOD and client.call_count == 0
-
-    @pytest.mark.asyncio
     async def test_no_api_key_ships_the_original(self) -> None:
         with patch("google.genai.Client") as client:
             out = await run(secrets={})
@@ -534,8 +571,10 @@ class TestNothingCanLoseTheRender:
 
     @pytest.mark.asyncio
     async def test_the_grounded_call_happens_once_per_script(self) -> None:
-        """`max_rounds` is the bill. One grounded query is roughly $0.035, and
-        a revision loop that re-checks its own output doubles that silently.
+        """One grounded query is roughly $0.035, and grounded queries bill
+        separately from tokens, so the query count is the cost. There is no
+        round count to configure: the module contains no loop, which is what
+        makes this assertion the guarantee.
         """
         client = fake_client(FLAGGED_ANSWER)
         with (
@@ -562,6 +601,22 @@ class TestNothingCanLoseTheRender:
             await run()
         assert gen.await_count == 1
         assert client.aio.models.generate_content.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_the_reviser_can_reach_the_fallback_provider(self) -> None:
+        """The fallback provider looks its own key up in `secrets`, not in the
+        `api_key` it is handed. Passing only the key made a rate-limited
+        primary lose the repair and ship the wrong claim while a funded
+        fallback sat unused, logging that the key was not found.
+        """
+        gen = AsyncMock(return_value=FIXED)
+        with (
+            patch("google.genai.Client", return_value=fake_client(FLAGGED_ANSWER)),
+            patch("src.ai.platform_metadata.utilities.generate_with_llm", gen),
+        ):
+            await run()
+        assert gen.await_args is not None
+        assert gen.await_args.kwargs["secrets"] == {"GEMINI_API_KEY": "k"}
 
     @pytest.mark.asyncio
     async def test_no_more_flags_are_revised_than_configured(self) -> None:
@@ -591,12 +646,13 @@ class TestConfigAndPrompts:
     def test_the_bundled_config_turns_it_on(self) -> None:
         assert config.llm_settings.script_fact_check.enabled is True
 
-    def test_the_round_cap_is_enforced_by_the_type(self) -> None:
-        """`max_rounds` is the bill, so it is a validated field rather than a
-        number the caller is trusted to keep small.
+    def test_there_is_no_round_count_to_configure(self) -> None:
+        """A `max_rounds` field lived here briefly. It could not raise the
+        query count above what the code does, so it promised a second round
+        that never happened while duplicating `enabled` at zero. The cap is
+        structural, asserted by the call-count test above.
         """
-        with pytest.raises(ValueError):
-            ScriptFactCheckConfig(max_rounds=5)
+        assert not hasattr(ScriptFactCheckConfig(), "max_rounds")
 
     def test_the_checker_prompt_demands_the_sentence_verbatim(self) -> None:
         """The containment guard matches the flagged sentence against the

@@ -1361,7 +1361,6 @@ llm_settings:
     enabled: true
     model: "gemini-2.5-flash"
     topics_only: true         # a product claim needs the listing, not a search
-    max_rounds: 1             # one grounded query per script; the bill
     max_flags_to_revise: 3
     max_length_drift: 0.25
     timeout_seconds: 45
@@ -1370,10 +1369,17 @@ llm_settings:
 Measured over seventeen real pipeline scripts: eighty-three falsifiable
 claims, sixteen flagged, fourteen of the sixteen right on review. So about one
 flag in eight is a false positive, and the revision is confined for exactly
-that reason. A rewrite is accepted only if it leaves every sentence that was
-not flagged untouched, keeps the closing call to action verbatim, passes the
-usual script validation and stays within `max_length_drift` of the original
-length. Anything else ships the original with the reason logged.
+that reason. A rewrite is accepted only if the sentences it changed are the
+flagged ones and the sentence after each, since a correction often has to
+carry into the step that referenced the wrong thing; every other sentence
+must come back unchanged and in the same order, and at most one new sentence
+per flag may appear. It must also keep the closing call to action verbatim,
+pass the usual script validation, and stay within `max_length_drift` of the
+original length. Anything else ships the original with the reason logged.
+
+There is no round count to set. The script is checked once and repaired once,
+so the repaired sentence is never itself checked -- a real gap, and the reason
+the containment rules above are as tight as they are.
 
 Nothing here can lose a render. A missing key, an unreachable search backend,
 an unparseable answer, a reviser that returns nothing and a rewrite that fails

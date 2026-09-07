@@ -123,7 +123,6 @@ llm_settings:
     enabled: true
     model: "gemini-2.5-flash"
     topics_only: true
-    max_rounds: 1
     max_flags_to_revise: 3
     max_length_drift: 0.25
     timeout_seconds: 45

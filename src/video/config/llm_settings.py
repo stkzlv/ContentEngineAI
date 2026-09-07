@@ -190,14 +190,17 @@ class ScriptFactCheckConfig(BaseModel):
     call makes a search round trip inside the request, so it is not comparable
     to the thumbnail judge's budget.
 
-    `max_rounds` is a bill cap enforced by the type: grounded queries bill
-    separately from tokens, so the query count is the only knob that matters.
+    There is no round count to configure. The module makes exactly one
+    grounded call per script because it contains no loop, so the revised
+    sentence is never re-checked -- a real gap, stated rather than hidden. A
+    `max_rounds` field existed here briefly and was removed: it could not
+    raise the query count above what the code does, so it promised a second
+    round that never happened while duplicating `enabled` at zero.
     """
 
     enabled: bool = False
     model: str = Field("gemini-2.5-flash")
     topics_only: bool = True
-    max_rounds: int = Field(1, ge=0, le=2)
     max_flags_to_revise: int = Field(3, ge=1, le=10)
     max_length_drift: float = Field(0.25, ge=0.0, le=1.0)
     timeout_seconds: int = Field(45, ge=1)

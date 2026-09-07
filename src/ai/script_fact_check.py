@@ -149,6 +149,28 @@ def _ruling_is_wrong(ruling: str | None) -> bool:
     return "wrong" in ruling.strip().lower()
 
 
+def _covers(claim: str, sentence: str) -> bool:
+    """Whether a flagged claim and a split sentence are the same material.
+
+    Not equality. `sentences()` splits on any sentence-final punctuation
+    followed by a space, so an ellipsis, an abbreviation (`vs.`, `e.g.`) or a
+    pair of initials cuts one spoken sentence into two entries -- while the
+    checker copies the whole sentence, as the prompt demands. Equality then
+    matched neither fragment, nothing was marked touchable, and a revision
+    that changed only the flagged sentence was refused for altering sentences
+    it was not asked to: the repair thrown away and the wrong claim published,
+    with the record blaming the reviser for it.
+
+    Containment either way covers both that case and a checker that quoted
+    only part of a sentence. Padded, so the match is on whole words and a
+    short sentence cannot match mid-word inside an unrelated claim.
+    """
+    a, b = _normalise(claim), _normalise(sentence)
+    if not a or not b:
+        return False
+    return f" {b} " in f" {a} " or f" {a} " in f" {b} "
+
+
 def parse_check_answer(text: str | None) -> FactCheckResult:
     """Read the checker's answer, in either shape it may arrive in.
 
@@ -261,20 +283,29 @@ def accept_revision(
     # the wrong thing.
     old_sentences = sentences(original)
     new_sentences = sentences(candidate)
-    named = {_normalise(c.claim) for c in flagged}
     touchable: set[int] = set()
     for i, s in enumerate(old_sentences):
-        if _normalise(s) in named:
+        if any(_covers(c.claim, s) for c in flagged):
             touchable.add(i)
             touchable.add(i + 1)
-    kept_old = [s for i, s in enumerate(old_sentences) if i not in touchable]
-    new_norm = {_normalise(s) for s in new_sentences}
-    missing = [s for s in kept_old if _normalise(s) not in new_norm]
+    kept_old = [(i, s) for i, s in enumerate(old_sentences) if i not in touchable]
+    new_norm = [_normalise(s) for s in new_sentences]
+    missing = [s for _, s in kept_old if _normalise(s) not in new_norm]
     if missing:
         return (
             None,
             f"the revision altered {len(missing)} sentence(s) it was not asked to",
         )
+
+    # The survivors must also come back in the order they went out. Membership
+    # alone let a pure reordering through: every sentence "unchanged", nothing
+    # added, length identical, and the steps of a how-to swapped. The revise
+    # prompt forbids re-ordering, but this module's own position is that a
+    # prompt rule is not a guard -- which is why `RULING:` and `_is_not_a_fix`
+    # exist.
+    positions = [new_norm.index(_normalise(s)) for _, s in kept_old]
+    if positions != sorted(positions):
+        return None, "the revision re-ordered sentences it was not asked to"
 
     # Containment has a second half. Keeping every unflagged sentence still
     # allows the model to *insert* one, which is the shape a helpful rewrite
@@ -368,6 +399,7 @@ async def revise_script(
     session: Any,
     api_settings: Any = None,
     *,
+    secrets: dict[str, str] | None = None,
     narrator_profile: str = "",
     pillar: str | None = None,
     pillar_preambles: dict[str, str] | None = None,
@@ -398,6 +430,11 @@ async def revise_script(
         session,
         api_settings,
         debug_mode,
+        # Without this the configured fallback provider is unreachable: it
+        # looks its key up in `secrets`, which defaults to empty, so a
+        # rate-limited primary loses the repair and ships the wrong claim
+        # while a funded fallback sits unused.
+        secrets=secrets,
         video_script=script,
         narrator_profile=narrator_profile,
         pillar=pillar,
@@ -435,7 +472,7 @@ async def fact_check_and_revise(
         "flagged": [],
         "revision": {"attempted": False, "accepted": False, "reason": "not reached"},
     }
-    if not cfg.enabled or cfg.max_rounds < 1:
+    if not cfg.enabled:
         record["revision"]["reason"] = "disabled"
         return FactCheckOutcome(script=script, record=record)
 
@@ -475,6 +512,7 @@ async def fact_check_and_revise(
             api_key,
             session,
             api_settings,
+            secrets=secrets,
             narrator_profile=narrator_profile,
             pillar=pillar,
             pillar_preambles=pillar_preambles,
