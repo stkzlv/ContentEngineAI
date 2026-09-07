@@ -1435,8 +1435,18 @@ async def step_assemble_video(ctx: PipelineContext):
         )
 
         assembler = VideoAssembler(ctx.config, debug_mode=ctx.debug_mode)
+        # The engine that burns this run's captions decides where the caption
+        # block sits, and the image branch keeps the product image above it.
+        # Read the recorded decision; re-derive it only when the state lacks
+        # one, the same way the burn step does.
+        engine = ctx.state.get("subtitle_engine_resolved")
+        if engine is None:
+            merged = ctx.config.get_profile_merged_settings(
+                ctx.profile_name, ctx.cli_overrides
+            )
+            engine = resolve_subtitle_engine(merged.subtitle_settings)
         assembler.set_profile_settings(
-            ctx.profile_name, ctx.cli_overrides
+            ctx.profile_name, ctx.cli_overrides, subtitle_engine=engine
         )  # Apply profile settings with CLI overrides
 
         # Set product_id for randomization (derive from product data)

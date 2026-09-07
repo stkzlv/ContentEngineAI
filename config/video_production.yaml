@@ -657,7 +657,7 @@ video_profiles:
 
     # Image positioning overrides
     image_width_percent: 1
-    image_top_position_percent: 0.15              # Position image lower (15% from top)
+    image_top_position_percent: 0.15              # Top offset under image_vertical_align: top only; centred images start at the header zone
 
     # Subtitle positioning overrides
     subtitle_settings:
@@ -780,7 +780,7 @@ video_profiles:
 
     # Image positioning overrides
     image_width_percent: 1                 # Medium size images
-    image_top_position_percent: 0.20       # Position images in upper-middle area
+    image_top_position_percent: 0.20       # Top offset under image_vertical_align: top only
 
     # Two-part subtitle system configuration
     subtitle_settings:

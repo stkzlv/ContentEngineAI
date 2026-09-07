@@ -104,16 +104,21 @@ subtitle_settings:
     # for short-form — 3+ becomes a wall of text.
     max_number_of_lines: 2
 
-    # Vertical positioning. "bottom" anchor + offset -0.20 places captions
-    # at ~75% of frame height. This sits inside TikTok's bottom UI overlay
-    # zone, but every bundled profile here uses `image_vertical_align:
-    # center` (slideshow_*) or full-frame source video (product_video_*),
-    # so a recipe-aligned vertical-center caption position (~55%) collides
-    # with product imagery. Lower-third is the lesser evil until profiles
-    # adopt `image_vertical_align: top` (then captions can rise to ~55%
-    # safely). Tracked in #99.
+    # Vertical positioning. "bottom" anchor + offset -0.20 places the
+    # block's bottom edge at 75% of frame height, inside TikTok's bottom UI
+    # overlay zone. The image profiles no longer constrain this: the
+    # assembler fits a product image above wherever the block is (#368),
+    # so raising the captions moves the image up with them. What still
+    # does is the scraped or stock video on the product_video_* profiles,
+    # which is centred in the frame and ends near 66%; a recipe-aligned
+    # centre position (~55%) would sit on it. Tracked in #99.
     vertical_align: "bottom"
     vertical_align_offset: -0.20
+    # Height of the rendered caption block as a fraction of the frame, all
+    # lines included. An estimate (the template's CSS decides the real one)
+    # that the assembler uses to keep a product image above the block. A
+    # two-line block measured 0.105 on the bundled templates at 1080x1920.
+    caption_block_height: 0.12
 
     # On render failure or when pycaps is not installed:
     #   "fallback_ffmpeg" (shipped in this file) = silently use the FFmpeg subtitle path,

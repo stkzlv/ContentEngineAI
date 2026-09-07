@@ -13,6 +13,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.video_strategies import VideoStrategyFactory
+from src.video.assembler.visual_band import (
+    VisualBand,
+    caption_band_top,
+    visual_band,
+)
 
 if TYPE_CHECKING:
     from src.video.config.visual_models import MergedProfileSettings
@@ -175,6 +180,7 @@ class VisualFilterBuilder:
         profile_settings: "MergedProfileSettings | None",
         debug_mode: bool = False,
         normalize_video_callback: (Callable[[Path], Awaitable[Path]] | None) = None,
+        subtitle_engine: str | None = None,
     ):
         """Initialize VisualFilterBuilder.
 
@@ -186,6 +192,8 @@ class VisualFilterBuilder:
             profile_settings: Merged profile settings (may be None initially)
             debug_mode: Enable debug logging
             normalize_video_callback: Async callback for video format normalization
+            subtitle_engine: The engine that will burn this run's captions, as
+                the producer resolved it
 
         """
         self.inspector = media_inspector
@@ -193,6 +201,10 @@ class VisualFilterBuilder:
         self.strategy_factory = strategy_factory
         self.profile_settings = profile_settings
         self.debug_mode = debug_mode
+        # The engine that will burn this run's captions, as resolved by the
+        # producer (`subtitle_engine_resolved`), not the one config names:
+        # the two disagree on a default install that falls back to FFmpeg.
+        self.subtitle_engine = subtitle_engine
         self.normalize_video_callback = normalize_video_callback
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
@@ -442,55 +454,35 @@ class VisualFilterBuilder:
 
         return filter_string, output_label, geometry
 
-    def _calculate_subtitle_reserved_space(self, height: int) -> int:
-        """Calculate subtitle space reservation to prevent overlap.
-
-        Args:
-        ----
-            height: Frame height in pixels
-
-        Returns:
-        -------
-            Reserved space in pixels for subtitles
-
-        """
-        subtitle_reserved_space = 0
-        try:
-            # Check if subtitles are enabled at the profile level
-            if self.profile_settings:
-                sub_settings = self.profile_settings.subtitle_settings
-                subtitle_enabled = getattr(sub_settings, "enabled", False)
-            else:
-                subtitle_enabled = False
-
-            if subtitle_enabled:
-                subtitle_settings = self._get_effective_subtitle_settings()
-                # Estimate subtitle height based on font size and margins
-                font_size_scale = subtitle_settings.get("font_size_scale", 1.0)
-                base_pct = self.config.video_settings.base_font_height_percent
-                base_font_height = height * base_pct
-                font_height = base_font_height * font_size_scale
-
-                margin = subtitle_settings.get("margin", 0.05)
-                margin_pixels = height * margin
-
-                # Reserve space for font + outline + margin + buffer
-                multiplier = self.config.video_settings.reserved_space_font_multiplier
-                subtitle_reserved_space = int(font_height * multiplier + margin_pixels)
-        except Exception as e:
-            # If we can't get subtitle settings, use conservative default
-            default_space = self.config.video_settings.default_subtitle_reserved_space
-            logger.debug(
-                f"Could not calculate subtitle space from settings ({e}), "
-                f"using default {default_space * 100}% reservation"
-            )
-            subtitle_reserved_space = int(height * default_space)
-
-        return (
-            subtitle_reserved_space
-            if subtitle_reserved_space > 0
-            else int(height * default_space)
+    def _image_band(self, height: int, top_offset: int, *, centred: bool) -> VisualBand:
+        """Rows an image may occupy on this run, from the caption settings."""
+        settings = self._get_effective_subtitle_settings()
+        vs = self.config.video_settings
+        caption_top = caption_band_top(
+            height,
+            settings,
+            self.subtitle_engine,
+            base_font_height_percent=vs.base_font_height_percent,
+            reserved_space_font_multiplier=vs.reserved_space_font_multiplier,
+            safe_zone_max_y=self._safe_zone().max_y,
         )
+        return visual_band(
+            height,
+            caption_top=caption_top,
+            top_offset=top_offset,
+            centred=centred,
+            safe_zone_min_y=self._safe_zone().min_y,
+        )
+
+    def _safe_zone(self) -> Any:
+        """Profile-merged safe zone first, then global, then the default."""
+        from src.video.config.core_models import PlatformSafeZone
+
+        if self.profile_settings is not None:
+            return self.profile_settings.subtitle_settings.safe_zone
+        if self.config.text_rendering:
+            return self.config.text_rendering.safe_zone
+        return PlatformSafeZone()
 
     async def build_visual_chain(
         self,
@@ -746,19 +738,34 @@ class VisualFilterBuilder:
                     "image_vertical_align", "center"
                 )
 
-                # Calculate subtitle space reservation
-                subtitle_reserved_space = self._calculate_subtitle_reserved_space(
-                    height
+                # The rows the image may occupy: below the header zone (or
+                # the configured top), above the caption block. Centring
+                # happens inside this band, not the frame -- centring in the
+                # frame is how a tall image reached 87% of the height while
+                # the captions began at 63% (#368).
+                top_offset = int(
+                    video_settings_dict["image_top_position_percent"] * height
                 )
-
-                # For centering, we calculate Y after knowing scaled_h
-                # For top alignment, use the configured top position
-                top_offset = video_settings_dict["image_top_position_percent"] * height
-                max_available_height = height - top_offset - subtitle_reserved_space
+                band = self._image_band(
+                    height, top_offset, centred=vertical_align == "center"
+                )
+                if band.height <= 0:
+                    # A caption block that reaches the band's top leaves no
+                    # band; fit the image from that top to the bottom of the
+                    # frame rather than into a zero height. The header stays
+                    # clear and the block sits over the image, which a
+                    # block that high makes unavoidable.
+                    band = VisualBand(top=band.top, bottom=height)
+                max_available_height = band.height
                 logger.debug(
-                    f"Image {i}: Reserved {subtitle_reserved_space}px for "
-                    f"subtitles, max available height: {max_available_height}px "
-                    f"(frame: {height}px, align: {vertical_align})"
+                    "Image %d: band %d-%dpx, max available height %dpx "
+                    "(frame %dpx, align %s)",
+                    i,
+                    band.top,
+                    band.bottom,
+                    max_available_height,
+                    height,
+                    vertical_align,
                 )
 
                 if not is_relative_mode and uniform_height > 0:
@@ -786,11 +793,9 @@ class VisualFilterBuilder:
 
                 # Calculate Y position based on alignment
                 if vertical_align == "center":
-                    # Center image vertically in frame
-                    target_y_pos = (height - scaled_h) / 2
+                    target_y_pos = band.centred_y(scaled_h)
                 else:
-                    # Use configured top offset
-                    target_y_pos = top_offset
+                    target_y_pos = band.top  # the configured top offset
 
                 geometries.append(
                     VisualGeometry(

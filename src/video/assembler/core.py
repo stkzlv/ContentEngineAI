@@ -97,7 +97,10 @@ class VideoAssembler:
         self.strategy_factory: VideoStrategyFactory | None = None
 
     def set_profile_settings(
-        self, profile_name: str, cli_overrides: dict[str, Any] | None = None
+        self,
+        profile_name: str,
+        cli_overrides: dict[str, Any] | None = None,
+        subtitle_engine: str | None = None,
     ) -> None:
         """Apply profile-specific settings to override global configuration.
 
@@ -108,11 +111,17 @@ class VideoAssembler:
         ----
             profile_name: Name of the video profile to apply settings for
             cli_overrides: Optional CLI overrides to apply with highest precedence
+            subtitle_engine: The engine that will burn this run's captions, as
+                the producer resolved it; the image branch keeps the product
+                image above that engine's caption block.
 
         """
         self.profile_settings = self.config.get_profile_merged_settings(
             profile_name, cli_overrides
         )
+        # The engine that will burn the captions, so the image branch keeps
+        # the product image out of the caption band (#368).
+        self.subtitle_engine = subtitle_engine
 
         if self.debug_mode:
             logger.debug(f"Applied profile settings for '{profile_name}'")
@@ -172,6 +181,7 @@ class VideoAssembler:
             self.profile_settings,
             self.debug_mode,
             normalize_video_callback=self._normalize_video_format,
+            subtitle_engine=self.subtitle_engine,
         )
 
         # Initialize subtitle builder
