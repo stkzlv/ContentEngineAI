@@ -353,6 +353,19 @@ class PycapsSettings(BaseModel):
             "Set to null to let the pycaps template's own positioning win."
         ),
     )
+    caption_block_height: float = Field(
+        0.12,
+        gt=0.0,
+        le=0.5,
+        description=(
+            "Height of the rendered caption block as a fraction of the frame, "
+            "all lines included. The template's CSS decides the real height, "
+            "so this is an estimate; the assembler uses it to keep a product "
+            "image out of the caption band. A two-line block measured 0.105 "
+            "on the bundled templates. Re-measure from a frame when "
+            "changing template or font size."
+        ),
+    )
     fallback_policy: Literal["raise", "fallback_ffmpeg", "warn_and_skip"] = Field(
         "raise",
         description=(

@@ -113,8 +113,9 @@ comments in that file for the active values shipped to users.
 | `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [subtitle-best-practices.md](subtitle-best-practices.md) rule 6 rejects. Bundled YAML ships `true`. |
 | `max_width_ratio` | float | 0.80 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
-| `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. Runtime offset is derived from VisualBounds. |
-| `vertical_align_offset` | float \| null | -0.20 | Manual override for the derived offset. Range: -1.0 to 1.0. |
+| `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. With `bottom`, pycaps puts the block's bottom edge at 95% of the frame plus the offset. |
+| `vertical_align_offset` | float \| null | -0.20 | Offset from the anchor, -1.0 to 1.0. `null` lets the template's own layout place the block. |
+| `caption_block_height` | float | 0.12 | Height of the rendered block as a fraction of the frame, all lines included. An estimate -- the template's CSS decides the real height -- that the assembler uses to keep a product image above the block. Re-measure from a frame after changing template or font size. |
 | `fallback_policy` | `raise` \| `fallback_ffmpeg` \| `warn_and_skip` | `raise` | `raise` = abort if pycaps unavailable or the burn fails. `fallback_ffmpeg` = switch to FFmpeg when pycaps is *unavailable*, and burn captions with FFmpeg when a pycaps render fails; a missing transcript or assembled video still aborts. `warn_and_skip` = no subtitles (not recommended). |
 | `enable_ai_tagging` | bool | `false` | Opt into AI word tagging via Gemini. See [AI word tagging](#ai-word-tagging). |
 | `llm_model` | str | `gemini-2.5-flash` | Gemini model used when `enable_ai_tagging` is true. |
@@ -171,25 +172,39 @@ A casing change does not need a fork: `force_sentence_case` appends
 `.word { text-transform: none; }` after the template's own CSS, so a template
 that uppercases renders the transcript's casing while staying as shipped.
 
-## Content-aware positioning
+## Caption placement and the product image
 
 Caption placement is driven by `pycaps.vertical_align_offset`, whose default
 is `-0.20`. `merge_layout_with_template` takes the explicit-offset branch
 whenever that field is not `None`, so on the shipped config it is always the
-explicit branch that runs.
+explicit branch that runs: the block's bottom edge sits at 75% of the frame
+and, with `caption_block_height` at 0.12, its top at 63%. A two-line block
+measured 0.105 of the frame on the bundled templates.
 
-There is a second branch that would derive the offset from the same
-`VisualBounds` the FFmpeg path uses:
+The captions do not move to make room for the image; the image moves. The
+assembler fits and centres a product image inside the band between the
+platform header zone (a top-aligned image starts at its
+`image_top_position_percent` instead) and the top of the caption block, less a 2% gap
+(`src/video/assembler/visual_band.py`). It reads the same pycaps fields for
+that, so changing the offset or the block height moves the image with the
+captions. With no explicit offset the template places the block itself, and
+the assembler assumes the band [subtitle-best-practices.md](subtitle-best-practices.md)
+prescribes, centred around 52% of the frame. The same helper serves the
+FFmpeg engine, whose caption is clamped to the safe-zone floor.
+
+There is a second branch in `merge_layout_with_template` that would derive the
+offset from the same `VisualBounds` the FFmpeg path uses:
 
 ```
 offset = (visual_bottom + margin) - 0.95, clamped to [-0.9, 0]
 ```
 
 It is reached only when `vertical_align_offset` is `None` *and*
-`vertical_align` was explicitly set to `bottom`, and even then it currently
-defers to the template rather than overriding it. `layout_from_visual_bounds`
-implements the formula and is used by the tests. Treat the formula as the
-design intent, not as what a shipped render does: to move the captions, set
+`vertical_align` was explicitly set to `bottom`, and even then it defers to
+the template rather than overriding it. `layout_from_visual_bounds`
+implements the formula and is used by the tests. It is not what a shipped
+render does, and it would anchor the block's *bottom* edge just below the
+image, which puts the block's body on the image: to move the captions, set
 `vertical_align_offset`.
 
 ## Renderer tradeoffs
