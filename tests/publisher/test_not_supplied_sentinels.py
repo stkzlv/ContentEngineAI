@@ -25,6 +25,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.publisher.models import CleanupConfig, RecurringSlot, ScheduleConfig
+from src.scraper.config_models import ScraperConfig
 
 
 def _enabled_schedule() -> ScheduleConfig:
@@ -75,10 +76,10 @@ class TestFailFastReachesTheLoader:
         """The behaviour the fix exists for, through the real loader."""
         from src.scraper.amazon import config as scraper_config
 
-        with patch.dict(
-            scraper_config.CONFIG,
-            {"batch": {"fail_fast": True, "keywords": []}},
-            clear=False,
+        with patch.object(
+            scraper_config,
+            "SETTINGS",
+            ScraperConfig.from_legacy_dict({"batch": {"fail_fast": True}}),
         ):
             batch = scraper_config.load_batch_config(
                 cli_product_ids=["B0AAAAAAAA"], cli_keywords=[], cli_fail_fast=None
@@ -90,10 +91,10 @@ class TestFailFastReachesTheLoader:
         """Precedence is CLI over YAML, not the other way round."""
         from src.scraper.amazon import config as scraper_config
 
-        with patch.dict(
-            scraper_config.CONFIG,
-            {"batch": {"fail_fast": True, "keywords": []}},
-            clear=False,
+        with patch.object(
+            scraper_config,
+            "SETTINGS",
+            ScraperConfig.from_legacy_dict({"batch": {"fail_fast": True}}),
         ):
             batch = scraper_config.load_batch_config(
                 cli_product_ids=["B0AAAAAAAA"], cli_keywords=[], cli_fail_fast=False

@@ -5,12 +5,26 @@ import re
 
 import requests
 
-from .config import CONFIG, get_config_value
+from .config import CONFIG, get_config_value, get_settings
 from .constants import (
     HIGH_RES_DIMENSION,
     HIGH_RES_UPGRADE_DIMENSION,
     VERY_HIGH_RES_DIMENSION,
 )
+
+
+def _validation_timeout() -> int:
+    """The HEAD-validation timeout: its own setting, else the HEAD timeout.
+
+    What the dict-walk did when `validation_timeout` was absent from the
+    file, kept as the resolution rather than as a default of its own.
+    """
+    settings = get_settings().global_settings
+    return (
+        settings.download_config.validation_timeout
+        or settings.system_timeouts.head_request_timeout
+    )
+
 
 logger = logging.getLogger(__name__)
 
@@ -163,21 +177,12 @@ def validate_video_url_accessibility(url: str) -> bool:
             )
 
             delay_range = rate_config.get("video_validation_delay", [0.5, 1.5])
-            validation_timeout = download_config.get(
-                "validation_timeout",
-                CONFIG.get("global_settings", {})
-                .get("system_timeouts", {})
-                .get("head_request_timeout", 10),
-            )
+            validation_timeout = _validation_timeout()
             range_bytes = download_config.get("validation_range_bytes", "0-1023")
         except Exception:
             # Fallback values
             delay_range = [0.5, 1.5]
-            validation_timeout = (
-                CONFIG.get("global_settings", {})
-                .get("system_timeouts", {})
-                .get("head_request_timeout", 10)
-            )
+            validation_timeout = _validation_timeout()
             range_bytes = "0-1023"
             # Use fallback headers from config
             video_headers = (
@@ -425,11 +430,7 @@ def _validate_image_dimensions(
             )
         )
 
-        timeout = (
-            CONFIG.get("global_settings", {})
-            .get("system_timeouts", {})
-            .get("head_request_timeout", 10)
-        )
+        timeout = get_settings().global_settings.system_timeouts.head_request_timeout
 
         # Download first 4KB to get image headers and determine dimensions
         range_headers = headers.copy()

@@ -15,7 +15,7 @@ from botasaurus import bt
 from botasaurus.task import task
 
 from .botasaurus_output import get_task_config_for_outputs
-from .config import CONFIG
+from .config import CONFIG, get_settings
 from .download_async import (
     _download_media_async,
     convert_m3u8_to_mp4,  # noqa: F401
@@ -258,26 +258,21 @@ def download_file_sync(
 
     # Get config values for download
     try:
-        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
         amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
         download_headers = amazon_config.get("http_headers", {}).get(
             "media_download", {}
         )
 
-        default_timeout = download_config.get("download_timeout", 30)
-        chunk_size = download_config.get("download_chunk_size", 8192)
-    except Exception:
-        # Fallback values from config
         default_timeout = (
-            CONFIG.get("global_settings", {})
-            .get("download_config", {})
-            .get("download_timeout", 30)
+            get_settings().global_settings.download_config.download_timeout
         )
-        chunk_size = (
-            CONFIG.get("global_settings", {})
-            .get("download_config", {})
-            .get("download_chunk_size", 8192)
+        chunk_size = get_settings().global_settings.download_config.download_chunk_size
+    except Exception:
+        # Fallback headers only; the numbers come from the same typed settings.
+        default_timeout = (
+            get_settings().global_settings.download_config.download_timeout
         )
+        chunk_size = get_settings().global_settings.download_config.download_chunk_size
         download_headers = (
             CONFIG.get("scrapers", {})
             .get("amazon", {})

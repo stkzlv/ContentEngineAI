@@ -52,39 +52,32 @@ def exponential_backoff_retry(
     def decorator(wrapped_func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             # Load retry configuration
-            config_manager = get_config_manager()
-            retry_config = config_manager.get_retry_config()
+            retry_config = get_config_manager().settings.global_settings.retry_config
 
             # Use provided values or fall back to config
             actual_max_retries = (
                 max_retries
                 if max_retries is not None
-                else retry_config.get("default_max_retries", 3)
+                else retry_config.default_max_retries
             )
             actual_base_delay = (
-                base_delay
-                if base_delay is not None
-                else retry_config.get("base_delay", 1.0)
+                base_delay if base_delay is not None else retry_config.base_delay
             )
             actual_backoff_factor = (
                 backoff_factor
                 if backoff_factor is not None
-                else retry_config.get("backoff_factor", 2.0)
+                else retry_config.backoff_factor
             )
             actual_max_delay = (
-                max_delay
-                if max_delay is not None
-                else retry_config.get("max_delay", 60.0)
+                max_delay if max_delay is not None else retry_config.max_delay
             )
             actual_use_jitter = (
-                use_jitter
-                if use_jitter is not None
-                else retry_config.get("use_jitter", True)
+                use_jitter if use_jitter is not None else retry_config.use_jitter
             )
             actual_jitter_factor = (
                 jitter_factor
                 if jitter_factor is not None
-                else retry_config.get("jitter_factor", 0.5)
+                else retry_config.jitter_factor
             )
 
             last_exception = None
@@ -244,11 +237,10 @@ def detect_monitors() -> list[dict[str, Any]]:
             # Try xrandr first
             try:
                 # Get timeout from config
-                config_manager = get_config_manager()
-                system_timeouts = config_manager.get_global_settings().get(
-                    "system_timeouts", {}
+                system_timeouts = (
+                    get_config_manager().settings.global_settings.system_timeouts
                 )
-                cmd_timeout = system_timeouts.get("system_command_timeout", 5)
+                cmd_timeout = system_timeouts.system_command_timeout
 
                 result = subprocess.run(
                     ["xrandr", "--query"],
@@ -295,11 +287,10 @@ def detect_monitors() -> list[dict[str, Any]]:
         elif platform.system() == "Darwin":  # macOS
             try:
                 # Get timeout from config
-                config_manager = get_config_manager()
-                system_timeouts = config_manager.get_global_settings().get(
-                    "system_timeouts", {}
+                system_timeouts = (
+                    get_config_manager().settings.global_settings.system_timeouts
                 )
-                cmd_timeout = system_timeouts.get("system_profiler_timeout", 10)
+                cmd_timeout = system_timeouts.system_profiler_timeout
 
                 result = subprocess.run(
                     ["system_profiler", "SPDisplaysDataType"],

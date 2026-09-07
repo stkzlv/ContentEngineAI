@@ -10,7 +10,7 @@ from typing import Any
 
 from botasaurus.browser import Driver
 
-from .config import CONFIG
+from .config import CONFIG, get_settings
 from .media_extractor import (
     extract_functional_videos_with_validation,
     extract_high_res_images_botasaurus,
@@ -258,8 +258,9 @@ def extract_product_data_from_page(
             title, price, description, asin, rating, essential_fields
         ):
             if DEBUG_MODE:
-                debug_config = CONFIG.get("global_settings", {}).get("debug_config", {})
-                title_preview_length = debug_config.get("title_preview_length", 50)
+                title_preview_length = (
+                    get_settings().global_settings.debug_config.title_preview_length
+                )
                 logger.warning(
                     f"Invalid product data for {asin}: "
                     f"title='{title[:title_preview_length]}...', "

@@ -14,7 +14,7 @@ from typing import Any
 import requests
 from PIL import Image
 
-from .config import CONFIG, get_config_value
+from .config import CONFIG, get_config_value, get_settings
 from .constants import HIGH_RES_DIMENSION
 
 logger = logging.getLogger(__name__)
@@ -59,13 +59,7 @@ def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
         ]
 
         # Get timeout from config (with fallback)
-        from .config import CONFIG
-
-        timeout = (
-            CONFIG.get("global_settings", {})
-            .get("media_config", {})
-            .get("ffprobe_timeout_sec", 30)
-        )
+        timeout = get_settings().global_settings.media_config.ffprobe_timeout_sec
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         if result.returncode != 0:
@@ -317,18 +311,10 @@ def verify_video_file(
     """
     # Get config values if not provided
     if min_dimension is None:
-        min_dimension = (
-            CONFIG.get("global_settings", {})
-            .get("video_config", {})
-            .get("min_dimension", 640)
-        )
+        min_dimension = get_settings().global_settings.video_config.min_dimension
 
     if min_duration is None:
-        min_duration = (
-            CONFIG.get("global_settings", {})
-            .get("video_config", {})
-            .get("min_duration", 1.0)
-        )
+        min_duration = get_settings().global_settings.video_config.min_duration
 
     validation_data = {
         "file_type": "video",
@@ -367,11 +353,7 @@ def verify_video_file(
             ]
 
             # Get timeout from config (with fallback)
-            timeout = (
-                CONFIG.get("global_settings", {})
-                .get("media_config", {})
-                .get("ffprobe_timeout_sec", 30)
-            )
+            timeout = get_settings().global_settings.media_config.ffprobe_timeout_sec
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=timeout
             )

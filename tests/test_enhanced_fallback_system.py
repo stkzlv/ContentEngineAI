@@ -86,25 +86,21 @@ class TestEnhancedFallbackSystem:
             assert "global_settings" in config
             assert "scrapers" in config
 
-    def test_scraper_config_adapter_structure_error_fallback(self):
-        """Test ScraperConfigAdapter handles structure validation errors."""
+    def test_scraper_config_adapter_refuses_an_unknown_structure(self):
+        """A file whose keys the models do not declare fails at load.
+
+        It used to be swallowed into a hand-written fallback dict, which read
+        every value as a default of the adapter's own (#125).
+        """
+        from pydantic import ValidationError
+
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "scraper.yaml"
             config_path.write_text("valid_yaml: true\nbut_wrong_structure: yes")
 
             adapter = ScraperConfigAdapter(config_root=temp_dir)
-
-            # Mock _ensure_required_structure to raise exception
-            with patch.object(
-                adapter,
-                "_ensure_required_structure",
-                side_effect=Exception("Structure error"),
-            ):
-                config = adapter.get_merged_config_dict()
-
-                # Should use minimal fallback
-                assert "global_settings" in config
-                assert "scrapers" in config
+            with pytest.raises(ValidationError, match="valid_yaml"):
+                adapter.get_merged_config_dict()
 
     def test_get_output_path_config_fallback(self):
         """Test get_output_path function fallback when config fails."""

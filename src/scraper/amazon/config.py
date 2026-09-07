@@ -4,17 +4,39 @@ This module handles YAML configuration loading, path management, and global
 settings for the scraper.
 """
 
+import logging
 import random
 from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import ValidationError
 
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 
 # Global configuration storage
+from src.scraper.config_models import ScraperConfig
+
+logger = logging.getLogger(__name__)
+
 CONFIG: dict[str, Any] = {}
 _BROWSER_CONFIG: dict[str, Any] = {}
+# The typed twin of CONFIG. Both come from one validated model, so a value
+# read from either is the file's or the model's default, never a reader's
+# own (#125). Bound at import to the defaults so a unit test that never loads
+# a file still reads the same numbers the YAML ships.
+SETTINGS: ScraperConfig = ScraperConfig()
+
+
+def get_settings() -> ScraperConfig:
+    """The current typed scraper configuration.
+
+    A function rather than the module attribute, because `SETTINGS` is
+    rebound when a file is loaded and a name imported earlier would keep
+    pointing at the defaults.
+    """
+    return SETTINGS
+
 
 _MISSING = object()
 
@@ -277,17 +299,13 @@ def load_batch_config(
     """
     from .models import BatchConfig
 
-    # Load YAML batch configuration with defaults
-    yaml_batch = CONFIG.get("batch", {})
-    yaml_product_ids = yaml_batch.get("product_ids", [])
-    yaml_keywords_raw = yaml_batch.get("keywords", [])
-    yaml_fail_fast = yaml_batch.get("fail_fast", False)
-    yaml_products_per_keyword = yaml_batch.get("products_per_keyword", 2)
-
-    # Load max_products from scrapers.amazon config
-    yaml_max_products = (
-        CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 10)
-    )
+    # The typed batch section; its defaults are the model's, not this file's.
+    batch_section = SETTINGS.batch
+    yaml_product_ids = list(batch_section.product_ids)
+    yaml_keywords_raw = batch_section.keywords
+    yaml_fail_fast = batch_section.fail_fast
+    yaml_products_per_keyword = batch_section.products_per_keyword
+    yaml_max_products = SETTINGS.amazon.max_products
 
     # Build keyword list and pillar map from YAML.
     # Dict shape (pillar -> keyword list) attaches each keyword to its pillar.
@@ -342,13 +360,11 @@ def get_batch_logging_config() -> dict[str, str | int]:
         - media_stats_decimal_places: int
 
     """
-    yaml_batch = CONFIG.get("batch", {})
-    logging_config = yaml_batch.get("logging", {})
-
-    separator_char: str = logging_config.get("separator_char", "=")
-    separator_width: int = logging_config.get("separator_width", 60)
-    duration_decimal: int = logging_config.get("duration_decimal_places", 2)
-    media_stats_decimal: int = logging_config.get("media_stats_decimal_places", 2)
+    logging_config = SETTINGS.batch.logging
+    separator_char: str = logging_config.separator_char
+    separator_width: int = logging_config.separator_width
+    duration_decimal: int = logging_config.duration_decimal_places
+    media_stats_decimal: int = logging_config.media_stats_decimal_places
 
     return {
         "separator_char": separator_char,
@@ -362,7 +378,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
     """Load and apply YAML configuration to global browser settings using config
     adapter
     """
-    global CONFIG, _BROWSER_CONFIG
+    global CONFIG, _BROWSER_CONFIG, SETTINGS
 
     try:
         # Use the new config adapter for backward compatibility
@@ -370,6 +386,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
 
         adapter = ScraperConfigAdapter()
         config_data = adapter.get_merged_config_dict()
+        SETTINGS = adapter.get_settings()
         CONFIG.update(config_data)
 
         # Import here to avoid circular imports
@@ -401,13 +418,13 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
                 "parallel": bt.calc_max_parallel_browsers(),  # Dynamic calculation
                 # for optimal resource usage
                 "cache": False,  # Disabled for testing new image extraction
-                "max_retry": global_settings.get("retries", 3),
+                "max_retry": SETTINGS.global_settings.retries,
                 "block_images": False,  # Show images in browser
                 # Disabled - causes StopIteration in headless mode
                 "reuse_driver": False,
                 "close_on_crash": not debug_mode,  # Debug mode keeps browser
                 # open on crash
-                "proxy": global_settings.get("proxy"),
+                "proxy": SETTINGS.global_settings.proxy,
                 "user_agent": UserAgent.RANDOM,  # Randomize user agent for better
                 # anti-detection
                 # Desktop-width only; see desktop_window_sizes note above (#161).
@@ -430,88 +447,39 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
 
         return config_data
 
+    except ValidationError:
+        # A misspelled or unknown key in the file. Falling back here would
+        # read every value in that section as a default, silently, which is
+        # the class of defect the typed load exists to refuse (#125).
+        raise
     except Exception as e:
-        print(f"Error loading configuration: {e}")
-        print("Using enhanced fallback configuration...")
-
-        # Enhanced fallback configuration
-        CONFIG = {
-            "global_settings": {
-                "debug_mode": True,
-                "output_config": {
-                    "base_directory": "outputs",
-                    "file_patterns": {
-                        "product_file": "{keyword}_products.json",
-                        "image_file": "{asin}_image_{index}.{ext}",
-                        "video_file": "{asin}_video_{index}.{ext}",
-                    },
-                },
-                "retries": 3,
-            },
-            "scrapers": {
-                "amazon": {
-                    "enabled": True,
-                    "base_url": "https://www.amazon.com",
-                    "max_products": 3,
-                    "default_search_parameters": {
-                        "prime_only": False,
-                        "sort_order": "relevanceblender",
-                    },
-                }
-            },
-        }
-
-        _BROWSER_CONFIG = {
-            "headless": False,  # headed under Xvfb (Botasaurus headless bug)
-            "close_on_crash": True,
-            "max_retry": 3,
-            "cache": False,
-            "block_images": False,
-            "reuse_driver": True,
-        }
-
+        logger.error("Error loading scraper configuration: %s; using defaults", e)
+        SETTINGS = ScraperConfig()
+        CONFIG = SETTINGS.to_runtime_dict()
+        _BROWSER_CONFIG = _fallback_browser_config()
         return CONFIG
 
 
-# Initialize on import with enhanced fallback
-try:
-    load_browser_config_from_yaml()
-except Exception as init_error:
-    print(f" Warning: Config initialization failed: {init_error}")
-    print("Using enhanced initialization fallback...")
-
-    # Enhanced initialization fallback configuration
-    CONFIG = {
-        "global_settings": {
-            "debug_mode": True,
-            "output_config": {
-                "base_directory": "outputs",
-                "file_patterns": {
-                    "product_file": "{keyword}_products.json",
-                    "image_file": "{asin}_image_{index}.{ext}",
-                    "video_file": "{asin}_video_{index}.{ext}",
-                },
-            },
-            "retries": 3,
-        },
-        "scrapers": {
-            "amazon": {
-                "enabled": True,
-                "base_url": "https://www.amazon.com",
-                "max_products": 3,
-                "default_search_parameters": {
-                    "prime_only": False,
-                    "sort_order": "relevanceblender",
-                },
-            }
-        },
-    }
-
-    _BROWSER_CONFIG = {
+def _fallback_browser_config() -> dict[str, Any]:
+    """Browser settings when the file cannot be loaded at all."""
+    return {
         "headless": False,  # headed under Xvfb (Botasaurus headless bug)
         "close_on_crash": True,
-        "max_retry": 3,
+        "max_retry": SETTINGS.global_settings.retries,
         "cache": False,
         "block_images": False,
         "reuse_driver": True,
     }
+
+
+# Initialize on import. A validation error propagates: the bundled file
+# must load, and a typo in it is a defect to fix, not a state to run in.
+try:
+    load_browser_config_from_yaml()
+except ValidationError:
+    raise
+except Exception as init_error:
+    logger.error("Scraper config initialization failed: %s; using defaults", init_error)
+    SETTINGS = ScraperConfig()
+    CONFIG = SETTINGS.to_runtime_dict()
+    _BROWSER_CONFIG = _fallback_browser_config()

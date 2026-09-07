@@ -46,7 +46,13 @@ class PlatformConfigManager:
 
         with open(config_file, encoding="utf-8") as f:
             result = yaml.safe_load(f)
-            return result if isinstance(result, dict) else {}
+        raw = result if isinstance(result, dict) else {}
+        # Validated and defaults-filled, so every reader indexes a present key
+        # and a misspelled one fails here rather than reading as a default.
+        from src.scraper.config_models import ScraperConfig
+
+        self.settings = ScraperConfig.from_legacy_dict(raw)
+        return self.settings.to_runtime_dict()
 
     def _validate_config(self) -> None:
         """Validate the loaded configuration structure."""
@@ -253,8 +259,7 @@ class PlatformConfigManager:
 
         """
         platform_config = self.get_platform_config(platform)
-        result = platform_config.get("max_products", 5)
-        return int(result) if isinstance(result, int | float) else 5
+        return int(platform_config["max_products"])
 
     def get_platform_keywords(self, platform: Platform) -> list[str]:
         """Get default keywords for a platform.

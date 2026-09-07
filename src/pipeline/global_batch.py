@@ -1323,7 +1323,7 @@ class GlobalPipelineOrchestrator:
             profile_uses_videos=profile_uses_videos,
         )
 
-        scraper.amazon_config["max_products"] = self.config.products_per_keyword
+        scraper.run_max_products = self.config.products_per_keyword
 
         # Track statistics
         inputs_processed = 0
@@ -1364,7 +1364,7 @@ class GlobalPipelineOrchestrator:
 
             remaining = self.config.max_products - len(successful_products)
             per_input_limit = min(self.config.products_per_keyword, remaining)
-            scraper.amazon_config["max_products"] = per_input_limit
+            scraper.run_max_products = per_input_limit
 
             collected = f"{len(successful_products)}/{self.config.max_products}"
             logger.info(

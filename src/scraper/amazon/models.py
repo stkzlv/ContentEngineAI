@@ -111,18 +111,11 @@ class SearchParameters(BaseSearchParameters):
 
     def to_cents(self, price: float) -> int:
         """Convert dollar amount to cents for Amazon URL encoding."""
-        # Import CONFIG here to avoid circular imports
-        try:
-            from .config import CONFIG
+        # Imported here to avoid a circular import; typed, so the multiplier
+        # is the file's or the model's default, never this method's.
+        from .config import get_settings
 
-            multiplier = (
-                CONFIG.get("scrapers", {})
-                .get("amazon", {})
-                .get("filter_parameters", {})
-                .get("price_to_cents_multiplier", 100)
-            )
-        except Exception:
-            multiplier = 100
+        multiplier = get_settings().amazon.filter_parameters.price_to_cents_multiplier
         return int(price * multiplier)
 
     def encode_price_range(self) -> str | None:

@@ -8,7 +8,8 @@ import logging
 
 import requests
 
-from .config import CONFIG
+from .config import CONFIG, get_settings
+from .image_utils import _validation_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -39,23 +40,15 @@ def _validate_image_size_before_download(
     try:
         # Get config values for validation
         try:
-            download_config = CONFIG.get("global_settings", {}).get(
-                "download_config", {}
-            )
             amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
             validation_headers = amazon_config.get("http_headers", {}).get(
                 "media_download", {}
             )
 
-            validation_timeout = download_config.get(
-                "validation_timeout",
-                CONFIG.get("global_settings", {})
-                .get("system_timeouts", {})
-                .get("head_request_timeout", 10),
-            )
+            validation_timeout = _validation_timeout()
         except Exception:
-            # Fallback values
-            validation_timeout = 10
+            # Fallback headers only; the timeout is the same typed value.
+            validation_timeout = _validation_timeout()
             try:
                 # Try to get user agent from config
                 standard_headers = (

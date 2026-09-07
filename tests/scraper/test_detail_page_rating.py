@@ -21,6 +21,7 @@ from src.scraper.amazon.product_extractor import (
     _extract_detail_rating,
     _extract_detail_reviews_count,
 )
+from src.scraper.config_models import ScraperConfig
 
 
 class FakeDriver:
@@ -218,6 +219,8 @@ def test_the_record_keeps_the_detail_values(monkeypatch, tmp_path):
     import logging
 
     scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+    scraper.settings = ScraperConfig()
     scraper.logger = logging.getLogger("test")
     scraper.debug_mode = False
     scraper.output_dir = tmp_path

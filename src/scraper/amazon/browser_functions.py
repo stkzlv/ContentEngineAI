@@ -26,7 +26,7 @@ from ..base.throttle import (
     is_error_page_failure,
 )
 from .botasaurus_output import get_browser_config_for_outputs
-from .config import _BROWSER_CONFIG, CONFIG
+from .config import _BROWSER_CONFIG, CONFIG, get_settings
 from .media_extractor import (
     extract_functional_videos_with_validation,
     extract_high_res_images_botasaurus,
@@ -164,10 +164,9 @@ def scrape_amazon_products_browser_impl(
             try:
                 # Use Botasaurus-compatible window sizing method
                 # Get window dimensions from config
-                global_settings = CONFIG.get("global_settings", {})
-                browser_config = global_settings.get("browser_config", {})
-                width = browser_config.get("debug_window_width", 1920)
-                height = browser_config.get("debug_window_height", 1200)
+                browser_config = get_settings().global_settings.browser_config
+                width = browser_config.debug_window_width
+                height = browser_config.debug_window_height
 
                 driver.run_js(f"window.resizeTo({width}, {height});")
                 logger.debug(
@@ -304,10 +303,9 @@ def scrape_amazon_products_browser_impl(
             try:
                 # Use Botasaurus-compatible window sizing method
                 # Get window dimensions from config
-                global_settings = CONFIG.get("global_settings", {})
-                browser_config = global_settings.get("browser_config", {})
-                width = browser_config.get("debug_window_width", 1920)
-                height = browser_config.get("debug_window_height", 1200)
+                browser_config = get_settings().global_settings.browser_config
+                width = browser_config.debug_window_width
+                height = browser_config.debug_window_height
 
                 driver.run_js(f"window.resizeTo({width}, {height});")
                 logger.debug(
@@ -520,9 +518,9 @@ def scrape_amazon_products_browser_impl(
             return []
 
         # Extract products from search results
-        global_settings = CONFIG.get("global_settings", {})
-        browser_config = global_settings.get("browser_config", {})
-        default_max = browser_config.get("max_products_per_search", 5)
+        default_max = (
+            get_settings().global_settings.browser_config.max_products_per_search
+        )
         max_products = data.get("max_products", default_max)
 
         # Enhanced collection logic: count products with media files (requirement #20)
@@ -928,10 +926,9 @@ def _build_browser_config(debug_mode=False):
     if not any("--ozone-platform" in arg for arg in chrome_args):
         chrome_args.append("--ozone-platform=x11")
     if not any("--timeout" in arg for arg in chrome_args):
-        global_settings = CONFIG.get("global_settings", {})
-        browser_config = global_settings.get("browser_config", {})
-        page_timeout = browser_config.get("page_load_timeout_ms", 60000)
-        script_timeout = browser_config.get("script_execution_timeout_ms", 30000)
+        browser_config = get_settings().global_settings.browser_config
+        page_timeout = browser_config.page_load_timeout_ms
+        script_timeout = browser_config.script_execution_timeout_ms
 
         chrome_args.extend(
             [
@@ -1216,16 +1213,7 @@ def scrape_single_product(
         logger.info("   Driver type: %s", type(driver).__name__)
         logger.info("   Browser name: %s", getattr(driver, "name", "Unknown"))
 
-        try:
-            from .config import CONFIG
-
-            debug_pause = (
-                CONFIG.get("global_settings", {})
-                .get("rate_limiting", {})
-                .get("debug_pause_duration", 5)
-            )
-        except Exception:
-            debug_pause = 5
+        debug_pause = get_settings().global_settings.rate_limiting.debug_pause_duration
         logger.debug(
             "[DEBUG] Pausing for %s seconds so you can see the browser...",
             debug_pause,

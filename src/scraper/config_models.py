@@ -4,11 +4,15 @@ Modern, typed configuration models for the scraper system following the same
 pattern as the video pipeline configuration.
 """
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class RetryConfig(BaseModel):
     """Exponential backoff retry configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     default_max_retries: int = Field(default=3, ge=0)
     base_delay: float = Field(default=1.0, gt=0)
@@ -20,6 +24,8 @@ class RetryConfig(BaseModel):
 
 class RateLimitingConfig(BaseModel):
     """Rate limiting and delay configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     video_validation_delay: list[float] = Field(default=[0.5, 1.5])
     debug_pause_duration: int = Field(default=5, ge=0)
@@ -39,6 +45,8 @@ class RateLimitingConfig(BaseModel):
 class ImageConfig(BaseModel):
     """Image processing and validation configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     min_high_res_dimension: int = Field(default=1500, gt=0)
     min_high_res_file_size: int = Field(default=10000, gt=0)
     very_high_res_dimension: int = Field(default=2000, gt=0)
@@ -48,6 +56,8 @@ class ImageConfig(BaseModel):
 class DebugSettings(BaseModel):
     """Debug file generation controls."""
 
+    model_config = ConfigDict(extra="forbid")
+
     create_media_validation_reports: bool = Field(default=True)
     save_screenshots: bool = Field(default=False)
     save_error_screenshots: bool = Field(default=True)
@@ -55,6 +65,8 @@ class DebugSettings(BaseModel):
 
 class VideoConfig(BaseModel):
     """Video processing configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     min_dimension: int = Field(default=640, gt=0)
     min_duration: float = Field(default=1.0, gt=0)
@@ -69,10 +81,16 @@ class VideoConfig(BaseModel):
 class DownloadConfig(BaseModel):
     """HTTP download configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     download_timeout: int = Field(default=30, gt=0)
     video_download_timeout: int = Field(default=300, gt=0)
     retry_video_downloads: int = Field(default=2, ge=0)
     download_chunk_size: int = Field(default=8192, gt=0)
+    # None resolves to `system_timeouts.head_request_timeout` at the site,
+    # which is what the dict-walk did when the key was absent.
+    validation_timeout: int | None = Field(default=None, gt=0)
+    min_image_file_size: int = Field(default=10000, gt=0)
     validation_range_bytes: str = Field(default="0-1023")
     concurrent_image_downloads: int = Field(default=5, gt=0)
     concurrent_video_downloads: int = Field(default=3, gt=0)
@@ -81,12 +99,17 @@ class DownloadConfig(BaseModel):
 class SystemTimeouts(BaseModel):
     """System command and network operation timeouts."""
 
+    model_config = ConfigDict(extra="forbid")
+
     system_command_timeout: int = Field(default=5, gt=0)
     head_request_timeout: int = Field(default=10, gt=0)
+    system_profiler_timeout: int = Field(default=10, gt=0)
 
 
 class MediaConfig(BaseModel):
     """Media file handling configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     default_image_extension: str = Field(default=".jpg")
     amazon_media_domains: list[str] = Field(
@@ -97,10 +120,13 @@ class MediaConfig(BaseModel):
     js_context_chars: int = Field(default=500, gt=0)
     valid_http_status_codes: list[int] = Field(default=[200, 206])
     min_file_size_absolute: int = Field(default=1000, gt=0)
+    ffprobe_timeout_sec: int = Field(default=30, gt=0)
 
 
 class DebugConfig(BaseModel):
     """Debug output formatting configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     title_preview_length: int = Field(default=50, gt=0)
     url_preview_length: int = Field(default=100, gt=0)
@@ -109,6 +135,8 @@ class DebugConfig(BaseModel):
 
 class ValidationConfig(BaseModel):
     """Product validation rules."""
+
+    model_config = ConfigDict(extra="forbid")
 
     essential_fields: list[str] = Field(default_factory=list)
     min_total_media: int = Field(default=3, ge=0)
@@ -120,6 +148,8 @@ class ValidationConfig(BaseModel):
 
 class BrowserConfig(BaseModel):
     """Browser window behavior and timeouts."""
+
+    model_config = ConfigDict(extra="forbid")
 
     debug_window_width: int = Field(default=1920, gt=0)
     debug_window_height: int = Field(default=1200, gt=0)
@@ -136,6 +166,8 @@ class BrowserConfig(BaseModel):
 class BatchProcessingConfig(BaseModel):
     """Batch processing loop configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     max_scrape_attempts: int = Field(
         default=50, gt=0, description="Safety limit to prevent infinite scraping loops"
     )
@@ -147,10 +179,15 @@ class BatchProcessingConfig(BaseModel):
     max_batch_size: int = Field(
         default=15, gt=0, description="Maximum products to fetch in a single batch"
     )
+    # The standalone loop's page ceiling; the batch reads max_retry_pages.
+    max_pages: int = Field(default=7, gt=0)
+    max_retry_pages: int = Field(default=5, ge=0)
 
 
 class CSSSelectors(BaseModel):
     """CSS selector configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     product_title_selectors: list[str] = Field(
         default=[
@@ -168,6 +205,8 @@ class CSSSelectors(BaseModel):
 class ASINPatterns(BaseModel):
     """ASIN validation patterns."""
 
+    model_config = ConfigDict(extra="forbid")
+
     modern_asin_pattern: str = Field(default="^B0[A-Z0-9]{8}$")
     legacy_asin_pattern: str = Field(default="^[A-Z0-9]{10}$")
     url_asin_pattern: str = Field(default="/dp/([A-Z0-9]{10})")
@@ -175,6 +214,8 @@ class ASINPatterns(BaseModel):
 
 class OutputConfig(BaseModel):
     """Output directory and file pattern configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     base_directory: str = Field(default="outputs")
     file_patterns: dict[str, str] = Field(
@@ -188,6 +229,8 @@ class OutputConfig(BaseModel):
 
 class GlobalScraperSettings(BaseModel):
     """Global scraper settings."""
+
+    model_config = ConfigDict(extra="forbid")
 
     debug_mode: bool = Field(default=False)
     output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
@@ -212,10 +255,43 @@ class GlobalScraperSettings(BaseModel):
     )
     css_selectors: CSSSelectors = Field(default_factory=lambda: CSSSelectors())
     asin_patterns: ASINPatterns = Field(default_factory=lambda: ASINPatterns())
+    # Botasaurus task retries; only ever read by the browser config builder.
+    retries: int = Field(default=3, ge=0)
+    # Forwarded to the browser as its proxy setting; unset means none.
+    proxy: str | None = Field(default=None)
+
+
+class BatchLoggingConfig(BaseModel):
+    """Formatting of the batch summary lines."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    separator_char: str = Field(default="=")
+    separator_width: int = Field(default=60, gt=0)
+    duration_decimal_places: int = Field(default=2, ge=0)
+    media_stats_decimal_places: int = Field(default=2, ge=0)
+
+
+class BatchSection(BaseModel):
+    """The top-level `batch:` block of `config/scraper.yaml`.
+
+    `keywords` keeps the raw shape -- a flat list, or a dict keyed by pillar
+    -- because `read_keyword_pillars` is the one reader that folds it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_ids: list[str] = Field(default_factory=list)
+    keywords: list[str] | dict[str, list[str]] = Field(default_factory=list)
+    fail_fast: bool = Field(default=False)
+    products_per_keyword: int = Field(default=2, gt=0)
+    logging: BatchLoggingConfig = Field(default_factory=lambda: BatchLoggingConfig())
 
 
 class SearchParameters(BaseModel):
     """Amazon search parameters."""
+
+    model_config = ConfigDict(extra="forbid")
 
     min_price: float | None = Field(default=None, ge=0)
     max_price: float | None = Field(default=None, ge=0)
@@ -232,6 +308,8 @@ class SearchParameters(BaseModel):
 class FilterParameters(BaseModel):
     """Amazon filter parameters and codes."""
 
+    model_config = ConfigDict(extra="forbid")
+
     price_to_cents_multiplier: int = Field(default=100)
     rating_codes: dict[float, str] = Field(
         default={
@@ -247,6 +325,8 @@ class FilterParameters(BaseModel):
 
 class HTTPHeaders(BaseModel):
     """HTTP headers for different request types."""
+
+    model_config = ConfigDict(extra="forbid")
 
     video_validation: dict[str, str] = Field(
         default={
@@ -305,6 +385,8 @@ class AffiliateLinksConfig(BaseModel):
 class AmazonScraperConfig(BaseModel):
     """Amazon-specific scraper configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = Field(default=True)
     base_url: str = Field(default="https://www.amazon.com")
     keywords: list[str] = Field(default=["keyboard"])
@@ -322,10 +404,59 @@ class AmazonScraperConfig(BaseModel):
     http_headers: HTTPHeaders = Field(default_factory=lambda: HTTPHeaders())
 
 
+class ScrapersSection(BaseModel):
+    """The `scrapers:` block; one platform today, refusing any other key."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    amazon: AmazonScraperConfig = Field(default_factory=lambda: AmazonScraperConfig())
+
+
 class ScraperConfig(BaseModel):
     """Top-level scraper configuration combining global and platform settings."""
+
+    model_config = ConfigDict(extra="forbid")
 
     global_settings: GlobalScraperSettings = Field(
         default_factory=lambda: GlobalScraperSettings()
     )
+    batch: BatchSection = Field(default_factory=lambda: BatchSection())
     amazon: AmazonScraperConfig = Field(default_factory=lambda: AmazonScraperConfig())
+
+    @classmethod
+    def from_legacy_dict(cls, config: dict[str, Any]) -> "ScraperConfig":
+        """Validate the YAML's own shape (`scrapers.amazon`, top-level `batch`).
+
+        Every submodel refuses unknown keys, so a misspelled key in the file
+        or a section the models do not describe fails here, at load, instead
+        of being read back as a default somewhere downstream (#125).
+        """
+        # Every other top-level key is passed through so this model's own
+        # `extra="forbid"` refuses it; picking the three by name would let a
+        # misspelled section load as its defaults.
+        if "amazon" in config and "scrapers" in config:
+            raise ValueError(
+                "scraper config carries both a top-level `amazon` block and "
+                "`scrapers.amazon`; keep one"
+            )
+        if "amazon" in config:
+            # The consolidated shape: `amazon` at the top level is this
+            # model's own field, so it validates as written rather than being
+            # replaced by the defaults of an absent `scrapers` block.
+            return cls.model_validate(config)
+        passthrough = {k: v for k, v in config.items() if k != "scrapers"}
+        scrapers = ScrapersSection.model_validate(config.get("scrapers") or {})
+        return cls.model_validate({**passthrough, "amazon": scrapers.amazon})
+
+    def to_runtime_dict(self) -> dict[str, Any]:
+        """The dict consumers walk, in the YAML's shape, every key present.
+
+        Built from the validated model, so a reader that indexes it can
+        never fall through to a default of its own.
+        """
+        data = self.model_dump()
+        return {
+            "global_settings": data["global_settings"],
+            "batch": data["batch"],
+            "scrapers": {"amazon": data["amazon"]},
+        }

@@ -277,7 +277,13 @@ dropped silently rather than rejected and none of those values takes effect.
 `optimization_settings` is set in no config file at all and loads as `None`.
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
-Web scraping and browser settings with type-safe Pydantic models:
+Web scraping and browser settings, validated at load through the Pydantic
+models in `src/scraper/config_models.py`. Every section refuses keys it does
+not declare, so a misspelled key fails when the file is read rather than
+being read back as some default downstream, and the defaults for every field
+live in the model, not in the code that reads them. A section left out of
+the file takes the model's defaults. The three top-level blocks are
+`global_settings`, `batch` and `scrapers`:
 
 ```yaml
 global_settings:
@@ -306,11 +312,7 @@ scrapers:
     max_products: 10
 ```
 
-**Type Safety (v0.14.0+)**: The scraper uses Pydantic models (`src/scraper/config_models.py`) for configuration validation. Load with:
-```python
-from src.scraper.config_adapter import load_scraper_config_pydantic
-config = load_scraper_config_pydantic()  # Type-safe ScraperConfig instance
-```
+**Typed access**: the validated `ScraperConfig` behind the dict is `get_settings()` in `src/scraper/amazon/config.py`; `ScraperConfigAdapter.get_settings()` returns the same object for a given root.
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
 URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [docs/scraper.md](scraper.md#url-shortener).
