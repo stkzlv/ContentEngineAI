@@ -136,6 +136,25 @@ class TestTheValidatorRefusesAScriptWithoutOne:
     def test_a_suffix_of_a_cta_is_not_a_cta(self) -> None:
         assert not ends_with_cta(f"{BODY} Unlink in bio if you want one.", PRODUCT_CTAS)
 
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "So, link in bio if you want one.",
+            "That's my take, and link in bio if you want one.",
+            "Anyway, follow for more finds like this.",
+        ],
+    )
+    def test_a_cta_with_words_in_front_is_not_a_cta(self, sentence: str) -> None:
+        """Sentence-level, not word-level.
+
+        A tail match accepted these, and the extractor -- which strips a CTA
+        only when the sentence opens with it -- then made this sentence the
+        YouTube first comment, where the substring match on main had
+        stripped it. Every doc states the final-sentence rule; the code has
+        to enforce it.
+        """
+        assert not ends_with_cta(f"{BODY} {sentence}", PRODUCT_CTAS)
+
     def test_an_empty_option_is_refused_at_load(self) -> None:
         from src.video.config.llm_settings import ScriptTemplateConfig
 

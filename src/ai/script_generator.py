@@ -716,22 +716,29 @@ def _normalise_line(text: str) -> str:
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
-def ends_with_cta(script: str, cta_options: list[str]) -> bool:
-    """Whether the script ends on one of the configured CTAs, verbatim.
+def _sentences(text: str) -> list[str]:
+    return [s for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]
 
-    Compares the normalised tail of the whole script rather than its last
-    split sentence, so an option that itself contains a full stop still
-    validates. A word boundary before the match keeps "...and link in bio if
-    you want one" from passing on a suffix.
+
+def ends_with_cta(script: str, cta_options: list[str]) -> bool:
+    """Whether the script's final sentence is one of the configured CTAs.
+
+    Sentence-level, deliberately. A word-level tail match accepted "So, link
+    in bio if you want one." -- and the first-comment extractor, which strips
+    a CTA only when the sentence *opens* with it, then handed that sentence
+    to YouTube as the comment. So the comparison takes as many trailing
+    sentences as the option itself spans (an option may carry its own full
+    stop), normalises them together, and requires equality: a CTA with
+    words in front of it in the same sentence is not the CTA.
     """
     if not cta_options:
         return True
-    tail = _normalise_line(script)
-    if not tail:
+    sentences = _sentences(script)
+    if not sentences:
         return False
     for cta in cta_options:
-        target = _normalise_line(cta)
-        if tail == target or tail.endswith(" " + target):
+        span = len(_sentences(cta))
+        if _normalise_line(" ".join(sentences[-span:])) == _normalise_line(cta):
             return True
     return False
 
