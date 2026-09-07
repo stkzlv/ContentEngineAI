@@ -1347,6 +1347,71 @@ so a mismatched shot can be traced to the judge or to the phrase. The judge
 runs only where a script exists when the visuals are gathered, which is the
 script-first order the stock profiles use.
 
+#### Fact-checking a topic script
+
+A topic script tells the viewer how to do something, and a wrong menu path or
+a wrong number is followable right up to the point where it fails. After the
+script is written, one grounded query asks a search-backed model which of its
+falsifiable claims are wrong and what the correct fact is; the named sentences
+are then rewritten by a second, ungrounded call.
+
+```yaml
+llm_settings:
+  script_fact_check:
+    enabled: true
+    model: "gemini-2.5-flash"
+    topics_only: true         # a product claim needs the listing, not a search
+    max_flags_to_revise: 3
+    max_length_drift: 0.25
+    timeout_seconds: 45
+```
+
+Measured over seventeen real pipeline scripts: eighty-three falsifiable
+claims, sixteen flagged, fourteen of the sixteen right on review. So about one
+flag in eight is a false positive, and the revision is confined for exactly
+that reason. A rewrite is accepted only if the sentences it changed are the
+ones a flagged claim names and the sentence following each claim, since a
+correction often has to carry into the step that referenced the wrong thing;
+every other sentence must come back unchanged and in the same order, and at
+most one new sentence per flag may appear. A claim that quotes more than two
+sentences is refused outright, and so is a revision that leaves no body
+sentence of the original standing: a script flagged that heavily is being
+rejected wholesale rather than repaired, and patching it sentence by sentence
+would leave nothing protected. It must also keep the closing call to action verbatim,
+pass the usual script validation, and stay within `max_length_drift` of the
+original length. Anything else ships the original with the reason logged.
+
+There is no round count to set. The script is checked once and repaired once,
+so the repaired sentence is never itself checked -- a real gap, and the reason
+the containment rules above are as tight as they are.
+
+Nothing here can lose a render. A missing key, an unreachable search backend,
+an unparseable answer, a reviser that returns nothing and a rewrite that fails
+any guard all ship the script that was generated.
+
+`topics_only` is not caution about unmeasured precision. A web search is the
+wrong instrument for a product claim, whose ground truth is the scraped
+listing already in hand: a search resolves to a different item, a review or a
+successor model, so it would both flag correct copy and bless wrong copy.
+
+The model is a flash tier rather than the lite tier the neighbouring blocks
+use, and `thinking_budget` is deliberately not applied to it. `timeout_seconds`
+is generous against a measured ten-second median because a grounded call has a
+search round trip inside it.
+
+Every topic run that generates a script writes
+`temp/script_fact_check.json`, including on a clean verdict, so a run where the check found nothing stays
+distinguishable from one where it never ran. A run that resumes over an
+existing script neither checks nor records, which is also why it costs
+nothing. The file carries the flagged claims, the proposed fixes, the reason
+a revision was accepted or refused, and the model's raw answer.
+
+It is an intermediate file like the script and the gathered visuals, so a
+successful run without `--debug` deletes it along with the rest of `temp/`.
+Re-measuring the flag rate over real renders therefore means running them with
+`--debug`; a record that outlived the run would have to be written outside the
+product directory, which is cleaned after a successful publish anyway.
+
 </details>
 
 <details>

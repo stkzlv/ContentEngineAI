@@ -270,6 +270,66 @@ class TestExtractClosingLine:
             "Four trackers for the price of one is a solid deal."
         )
 
+    def test_a_beat_ending_on_a_quoted_label_does_not_carry_the_cta(self):
+        """The stripper reads the last sentence, so where a sentence ends is
+        load-bearing here. A splitter demanding the terminator come last
+        merged a beat ending on a quoted interface label into the CTA, and
+        the CTA itself became the published first comment -- the failure
+        `_CTA_MARKERS` exists to prevent. A how-to quotes labels constantly.
+        """
+        script = (
+            "Open it and read the list. "
+            'The other ports might just say "USB 3.1." '
+            "Save this for the next time it happens."
+        )
+        assert extract_closing_line(script) == (
+            'The other ports might just say "USB 3.1."'
+        )
+
+    def test_a_beat_before_a_lowercase_sentence_is_not_swallowed(self):
+        """The other half of the same knob. A splitter demanding a capital
+        after the space merges two real sentences whenever the second starts
+        `iPhone` or `iOS`, and the beat then carries a sentence that is not
+        the beat.
+        """
+        script = (
+            "This works on macOS. "
+            "iOS handles it differently. "
+            "Save this for the next time it happens."
+        )
+        assert extract_closing_line(script) == "iOS handles it differently."
+
+    def test_an_inline_quotation_does_not_start_a_new_sentence(self):
+        """The closing-quote branch exists for a beat *ending* on a quoted
+        label. A quotation ending in a terminator mid-sentence looks the same
+        to it, and with a lowercase continuation allowed it split there --
+        publishing a first comment that begins "and then". That branch
+        therefore requires a capital, which a real next sentence has.
+        """
+        script = (
+            "The port looks identical on both sides. "
+            'You ask yourself "why is it slow?" and then you check the wrong one. '
+            "Save this for the next time it happens."
+        )
+        assert extract_closing_line(script) == (
+            'You ask yourself "why is it slow?" and then you check the wrong one.'
+        )
+
+    def test_the_splitter_is_the_shared_one(self):
+        """Three modules reason about where a script's sentences end: this
+        one, the fact check's containment guard, and `ends_with_cta`. They
+        disagreed, so a repair confined correctly by one was refused by
+        another for not ending on a CTA. A test that only drives this module
+        cannot see that, which is why it reads the identity.
+        """
+        from src.ai import script_fact_check, script_generator
+        from src.publisher import first_comment
+        from src.utils.script_sanitizer import split_sentences
+
+        assert first_comment.split_sentences is split_sentences
+        assert script_generator.split_sentences is split_sentences
+        assert script_fact_check.split_sentences is split_sentences
+
     def test_falls_back_to_the_debatable_claim(self):
         """Analytical templates close with a claim, not a question."""
         script = (

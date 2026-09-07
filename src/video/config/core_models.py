@@ -353,6 +353,7 @@ class ProductTempFiles(BaseModel):
     whisper_word_list: str = Field("whisper_word_list.json")
     gathered_visuals: str = Field("gathered_visuals.json")
     music_choice: str = Field("music_choice.json")
+    script_fact_check: str = Field("script_fact_check.json")
     voiceover_duration: str = Field("voiceover_duration.txt")
     script_prompt: str = Field("script_prompt.txt")
 
@@ -965,6 +966,7 @@ class VideoConfig(BaseModel):
             / f"{product_id}_{temp_files.whisper_word_list}",
             "gathered_visuals": temp_dir / temp_files.gathered_visuals,
             "music_choice": temp_dir / temp_files.music_choice,
+            "script_fact_check": temp_dir / temp_files.script_fact_check,
             "voiceover_duration": temp_dir / temp_files.voiceover_duration,
             "script_prompt": temp_dir / temp_files.script_prompt,
             # Legacy compatibility

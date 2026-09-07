@@ -188,6 +188,10 @@ def get_video_run_paths(
             "ffmpeg_log": paths["ffmpeg_log"],  # FFmpeg command log
             "performance": paths["performance"],  # Performance metrics file
             "script_prompt": paths["script_prompt"],  # Rendered LLM prompt
+            # Deliberately NOT a step artifact: a recorded path that does
+            # not exist drops the step and everything after it on resume,
+            # and this file is absent whenever the check is off.
+            "script_fact_check": paths["script_fact_check"],
             # Pycaps engine artifacts
             "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
             "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",

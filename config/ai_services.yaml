@@ -97,6 +97,36 @@ llm_settings:
     concurrency: 6
     timeout_seconds: 20
 
+  # One grounded query per topic script, asking which falsifiable claims are
+  # wrong and how. Measured on 17 real pipeline scripts: 83 falsifiable
+  # claims, 16 flagged, 14 of the 16 right on hand review -- so roughly one
+  # flag in eight is a false positive, and the revision is confined to the
+  # flagged sentence and its successor for exactly that reason. A rejected
+  # revision ships the original; nothing here can lose a render.
+  #
+  # A flash model rather than the lite tier the other blocks use, and
+  # `thinking_budget: 0` is deliberately NOT applied. This is the one
+  # reasoning-shaped call the pipeline makes, the lite tier does no
+  # grounding, and the budget is not honoured on the 3.x flash tier anyway.
+  # Do not "align" it with llm_settings.thinking_budget.
+  #
+  # 45s against a measured 10.6s median because a grounded call has a search
+  # round trip inside it, which no generation timeout on this repo accounts
+  # for. Do not tighten it to match the observed number.
+  #
+  # topics_only is not a caution about unmeasured precision. A web search is
+  # the wrong instrument for a product claim: its ground truth is the scraped
+  # listing already in hand, and a search resolves to a different SKU, a
+  # review or a successor model, so it would both flag correct copy and bless
+  # wrong copy. The product-side check is a separate, ungrounded comparison.
+  script_fact_check:
+    enabled: true
+    model: "gemini-2.5-flash"
+    topics_only: true
+    max_flags_to_revise: 3
+    max_length_drift: 0.25
+    timeout_seconds: 45
+
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:
     provider: "openrouter"

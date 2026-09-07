@@ -36,9 +36,11 @@ from tenacity import (
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
-from src.video.config import MIN_PHRASE_WORDS, LLMSettings, config
 
 # Configure module logger
+from src.utils.script_sanitizer import split_sentences
+from src.video.config import MIN_PHRASE_WORDS, LLMSettings, config
+
 logger = logging.getLogger(__name__)
 
 
@@ -713,11 +715,15 @@ def _normalise_line(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9\s]+", "", text.lower()).split())
 
 
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
-
-
 def _sentences(text: str) -> list[str]:
-    return [s for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]
+    """The shared splitter, which the fact check also uses.
+
+    They have to agree about where a sentence ends. A repair whose rewritten
+    sentence closes on a quoted interface label was confined correctly there
+    and refused here for not ending on a CTA, because the narrower pattern
+    this used to carry merged that sentence into the CTA.
+    """
+    return split_sentences(text)
 
 
 def ends_with_cta(script: str, cta_options: list[str]) -> bool:
@@ -1123,7 +1129,7 @@ async def generate_script(
         # the render over that is the worse outcome; a bolted-on closing line
         # is the price, and the warning is what makes it visible.
         script = near_miss["script"].rstrip()
-        sentences = [s for s in _SENTENCE_SPLIT.split(script) if s.strip()]
+        sentences = _sentences(script)
         if sentences and _looks_like_cta_attempt(sentences[-1], cta_options):
             # The model tried and paraphrased. Two CTAs back to back reads
             # wrong, and the paraphrase would become the first comment.

@@ -106,3 +106,48 @@ def sanitize_script(
             logger.error(f"Debug: Failed to save sanitized script comparison: {e}")
 
     return script.strip()
+
+
+# One sentence splitter for everything that reasons about a script's
+# sentences: the fact check's containment guard, the CTA validator, and the
+# publisher's first-comment stripper. They have to agree about where a
+# sentence ends or they contradict each other on the same text -- a repair
+# confined correctly by one and refused by another for not ending on a CTA,
+# with the recorded reason blaming the reviser.
+#
+# Split where sentence-final punctuation, optionally through a closing quote
+# or bracket, is followed by whitespace and a word or quoted word. The
+# closing-quote half matters because a how-to quotes interface labels, so its
+# sentences end `."`; a lookbehind demanding the punctuation come last merged
+# such a sentence into the next one.
+#
+# The two alternatives take different lookaheads on purpose. After bare
+# punctuation a lowercase start is a real sentence often enough to be worth
+# the over-splits (below). After a closing quote it is not: a quotation
+# ending in a terminator, mid-sentence, is followed by a lowercase
+# continuation -- `You ask yourself "why is it slow?" and then you check the
+# wrong port.` -- and splitting there hands the publisher a first comment
+# beginning "and then". The closing-quote branch therefore requires a capital,
+# which is what an actual next sentence has after a quoted label.
+#
+# The bare-punctuation lookahead deliberately admits a lowercase start.
+# Demanding a capital
+# reads better on paper -- it stops an ellipsis or an abbreviation splitting a
+# sentence -- but it merges two real sentences whenever the second begins
+# `iPhone`, `iOS`, `macOS` or `eSIM`, which consumer-tech scripts produce
+# constantly. The two failures are not symmetric. An over-split is absorbed:
+# `_covers` matches a claim across the fragments and `_MAX_SPAN_PER_CLAIM`
+# leaves room for them, which is the whole reason that helper exists. An
+# under-split has no recovery -- a claim naming one of the merged sentences
+# makes both rewritable, `ends_with_cta` stops seeing the closing line so the
+# near-miss branch deletes a real sentence along with the CTA, and the
+# publisher's stripper leaves the CTA in the YouTube first comment.
+_SENTENCE_SPLIT = re.compile(
+    r"(?:(?<=[.!?])\s+(?=[\"'(\[]?[A-Za-z0-9])"
+    r"|(?<=[.!?][\"')\]])\s+(?=[\"'(\[]?[A-Z0-9]))"
+)
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split a spoken script into sentences."""
+    return [s.strip() for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]

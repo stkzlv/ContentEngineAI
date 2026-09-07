@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.104.0] - 2026-09-07
+
+### Added
+- A grounded fact check over topic scripts, between generation and everything that consumes the script. The 0.103.1 prompt fix stopped topic scripts inventing navigation paths; a claim that is simply wrong is out of reach of a prompt rule, and a wrong menu path or wrong number is followable right up to the point where it fails. One search-backed query per script asks which of its falsifiable claims are wrong and what the correct fact is, and a second ungrounded call rewrites only the sentences that were named. Measured over seventeen real pipeline scripts: eighty-three falsifiable claims, sixteen flagged, fourteen of the sixteen right on review, so about one flag in eight is a false positive. Every guard is sized against that: a rewrite is accepted only when the sentences it changed are the ones a flagged claim names and the sentence following each claim, every other sentence comes back unchanged and in the same order, at most one new sentence per flag appears, no claim quotes more than two sentences, at least one body sentence of the original survives, the closing call to action is verbatim, script validation passes and the length stays within a quarter of the original, and any refusal ships the original with the reason recorded. Nothing on this path can lose a render, which the return type enforces rather than the code remembering to. Product renders are excluded by default, not out of caution but because a web search answers a product claim against a different item, a review or a successor model, so it would both flag correct copy and bless wrong copy. Configured under `llm_settings.script_fact_check`, off in code and on in the bundled config; every topic run that generates a script writes `temp/script_fact_check.json`, including on a clean verdict, so a run that found nothing stays distinguishable from one where the check never ran, while a resume over an existing script neither checks nor records. That file is an intermediate like the script itself, so a successful run without `--debug` deletes it with the rest of the temp directory. Closes #380.
+
 ## [0.103.1] - 2026-09-07
 
 ### Fixed
