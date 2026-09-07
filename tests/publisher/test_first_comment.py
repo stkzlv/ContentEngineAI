@@ -299,6 +299,22 @@ class TestExtractClosingLine:
         )
         assert extract_closing_line(script) == "iOS handles it differently."
 
+    def test_an_inline_quotation_does_not_start_a_new_sentence(self):
+        """The closing-quote branch exists for a beat *ending* on a quoted
+        label. A quotation ending in a terminator mid-sentence looks the same
+        to it, and with a lowercase continuation allowed it split there --
+        publishing a first comment that begins "and then". That branch
+        therefore requires a capital, which a real next sentence has.
+        """
+        script = (
+            "The port looks identical on both sides. "
+            'You ask yourself "why is it slow?" and then you check the wrong one. '
+            "Save this for the next time it happens."
+        )
+        assert extract_closing_line(script) == (
+            'You ask yourself "why is it slow?" and then you check the wrong one.'
+        )
+
     def test_the_splitter_is_the_shared_one(self):
         """Three modules reason about where a script's sentences end: this
         one, the fact check's containment guard, and `ends_with_cta`. They

@@ -156,20 +156,29 @@ def _ruling_is_wrong(ruling: str | None) -> bool:
 
 
 # How many split sentences one flagged claim may cover. The prompt asks for
-# one; two absorbs a residual mismatch between the checker's copy and how the
-# text splits. Beyond that the claim is quoting the script rather than naming
-# a sentence in it.
-_MAX_SPAN_PER_CLAIM = 2
+# one; the allowance absorbs the residual mismatch between the checker's copy
+# and how the text splits. Beyond that the claim is quoting the script rather
+# than naming a sentence in it, and the survivor floor below is the backstop
+# for a quote wide enough to still get through.
+#
+# Three, not two, because the splitter over-splits at every mid-sentence
+# terminator followed by a lowercase word, and one spoken sentence can carry
+# two of them: `Check the 5 p.m. reading, and then... nothing happens.` is
+# three fragments. At two, the checker quoting that sentence exactly as the
+# prompt demands lost the whole call's repairs to a reason that blamed it for
+# quoting too much.
+_MAX_SPAN_PER_CLAIM = 3
 
 
 def _covers(claim: str, sentence: str) -> bool:
     """Whether a flagged claim and a split sentence are the same material.
 
-    Not equality. `sentences()` splits where sentence-final punctuation is
-    followed by whitespace and something that starts a sentence, which is
-    right for an ellipsis mid-sentence but still wrong for an abbreviation
-    before a capital (`Wi-Fi 5 vs. Wi-Fi 6`) -- while the checker copies the
-    whole sentence, as the prompt demands. Equality then matched neither
+    Not equality. `sentences()` deliberately over-splits: it breaks at a
+    mid-sentence ellipsis or abbreviation followed by a word, because the
+    alternative -- demanding a capital -- merges two real sentences before
+    `iPhone` or `iOS`, and an under-split has no recovery while an over-split
+    has this one. The checker meanwhile copies the whole sentence, as the
+    prompt demands. Equality then matched neither
     fragment, nothing was marked touchable, and a revision that changed only
     the flagged sentence was refused for altering sentences it was not asked
     to: the repair thrown away and the wrong claim published, with the record

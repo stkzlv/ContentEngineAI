@@ -455,6 +455,34 @@ class TestAcceptingARevision:
         accepted, reason = accept_revision(GOOD, revised, flagged, **GUARDS)
         assert accepted is not None, reason
 
+    def test_a_sentence_carrying_two_inner_breaks_is_still_repairable(self) -> None:
+        """The span bound was sized for a splitter that broke only before a
+        capital. Widening it to admit a lowercase start made over-splits
+        common, and one spoken sentence can carry two of them -- an
+        abbreviation and an ellipsis. At a bound of two the checker quoting
+        that sentence exactly as the prompt demands lost every repair in the
+        call, to a reason that blamed it for quoting too much.
+        """
+        original = (
+            "Your fan gets loud on a schedule for one reason. "
+            "Check the 5 p.m. reading, and then... nothing happens at all. "
+            "Blow the dust out from the outside of the vent. "
+            f"{CTA}"
+        )
+        flagged = [
+            FactCheckClaim(
+                claim="Check the 5 p.m. reading, and then... nothing happens at all.",
+                reason="There is no scheduled reading to check.",
+                fix="Fan speed follows temperature, not a clock.",
+            )
+        ]
+        revised = original.replace(
+            "Check the 5 p.m. reading, and then... nothing happens at all.",
+            "Fan speed follows the temperature rather than any clock.",
+        )
+        accepted, reason = accept_revision(original, revised, flagged, **GUARDS)
+        assert accepted is not None, reason
+
     def test_a_pure_reordering_is_refused(self) -> None:
         """Membership alone let this through: every sentence unchanged,
         nothing added, the length identical, and the steps of a how-to

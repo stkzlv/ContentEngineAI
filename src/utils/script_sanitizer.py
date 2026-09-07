@@ -121,7 +121,17 @@ def sanitize_script(
 # sentences end `."`; a lookbehind demanding the punctuation come last merged
 # such a sentence into the next one.
 #
-# The lookahead deliberately admits a lowercase start. Demanding a capital
+# The two alternatives take different lookaheads on purpose. After bare
+# punctuation a lowercase start is a real sentence often enough to be worth
+# the over-splits (below). After a closing quote it is not: a quotation
+# ending in a terminator, mid-sentence, is followed by a lowercase
+# continuation -- `You ask yourself "why is it slow?" and then you check the
+# wrong port.` -- and splitting there hands the publisher a first comment
+# beginning "and then". The closing-quote branch therefore requires a capital,
+# which is what an actual next sentence has after a quoted label.
+#
+# The bare-punctuation lookahead deliberately admits a lowercase start.
+# Demanding a capital
 # reads better on paper -- it stops an ellipsis or an abbreviation splitting a
 # sentence -- but it merges two real sentences whenever the second begins
 # `iPhone`, `iOS`, `macOS` or `eSIM`, which consumer-tech scripts produce
@@ -133,7 +143,8 @@ def sanitize_script(
 # near-miss branch deletes a real sentence along with the CTA, and the
 # publisher's stripper leaves the CTA in the YouTube first comment.
 _SENTENCE_SPLIT = re.compile(
-    r"(?:(?<=[.!?])|(?<=[.!?][\"')\]]))\s+(?=[\"'(\[]?[A-Za-z0-9])"
+    r"(?:(?<=[.!?])\s+(?=[\"'(\[]?[A-Za-z0-9])"
+    r"|(?<=[.!?][\"')\]])\s+(?=[\"'(\[]?[A-Z0-9]))"
 )
 
 
