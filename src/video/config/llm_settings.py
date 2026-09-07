@@ -154,6 +154,24 @@ class VisualSearchTermsConfig(BaseModel):
     max_words_per_phrase: int = Field(5, ge=MIN_PHRASE_WORDS, le=8)
 
 
+class StockRelevanceConfig(BaseModel):
+    """Score every stock candidate the library returns against the script.
+
+    The judgement is of the thumbnail, by the multimodal model, because every
+    text signal was measured and refuted on #307 and the whole pool is scored
+    because provider rank was measured to be noise on #341. `min_score` is a
+    floor a candidate is used below only when there are not enough above it:
+    a stock shortfall skips the render, which is the worse loss.
+    """
+
+    enabled: bool = False
+    model: str = Field("gemini-2.5-flash-lite")
+    min_score: int = Field(2, ge=0, le=3)
+    max_candidates: int = Field(80, ge=1, le=80)
+    concurrency: int = Field(6, ge=1, le=16)
+    timeout_seconds: int = Field(20, ge=1)
+
+
 class LLMSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -203,6 +221,9 @@ class LLMSettings(BaseModel):
         default_factory=ScriptValidationConfig  # type: ignore[arg-type]
     )
     script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)
+    stock_relevance: StockRelevanceConfig = Field(
+        default_factory=StockRelevanceConfig  # type: ignore[arg-type]
+    )
     visual_search_terms: VisualSearchTermsConfig = Field(
         default_factory=VisualSearchTermsConfig  # type: ignore[arg-type]
     )
