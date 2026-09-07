@@ -47,7 +47,9 @@ _CLAIM_BLOCK = re.compile(
 # something that starts a sentence. Splitting on punctuation alone cut
 # "expand Components... then read the Power page." into two entries, so the
 # checker's copy of the whole sentence matched neither half.
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[\"\'(\[]?[A-Z0-9])")
+_SENTENCE_SPLIT = re.compile(
+    r"(?:(?<=[.!?])|(?<=[.!?][\"\')\]]))\s+(?=[\"\'(\[]?[A-Z0-9])"
+)
 
 # A ruling of "correct" arriving in the shape of a fix. Measured live, twice:
 # asked for wrong claims only, the checker listed a sentence, explained in
@@ -163,14 +165,15 @@ _MAX_SPAN_PER_CLAIM = 2
 def _covers(claim: str, sentence: str) -> bool:
     """Whether a flagged claim and a split sentence are the same material.
 
-    Not equality. `sentences()` splits on any sentence-final punctuation
-    followed by a space, so an ellipsis, an abbreviation (`vs.`, `e.g.`) or a
-    pair of initials cuts one spoken sentence into two entries -- while the
-    checker copies the whole sentence, as the prompt demands. Equality then
-    matched neither fragment, nothing was marked touchable, and a revision
-    that changed only the flagged sentence was refused for altering sentences
-    it was not asked to: the repair thrown away and the wrong claim published,
-    with the record blaming the reviser for it.
+    Not equality. `sentences()` splits where sentence-final punctuation is
+    followed by whitespace and something that starts a sentence, which is
+    right for an ellipsis mid-sentence but still wrong for an abbreviation
+    before a capital (`Wi-Fi 5 vs. Wi-Fi 6`) -- while the checker copies the
+    whole sentence, as the prompt demands. Equality then matched neither
+    fragment, nothing was marked touchable, and a revision that changed only
+    the flagged sentence was refused for altering sentences it was not asked
+    to: the repair thrown away and the wrong claim published, with the record
+    blaming the reviser for it.
 
     Containment either way covers both that case and a checker that quoted
     only part of a sentence. Padded, so the match is on whole words and a
@@ -321,6 +324,26 @@ def accept_revision(
         if spanned:
             touchable.add(spanned[-1] + 1)
     kept_old = [(i, s) for i, s in enumerate(old_sentences) if i not in touchable]
+
+    # The per-claim bound is not an aggregate one: three claims naming
+    # alternate sentences, each within its own span, between them make every
+    # sentence of a short script touchable -- and then `kept_old` is empty or
+    # holds only the closing line, so the checks below are vacuous and a
+    # wholly fabricated rewrite is accepted. At the shipped
+    # `max_flags_to_revise: 3` that needs a script of six split sentences,
+    # which the shorter renders are.
+    #
+    # A script whose every line but the CTA is flagged is the checker
+    # rejecting it wholesale, and an ungrounded sentence-by-sentence patch is
+    # not the instrument for that. Refusing ships the original with its wrong
+    # claims, which is the worse-looking half of a real trade: the alternative
+    # is a rewrite bounded by nothing but its length.
+    protected = [i for i, _ in kept_old if i != len(old_sentences) - 1]
+    if not protected:
+        return (
+            None,
+            "the flagged claims cover the script apart from its closing line",
+        )
     new_norm = [_normalise(s) for s in new_sentences]
     missing = [s for _, s in kept_old if _normalise(s) not in new_norm]
     if missing:

@@ -359,6 +359,60 @@ class TestAcceptingARevision:
         accepted, reason = accept_revision(original, revised, flagged, **GUARDS)
         assert accepted is not None, reason
 
+    def test_alternate_flags_cannot_between_them_cover_the_script(self) -> None:
+        """The per-claim span bound is not an aggregate one. Two claims naming
+        alternate sentences, each well inside its own span, between them make
+        every sentence touchable -- and then the checks below have nothing
+        left to compare, so a wholly fabricated rewrite is accepted. Every
+        containment test before this one used a single claim, which is why it
+        went unseen.
+        """
+        old = sentences(GOOD)
+        alternate = [
+            FactCheckClaim(claim=old[0], reason="r", fix="f"),
+            FactCheckClaim(claim=old[2], reason="r", fix="f"),
+        ]
+        fabricated = (
+            "Charging speed is identical across every port on a modern laptop. "
+            "The manufacturer prints a red ring beside the fast charging port. "
+            "Windows lists the wattage under Devices, then Power and battery. "
+            "Swap the cable before you blame the port on any machine at all. "
+            f"{CTA}"
+        )
+        accepted, reason = accept_revision(GOOD, fabricated, alternate, **GUARDS)
+        assert accepted is None and "apart from its closing line" in reason
+
+    def test_most_of_a_script_may_still_be_repaired(self) -> None:
+        """The floor has to leave the repair that motivated the feature. Three
+        adjoining sentences of five were flagged on a live run and the repair
+        was good; refusing that would ship the wrong claims to protect against
+        a rewrite that did not happen.
+        """
+        old = sentences(GOOD)
+        three = [FactCheckClaim(claim=old[i], reason="r", fix="f") for i in (1, 2, 3)]
+        repaired = (
+            f"{old[0]} "
+            "On Windows, open Settings, then System, then Power and battery. "
+            "The wattage per port is listed on that page for you. "
+            "If none is listed, the laptop does not fast charge at all. "
+            f"{CTA}"
+        )
+        accepted, reason = accept_revision(GOOD, repaired, three, **GUARDS)
+        assert accepted is not None, reason
+
+    def test_a_sentence_ending_in_a_quoted_label_still_splits(self) -> None:
+        """A how-to quotes interface labels, so its sentences end `."` -- and
+        a lookbehind demanding the punctuation last merged that sentence into
+        the next one. One flagged claim then reached a sentence the checker
+        had never examined.
+        """
+        split = sentences(
+            'Look under "Components," then "Power." '
+            "You will see a list of controllers. "
+            "Find the right one."
+        )
+        assert len(split) == 3
+
     def test_a_pure_reordering_is_refused(self) -> None:
         """Membership alone let this through: every sentence unchanged,
         nothing added, the length identical, and the steps of a how-to
