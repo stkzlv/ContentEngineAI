@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.101.2] - 2026-09-07
+
+### Fixed
+- The bundled `product_video_mixed` profile failed in `assemble_video` on every product that carried a video, reported as a failed render with the bare message `'mixed_media'`. The strategy factory keyed its mixed strategy as `mixed` since v0.16.0, while `video_assembly_mode` admits `mixed_media` and the profile sets it; the lookup is a plain dict access. A product with no video took the image-only path first and rendered, which is why the profile did not look dead. The factory is keyed by the value the model admits, and a test walks the `Literal` so the two cannot drift again. Closes #372.
+
 ## [0.101.0] - 2026-09-07
 
 ### Fixed

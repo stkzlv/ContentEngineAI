@@ -286,11 +286,39 @@ class TestVideoFirstFallbackStrategy:
 
 
 class TestVideoStrategyFactory:
+    def test_every_configurable_mode_has_a_strategy(self, mock_inspector, mock_config):
+        """The factory is keyed by what the config admits, not by a spelling of
+        its own. It read "mixed" while the model and the bundled
+        `product_video_mixed` profile said "mixed_media", so the lookup raised
+        on every product with a video under that profile (#372). Walking the
+        `Literal` keeps the two from drifting again.
+        """
+        from typing import get_args
+
+        from src.video.config.visual_models import VideoProfile, VideoSettings
+
+        factory = VideoStrategyFactory(mock_inspector, mock_config, "test_prod")
+        modes = set(
+            get_args(VideoSettings.model_fields["video_assembly_mode"].annotation)
+        )
+        profile_modes = {
+            m
+            for arg in get_args(
+                VideoProfile.model_fields["video_assembly_mode"].annotation
+            )
+            for m in (get_args(arg) or ())
+        }
+        assert modes, "the model no longer declares the modes as a Literal"
+        assert profile_modes == modes
+        for mode in modes:
+            factory.get_strategy(mode)
+        assert set(factory.strategies) == modes
+
     def test_factory_creation(self, mock_inspector, mock_config):
         factory = VideoStrategyFactory(mock_inspector, mock_config, "test_prod")
         assert isinstance(factory.get_strategy("sequential"), SequentialStrategy)
         assert isinstance(factory.get_strategy("single_best"), SingleBestStrategy)
-        assert isinstance(factory.get_strategy("mixed"), MixedMediaStrategy)
+        assert isinstance(factory.get_strategy("mixed_media"), MixedMediaStrategy)
         assert isinstance(
             factory.get_strategy("video_first_fallback"), VideoFirstFallbackStrategy
         )
