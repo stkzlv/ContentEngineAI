@@ -172,6 +172,37 @@ class StockRelevanceConfig(BaseModel):
     timeout_seconds: int = Field(20, ge=1)
 
 
+class ScriptFactCheckConfig(BaseModel):
+    """Check a tutorial script's falsifiable claims against grounded search.
+
+    A shipped render sent viewers to a Windows menu node that does not exist.
+    Measured on 17 topic scripts (#380): 83 falsifiable claims, 16 flagged, 14
+    of the 16 correct on hand review, four distinct invented methods. The
+    prompt fix in 0.103.1 removed the demand that caused most of them; this
+    catches what a prompt rule cannot, a value that is simply wrong.
+
+    `model` is a flash tier rather than the lite one the rest of the pipeline
+    uses, and `LLMSettings.thinking_budget` is deliberately not applied to it.
+    The repo turns thinking off everywhere on the grounds that nothing it asks
+    for is a reasoning problem; this call is the one exception.
+
+    `timeout_seconds` is generous against a measured 10.6s because a grounded
+    call makes a search round trip inside the request, so it is not comparable
+    to the thumbnail judge's budget.
+
+    `max_rounds` is a bill cap enforced by the type: grounded queries bill
+    separately from tokens, so the query count is the only knob that matters.
+    """
+
+    enabled: bool = False
+    model: str = Field("gemini-2.5-flash")
+    topics_only: bool = True
+    max_rounds: int = Field(1, ge=0, le=2)
+    max_flags_to_revise: int = Field(3, ge=1, le=10)
+    max_length_drift: float = Field(0.25, ge=0.0, le=1.0)
+    timeout_seconds: int = Field(45, ge=1)
+
+
 class LLMSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -221,6 +252,9 @@ class LLMSettings(BaseModel):
         default_factory=ScriptValidationConfig  # type: ignore[arg-type]
     )
     script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)
+    script_fact_check: ScriptFactCheckConfig = Field(
+        default_factory=ScriptFactCheckConfig  # type: ignore[arg-type]
+    )
     stock_relevance: StockRelevanceConfig = Field(
         default_factory=StockRelevanceConfig  # type: ignore[arg-type]
     )

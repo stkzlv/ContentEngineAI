@@ -1347,6 +1347,54 @@ so a mismatched shot can be traced to the judge or to the phrase. The judge
 runs only where a script exists when the visuals are gathered, which is the
 script-first order the stock profiles use.
 
+#### Fact-checking a topic script
+
+A topic script tells the viewer how to do something, and a wrong menu path or
+a wrong number is followable right up to the point where it fails. After the
+script is written, one grounded query asks a search-backed model which of its
+falsifiable claims are wrong and what the correct fact is; the named sentences
+are then rewritten by a second, ungrounded call.
+
+```yaml
+llm_settings:
+  script_fact_check:
+    enabled: true
+    model: "gemini-2.5-flash"
+    topics_only: true         # a product claim needs the listing, not a search
+    max_rounds: 1             # one grounded query per script; the bill
+    max_flags_to_revise: 3
+    max_length_drift: 0.25
+    timeout_seconds: 45
+```
+
+Measured over seventeen real pipeline scripts: eighty-three falsifiable
+claims, sixteen flagged, fourteen of the sixteen right on review. So about one
+flag in eight is a false positive, and the revision is confined for exactly
+that reason. A rewrite is accepted only if it leaves every sentence that was
+not flagged untouched, keeps the closing call to action verbatim, passes the
+usual script validation and stays within `max_length_drift` of the original
+length. Anything else ships the original with the reason logged.
+
+Nothing here can lose a render. A missing key, an unreachable search backend,
+an unparseable answer, a reviser that returns nothing and a rewrite that fails
+any guard all ship the script that was generated.
+
+`topics_only` is not caution about unmeasured precision. A web search is the
+wrong instrument for a product claim, whose ground truth is the scraped
+listing already in hand: a search resolves to a different item, a review or a
+successor model, so it would both flag correct copy and bless wrong copy.
+
+The model is a flash tier rather than the lite tier the neighbouring blocks
+use, and `thinking_budget` is deliberately not applied to it. `timeout_seconds`
+is generous against a measured ten-second median because a grounded call has a
+search round trip inside it.
+
+Each run writes `temp/script_fact_check.json`, including on a clean verdict,
+so a run where the check found nothing stays distinguishable from one where it
+never ran. The file carries the flagged claims, the proposed fixes, the reason
+a revision was accepted or refused, and the model's raw answer, which is what
+makes the flag rate re-measurable from real renders.
+
 </details>
 
 <details>

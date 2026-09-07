@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from src.ai.description_generator import generate_description as generate_ai_description
+from src.ai.script_fact_check import fact_check_and_revise
 from src.ai.script_generator import (
     generate_hook_headline,
     generate_visual_search_phrases,
@@ -579,8 +580,70 @@ async def step_generate_script(ctx: PipelineContext):
                 template_name,
                 ctx.run_paths["script_file"].name,
             )
+            await _ensure_fact_checked(ctx, pillar)
 
         await _ensure_hook_headline(ctx, pillar)
+
+
+async def _ensure_fact_checked(ctx: PipelineContext, pillar: str | None) -> None:
+    """Check the script's falsifiable claims and repair what is wrong.
+
+    Runs after the script is on disk, so a crash mid-revision leaves the
+    original rather than nothing, and inside the generation branch, so a
+    resume over an existing script pays nothing. Before the hook headline, so
+    the headline is derived from the text that ships.
+
+    Never raises and never empties the script: a wrong sentence costs one
+    sentence, a lost render costs the whole video and every paid step before
+    it. The record is written whatever happened, including a clean verdict,
+    so "ran and found nothing" stays distinguishable from "never ran" when the
+    flag rate is re-measured from real runs.
+    """
+    cfg = ctx.config.llm_settings.script_fact_check
+    if not cfg.enabled or not ctx.script:
+        return
+
+    is_topic = bool(getattr(ctx.product, "topic", None))
+    if cfg.topics_only and not is_topic:
+        logger.debug("Fact check skipped: product render, topics_only is set")
+        return
+
+    script_cfg = ctx.config.llm_settings.script_templates
+    subject = (
+        getattr(ctx.product, "topic", None) or getattr(ctx.product, "title", "") or ""
+    )
+    outcome = await fact_check_and_revise(
+        ctx.script,
+        subject,
+        ctx.product,
+        ctx.config.llm_settings,
+        ctx.secrets,
+        ctx.session,
+        ctx.config.api_settings,
+        narrator_profile=script_cfg.narrator_for(is_topic),
+        pillar=pillar,
+        pillar_preambles=script_cfg.preambles_for(is_topic),
+        debug_mode=ctx.debug_mode,
+    )
+
+    if outcome.script != ctx.script:
+        ctx.script = outcome.script
+        ctx.run_paths["script_file"].write_text(outcome.script, encoding="utf-8")
+
+    # A string, not a dict: the state loader tells step entries from scalars by
+    # isinstance(info, dict), and a dict here is read as a step record.
+    ctx.state["script_fact_check"] = (
+        f"flagged={len(outcome.record.get('flagged', []))} "
+        f"revised={int(bool(outcome.record['revision']['accepted']))}"
+    )
+    try:
+        record_path = ctx.run_paths["script_fact_check"]
+        ensure_dirs_exist(record_path.parent)
+        record_path.write_text(
+            json.dumps(outcome.record, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+    except (OSError, TypeError, ValueError) as e:
+        logger.warning("Could not write the fact-check record: %s", e)
 
 
 async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> None:

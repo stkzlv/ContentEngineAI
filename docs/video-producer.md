@@ -247,6 +247,15 @@ item in `temp/gathered_visuals.json` as `relevance_score`, so reading that
 file after a render says both which phrase each shot came from and how well
 the judge thought it fit. A failed judgement keeps the random sample.
 
+A topic script is then fact-checked before anything else consumes it
+(`llm_settings.script_fact_check`). One grounded query asks which of its
+falsifiable claims are wrong; an ungrounded second call rewrites only the
+sentences that were named, and the rewrite is kept only if it leaves the rest
+of the script untouched and still passes validation. The outcome lands in
+`temp/script_fact_check.json` whatever happened. No failure on this path can
+cost the render, and product renders are excluded by default because a search
+answers a product claim against the wrong item.
+
 One consequence worth knowing when reading `--step` output: the step order
 depends on the profile, so on `slideshow_stock`, `generate_script` runs first
 and `gather_visuals` second.
