@@ -382,6 +382,28 @@ CLI inputs still replace the configured set entirely. `--keywords earbuds`
 renders products only, and `--topic "..."` renders that topic only; neither
 picks up the other arm from the config file.
 
+##### Keeping the pool out of the repository
+
+Topic titles are a channel's editorial line, so the bundled block is a generic
+pair rather than anyone's real list. `topics_file` names a file whose topics
+replace it:
+
+```yaml
+global_batch:
+  topics_file: topics.private.yaml   # relative to config/
+```
+
+`PIPELINE_TOPICS_FILE` in `.env` overrides the key and is the usual way to set
+it, because the shipped key stays `null`: a committed path to a gitignored
+file fails on a fresh clone. Copy `config/topics.private.yaml.example`, which
+carries the same shape as the block above and as a `--topics-file`; anything
+matching `*.private.yaml` is gitignored.
+
+A relative path resolves against the config file's own directory, so the pool
+travels with the config rather than with the working directory. A path that
+does not exist raises: falling back to the bundled block would render the
+wrong pool with nothing logged.
+
 #### Keywords Only
 
 ```bash

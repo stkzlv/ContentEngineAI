@@ -17,6 +17,20 @@ from src.scraper.base.models import Platform
 from src.video.config import VideoConfig, VideoProfile, load_video_config
 
 
+@pytest.fixture(autouse=True)
+def _no_installation_topic_pool(monkeypatch):
+    """Keep the developer's own topic pool out of every test.
+
+    `PIPELINE_TOPICS_FILE` names a file outside the repository, and several
+    tests reach code that loads the real `.env`; once it is in `os.environ` it
+    stays there for the rest of the session, and every later
+    `load_global_batch_config` built in a tmp directory then resolves the name
+    against that directory and raises on the missing pool. Tests must read the
+    pool they wrote, never the machine's.
+    """
+    monkeypatch.delenv("PIPELINE_TOPICS_FILE", raising=False)
+
+
 @pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
     """Create a temporary directory for test files."""

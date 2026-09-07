@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.103.0] - 2026-09-07
+
+### Added
+- `global_batch.topics_file` and the `PIPELINE_TOPICS_FILE` environment variable: a topic pool held outside the repository, replacing the bundled `topics:` block. A channel's topic titles are its editorial line, so the public config keeps a generic pair and an installation points at its own list; `config/topics.private.yaml.example` shows the shape and `*.private.yaml` is gitignored. The environment variable exists because the shipped key has to stay unset -- a committed path to a gitignored file fails on a fresh clone -- and it is what lets an installation set the pool without editing a tracked file. A relative path resolves against the config file's directory, so the pool travels with the config rather than the working directory. A configured path that does not exist raises rather than falling back to the bundled block, which would render the wrong pool with nothing logged.
+
 ## [0.102.1] - 2026-09-07
 
 ### Fixed

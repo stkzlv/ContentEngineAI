@@ -41,6 +41,7 @@ from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pill
 from src.video.config import VideoConfig
 from src.video.producer.topic_input import (
     TopicSpec,
+    load_topics_file,
     specs_from_args,
     specs_from_mappings,
 )
@@ -913,6 +914,39 @@ DEFAULT_PIPELINE_CONFIG_PATH = (
 )
 
 
+def _configured_topics(
+    yaml_config: dict[str, Any], config_path: Path
+) -> list[TopicSpec]:
+    """The topic pool a no-flag run draws from.
+
+    `topics_file` names a file that replaces the bundled `topics:` list, so an
+    installation can keep its own pool out of the repository: topic titles are
+    the channel's editorial line, which the public config has no business
+    shipping. Resolved against the config file's own directory, so the pool
+    travels with the config rather than with the working directory.
+
+    `PIPELINE_TOPICS_FILE` overrides the key, and is how an installation
+    points at its own pool without editing a tracked file: the shipped value
+    has to stay unset, or a fresh clone would fail on a path only one machine
+    has.
+
+    A configured path that does not exist raises rather than falling back to
+    the bundled list: a typo would otherwise render the wrong pool with
+    nothing logged, which is the silent-fallback class this repo refuses.
+    """
+    topics_file = os.environ.get("PIPELINE_TOPICS_FILE") or yaml_config.get(
+        "topics_file"
+    )
+    if topics_file:
+        path = Path(topics_file)
+        if not path.is_absolute():
+            path = config_path.parent / path
+        return load_topics_file(path)
+    if yaml_config.get("topics"):
+        return specs_from_mappings(yaml_config["topics"], config_path)
+    return []
+
+
 def load_global_batch_config(
     cli_args: argparse.Namespace, config_path: str | Path | None = None
 ) -> GlobalBatchConfig:
@@ -1037,11 +1071,7 @@ def load_global_batch_config(
         # Without this the tutorial arm could only enter a run by being typed
         # on that day's command line, so the repeatable path -- the one a
         # scheduled run uses -- produced product renders and nothing else.
-        configured_topics = (
-            specs_from_mappings(yaml_config["topics"], config_path)
-            if yaml_config.get("topics")
-            else []
-        )
+        configured_topics = _configured_topics(yaml_config, yaml_path)
         topics = topics_for_run(configured_topics, topics_per_run)
 
     # Max products (global cap across all keywords)
