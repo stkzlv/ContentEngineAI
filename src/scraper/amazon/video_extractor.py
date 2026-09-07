@@ -10,7 +10,7 @@ import time
 
 from botasaurus.browser import Driver
 
-from .config import CONFIG
+from .config import CONFIG, get_settings
 from .image_utils import is_valid_video_url
 
 logger = logging.getLogger(__name__)
@@ -113,14 +113,7 @@ def extract_functional_videos_with_validation(
     DEBUG_MODE = debug_mode
 
     # Get max videos from config
-    try:
-        max_videos = (
-            CONFIG.get("global_settings", {})
-            .get("video_config", {})
-            .get("max_videos_per_product", 10)
-        )
-    except Exception:
-        max_videos = 10
+    max_videos = get_settings().global_settings.video_config.max_videos_per_product
 
     # Always log to verify function is called
     logger.info(

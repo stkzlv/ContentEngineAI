@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+from pydantic import ValidationError
+
 from src.scraper.config_adapter import ScraperConfigAdapter
 from src.utils.secrets import mask_secret
 from src.video.config_adapter import ModularConfigAdapter
@@ -356,6 +359,10 @@ class UnifiedConfigManager:
         try:
             base_config = self.scraper_adapter.get_merged_config_dict()
             return self.apply_precedence_rules(base_config, cli_overrides)
+        except (ValidationError, yaml.YAMLError):
+            # A misspelled key, an empty file, or one that does not parse;
+            # the fallback would read every value as a default, silently.
+            raise
         except Exception as e:
             print(f"⚠️  Warning: Failed to load scraper config, using fallback: {e}")
             return self._get_scraper_fallback_config(cli_overrides)

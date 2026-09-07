@@ -12,7 +12,7 @@ from typing import Any
 
 import aiohttp
 
-from .config import CONFIG, get_filename_pattern
+from .config import CONFIG, get_filename_pattern, get_settings
 from .download_validators import _validate_image_size_before_download
 from .media_validator import verify_image_file, verify_video_file
 
@@ -118,26 +118,21 @@ async def download_file_async(
     """
     # Get config values for download
     try:
-        download_config = CONFIG.get("global_settings", {}).get("download_config", {})
         amazon_config = CONFIG.get("scrapers", {}).get("amazon", {})
         download_headers = amazon_config.get("http_headers", {}).get(
             "media_download", {}
         )
 
-        default_timeout = download_config.get("download_timeout", 30)
-        chunk_size = download_config.get("download_chunk_size", 8192)
-    except Exception:
-        # Fallback values from config
         default_timeout = (
-            CONFIG.get("global_settings", {})
-            .get("download_config", {})
-            .get("download_timeout", 30)
+            get_settings().global_settings.download_config.download_timeout
         )
-        chunk_size = (
-            CONFIG.get("global_settings", {})
-            .get("download_config", {})
-            .get("download_chunk_size", 8192)
+        chunk_size = get_settings().global_settings.download_config.download_chunk_size
+    except Exception:
+        # Fallback headers only; the numbers come from the same typed settings.
+        default_timeout = (
+            get_settings().global_settings.download_config.download_timeout
         )
+        chunk_size = get_settings().global_settings.download_config.download_chunk_size
         download_headers = (
             CONFIG.get("scrapers", {})
             .get("amazon", {})
@@ -259,7 +254,9 @@ async def _download_media_async(
         # Get download configuration
         global_settings = CONFIG.get("global_settings", {})
         download_config = global_settings.get("download_config", {})
-        min_image_file_size = download_config.get("min_image_file_size", 10000)
+        min_image_file_size = (
+            get_settings().global_settings.download_config.min_image_file_size
+        )
 
         # Setup output directories
         from .botasaurus_output import _effective_dir, get_outputs_root
@@ -332,8 +329,8 @@ async def _download_media_async(
                 return None
 
             # Download images concurrently with semaphore
-            download_config = global_settings.get("download_config", {})
-            max_concurrent = download_config.get("concurrent_image_downloads", 5)
+            download_config = get_settings().global_settings.download_config
+            max_concurrent = download_config.concurrent_image_downloads
             semaphore = asyncio.Semaphore(max_concurrent)
 
             async def download_with_semaphore(i: int, url: str) -> str | None:
@@ -415,8 +412,8 @@ async def _download_media_async(
                 return None
 
             # Download videos concurrently with semaphore
-            download_config = global_settings.get("download_config", {})
-            max_concurrent_videos = download_config.get("concurrent_video_downloads", 3)
+            download_config = get_settings().global_settings.download_config
+            max_concurrent_videos = download_config.concurrent_video_downloads
             semaphore_video = asyncio.Semaphore(max_concurrent_videos)
 
             async def download_video_with_semaphore(i: int, url: str) -> str | None:

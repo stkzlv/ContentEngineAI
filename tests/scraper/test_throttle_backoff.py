@@ -25,6 +25,7 @@ from src.scraper.base.throttle import (
     Verdict,
     is_error_page_failure,
 )
+from src.scraper.config_models import ScraperConfig
 
 pytestmark = pytest.mark.unit
 
@@ -488,6 +489,8 @@ class TestTheStandalonePathActsOnTheVerdict:
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+        scraper.settings = ScraperConfig()
         scraper.debug_mode = False
         scraper.logger = __import__("logging").getLogger("test")
         scraper.throttle = _tracker(**settings)
@@ -834,6 +837,8 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
         func = self._inner(monkeypatch, impl)
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+        scraper.settings = ScraperConfig()
         scraper.debug_mode = False
         scraper.logger = __import__("logging").getLogger("test")
         scraper.throttle = _tracker(max_attempts=2)
@@ -992,6 +997,8 @@ class TestAnEmptyResultIsNotEvidence:
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+        scraper.settings = ScraperConfig()
         scraper.debug_mode = False
         scraper.logger = logging.getLogger("test")
         scraper.throttle = _tracker()
@@ -1006,6 +1013,8 @@ class TestAnEmptyResultIsNotEvidence:
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+        scraper.settings = ScraperConfig()
         scraper.debug_mode = False
         scraper.logger = logging.getLogger("test")
         scraper.throttle = _tracker()
@@ -1033,6 +1042,8 @@ class TestThePaginationGate:
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+
+        scraper.settings = ScraperConfig()
         scraper.debug_mode = False
         scraper.logger = logging.getLogger("test")
         scraper.throttle = _tracker(**settings)

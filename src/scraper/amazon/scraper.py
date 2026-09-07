@@ -20,6 +20,7 @@ from src.scraper.base.keyword_pillars import (
     read_keyword_pillars,
     rotate_keyword_pool,
 )
+from src.scraper.config_models import ScraperConfig
 
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
@@ -177,6 +178,9 @@ class BotasaurusAmazonScraper(BaseScraper):
         self.config = self._load_config(config_path)
         self.amazon_config = self.config["scrapers"]["amazon"]
         self.global_settings = self.config["global_settings"]
+        # A per-run limit the batch sets (its per-keyword share); None means
+        # the configured `scrapers.amazon.max_products`.
+        self.run_max_products: int | None = None
         self.debug_options = debug_options or {}
         # Built on first use by pillar_for_keyword.
         self._keyword_pillars: dict[str, str] | None = None
@@ -259,7 +263,23 @@ class BotasaurusAmazonScraper(BaseScraper):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         with open(config_path, encoding="utf-8") as f:
-            return dict(yaml.safe_load(f) or {})
+            raw = yaml.safe_load(f)
+        # Validated: a misspelled key, or an empty file, fails here, and
+        # every key a reader indexes is present with the model's default.
+        from src.scraper.config_models import ScraperConfig
+
+        self.settings = ScraperConfig.from_legacy_dict(raw)
+        return self.settings.to_runtime_dict()
+
+    @property
+    def effective_max_products(self) -> int:
+        """The run's limit when the batch set one, else the configured one."""
+        # getattr: tests build the scraper with `__new__` and set only what
+        # they drive, and this property is reached from several of them.
+        run_limit = getattr(self, "run_max_products", None)
+        if run_limit is not None:
+            return int(run_limit)
+        return int(self.settings.amazon.max_products)
 
     def scrape_products_unified(
         self,
@@ -278,7 +298,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             products_limit = (
                 max_products
                 if max_products is not None
-                else self.amazon_config.get("max_products", 5)
+                else self.effective_max_products
             )
 
             # Check if count_products_with_media is enabled
@@ -339,13 +359,11 @@ class BotasaurusAmazonScraper(BaseScraper):
         total_raw_scraped = 0
 
         # Get batch processing config values
-        batch_cfg = CONFIG.get("global_settings", {}).get("batch_processing", {})
-        max_attempts = batch_cfg.get("max_scrape_attempts", DEFAULT_MAX_SCRAPE_ATTEMPTS)
-        prefetch_multiplier = batch_cfg.get(
-            "prefetch_multiplier", DEFAULT_PREFETCH_MULTIPLIER
-        )
-        max_batch_size = batch_cfg.get("max_batch_size", DEFAULT_MAX_BATCH_SIZE)
-        max_pages = batch_cfg.get("max_pages", 7)
+        batch_cfg = self.settings.global_settings.batch_processing
+        max_attempts = batch_cfg.max_scrape_attempts
+        prefetch_multiplier = batch_cfg.prefetch_multiplier
+        max_batch_size = batch_cfg.max_batch_size
+        max_pages = batch_cfg.max_pages
 
         current_page = 1
 
@@ -528,7 +546,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                 self._orchestrate_media_downloads(results, target_download_count)
 
             # Convert to ProductData and validate media requirements
-            return self._validate_and_convert_products(results, filter_validated)
+            return self._validate_and_convert_products(
+                results, filter_validated, products_limit
+            )
 
         except Exception as e:
             self.logger.error("Error in single pass scrape for %s: %s", keyword, e)
@@ -766,7 +786,10 @@ class BotasaurusAmazonScraper(BaseScraper):
                 result.setdefault("downloaded_videos", [])
 
     def _validate_and_convert_products(
-        self, results: list[dict], filter_validated: bool
+        self,
+        results: list[dict],
+        filter_validated: bool,
+        products_limit: int | None = None,
     ) -> list[ProductData]:
         """Convert raw result dicts to ProductData and validate media.
 
@@ -774,6 +797,8 @@ class BotasaurusAmazonScraper(BaseScraper):
         ----
             results: List of product dicts with download info
             filter_validated: If True, return only products meeting media requirements
+            products_limit: The caller's own limit for the final-verification
+                summary; the run's limit when None
 
         Returns:
         -------
@@ -819,8 +844,11 @@ class BotasaurusAmazonScraper(BaseScraper):
         count_products_with_media = global_settings.get(
             "count_products_with_media", False
         )
+        # The caller's explicit limit when it has one; the run's otherwise.
         max_products = (
-            CONFIG.get("scrapers", {}).get("amazon", {}).get("max_products", 5)
+            products_limit
+            if products_limit is not None
+            else self.effective_max_products
         )
 
         products_with_media = []
@@ -1003,7 +1031,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     "search_params": search_params,
                     "debug_mode": self.debug_mode,
                     "debug_options": self.debug_options,
-                    "max_products": self.amazon_config.get("max_products", 5),
+                    "max_products": self.effective_max_products,
                     "page": start_page,
                 }
             )
@@ -1590,12 +1618,8 @@ def _rotate_pool_for_today(
     keywords. It is a stride and not a slice width: the pool stays whole, and
     the entries past the stride remain as fallback for a barren search.
     """
-    max_products = args.max_products or (
-        config.get("scrapers", {}).get("amazon", {}).get("max_products", 10)
-    )
-    per_keyword = args.products_per_keyword or batch_config.get(
-        "products_per_keyword", 2
-    )
+    max_products = args.max_products or config["scrapers"]["amazon"]["max_products"]
+    per_keyword = args.products_per_keyword or batch_config["products_per_keyword"]
     stride = max(1, -(-max_products // max(1, per_keyword)))
     rotated = rotate_keyword_pool(pool, stride)
     logger.info(
@@ -1663,7 +1687,10 @@ def main():
             config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
-                    config = yaml.safe_load(f)
+                    raw = yaml.safe_load(f)
+                # Validated and defaults-filled: a section the file omits
+                # reads as the model's defaults rather than a KeyError.
+                config = ScraperConfig.from_legacy_dict(raw).to_runtime_dict()
 
                 # Check batch configuration first
                 batch_config = config.get("batch", {})
@@ -1760,7 +1787,8 @@ def main():
             config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
-                    config = yaml.safe_load(f)
+                    raw = yaml.safe_load(f)
+                config = ScraperConfig.from_legacy_dict(raw).to_runtime_dict()
                 config_debug_mode = config.get("global_settings", {}).get(
                     "debug_mode", False
                 )

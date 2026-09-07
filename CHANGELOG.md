@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.102.1] - 2026-09-07
+
+### Fixed
+- The scraper's configuration is typed end to end. Three loaders read `config/scraper.yaml` into raw dicts (`ScraperConfigAdapter`, `PlatformConfigManager`, and the scraper's own `_load_config`), and fifty-four sites walked them with `dict.get(key, MAGIC)`, so a misspelled key in the file or in a reader was read back as that reader's own number, silently; four keys existed only as such numbers, and two defaults had drifted from the file. All three loaders now validate through `ScraperConfig`, every submodel refuses unknown keys, and consumers read a typed `get_settings()` or a defaults-filled dict in the file's shape. A typo fails at load, including at import of the scraper package. The `batch:` section has a model of its own, four fields that existed only as magic numbers are declared (`download_config.min_image_file_size` and `validation_timeout`, `batch_processing.max_pages`, `global_settings.retries`), and the hand-written fallback dicts in the adapter and the config module are replaced by the model's defaults. The typed models existed since 0.7x and nothing constructed them at runtime. Closes #125.
+
 ## [0.102.0] - 2026-09-07
 
 ### Added

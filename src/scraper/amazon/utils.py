@@ -162,13 +162,9 @@ def detect_monitors() -> list[dict[str, Any]]:
     try:
         # Try xrandr first (Linux/Unix)
         # Get timeout from config
-        from .config import CONFIG
+        from .config import CONFIG, get_settings
 
-        timeout = (
-            CONFIG.get("global_settings", {})
-            .get("system_timeouts", {})
-            .get("system_command_timeout", 5)
-        )
+        timeout = get_settings().global_settings.system_timeouts.system_command_timeout
         result = subprocess.run(
             ["xrandr"], capture_output=True, text=True, timeout=timeout
         )

@@ -71,7 +71,7 @@ Two settings control how many products get scraped:
 | Setting | Config path | Default | CLI override |
 |---------|------------|---------|--------------|
 | `products_per_keyword` | `batch.products_per_keyword` | `1` | `--products-per-keyword N` |
-| `max_products` | `scrapers.amazon.max_products` | `10` code default (bundled `config/scraper.yaml` sets `1`) | `--max-products N` |
+| `max_products` | `scrapers.amazon.max_products` | `2` model default (bundled `config/scraper.yaml` sets `1`) | `--max-products N` |
 | `max_products_per_search` | `global_settings.browser_config.max_products_per_search` | `10` (Pydantic default `5`) | none |
 
 `max_products` is the total validated-product cap for the run. `max_products_per_search` is the distinct per-page extraction cap (how many products are read from a single search results page).

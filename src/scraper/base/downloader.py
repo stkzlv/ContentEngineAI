@@ -41,10 +41,14 @@ class BaseDownloader:
         global_settings = self.config_manager.get_global_settings()
         self.download_config = global_settings.get("download_config", {})
 
-        # Set timeouts and limits
-        self.download_timeout = self.download_config.get("download_timeout", 30)
-        self.chunk_size = self.download_config.get("download_chunk_size", 8192)
-        self.validation_timeout = self.download_config.get("validation_timeout", 10)
+        # Set timeouts and limits, from the typed settings the manager loaded.
+        settings = self.config_manager.settings.global_settings
+        self.download_timeout = settings.download_config.download_timeout
+        self.chunk_size = settings.download_config.download_chunk_size
+        self.validation_timeout = (
+            settings.download_config.validation_timeout
+            or settings.system_timeouts.head_request_timeout
+        )
 
     def get_download_directory(self, product_id: str, media_type: str) -> Path:
         """Get download directory for a product's media.

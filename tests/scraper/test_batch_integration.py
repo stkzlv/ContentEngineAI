@@ -24,6 +24,7 @@ from src.scraper.amazon.config import load_batch_config
 from src.scraper.amazon.models import BatchConfig, ProductData, SearchParameters
 from src.scraper.base import Platform
 from src.scraper.base.throttle import ThrottleSettings, ThrottleTracker
+from src.scraper.config_models import ScraperConfig
 
 # The pacing delay between inputs is real time. These tests drive many
 # inputs and none of them is measuring the pause.
@@ -306,7 +307,10 @@ class TestConfigurationPrecedence:
                 "keywords": ["test keyword 1", "test keyword 2"],
             }
         }
-        with patch("src.scraper.amazon.config.CONFIG", mock_config):
+        with patch(
+            "src.scraper.amazon.config.SETTINGS",
+            ScraperConfig.from_legacy_dict(mock_config),
+        ):
             # CLI product_ids should override YAML
             batch_config = load_batch_config(
                 cli_product_ids=["B0CLI00001"],
@@ -327,7 +331,10 @@ class TestConfigurationPrecedence:
                 "keywords": ["test keyword 1", "test keyword 2"],
             }
         }
-        with patch("src.scraper.amazon.config.CONFIG", mock_config):
+        with patch(
+            "src.scraper.amazon.config.SETTINGS",
+            ScraperConfig.from_legacy_dict(mock_config),
+        ):
             # CLI keywords should override YAML
             batch_config = load_batch_config(
                 cli_product_ids=None,
@@ -349,7 +356,10 @@ class TestConfigurationPrecedence:
                 "fail_fast": False,
             }
         }
-        with patch("src.scraper.amazon.config.CONFIG", mock_config):
+        with patch(
+            "src.scraper.amazon.config.SETTINGS",
+            ScraperConfig.from_legacy_dict(mock_config),
+        ):
             # CLI fail_fast should override YAML
             batch_config = load_batch_config(
                 cli_product_ids=None,
@@ -368,7 +378,10 @@ class TestConfigurationPrecedence:
                 "keywords": ["test keyword 1", "test keyword 2"],
             }
         }
-        with patch("src.scraper.amazon.config.CONFIG", mock_config):
+        with patch(
+            "src.scraper.amazon.config.SETTINGS",
+            ScraperConfig.from_legacy_dict(mock_config),
+        ):
             batch_config = load_batch_config(
                 cli_product_ids=None,
                 cli_keywords=None,
@@ -385,7 +398,10 @@ class TestConfigurationPrecedence:
         """Test that defaults are used when neither YAML nor CLI provided."""
         # Mock CONFIG dict without batch section
         mock_config: dict[str, dict[str, dict[str, int]]] = {}
-        with patch("src.scraper.amazon.config.CONFIG", mock_config):
+        with patch(
+            "src.scraper.amazon.config.SETTINGS",
+            ScraperConfig.from_legacy_dict(mock_config),
+        ):
             batch_config = load_batch_config(
                 cli_product_ids=None,
                 cli_keywords=None,
