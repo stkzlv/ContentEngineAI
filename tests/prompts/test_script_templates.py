@@ -249,3 +249,74 @@ def test_topic_template_requires_the_spoken_search_phrase(template: Path) -> Non
     """Platforms index the transcript, so the phrase has to be said aloud."""
     text = template.read_text()
     assert "first five seconds" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_branches_on_whether_the_path_is_known(
+    template: Path,
+) -> None:
+    """A shipped script sent viewers to a Windows menu node that does not exist.
+
+    The narrator profile used to demand "name the actual setting, menu, or
+    number wherever there is one", a quantifier the model cannot evaluate,
+    offering three shapes that were all the same shape: something read off an
+    interface. A topic with no nameable path had no satisfiable branch, so the
+    model invented one. Four distinct invented methods turned up in seventeen
+    scripts from the pool.
+
+    The demand is gone from the profile and this branch replaces it: a
+    mechanical self-check, and an alternative shape that is followable without
+    knowing a path.
+    """
+    # Collapsed, because the bullet is hard-wrapped like its neighbours and a
+    # phrase that spans a line break is not a literal substring of the file.
+    text = " ".join(template.read_text().split())
+    assert "only if you can state it exactly" in text
+    # The referent per shape. "Labels in order" alone gives a URL nothing to
+    # satisfy, so an invented address passed the gate on the platform anchor
+    # alone; and gating "an exact setting" contradicted the profile, which
+    # holds up "channel 1, 6, or 11" as the answer two paragraphs earlier.
+    assert "the labels in\n  order, or the address in full" in template.read_text()
+    # The platform anchor is what makes the self-check mechanical, and the
+    # abstention arm is what stops the rule demanding a path it cannot supply.
+    # Without these two the bullet reads the same and pins nothing.
+    assert "for a platform you name" in text
+    assert "say plainly that it differs by device" in text
+    assert "name what the viewer can see or feel on the device instead" in text
+    assert "is not the same as it naming one" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_names_no_worked_path(template: Path) -> None:
+    """The branch above must not carry an example, not even a negative one.
+
+    The model produced "System Information / Components / Power" from a prompt
+    that never contained those words. Naming them to warn against them hands it
+    the subject back, which is how a worked example inside a conditional branch
+    was previously copied verbatim onto the wrong product.
+    """
+    text = template.read_text()
+    assert "System Information" not in text
+    assert "Components" not in text
+
+
+def test_the_topic_profile_no_longer_demands_a_menu_path() -> None:
+    """The upstream half of the same fix.
+
+    The absences are the load-bearing assertions: leaving the demand in place
+    makes the prompt argue with itself, an unconditional "name the actual menu"
+    forty lines above a conditional "only if you can state the labels".
+    """
+    from src.video.config import config
+
+    profile = config.llm_settings.script_templates.narrator_profile_topic
+    assert "wherever there is one" not in profile
+    assert "A vague instruction cannot be followed" not in profile
+    # The condition here is the same mechanical one the templates carry, not a
+    # self-assessment. Dropping it entirely was measured and lost: on 50 canary
+    # scripts the account-deletion topic went from zero invented paths to
+    # three, and the impossible "turn the VPN on before you join the wifi"
+    # ordering came back. The clause earns its place; it just has to be
+    # checkable rather than ask the model what it knows.
+    assert "state it exactly for a platform you name" in profile
+    assert "a wrong path costs more than a general one" in profile.lower()

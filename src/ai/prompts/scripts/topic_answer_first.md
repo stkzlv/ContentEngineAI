@@ -26,6 +26,11 @@ End with one CTA per the narrator profile. One line.
   the viewer could buy, unless the detail below actually names one. If a tool
   genuinely helps, name it once, after the method, as a suggestion rather than a
   pitch.
+- **Name a menu path or a URL only if you can state it exactly -- the labels in
+  order, or the address in full -- for a platform you name.** If you cannot,
+  name what the viewer can see or feel on the device instead, or say plainly
+  that it differs by device and what to look for. Both are followable. The
+  detail below saying a method exists is not the same as it naming one.
 - Every step needs to stand alone as an instruction. One instruction per
   sentence; a sentence carrying three steps cannot be followed.
 - Prefer the cheap or free fix first. Leading with the thing that costs money

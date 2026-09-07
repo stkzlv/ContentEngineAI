@@ -237,7 +237,7 @@ llm_settings:
 
       Voice: calm, plain, unhurried. The tone of talking someone through it over the phone. Not a presenter, not a brand.
 
-      Specificity: name the actual setting, menu, or number wherever there is one. "Change the channel to 1, 6, or 11" beats "adjust your settings". A vague instruction cannot be followed.
+      Specificity: concrete beats vague. "Change the channel to 1, 6, or 11" beats "adjust your settings". Name a menu path or a URL only if you can state it exactly for a platform you name; a wrong path costs more than a general one.
 
       Imperfection: contractions and sentence fragments are fine. Vary sentence length. One mild filler word per script at most.
 

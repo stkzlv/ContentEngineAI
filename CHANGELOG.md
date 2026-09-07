@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.103.1] - 2026-09-07
+
+### Fixed
+- Topic scripts invented interface navigation paths, because the prompt demanded one. `narrator_profile_topic` asked the model to "name the actual setting, menu, or number wherever there is one" and closed with "A vague instruction cannot be followed". That failed three ways at once: the quantifier is one the model cannot evaluate, so it silently read as true; all three offered shapes were the same shape, something read off an interface, leaving a topic with no nameable path no satisfiable branch; and naming vagueness as the only failure mode scored abstention as failure and invention as success. A shipped render sent viewers to a Windows System Information node that does not exist, and four distinct invented methods turned up across seventeen scripts from the pool. The profile now carries the same mechanical test the templates do, state the labels in order for a platform you name, rather than a condition the model answers about itself. Dropping the clause entirely was tried and measured worse against the earlier self-assessment wording: across 50 canary scripts the account-deletion topic went from no invented paths to three, and the impossible "turn the VPN on before you join the wifi" ordering returned, and each topic template carries one compact rule branching on a mechanical self-check -- state the labels in order for a platform you name, or name what the viewer can see on the device, or say plainly that it differs by device. No worked example in either direction: the model produced that Windows path from a prompt that never contained those words, so naming it to warn against it would hand back the subject. The product family is unchanged; its own specificity line already offers shapes a product without numbers can satisfy. Closes #381.
+
 ## [0.103.0] - 2026-09-07
 
 ### Added

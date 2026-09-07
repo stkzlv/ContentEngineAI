@@ -22,6 +22,11 @@ End with one CTA per the narrator profile. One line.
   person would say rather than a query read aloud.
 - **Do not invent a product.** There may be none. Never say "this thing", "I got
   one", or anything implying an object to buy, unless the detail below names one.
+- **Name a menu path or a URL only if you can state it exactly -- the labels in
+  order, or the address in full -- for a platform you name.** If you cannot,
+  name what the viewer can see or feel on the device instead, or say plainly
+  that it differs by device and what to look for. Both are followable. The
+  detail below saying a method exists is not the same as it naming one.
 - One instruction per sentence, so each step can be followed on its own.
 - Name one thing the viewer might blame that is usually not the cause. Correcting
   a wrong assumption is the most useful thing a short help video does.
