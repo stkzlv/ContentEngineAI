@@ -640,7 +640,11 @@ class VideoStrategyFactory:
         self.strategies: dict[str, VideoModeStrategy] = {
             "sequential": SequentialStrategy(media_inspector, config, product_id),
             "single_best": SingleBestStrategy(media_inspector, config, product_id),
-            "mixed": MixedMediaStrategy(media_inspector, config, product_id),
+            # Keyed by the value `video_assembly_mode` admits. It read "mixed"
+            # from v0.16.0, while the model and the bundled profile said
+            # "mixed_media", so every product with a video under
+            # `product_video_mixed` died here on a KeyError (#372).
+            "mixed_media": MixedMediaStrategy(media_inspector, config, product_id),
             "video_first_fallback": VideoFirstFallbackStrategy(
                 media_inspector, config, product_id
             ),
