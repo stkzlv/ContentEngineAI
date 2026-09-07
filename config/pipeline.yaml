@@ -59,6 +59,16 @@ global_batch:
       description: "Background refresh, screen brightness, battery health."
       keywords: ["phone charging", "smartphone battery"]
 
+  # A file whose topic list replaces the `topics:` block above, so an
+  # installation keeps its own pool out of the repository: topic titles are
+  # the channel's editorial line. Same shape as the block above and as
+  # `--topics-file`. Relative paths resolve against this file's directory.
+  # `PIPELINE_TOPICS_FILE` in `.env` overrides this key and is the usual way
+  # to set it: an installation points at its own pool without editing this
+  # tracked file. The shipped value stays null so a fresh clone works.
+  # A path that does not exist is an error, not a fall back to the block.
+  topics_file: null
+
   # How many of the topics above a run with no input flags includes, alongside
   # the configured keywords. Topics named on the command line are taken in
   # full and ignore this.

@@ -76,6 +76,7 @@ cache/
 
 # Business-specific notes that must never enter the open-source tree
 *.private.md
+*.private.yaml
 ROADMAP.private.md
 .business/
 

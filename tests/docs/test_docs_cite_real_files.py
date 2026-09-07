@@ -81,7 +81,14 @@ def shipped_prose() -> list[Path]:
         if not p.name.endswith(".private.md")
     ]
     files += [REPO / "README.md", REPO / "CONTRIBUTING.md"]
-    files += sorted((REPO / "config").glob("*.yaml"))
+    # `*.private.yaml` is an installation's own overlay, gitignored like the
+    # private docs above. Sweeping it fails this test on the one machine that
+    # has one, over content CI never sees.
+    files += [
+        p
+        for p in sorted((REPO / "config").glob("*.yaml"))
+        if not p.name.endswith(".private.yaml")
+    ]
     return [p for p in files if p.exists()]
 
 
