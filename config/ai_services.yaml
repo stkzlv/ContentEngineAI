@@ -235,6 +235,15 @@ llm_settings:
     # a CTA. Each template renders these into its own Rules, next to the beat
     # that precedes them, and the generator refuses a script that does not end
     # on one. Edit the list, not the templates.
+    #
+    # One is chosen per product, by the same salted hash the script template,
+    # the font, the colour and the voice use, and only that one is rendered
+    # into the rule. Quoting all four and letting the model pick meant it
+    # picked the first every time: five of five product scripts on one day
+    # and all four on the next day's batches closed on the same line, which
+    # is the templated-sameness signal the platforms throttle on. Validation
+    # still accepts any line in the list, since a script that reached for a
+    # sibling has still closed on a CTA. `--cta` overrides the choice.
     cta_options:
       - "Link in bio if you want one."
       - "Follow for more finds like this."

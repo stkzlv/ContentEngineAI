@@ -1226,13 +1226,14 @@ llm_settings:
 | `templates_dir` | path | Where the `.md` template files live. |
 | `template_pool` | list[str] | Names (without `.md`) eligible for selection. Empty = all templates in `templates_dir`. |
 | `fixed_template` | str \| null | Force one template for every product. Null = deterministic per-product MD5 selection. |
+| `fixed_cta` | str \| null | Force one closing line for every record, the `--cta` flag's home. Null = deterministic per-product selection. A value outside the configured options warns and falls through to selection, since rendering a rule the validator then refuses costs the render a retry loop. |
 | `pillars` | dict[str, list[str]] | Pillar name -> templates that fit it. A template can be in multiple pillars. Empty dict disables pillar filtering. |
 | `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
-| `cta_options` | list[str] | The closing lines a product script may end on, verbatim. Rendered into every template's `{CTA_RULE}` immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of them. |
+| `cta_options` | list[str] | The closing lines a product script may end on, verbatim. One is chosen per product by salted hash and rendered alone into that template's `{CTA_RULE}`, immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of the configured lines. Override the choice with `--cta`. |
 | `cta_options_topic` | list[str] | Topic counterpart, none of which implies something to buy. Empty list falls back to `cta_options`. |
 | `pillar_preambles_topic` | dict[str, str] | Topic counterpart to `pillar_preambles`, using the same pillar keys. Read instead of the product map on a topic render. **Empty dict falls back to the product map**, which describes a product fixing an annoyance and lands above the topic prompt's rule against naming one. |
 | `pillar_audiences_topic` | dict[str, str] | Topic counterpart to `pillar_audiences`, same keys. Empty dict falls back to the product map, which describes buyers and shoppers. |

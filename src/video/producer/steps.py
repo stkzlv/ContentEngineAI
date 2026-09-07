@@ -551,7 +551,7 @@ async def step_generate_script(ctx: PipelineContext):
             )
         else:
             try:
-                script_text, template_name = await generate_ai_script(
+                script_text, template_name, cta_line = await generate_ai_script(
                     ctx.product,
                     ctx.config.llm_settings,
                     ctx.secrets,
@@ -575,6 +575,11 @@ async def step_generate_script(ctx: PipelineContext):
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
             if template_name:
                 ctx.state["script_template"] = template_name
+            if cta_line:
+                # A top-level string, beside `script_template`: the state
+                # loader tells step entries from scalars by isinstance, and
+                # the analytics that segment by variant read it from here.
+                ctx.state["cta"] = cta_line
             logger.info(
                 "Script generated (template=%s) and saved to %s",
                 template_name,

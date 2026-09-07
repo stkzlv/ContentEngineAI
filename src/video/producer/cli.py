@@ -681,6 +681,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Override script template (name without .md).",
     )
     parser.add_argument(
+        "--cta",
+        type=str,
+        help=(
+            "Override the closing call to action (must be one of the "
+            "configured options; otherwise selection proceeds normally)."
+        ),
+    )
+    parser.add_argument(
         "--pillar",
         type=str,
         help=(
@@ -829,6 +837,8 @@ async def main():
         config.llm_settings.script_templates.fixed_template = cli_overrides[
             "script_template"
         ]
+    if cli_overrides.get("cta"):
+        config.llm_settings.script_templates.fixed_cta = cli_overrides["cta"]
 
     # Log applied CLI overrides (already applied via config loader)
     if cli_overrides:

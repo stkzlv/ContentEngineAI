@@ -383,7 +383,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result == (None, None)
+        assert result == (None, None, None)
 
     @pytest.mark.asyncio
     async def test_generate_script_empty_response(
@@ -431,7 +431,7 @@ class TestGenerateScript:
             )
 
         # Should return (None, None) for empty response
-        assert result == (None, None)
+        assert result == (None, None, None)
 
     @pytest.mark.skip(
         reason="Test needs async session mock fix - temporary skip for CI"
@@ -601,7 +601,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result == (None, None)
+        assert result == (None, None, None)
         assert (
             mock_aiohttp_session.post.call_count == 6
         )  # Called for each model (2 models * 3 retries)
@@ -648,7 +648,7 @@ class TestGenerateScript:
                 debug_mode=False,
             )
 
-        assert result == (None, None)
+        assert result == (None, None, None)
 
     @pytest.mark.skip(
         reason="Test needs async session mock fix - temporary skip for CI"

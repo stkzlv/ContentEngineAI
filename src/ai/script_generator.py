@@ -120,19 +120,63 @@ def _short_product_name(full_title: str) -> str:
     return short or "this product"
 
 
-def render_cta_rule(cta_options: list[str], is_topic: bool = False) -> str:
+def select_cta(
+    cta_options: list[str],
+    product_id: str | None = None,
+    fixed_cta: str | None = None,
+) -> str:
+    """Pick one closing line, deterministically by product ID.
+
+    The pool existed for four releases and always yielded its first entry,
+    because `render_cta_rule` quoted every option and left the choice to the
+    model: five of five product scripts on one day, and all four on the next
+    day's batches, closed on `Link in bio if you want one.` A pool that always
+    yields its first entry is one CTA and three unused strings, and every
+    render sharing a closing line is the templated-sameness signal the
+    platforms throttle on.
+
+    Same salted-hash shape as the script template, the font, the colour and
+    the voice, so a product's closing line is stable across runs and varies
+    across a batch. `fixed_cta` is the CLI override; a value outside the pool
+    warns and falls through to the hash rather than rendering a rule the
+    validator will then refuse.
+    """
+    if not cta_options:
+        return ""
+    if fixed_cta:
+        if fixed_cta in cta_options:
+            return fixed_cta
+        logger.warning(
+            "Fixed CTA %r is not one of the configured options; selecting normally",
+            fixed_cta,
+        )
+    if not product_id:
+        return cta_options[0]
+    hash_hex = hashlib.md5(
+        f"{product_id}:cta".encode(), usedforsecurity=False
+    ).hexdigest()
+    seed = int(hash_hex[:8], 16)
+    rng = random.Random(seed)  # noqa: S311
+    return rng.choice(cta_options)
+
+
+def render_cta_rule(cta_line: str, is_topic: bool = False) -> str:
     """The rule a template carries about how the script must end.
 
     Rendered into `{CTA_RULE}` next to the template's closing-beat rule rather
     than stated once in the narrator profile, because adjacency is what binds:
     the profile's version sat forty lines from the task and lost to the
-    nearer imperative every time. The options are quoted verbatim so the
-    model copies one rather than paraphrasing it into something the validator
-    and the first-comment extractor no longer recognise.
+    nearer imperative every time. The line is quoted verbatim so the model
+    copies it rather than paraphrasing it into something the validator and the
+    first-comment extractor no longer recognise.
+
+    One line, not the pool. A menu of four asks the model to choose and it
+    chose the first one every time, which is what `select_cta` now decides
+    instead -- and one imperative binds better than a list, which is the
+    lesson the CTA rule was moved here to apply.
     """
-    if not cta_options:
+    if not cta_line:
         return ""
-    quoted = " / ".join(f'"{line}"' for line in cta_options)
     # The referent differs by family. Product templates carry a closing-beat
     # rule directly above this line; topic templates state their close in
     # the body, and the rule above this one there is an honest-limit rule,
@@ -143,9 +187,8 @@ def render_cta_rule(cta_options: list[str], is_topic: bool = False) -> str:
         else "It comes after the closing beat above"
     )
     return (
-        "- **The very last sentence of the script is a call to action, and it "
-        "is exactly one of these lines, word for word:** "
-        f"{quoted} Pick the one that fits. {after}, never instead of it, and "
+        "- **The very last sentence of the script is this call to action, "
+        f'word for word:** "{cta_line}" {after}, never instead of it, and '
         "nothing follows it."
     )
 
@@ -862,11 +905,14 @@ async def generate_script(
     api_settings=None,
     product_id: str | None = None,
     pillar: str | None = None,
-) -> tuple[str | None, str | None]:
+) -> tuple[str | None, str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
-    Returns (script_text, template_name) tuple. template_name is the stem
-    of the selected template file (e.g. "curiosity_hook"), or None on failure.
+    Returns (script_text, template_name, cta_line). template_name is the stem
+    of the selected template file (e.g. "curiosity_hook"); cta_line is the
+    closing line the prompt asked for, returned rather than recomputed by the
+    caller so the recorded choice cannot disagree with the rendered one. All
+    three are None on failure.
     """
     # Script validation thresholds from config
     sv = settings.script_validation
@@ -924,11 +970,14 @@ async def generate_script(
     try:
         template = load_prompt_template(template_path)
         cta_options = settings.script_templates.cta_options_for(is_topic)
+        cta_line = select_cta(
+            cta_options, product_id, settings.script_templates.fixed_cta
+        )
         prompt = format_prompt(
             template,
             product,
             audience,
-            cta_rule=render_cta_rule(cta_options, is_topic=is_topic),
+            cta_rule=render_cta_rule(cta_line, is_topic=is_topic),
         )
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
@@ -983,7 +1032,7 @@ async def generate_script(
                         f"Script successfully generated with model: {model} - "
                         f"{validation_reason}"
                     )
-                    return clean_script, template_name
+                    return clean_script, template_name, cta_line
                 else:
                     logger.warning(
                         f"Script incomplete from {model}: {validation_reason}"
@@ -1048,7 +1097,7 @@ async def generate_script(
                 is_complete, validation_reason = _validate(clean_script)
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
-                    return clean_script, template_name
+                    return clean_script, template_name, cta_line
                 else:
                     logger.warning(f"Fallback {model} incomplete: {validation_reason}")
             except Exception as e:
@@ -1085,7 +1134,7 @@ async def generate_script(
                     is_complete, reason = _validate(clean_script)
                     if is_complete:
                         logger.info("Fallback success with %s - %s", model, reason)
-                        return clean_script, template_name
+                        return clean_script, template_name, cta_line
                     else:
                         logger.warning("Fallback %s incomplete: %s", model, reason)
                 except Exception as e:
@@ -1112,7 +1161,7 @@ async def generate_script(
                                 model,
                                 reason,
                             )
-                            return clean_script, template_name
+                            return clean_script, template_name, cta_line
                     except Exception as e:
                         logger.warning(
                             "Fallback discovered model %s failed: %s", model, e
@@ -1137,19 +1186,22 @@ async def generate_script(
                 "No attempt ended on a configured CTA; replacing the closing "
                 "line %r with %r",
                 sentences[-1],
-                cta_options[0],
+                cta_line,
             )
             script = " ".join(sentences[:-1])
         else:
             logger.warning(
                 "No attempt ended on a configured CTA; appending %r to an "
                 "otherwise complete script",
-                cta_options[0],
+                cta_line,
             )
-        return script.rstrip() + " " + cta_options[0], template_name
+        # The line the rule asked for, not the pool's first entry. Appending a
+        # different one would make the recorded choice a lie about what
+        # shipped, and would put every fallback render back on one CTA.
+        return script.rstrip() + " " + cta_line, template_name, cta_line
 
     logger.error("All models failed to generate a script.")
-    return None, None
+    return None, None, None
 
 
 # Minimum words for a headline to read as a headline rather than a fragment.

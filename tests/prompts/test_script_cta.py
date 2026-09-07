@@ -23,6 +23,7 @@ from src.ai.script_generator import (
     ends_with_cta,
     format_prompt,
     render_cta_rule,
+    select_cta,
     validate_script_completeness,
 )
 from src.scraper.amazon.models import ProductData
@@ -34,6 +35,10 @@ PRODUCT_CTAS = [
     "Follow for more finds like this.",
     "Drop a comment if you've tried it.",
     "Share with someone who needs this.",
+]
+TOPIC_CTAS = [
+    "Save this for the next time it happens.",
+    "Follow for more fixes like this.",
 ]
 
 BODY = (
@@ -76,32 +81,44 @@ class TestTheRuleSitsNextToTheBeat:
 
         assert lines[beat + 1] == "{CTA_RULE}"
 
-    def test_the_rule_quotes_every_option_verbatim(self) -> None:
-        rule = render_cta_rule(PRODUCT_CTAS)
+    def test_the_rule_quotes_the_one_chosen_line(self) -> None:
+        """One line, not the pool. The rule used to quote all four and leave
+        the choice to the model, which took the first every time: five of
+        five product scripts on one day and all four on the next day's
+        batches closed on the same line. `select_cta` decides instead, and
+        one imperative binds better than a menu.
+        """
+        rule = render_cta_rule(PRODUCT_CTAS[1])
 
-        for cta in PRODUCT_CTAS:
-            assert f'"{cta}"' in rule
+        assert f'"{PRODUCT_CTAS[1]}"' in rule
         assert "very last sentence" in rule
+        for other in PRODUCT_CTAS[0], PRODUCT_CTAS[2]:
+            assert f'"{other}"' not in rule
 
     def test_the_topic_tail_does_not_point_at_a_beat_rule(self) -> None:
         """Topic templates have no closing-beat rule above the placeholder;
         the line above is an honest-limit rule, and "the closing beat above"
         would point the model at that.
         """
-        assert "closing beat above" in render_cta_rule(PRODUCT_CTAS)
-        assert "closing beat above" not in render_cta_rule(PRODUCT_CTAS, is_topic=True)
+        assert "closing beat above" in render_cta_rule(PRODUCT_CTAS[0])
+        assert "closing beat above" not in render_cta_rule(
+            PRODUCT_CTAS[0], is_topic=True
+        )
         assert "closing line the template asks for" in render_cta_rule(
-            PRODUCT_CTAS, is_topic=True
+            PRODUCT_CTAS[0], is_topic=True
         )
 
-    def test_no_options_renders_nothing(self) -> None:
-        assert render_cta_rule([]) == ""
+    def test_no_line_renders_nothing(self) -> None:
+        assert render_cta_rule("") == ""
 
     def test_the_prompt_renders_it(self) -> None:
         template = (REPO / "src/ai/prompts/scripts/curiosity_hook.md").read_text()
 
         prompt = format_prompt(
-            template, _product(), "buyers", cta_rule=render_cta_rule(PRODUCT_CTAS)
+            template,
+            _product(),
+            "buyers",
+            cta_rule=render_cta_rule(PRODUCT_CTAS[0]),
         )
 
         assert "{CTA_RULE}" not in prompt
@@ -207,6 +224,98 @@ class TestTheValidatorRefusesAScriptWithoutOne:
 
 
 @pytest.mark.unit
+class TestBothEntryPointsCarryTheOverride:
+    """The Module/Batch Alignment Rule, as a test.
+
+    The producer CLI and `global_batch` re-implement the same argument
+    surface, so a flag added to one and not the other is silently absent on
+    the path `make batch-lowpri` runs.
+    """
+
+    def test_the_flag_exists_on_both(self) -> None:
+        cli = (REPO / "src/video/producer/cli.py").read_text(encoding="utf-8")
+        batch = (REPO / "src/pipeline/global_batch.py").read_text(encoding="utf-8")
+
+        assert '"--cta"' in cli
+        assert '"--cta"' in batch
+
+    def test_the_producer_applies_it_to_the_settings(self) -> None:
+        """A flag parsed and never read is the shape this repo ships most
+        often; the producer is where the override has to land.
+        """
+        cli = (REPO / "src/video/producer/cli.py").read_text(encoding="utf-8")
+
+        assert "script_templates.fixed_cta" in cli
+
+    def test_the_batch_forwards_it(self) -> None:
+        batch = (REPO / "src/pipeline/global_batch.py").read_text(encoding="utf-8")
+
+        assert 'overrides["cta"]' in batch
+
+
+@pytest.mark.unit
+class TestTheLineIsChosenPerProduct:
+    """The pool always yielded its first entry.
+
+    `render_cta_rule` quoted all four options and left the choice to the
+    model, which took the first every time: five of five product scripts on
+    one day, and all four on the next day's batches, closed on `Link in bio
+    if you want one.` A pool that always yields its first entry is one CTA
+    and three unused strings, and every render sharing a closing line is the
+    templated-sameness signal the platforms throttle on.
+    """
+
+    def test_the_same_product_gets_the_same_line(self) -> None:
+        first = select_cta(PRODUCT_CTAS, "B0AAAAAAAA")
+        assert all(select_cta(PRODUCT_CTAS, "B0AAAAAAAA") == first for _ in range(5))
+
+    def test_a_batch_does_not_land_on_one_line(self) -> None:
+        """The defect, stated as a test. Not a distribution claim -- just
+        that selection reads the product id at all.
+        """
+        ids = [f"B0TEST{n:04d}" for n in range(40)]
+        chosen = {select_cta(PRODUCT_CTAS, i) for i in ids}
+        assert len(chosen) > 1
+        assert chosen <= set(PRODUCT_CTAS)
+
+    def test_topic_and_product_pools_are_separate(self) -> None:
+        assert select_cta(TOPIC_CTAS, "topic-x") in TOPIC_CTAS
+
+    def test_no_product_id_takes_the_first(self) -> None:
+        """A caller with nothing to hash still needs a line, and the first is
+        the one the pool has always produced.
+        """
+        assert select_cta(PRODUCT_CTAS) == PRODUCT_CTAS[0]
+
+    def test_an_empty_pool_yields_nothing(self) -> None:
+        assert select_cta([], "B0AAAAAAAA") == ""
+
+    def test_the_override_wins(self) -> None:
+        assert (
+            select_cta(PRODUCT_CTAS, "B0AAAAAAAA", fixed_cta=PRODUCT_CTAS[3])
+            == PRODUCT_CTAS[3]
+        )
+
+    def test_an_override_outside_the_pool_falls_through(self) -> None:
+        """Rendering a rule the validator will then refuse costs the render a
+        retry loop and ends on an appended line the rule never asked for.
+        """
+        chosen = select_cta(PRODUCT_CTAS, "B0AAAAAAAA", fixed_cta="Buy it now.")
+        assert chosen == select_cta(PRODUCT_CTAS, "B0AAAAAAAA")
+
+
+def _chosen_cta(product_id: str = "B0TEST0001") -> str:
+    """The line `select_cta` picks for the product the generator tests use.
+
+    Derived rather than written down, so the test says "the line the rule
+    asked for" instead of pinning today's hash output.
+    """
+    from src.ai.script_generator import select_cta
+
+    return select_cta(PRODUCT_CTAS, product_id)
+
+
+@pytest.mark.unit
 class TestTheGeneratorAppliesItEverywhere:
     def test_all_four_attempt_paths_validate_through_one_closure(self) -> None:
         """Primary, fallback provider, discovered model: one site skipped is
@@ -236,7 +345,7 @@ class TestTheGeneratorAppliesItEverywhere:
         monkeypatch.setattr(
             script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
         )
-        script, _ = await script_generator.generate_script(
+        script, _, _ = await script_generator.generate_script(
             _product(),
             settings,
             {settings.api_key_env_var: "k"},
@@ -269,7 +378,10 @@ class TestTheGeneratorAppliesItEverywhere:
 
         assert calls >= 2, "no retry happened"
         assert script is not None
-        assert script.endswith(PRODUCT_CTAS[0])
+        # The line the rule asked for, not the pool's first entry. Appending
+        # a different one would make the recorded choice a lie about what
+        # shipped, and would put every fallback render back on one CTA.
+        assert script.endswith(_chosen_cta())
         assert "25,000-hour lifespan." in script
 
     @pytest.mark.asyncio
@@ -286,7 +398,7 @@ class TestTheGeneratorAppliesItEverywhere:
         script, _ = await self._run(monkeypatch, [para] * 4)
 
         assert script is not None
-        assert script.endswith(PRODUCT_CTAS[0])
+        assert script.endswith(_chosen_cta())
         assert "in my bio if you want it" not in script
         assert extract_closing_line(script) == "Team magnetic or team plug-in?"
 
