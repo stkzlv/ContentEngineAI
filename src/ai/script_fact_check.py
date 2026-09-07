@@ -43,7 +43,11 @@ _CLAIM_BLOCK = re.compile(
     r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)|\Z)",
     re.S | re.I,
 )
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+# Split only where a sentence really ends: punctuation, whitespace, and then
+# something that starts a sentence. Splitting on punctuation alone cut
+# "expand Components... then read the Power page." into two entries, so the
+# checker's copy of the whole sentence matched neither half.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[\"\'(\[]?[A-Z0-9])")
 
 # A ruling of "correct" arriving in the shape of a fix. Measured live, twice:
 # asked for wrong claims only, the checker listed a sentence, explained in
@@ -147,6 +151,13 @@ def _ruling_is_wrong(ruling: str | None) -> bool:
     if ruling is None:
         return True
     return "wrong" in ruling.strip().lower()
+
+
+# How many split sentences one flagged claim may cover. The prompt asks for
+# one; two absorbs a residual mismatch between the checker's copy and how the
+# text splits. Beyond that the claim is quoting the script rather than naming
+# a sentence in it.
+_MAX_SPAN_PER_CLAIM = 2
 
 
 def _covers(claim: str, sentence: str) -> bool:
@@ -254,6 +265,27 @@ def accept_revision(
     from src.ai.script_generator import validate_script_completeness
     from src.utils.script_sanitizer import sanitize_script
 
+    # First, because this judges the checker's answer rather than the
+    # revision, so it must be the reason recorded when it is the cause. A
+    # claim quoting more of the script than one sentence turns containment
+    # off: every sentence it spans becomes rewritable, and a claim quoting the
+    # whole script leaves nothing protected. The prompt asks for one sentence,
+    # and `_covers` exists only to absorb a residual mismatch between that
+    # sentence and how the text splits, so a span this wide means the answer
+    # is unusable rather than that the whole script was flagged. Refusing
+    # loses one repair; accepting hands a one-in-eight false positive the run
+    # of the script.
+    old_sentences = sentences(original)
+    spans = [
+        [i for i, s in enumerate(old_sentences) if _covers(c.claim, s)] for c in flagged
+    ]
+    for spanned in spans:
+        if len(spanned) > _MAX_SPAN_PER_CLAIM:
+            return (
+                None,
+                f"a flagged claim spans {len(spanned)} sentences of the script",
+            )
+
     if revised is None or not revised.strip():
         return None, "the reviser returned nothing"
 
@@ -281,13 +313,13 @@ def accept_revision(
     # immediately follow one it named, must come back unchanged. The successor
     # is allowed because a fix often has to carry into the step that referenced
     # the wrong thing.
-    old_sentences = sentences(original)
     new_sentences = sentences(candidate)
     touchable: set[int] = set()
-    for i, s in enumerate(old_sentences):
-        if any(_covers(c.claim, s) for c in flagged):
-            touchable.add(i)
-            touchable.add(i + 1)
+    for spanned in spans:
+        touchable.update(spanned)
+        # One successor for the claim, not one per sentence it spans.
+        if spanned:
+            touchable.add(spanned[-1] + 1)
     kept_old = [(i, s) for i, s in enumerate(old_sentences) if i not in touchable]
     new_norm = [_normalise(s) for s in new_sentences]
     missing = [s for _, s in kept_old if _normalise(s) not in new_norm]
@@ -303,9 +335,17 @@ def accept_revision(
     # prompt forbids re-ordering, but this module's own position is that a
     # prompt rule is not a guard -- which is why `RULING:` and `_is_not_a_fix`
     # exist.
-    positions = [new_norm.index(_normalise(s)) for _, s in kept_old]
-    if positions != sorted(positions):
-        return None, "the revision re-ordered sentences it was not asked to"
+    #
+    # A forward cursor rather than `list.index`, which returns the *first*
+    # occurrence: a script that says the same line twice, or twice after
+    # normalising away case and punctuation, then reads as re-ordered when
+    # nothing moved, and the repair is thrown away.
+    cursor = -1
+    for _, kept in kept_old:
+        try:
+            cursor = new_norm.index(_normalise(kept), cursor + 1)
+        except ValueError:
+            return None, "the revision re-ordered sentences it was not asked to"
 
     # Containment has a second half. Keeping every unflagged sentence still
     # allows the model to *insert* one, which is the shape a helpful rewrite

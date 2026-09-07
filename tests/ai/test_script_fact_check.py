@@ -263,12 +263,14 @@ class TestAcceptingARevision:
         assert accepted is not None, reason
 
     def test_a_claim_split_by_inner_punctuation_still_matches(self) -> None:
-        """`sentences()` splits on any sentence-final punctuation followed by
-        a space, so an ellipsis or an abbreviation cuts one spoken sentence
-        into two entries -- while the checker copies the whole sentence, as
-        the prompt demands. Matching on equality found neither fragment, so
-        nothing was touchable and a correct repair was refused for altering
-        sentences it never touched, with the record blaming the reviser.
+        """`sentences()` used to split on any sentence-final punctuation
+        followed by a space, so an ellipsis or an abbreviation cut one spoken
+        sentence into two entries -- while the checker copies the whole
+        sentence, as the prompt demands. Matching on equality found neither
+        fragment, so nothing was touchable and a correct repair was refused
+        for altering sentences it never touched, with the record blaming the
+        reviser. The splitter now requires something that starts a sentence
+        after the space; `_covers` absorbs what is left.
         """
         original = (
             "Your fan gets loud for one reason. "
@@ -289,6 +291,70 @@ class TestAcceptingARevision:
         revised = original.replace(
             "Open Device Manager, expand Components... then read the Power page.",
             "Device Manager will not show you the wattage.",
+        )
+        accepted, reason = accept_revision(original, revised, flagged, **GUARDS)
+        assert accepted is not None, reason
+
+    def test_a_claim_quoting_the_whole_script_is_refused(self) -> None:
+        """`_covers` matches a claim against a sentence in either direction,
+        so a claim that quotes several sentences makes every one of them
+        touchable -- and a claim quoting the whole script leaves nothing
+        protected at all, which is the guard switched off by one answer. The
+        prompt asks for one sentence; a span this wide means the answer is
+        unusable, not that the whole script was flagged.
+        """
+        whole = [FactCheckClaim(claim=GOOD, reason="r", fix="f")]
+        rewrite = (
+            "Nothing here resembles what was written before at all. "
+            "Every port on every laptop delivers the same power. "
+            "Buy a different charger and stop worrying about it. "
+            f"{CTA}"
+        )
+        accepted, reason = accept_revision(GOOD, rewrite, whole, **GUARDS)
+        assert accepted is None and "spans" in reason
+
+    def test_a_claim_spanning_two_sentences_is_still_allowed(self) -> None:
+        """The bound has to leave room for the mismatch `_covers` exists for,
+        or it re-opens the lost-repair defect it was added to close.
+        """
+        pair = [
+            FactCheckClaim(
+                claim=(
+                    "On Windows, go to Devices, then select Power and battery. "
+                    "Look for the lightning bolt symbol next to the port."
+                ),
+                reason="Neither step is right.",
+                fix="It is Settings, then System, then Power & battery.",
+            )
+        ]
+        revised = swap(
+            GOOD,
+            "On Windows, go to Devices, then select Power and battery. "
+            "Look for the lightning bolt symbol next to the port.",
+            "On Windows, open Settings, then System, then Power and battery. "
+            "The wattage per port is listed there.",
+        )
+        accepted, reason = accept_revision(GOOD, revised, pair, **GUARDS)
+        assert accepted is not None, reason
+
+    def test_a_repeated_sentence_does_not_read_as_re_ordered(self) -> None:
+        """`list.index` returns the first occurrence, so a script that says
+        the same line twice -- or twice after case and punctuation are
+        normalised away -- read as re-ordered when nothing had moved, throwing
+        away a correct repair and blaming the reviser in the record.
+        """
+        original = (
+            "That is it. "
+            "Open the settings page now. "
+            "That is it. "
+            "Check the box marked fast charging on the second tab. "
+            f"{CTA}"
+        )
+        flagged = [
+            FactCheckClaim(claim="Open the settings page now.", reason="r", fix="f")
+        ]
+        revised = original.replace(
+            "Open the settings page now.", "Open the power page instead."
         )
         accepted, reason = accept_revision(original, revised, flagged, **GUARDS)
         assert accepted is not None, reason

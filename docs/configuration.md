@@ -1370,10 +1370,12 @@ Measured over seventeen real pipeline scripts: eighty-three falsifiable
 claims, sixteen flagged, fourteen of the sixteen right on review. So about one
 flag in eight is a false positive, and the revision is confined for exactly
 that reason. A rewrite is accepted only if the sentences it changed are the
-flagged ones and the sentence after each, since a correction often has to
-carry into the step that referenced the wrong thing; every other sentence
-must come back unchanged and in the same order, and at most one new sentence
-per flag may appear. It must also keep the closing call to action verbatim,
+ones a flagged claim names and the sentence following each claim, since a
+correction often has to carry into the step that referenced the wrong thing;
+every other sentence must come back unchanged and in the same order, and at
+most one new sentence per flag may appear. A claim that quotes more than two
+sentences is refused outright, because a claim quoting the whole script would
+leave nothing protected. It must also keep the closing call to action verbatim,
 pass the usual script validation, and stay within `max_length_drift` of the
 original length. Anything else ships the original with the reason logged.
 
