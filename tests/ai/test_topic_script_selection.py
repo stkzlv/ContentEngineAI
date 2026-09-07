@@ -116,10 +116,14 @@ class TestTopicPromptContent:
 
 @pytest.mark.unit
 class TestTopicNarratorProfile:
-    """The affiliate call to action lives in the narrator profile.
+    """A topic render gets its own voice and its own calls to action.
 
-    Swapping templates alone leaves it in place, so a topic script still ends by
-    telling the viewer where to buy something that does not exist.
+    Swapping templates alone leaves the product CTA in place, so a topic
+    script would end by telling the viewer where to buy something that does
+    not exist. The CTA lists are structured config now, `cta_options` and
+    `cta_options_topic`, rather than prose inside the profiles: prose forty
+    lines from the task did not bind, and five of five renders ended without
+    any CTA at all.
     """
 
     def test_a_topic_narrator_is_configured(self):
@@ -130,24 +134,19 @@ class TestTopicNarratorProfile:
     def test_its_cta_options_offer_nothing_to_buy(self):
         from src.video.config import config
 
-        topic_narrator = config.llm_settings.script_templates.narrator_profile_topic
-        cta_line = next(
-            ln for ln in topic_narrator.splitlines() if ln.strip().startswith("CTA:")
-        )
-        # Only the quoted options; the surrounding prose says the word "buy"
-        # precisely to forbid it.
-        options = re.findall(r'"([^"]+)"', cta_line)
-        assert options, cta_line
+        options = config.llm_settings.script_templates.cta_options_for(is_topic=True)
+        assert options
         for option in options:
             lowered = option.lower()
             for buy_phrase in ("link in bio", "want one", "grab", "buy", "get yours"):
                 assert buy_phrase not in lowered, option
 
-    def test_the_product_narrator_still_does(self):
-        """Guards against the two profiles being conflated later."""
+    def test_the_product_list_still_does(self):
+        """Guards against the two lists being conflated later."""
         from src.video.config import config
 
-        assert "Link in bio" in config.llm_settings.script_templates.narrator_profile
+        product = config.llm_settings.script_templates.cta_options_for(is_topic=False)
+        assert any("link in bio" in o.lower() for o in product)
 
 
 @pytest.mark.unit

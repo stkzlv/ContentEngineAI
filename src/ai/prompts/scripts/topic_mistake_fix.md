@@ -26,6 +26,7 @@ End with one CTA per the narrator profile. One line.
   anything. If the only fix costs money, say so plainly instead of hiding it.
 - One instruction per sentence.
 - Include one honest limit: when the common way is actually fine.
+{CTA_RULE}
 
 ## Topic
 

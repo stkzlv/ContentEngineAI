@@ -32,11 +32,18 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 # Openers of the channel-wide CTA lines the narrator profile allows. The
 # engagement-bait beat sits immediately before the CTA, so the CTA has to be
 # stripped from the tail before the beat can be read off the end.
+# One opener per configured CTA line, product and topic, matched at the start
+# of the sentence. The publisher does not load the video config, so this list
+# is hand-kept and a test asserts every `script_templates.cta_options*` entry
+# starts with one -- a CTA this misses is not stripped, and the YouTube first
+# comment becomes the CTA itself.
 _CTA_MARKERS = (
     "link in bio",
     "follow for more",
     "drop a comment",
     "share with someone",
+    "share it with",
+    "save this",
     "check the link",
 )
 
@@ -58,7 +65,14 @@ def extract_closing_line(script: str) -> str | None:
         return None
 
     sentences = [s.strip() for s in _SENTENCE_SPLIT.split(script.strip()) if s.strip()]
-    while sentences and any(m in sentences[-1].lower() for m in _CTA_MARKERS):
+    # Anchored to the start of the sentence. A substring match anywhere
+    # popped a closing beat that merely *contained* a marker word -- "Save
+    # this or skip it, which would you do?" -- and made the sentence before
+    # it the first comment. Every configured CTA opens with its marker.
+    while sentences and any(
+        sentences[-1].lower().lstrip("\"'\u201c\u2018 ").startswith(m)
+        for m in _CTA_MARKERS
+    ):
         sentences.pop()
     return sentences[-1] if sentences else None
 
