@@ -1399,9 +1399,11 @@ use, and `thinking_budget` is deliberately not applied to it. `timeout_seconds`
 is generous against a measured ten-second median because a grounded call has a
 search round trip inside it.
 
-Each run writes `temp/script_fact_check.json`, including on a clean verdict,
-so a run where the check found nothing stays distinguishable from one where it
-never ran. The file carries the flagged claims, the proposed fixes, the reason
+Every run that generates a script writes `temp/script_fact_check.json`,
+including on a clean verdict, so a run where the check found nothing stays
+distinguishable from one where it never ran. A run that resumes over an
+existing script neither checks nor records, which is also why it costs
+nothing. The file carries the flagged claims, the proposed fixes, the reason
 a revision was accepted or refused, and the model's raw answer.
 
 It is an intermediate file like the script and the gathered visuals, so a

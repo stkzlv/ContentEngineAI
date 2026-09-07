@@ -116,13 +116,24 @@ def sanitize_script(
 # with the recorded reason blaming the reviser.
 #
 # Split where sentence-final punctuation, optionally through a closing quote
-# or bracket, is followed by whitespace and something that starts a sentence.
-# The closing-quote half matters because a how-to quotes interface labels, so
-# its sentences end `."`; a lookbehind demanding the punctuation come last
-# merged such a sentence into the next one. The lookahead keeps an ellipsis or
-# an abbreviation mid-sentence from splitting it.
+# or bracket, is followed by whitespace and a word or quoted word. The
+# closing-quote half matters because a how-to quotes interface labels, so its
+# sentences end `."`; a lookbehind demanding the punctuation come last merged
+# such a sentence into the next one.
+#
+# The lookahead deliberately admits a lowercase start. Demanding a capital
+# reads better on paper -- it stops an ellipsis or an abbreviation splitting a
+# sentence -- but it merges two real sentences whenever the second begins
+# `iPhone`, `iOS`, `macOS` or `eSIM`, which consumer-tech scripts produce
+# constantly. The two failures are not symmetric. An over-split is absorbed:
+# `_covers` matches a claim across the fragments and `_MAX_SPAN_PER_CLAIM`
+# leaves room for them, which is the whole reason that helper exists. An
+# under-split has no recovery -- a claim naming one of the merged sentences
+# makes both rewritable, `ends_with_cta` stops seeing the closing line so the
+# near-miss branch deletes a real sentence along with the CTA, and the
+# publisher's stripper leaves the CTA in the YouTube first comment.
 _SENTENCE_SPLIT = re.compile(
-    r"(?:(?<=[.!?])|(?<=[.!?][\"')\]]))\s+(?=[\"'(\[]?[A-Z0-9])"
+    r"(?:(?<=[.!?])|(?<=[.!?][\"')\]]))\s+(?=[\"'(\[]?[A-Za-z0-9])"
 )
 
 
