@@ -104,6 +104,65 @@ class TestParsingTheAnswer:
         r = parse_check_answer("VERDICT: FLAGGED\nCLAIM: X.\nREASON: y")
         assert r.flagged == []
 
+    def test_a_claim_ruled_correct_is_dropped(self) -> None:
+        """Measured live, twice. Asked for wrong claims only, the checker
+        listed a sentence it agreed was right. That costs a repair slot and
+        pushes the genuinely wrong sentences past the length guard, so the
+        whole revision is thrown away and the wrong script ships. The per-claim
+        ruling is what makes "list only what you rule wrong" enforceable.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: Bad one.\nRULING: wrong\nREASON: r\nFIX: The right fact.\n"
+            "---\n"
+            "CLAIM: Good one.\nRULING: correct\nREASON: r\nFIX: Leave it.\n"
+        )
+        assert [c.claim for c in r.flagged] == ["Bad one."]
+
+    def test_a_block_with_no_ruling_is_still_kept(self) -> None:
+        """It was listed under a FLAGGED verdict, so a missing line is a
+        formatting slip, not a ruling. Dropping it would lose a real flag.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\nCLAIM: Bad one.\nREASON: r\nFIX: The right fact."
+        )
+        assert len(r.flagged) == 1
+
+    @pytest.mark.parametrize(
+        "fix",
+        [
+            "Correct.",
+            "This claim is correct.",
+            "The statement as written is accurate.",
+            "No change needed.",
+            "correct",
+        ],
+    )
+    def test_a_fix_that_only_says_the_claim_was_right_is_dropped(self, fix) -> None:
+        """The second net under the ruling: the same non-correction arrived as
+        `Correct.` and then as `This claim is correct.`, so matching the first
+        word alone caught one of the two.
+        """
+        r = parse_check_answer(
+            f"VERDICT: FLAGGED\nCLAIM: Some sentence.\nREASON: r\nFIX: {fix}"
+        )
+        assert r.flagged == []
+
+    @pytest.mark.parametrize(
+        "fix",
+        [
+            "The correct path is Settings, then System.",
+            "It is accurate only on Windows 11, not on Windows 10.",
+            "None of the ports carry more than 15 watts.",
+        ],
+    )
+    def test_a_real_fix_mentioning_correctness_is_kept(self, fix) -> None:
+        """The net must not eat a fix that happens to use one of its words."""
+        r = parse_check_answer(
+            f"VERDICT: FLAGGED\nCLAIM: Some sentence.\nREASON: r\nFIX: {fix}"
+        )
+        assert len(r.flagged) == 1
+
     @pytest.mark.parametrize("text", ["", None, "   ", "I could not check this."])
     def test_nothing_usable_is_not_an_error_worth_failing_on(self, text) -> None:
         r = parse_check_answer(text)

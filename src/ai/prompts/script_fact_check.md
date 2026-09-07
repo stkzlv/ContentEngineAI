@@ -18,6 +18,12 @@ Rule on each: correct, wrong, or unverifiable. Rule wrong only when the search
 result contradicts the claim. When the claim is right for one platform and the
 script names that platform, it is correct.
 
+List ONLY the claims you rule wrong. A claim you have decided is correct is
+not listed at all: listing it costs one of the few repair slots and pushes the
+rewrite of the genuinely wrong sentences out of the script. Each block carries
+its own ruling for that reason, and a block ruled anything but wrong is
+discarded before anything reads it.
+
 SUBJECT: {SUBJECT}
 
 SCRIPT:
@@ -28,9 +34,11 @@ single line `VERDICT: OK`.
 
 VERDICT: FLAGGED
 CLAIM: <the sentence, copied exactly from the script>
+RULING: wrong
 REASON: <one sentence on why it is wrong>
-FIX: <the correct fact, one sentence>
+FIX: <the correct fact, one short sentence that could replace the claim>
 ---
 CLAIM: <the next one, same shape>
+RULING: wrong
 REASON: <...>
 FIX: <...>

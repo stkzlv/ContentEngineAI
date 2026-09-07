@@ -38,11 +38,63 @@ logger = logging.getLogger(__name__)
 
 _CLAIM_BLOCK = re.compile(
     r"CLAIM:\s*(?P<claim>.+?)\s*"
+    r"(?:RULING:\s*(?P<ruling>.+?)\s*)?"
     r"REASON:\s*(?P<reason>.+?)\s*"
     r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)|\Z)",
     re.S | re.I,
 )
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+# A ruling of "correct" arriving in the shape of a fix. Measured live, twice:
+# asked for wrong claims only, the checker listed a sentence, explained in
+# REASON that it was right, and wrote `FIX: Correct.` and then `FIX: This
+# claim is correct.` -- which the reviser reads as an instruction to rewrite a
+# good sentence, spending one of the `max_flags_to_revise` slots on it and
+# pushing the whole revision past the drift guard, so the genuinely wrong
+# sentences ship unrepaired. The prompt forbids it in two places; a prompt
+# rule is not a guard, which is why the per-claim RULING line exists and why
+# this second net does too.
+_AFFIRMATIONS = frozenset(
+    {"correct", "accurate", "true", "right", "fine", "none", "na", "change"}
+)
+_FILLER = frozenset(
+    {
+        "this",
+        "that",
+        "the",
+        "claim",
+        "statement",
+        "sentence",
+        "is",
+        "was",
+        "are",
+        "were",
+        "it",
+        "as",
+        "written",
+        "a",
+        "an",
+        "and",
+        "no",
+        "not",
+        "needed",
+        "required",
+        "fix",
+        "already",
+    }
+)
+
+
+def _is_not_a_fix(fix: str) -> bool:
+    """Whether a FIX is a ruling of "correct" wearing a fix's clothes.
+
+    Filler is stripped before the test because the shape varies: "Correct.",
+    "This claim is correct.", "The statement as written is accurate." all say
+    the same nothing, and matching on the first word alone caught only the
+    first of them.
+    """
+    words = [w for w in _normalise(fix).split() if w not in _FILLER]
+    return not words or (len(words) <= 2 and set(words) <= _AFFIRMATIONS)
 
 
 @dataclass(frozen=True)
@@ -90,6 +142,13 @@ def sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]
 
 
+def _ruling_is_wrong(ruling: str | None) -> bool:
+    """Whether a per-claim ruling says the claim is wrong."""
+    if ruling is None:
+        return True
+    return "wrong" in ruling.strip().lower()
+
+
 def parse_check_answer(text: str | None) -> FactCheckResult:
     """Read the checker's answer, in either shape it may arrive in.
 
@@ -122,7 +181,9 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
             if isinstance(c, dict) and str(c.get("verdict", "wrong")).lower() == "wrong"
         ]
         return FactCheckResult(
-            ran=True, flagged=[c for c in claims if c.claim and c.fix], raw=text
+            ran=True,
+            flagged=[c for c in claims if c.claim and not _is_not_a_fix(c.fix)],
+            raw=text,
         )
 
     flagged = [
@@ -132,11 +193,17 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
             fix=m.group("fix").strip(),
         )
         for m in _CLAIM_BLOCK.finditer(body)
+        # The per-claim ruling is what makes "list only what you rule wrong"
+        # enforceable rather than requested. Absent, the block is kept: it was
+        # listed under a FLAGGED verdict, and dropping it would lose a real
+        # flag to a formatting slip.
+        if _ruling_is_wrong(m.group("ruling"))
     ]
     # A block missing its FIX is dropped rather than half-used: the revision
     # prompt is built from the fix, and a claim without one asks the model to
     # invent the correction, which is the failure this module exists to catch.
-    flagged = [c for c in flagged if c.claim and c.fix]
+    # A fix that only says the claim was right is dropped for the same reason.
+    flagged = [c for c in flagged if c.claim and not _is_not_a_fix(c.fix)]
     if not flagged and "VERDICT" not in body.upper():
         return FactCheckResult(ran=True, raw=text, error="unparsed")
     return FactCheckResult(ran=True, flagged=flagged, raw=text)

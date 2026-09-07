@@ -1392,8 +1392,13 @@ search round trip inside it.
 Each run writes `temp/script_fact_check.json`, including on a clean verdict,
 so a run where the check found nothing stays distinguishable from one where it
 never ran. The file carries the flagged claims, the proposed fixes, the reason
-a revision was accepted or refused, and the model's raw answer, which is what
-makes the flag rate re-measurable from real renders.
+a revision was accepted or refused, and the model's raw answer.
+
+It is an intermediate file like the script and the gathered visuals, so a
+successful run without `--debug` deletes it along with the rest of `temp/`.
+Re-measuring the flag rate over real renders therefore means running them with
+`--debug`; a record that outlived the run would have to be written outside the
+product directory, which is cleaned after a successful publish anyway.
 
 </details>
 

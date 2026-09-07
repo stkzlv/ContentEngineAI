@@ -172,8 +172,11 @@ class TestTheStep:
 
     @pytest.mark.asyncio
     async def test_the_raw_answer_is_kept(self, ctx) -> None:
-        """What makes the flag rate re-measurable from real runs rather than
-        from the throwaway rig that produced the numbers in the config.
+        """What lets a flagged render be audited afterwards, rather than only
+        through the throwaway rig that produced the numbers in the config.
+
+        A debug render keeps it; a successful normal run deletes the whole
+        intermediate directory, this file with it.
         """
         from src.video.producer.steps import _ensure_fact_checked
 
