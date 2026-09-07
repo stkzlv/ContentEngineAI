@@ -447,10 +447,11 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
 
         return config_data
 
-    except ValidationError:
-        # A misspelled or unknown key in the file. Falling back here would
-        # read every value in that section as a default, silently, which is
-        # the class of defect the typed load exists to refuse (#125).
+    except (ValidationError, yaml.YAMLError):
+        # A misspelled or unknown key, an empty file, or one that does not
+        # parse. Falling back here would read every value as a default,
+        # silently, which is the class of defect the typed load exists to
+        # refuse (#125).
         raise
     except Exception as e:
         logger.error("Error loading scraper configuration: %s; using defaults", e)
@@ -476,7 +477,7 @@ def _fallback_browser_config() -> dict[str, Any]:
 # must load, and a typo in it is a defect to fix, not a state to run in.
 try:
     load_browser_config_from_yaml()
-except ValidationError:
+except (ValidationError, yaml.YAMLError):
     raise
 except Exception as init_error:
     logger.error("Scraper config initialization failed: %s; using defaults", init_error)

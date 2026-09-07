@@ -263,9 +263,9 @@ class BotasaurusAmazonScraper(BaseScraper):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         with open(config_path, encoding="utf-8") as f:
-            raw = dict(yaml.safe_load(f) or {})
-        # Validated: a misspelled key fails here, and every key a reader
-        # indexes is present with the model's default (#125).
+            raw = yaml.safe_load(f)
+        # Validated: a misspelled key, or an empty file, fails here, and
+        # every key a reader indexes is present with the model's default.
         from src.scraper.config_models import ScraperConfig
 
         self.settings = ScraperConfig.from_legacy_dict(raw)
@@ -1690,7 +1690,7 @@ def main():
                     raw = yaml.safe_load(f)
                 # Validated and defaults-filled: a section the file omits
                 # reads as the model's defaults rather than a KeyError.
-                config = ScraperConfig.from_legacy_dict(raw or {}).to_runtime_dict()
+                config = ScraperConfig.from_legacy_dict(raw).to_runtime_dict()
 
                 # Check batch configuration first
                 batch_config = config.get("batch", {})
@@ -1788,7 +1788,7 @@ def main():
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
                     raw = yaml.safe_load(f)
-                config = ScraperConfig.from_legacy_dict(raw or {}).to_runtime_dict()
+                config = ScraperConfig.from_legacy_dict(raw).to_runtime_dict()
                 config_debug_mode = config.get("global_settings", {}).get(
                     "debug_mode", False
                 )

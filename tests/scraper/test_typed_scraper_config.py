@@ -151,11 +151,60 @@ class TestASectionLeftOutTakesTheDefaults:
         cfg = ScraperConfig.from_legacy_dict({"amazon": {"max_products": 42}})
         assert cfg.amazon.max_products == 42
 
-    def test_both_shapes_at_once_is_refused(self) -> None:
-        with pytest.raises(ValueError, match="both"):
+    def test_both_shapes_at_once_is_refused_as_a_validation_error(self) -> None:
+        """A `ValidationError`, so the loaders' re-raise sees it; a plain
+        `ValueError` was swallowed into the defaults (review finding).
+        """
+        with pytest.raises(ValidationError, match="both"):
             ScraperConfig.from_legacy_dict(
                 {"amazon": {"max_products": 1}, "scrapers": {"amazon": {}}}
             )
+
+    def test_both_shapes_reach_the_manager_and_the_import_loader(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        from src.config_manager import UnifiedConfigManager
+        from src.scraper.amazon import config as scraper_config
+
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "scraper.yaml").write_text(
+            yaml.safe_dump({"amazon": {"max_products": 1}, "scrapers": {"amazon": {}}})
+        )
+        with pytest.raises(ValidationError, match="both"):
+            UnifiedConfigManager(
+                config_root=str(tmp_path / "config")
+            ).get_scraper_config()
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ValidationError, match="both"):
+            scraper_config.load_browser_config_from_yaml()
+
+    @pytest.mark.parametrize("content", ["", "- a list\n", "just a string\n"])
+    def test_an_empty_or_non_mapping_file_is_refused(self, tmp_path, content) -> None:
+        """An empty file is a truncated write, not a request for defaults; it
+        used to raise and the first cut of this branch loaded it (review).
+        """
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+        from src.scraper.config_adapter import ScraperConfigAdapter
+
+        f = tmp_path / "scraper.yaml"
+        f.write_text(content)
+        with pytest.raises(ValidationError):
+            ScraperConfigAdapter(config_root=str(tmp_path)).get_merged_config_dict()
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        with pytest.raises(ValidationError):
+            BotasaurusAmazonScraper._load_config(scraper, str(f))
+
+    def test_malformed_yaml_is_refused_by_every_loader(self, tmp_path) -> None:
+        from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+        from src.scraper.config_adapter import ScraperConfigAdapter
+
+        f = tmp_path / "scraper.yaml"
+        f.write_text("invalid: yaml: content: [")
+        with pytest.raises(yaml.YAMLError):
+            ScraperConfigAdapter(config_root=str(tmp_path)).get_merged_config_dict()
+        scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
+        with pytest.raises(yaml.YAMLError):
+            BotasaurusAmazonScraper._load_config(scraper, str(f))
 
 
 @pytest.mark.unit

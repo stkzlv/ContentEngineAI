@@ -32,7 +32,6 @@ class PlatformConfigManager:
         """
         self.config_path = config_path or "config/scraper.yaml"
         self._config = self._load_config()
-        self._validate_config()
 
     def _load_config(self) -> dict[str, Any]:
         """Load configuration from YAML file."""
@@ -45,30 +44,14 @@ class PlatformConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
         with open(config_file, encoding="utf-8") as f:
-            result = yaml.safe_load(f)
-        raw = result if isinstance(result, dict) else {}
+            raw = yaml.safe_load(f)
         # Validated and defaults-filled, so every reader indexes a present key
-        # and a misspelled one fails here rather than reading as a default.
+        # and a misspelled, empty or non-mapping file fails here rather than
+        # reading as a default.
         from src.scraper.config_models import ScraperConfig
 
         self.settings = ScraperConfig.from_legacy_dict(raw)
         return self.settings.to_runtime_dict()
-
-    def _validate_config(self) -> None:
-        """Validate the loaded configuration structure."""
-        required_sections = ["global_settings", "scrapers"]
-
-        for section in required_sections:
-            if section not in self._config:
-                raise ValueError(f"Required configuration section missing: {section}")
-
-        # Validate global settings
-        global_settings = self._config["global_settings"]
-        required_global = ["output_config", "retry_config"]
-
-        for setting in required_global:
-            if setting not in global_settings:
-                raise ValueError(f"Required global setting missing: {setting}")
 
     def get_global_settings(self) -> dict[str, Any]:
         """Get global configuration settings."""

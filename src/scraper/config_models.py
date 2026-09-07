@@ -6,7 +6,7 @@ pattern as the video pipeline configuration.
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RetryConfig(BaseModel):
@@ -29,11 +29,9 @@ class RateLimitingConfig(BaseModel):
 
     video_validation_delay: list[float] = Field(default=[0.5, 1.5])
     debug_pause_duration: int = Field(default=5, ge=0)
-    # Declared so the section is described in one place, but nothing
-    # constructs this model at runtime: `load_scraper_config_pydantic` has no
-    # callers and the block is read through `ThrottleSettings.from_config`,
-    # which does its own validation. Keep the defaults in step with
-    # `ThrottleSettings` rather than treating either as authoritative.
+    # Validated here on every load and read through
+    # `ThrottleSettings.from_config`, which does its own validation of the
+    # same values; keep these defaults equal to `ThrottleSettings`'.
     inter_input_delay_sec: list[float] = Field(default=[2.0, 5.0])
     throttle_backoff_base_sec: float = Field(default=60.0, gt=0)
     throttle_backoff_max_sec: float = Field(default=600.0, gt=0)
@@ -423,30 +421,45 @@ class ScraperConfig(BaseModel):
     batch: BatchSection = Field(default_factory=lambda: BatchSection())
     amazon: AmazonScraperConfig = Field(default_factory=lambda: AmazonScraperConfig())
 
+    @model_validator(mode="before")
     @classmethod
-    def from_legacy_dict(cls, config: dict[str, Any]) -> "ScraperConfig":
-        """Validate the YAML's own shape (`scrapers.amazon`, top-level `batch`).
+    def _fold_the_files_shape(cls, data: Any) -> Any:
+        """Accept the YAML's own shape (`scrapers.amazon`) as well as the model's.
 
-        Every submodel refuses unknown keys, so a misspelled key in the file
-        or a section the models do not describe fails here, at load, instead
-        of being read back as a default somewhere downstream (#125).
+        Raised inside validation so every refusal surfaces as a
+        `ValidationError`: the loaders re-raise that and fall back on
+        anything else, and a plain `ValueError` from outside validation was
+        swallowed into the defaults (review finding).
         """
-        # Every other top-level key is passed through so this model's own
-        # `extra="forbid"` refuses it; picking the three by name would let a
-        # misspelled section load as its defaults.
-        if "amazon" in config and "scrapers" in config:
+        if not isinstance(data, dict):
+            raise ValueError("scraper config must be a mapping")
+        if "scrapers" not in data:
+            return data
+        if "amazon" in data:
             raise ValueError(
                 "scraper config carries both a top-level `amazon` block and "
                 "`scrapers.amazon`; keep one"
             )
-        if "amazon" in config:
-            # The consolidated shape: `amazon` at the top level is this
-            # model's own field, so it validates as written rather than being
-            # replaced by the defaults of an absent `scrapers` block.
-            return cls.model_validate(config)
-        passthrough = {k: v for k, v in config.items() if k != "scrapers"}
-        scrapers = ScrapersSection.model_validate(config.get("scrapers") or {})
-        return cls.model_validate({**passthrough, "amazon": scrapers.amazon})
+        scrapers = ScrapersSection.model_validate(data["scrapers"] or {})
+        # Every other top-level key is passed through so this model's own
+        # `extra="forbid"` refuses it; picking the sections by name would let
+        # a misspelled one load as its defaults.
+        return {
+            **{k: v for k, v in data.items() if k != "scrapers"},
+            "amazon": scrapers.amazon,
+        }
+
+    @classmethod
+    def from_legacy_dict(cls, config: Any) -> "ScraperConfig":
+        """Validate a loaded file in either shape.
+
+        Every submodel refuses unknown keys, so a misspelled key in the file
+        or a section the models do not describe fails here, at load, instead
+        of being read back as a default somewhere downstream (#125). An empty
+        or non-mapping file is refused too: an empty file is a truncated
+        write, not a request for the defaults.
+        """
+        return cls.model_validate(config)
 
     def to_runtime_dict(self) -> dict[str, Any]:
         """The dict consumers walk, in the YAML's shape, every key present.

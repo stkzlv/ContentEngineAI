@@ -27,28 +27,23 @@ class ScraperConfigAdapter:
         self._merged_config: dict[str, Any] | None = None
         self._settings: ScraperConfig | None = None
 
-    def _load_yaml_file(self, file_path: Path) -> dict[str, Any]:
-        """The file's mapping, or an empty one when there is no usable file.
+    def _load_yaml_file(self, file_path: Path) -> Any:
+        """The file's content, or an empty mapping when there is no file.
 
-        An empty mapping validates to the models' defaults, so a missing or
-        malformed file is logged and read as the defaults rather than as a
-        fallback dict of this module's own (#125).
+        A missing file is the one deliberate case: the root is cwd-relative,
+        and a run from another directory gets the models' defaults with a
+        warning. A file that is there but does not parse, or is not a
+        mapping, is refused downstream like a misspelled key: the parse
+        error propagates, and validation rejects a non-mapping (#125).
         """
         if not file_path.exists():
             logger.warning(
                 "Scraper config file not found: %s; using defaults", file_path
             )
             return {}
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                content = yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            logger.error("YAML parsing error in %s: %s; using defaults", file_path, e)
-            return {}
-        if not isinstance(content, dict):
-            logger.warning("Config file %s is not a mapping; using defaults", file_path)
-            return {}
-        logger.debug("Successfully loaded config from %s", file_path)
+        with open(file_path, encoding="utf-8") as f:
+            content = yaml.safe_load(f)
+        logger.debug("Loaded config from %s", file_path)
         return content
 
     def _merge_scraper_configs(self) -> dict[str, Any]:

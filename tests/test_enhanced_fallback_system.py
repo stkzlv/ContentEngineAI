@@ -59,21 +59,17 @@ class TestEnhancedFallbackSystem:
             assert "scrapers" in config
             assert config["scrapers"]["amazon"]["enabled"] is True
 
-    def test_scraper_config_adapter_yaml_error_fallback(self):
-        """Test ScraperConfigAdapter handles YAML parsing errors."""
+    def test_scraper_config_adapter_refuses_malformed_yaml(self):
+        """A file that is there but does not parse is a defect, not a state
+        to run in: the parse error propagates like a misspelled key (#125).
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "scraper.yaml"
-
-            # Create invalid YAML file
             config_path.write_text("invalid: yaml: content: [")
 
             adapter = ScraperConfigAdapter(config_root=temp_dir)
-            config = adapter.get_merged_config_dict()
-
-            # Should use minimal fallback
-            assert "global_settings" in config
-            assert "scrapers" in config
-            assert config["scrapers"]["amazon"]["enabled"] is True
+            with pytest.raises(yaml.YAMLError):
+                adapter.get_merged_config_dict()
 
     def test_scraper_config_adapter_missing_file_fallback(self):
         """Test ScraperConfigAdapter handles missing config file."""
