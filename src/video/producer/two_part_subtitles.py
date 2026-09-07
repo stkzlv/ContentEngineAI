@@ -17,6 +17,7 @@ from src.video.producer.constants import (
 )
 
 if TYPE_CHECKING:
+    from src.video.assembler.visual_band import VisualBand
     from src.video.config.visual_models import MergedProfileSettings
     from src.video.producer.context import PipelineContext
     from src.video.subtitle_positioning import VisualBounds
@@ -152,6 +153,36 @@ class TwoPartSubtitleHandler:
             height=video_height,
         )
 
+    def _image_band(self, frame_height: int) -> "VisualBand":
+        """The same band the assembler centres a product image in."""
+        from src.video.assembler.visual_band import caption_band_top, visual_band
+
+        subtitle_settings = self.merged_profile_settings.subtitle_settings
+        video_settings = self.merged_profile_settings.video_settings
+        engine = self.ctx.state.get("subtitle_engine_resolved")
+        if engine is None:
+            from src.video.producer.steps import resolve_subtitle_engine
+
+            engine = resolve_subtitle_engine(subtitle_settings)
+        vs = self.ctx.config.video_settings
+        caption_top = caption_band_top(
+            frame_height,
+            subtitle_settings.model_dump(),
+            engine,
+            base_font_height_percent=vs.base_font_height_percent,
+            reserved_space_font_multiplier=vs.reserved_space_font_multiplier,
+            safe_zone_max_y=subtitle_settings.safe_zone.max_y,
+        )
+        return visual_band(
+            frame_height,
+            caption_top=caption_top,
+            top_offset=int(
+                (video_settings.image_top_position_percent or 0.0) * frame_height
+            ),
+            centred=video_settings.image_vertical_align == "center",
+            safe_zone_min_y=subtitle_settings.safe_zone.min_y,
+        )
+
     def _estimate_centered_image_bounds(
         self, image_width_percent: float
     ) -> tuple[float, float]:
@@ -180,10 +211,14 @@ class TwoPartSubtitleHandler:
                     scaled_w = int(frame_width * image_width_percent)
                     scaled_h = int(scaled_w * (orig_h / orig_w)) if orig_w > 0 else 0
 
-                    # Calculate centered Y position
-                    if scaled_h > 0 and scaled_h < frame_height:
-                        centered_y = (frame_height - scaled_h) / 2
-                        video_top = centered_y / frame_height
+                    # Centred inside the band the assembler fits the image
+                    # into, capped to it the same way (#368).
+                    band = self._image_band(frame_height)
+                    if band.height <= 0:
+                        band = VisualBand(top=band.top, bottom=frame_height)
+                    if scaled_h > 0:
+                        scaled_h = min(scaled_h, band.height)
+                        video_top = band.centred_y(scaled_h) / frame_height
                         video_height = scaled_h / frame_height
                         logger.debug(
                             "Calculated centered bounds from image: "
@@ -201,15 +236,14 @@ class TwoPartSubtitleHandler:
         est_scaled_w = frame_width * image_width_percent
         estimated_h = est_scaled_w * typical_aspect
 
-        if estimated_h < frame_height:
-            centered_y = (frame_height - estimated_h) / 2
-            video_top = centered_y / frame_height
-            video_height = estimated_h / frame_height
-        else:
-            # Image would fill frame vertically
-            video_top = 0.0
-            video_height = 1.0
-
+        band = self._image_band(frame_height)
+        if band.height <= 0:
+            # The assembler's empty-band fallback: the band's top to the
+            # bottom of the frame.
+            band = VisualBand(top=band.top, bottom=frame_height)
+        scaled_h = min(int(estimated_h), band.height)
+        video_top = band.centred_y(scaled_h) / frame_height
+        video_height = scaled_h / frame_height
         return (video_top, video_height)
 
     def _estimate_centered_video_bounds(

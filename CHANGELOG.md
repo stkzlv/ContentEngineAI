@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The bundled `product_video_mixed` profile failed in `assemble_video` on every product that carried a video, reported as a failed render with the bare message `'mixed_media'`. The strategy factory keyed its mixed strategy as `mixed` since v0.16.0, while `video_assembly_mode` admits `mixed_media` and the profile sets it; the lookup is a plain dict access. A product with no video took the image-only path first and rendered, which is why the profile did not look dead. The factory is keyed by the value the model admits, and a test walks the `Literal` so the two cannot drift again. Closes #372.
+## [0.101.1] - 2026-09-07
+
+### Fixed
+- Captions sat on the product image on the `slideshow_images*` profiles. The assembler reserved a strip at the bottom of the frame for captions and centred the image in the whole frame, but neither engine puts its captions at the bottom: the shipped pycaps offset places the block at 63-75% of the height and the FFmpeg engine clamps its caption to the 65% safe-zone floor. A tall product image centred in the frame ran to 87% of it. A centred 16:9 video ends near 66%, clear of a single-line caption and a few rows into a two-line block, which is why the video profiles showed it far less. The image is now fitted and centred inside the band between the platform header zone (or the profile's top offset) and the caption block, for whichever engine the run resolved, and the pre-assembly bounds estimate uses the same band. Verified on a rendered frame: a 4:5 image under `slideshow_images1` ends at row 1171 of 1920 against a caption block starting at 1209. Closes #368.
+
+### Added
+- `subtitle_settings.pycaps.caption_block_height`: the rendered caption block's height as a fraction of the frame, all lines included (default 0.12; a two-line block measured 0.105 on the bundled templates). The template's CSS decides the real height, so this is the estimate the assembler keeps the image clear of.
+
+### Removed
+- `video_settings.default_subtitle_reserved_space` and the assembler's bottom-of-frame subtitle reserve it backed. The band above the caption block replaces the reserve, and nothing read the field.
 
 ## [0.101.0] - 2026-09-07
 

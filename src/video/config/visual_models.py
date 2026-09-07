@@ -359,20 +359,20 @@ class VideoSettings(BaseModel):
         "cache/videos", description="Directory for cached normalized videos"
     )
 
-    # Subtitle space calculation
+    # FFmpeg caption line estimate, read by src/video/assembler/visual_band.py
     reserved_space_font_multiplier: float = Field(
         1.3,
         description=(
-            "Font height multiplier for calculating subtitle reserved space. "
-            "Determines how much vertical space to reserve for subtitles "
-            "based on font size. Higher values = more reserved space."
+            "Multiplier on the base font height that estimates one styled "
+            "FFmpeg caption line, outline included. The assembler keeps a "
+            "product image above that line, which ends at the safe-zone floor."
         ),
     )
     base_font_height_percent: float = Field(
         0.05,
         description=(
-            "Base font size as percentage of frame height (5% default). "
-            "Used for subtitle height estimation in visual_builder.py."
+            "Base font size as a fraction of frame height (5% default). "
+            "Sizes the FFmpeg caption line estimate in visual_band.py."
         ),
     )
     fallback_image_top_percent: float = Field(
@@ -387,14 +387,6 @@ class VideoSettings(BaseModel):
         description=(
             "Fallback width for images when video profile expects videos "
             "but only images are available (85% of frame width)."
-        ),
-    )
-    default_subtitle_reserved_space: float = Field(
-        0.15,
-        description=(
-            "Default subtitle reserved space as fraction of frame height "
-            "(0.0-1.0). Fallback value used when subtitle settings are "
-            "unavailable. Affects vertical positioning of video content."
         ),
     )
 
