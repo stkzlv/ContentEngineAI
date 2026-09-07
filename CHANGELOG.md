@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.101.0] - 2026-09-06
+## [0.101.0] - 2026-09-07
 
 ### Fixed
 - No rendered script ended with a call to action. Five of five scheduled posts closed on the template's engagement beat -- a spec claim or a two-option question -- and never reached a CTA, so no video told the viewer where to go. The cause was structural: the four CTAs lived as prose in the narrator profile, forty lines from the task, while fifteen of eighteen templates owned the closing beat with an imperative that named the CTA only as a position. The nearer imperative won every time. Closes #367.
