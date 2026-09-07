@@ -282,6 +282,92 @@ class TestBothEntryPointsCarryTheOverride:
         assert overrides is not None
         assert overrides["cta"] == PRODUCT_CTAS[1]
 
+    @pytest.mark.asyncio
+    async def test_the_forced_line_reaches_the_composed_prompt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The last link, and the one every earlier test stopped short of.
+        Dropping the `fixed_cta` argument at the `select_cta` call, or
+        replacing the chosen line with the pool's first entry, both left the
+        whole suite green while making the flag inert and reverting the
+        headline behaviour.
+        """
+        from unittest.mock import AsyncMock
+
+        from src.ai import script_generator
+        from src.video.config import load_video_config_modular
+
+        settings = load_video_config_modular().llm_settings
+        pool = settings.script_templates.cta_options_for(False)
+        hashed = script_generator.select_cta(pool, "B0TEST0001")
+        # Not the pool's first entry either: a fixture that happens to pick
+        # it cannot tell the chosen line apart from the old always-first
+        # behaviour, and a mutation reverting to `cta_options[0]` passes.
+        forced = next(c for c in pool if c not in (hashed, pool[0]))
+        settings.script_templates.fixed_cta = forced
+
+        seen: list[str] = []
+
+        async def capture(prompt, *a, **k):
+            seen.append(prompt)
+            return f"{BODY} {forced}"
+
+        monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", capture)
+        monkeypatch.setattr(
+            script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
+        )
+        try:
+            await script_generator.generate_script(
+                _product(),
+                settings,
+                {settings.api_key_env_var: "k"},
+                None,
+                {},
+                False,
+                product_id="B0TEST0001",
+            )
+        finally:
+            settings.script_templates.fixed_cta = None
+
+        assert seen, "the generator never called the model"
+        assert f'word for word:** "{forced}"' in seen[0]
+        assert hashed not in seen[0]
+
+    @pytest.mark.asyncio
+    async def test_the_render_path_actually_runs_the_apply(self, tmp_path) -> None:
+        """`ast.walk` has no notion of reachability, so the call-site test
+        above passes on a call guarded by a condition that never holds. This
+        one runs the real function far enough to observe the settings change.
+        """
+        from unittest.mock import patch
+
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer import orchestration
+
+        config = load_video_config_modular()
+        config.global_output_root_path = tmp_path
+        st = config.llm_settings.script_templates
+        pool = st.cta_options_for(False)
+        forced = next(c for c in pool if c != select_cta(pool, "B0AAAAAAAA"))
+
+        boom = RuntimeError("stop after the apply")
+        with patch.object(orchestration, "PipelineContext", side_effect=boom):
+            await orchestration.create_video_for_product(
+                config,
+                _product(),
+                "slideshow_images1",
+                {},
+                None,
+                False,
+                False,
+                None,
+                cli_overrides={"cta": forced},
+            )
+
+        assert st.fixed_cta == forced
+        st.fixed_cta = None
+
     def test_the_render_path_calls_the_apply(self) -> None:
         """A helper nothing calls is the same inert flag one layer down, and
         no behavioural test of the helper can see it. Read the call site, the
@@ -581,9 +667,11 @@ class TestTheShippedConfig:
     def test_the_narrator_profiles_no_longer_carry_the_lists(self) -> None:
         """One source. A second copy in prose is the drift that started this.
 
-        The voice examples may still *end* on a CTA -- an example that agrees
-        with the rule reinforces it -- so this checks for the list, the
-        `Options: "..." / "..."` shape, not for the phrases themselves.
+        The voice example no longer ends on a CTA either. It used to end on a
+        paraphrase of the first option, which agreed with a rule that quoted
+        all four; against a rule naming one line it disagrees for three
+        products in four, and this repo's own lesson is that an example beats
+        the rule it contradicts.
         """
         raw = (REPO / "config" / "ai_services.yaml").read_text()
         profiles = re.findall(
@@ -593,4 +681,10 @@ class TestTheShippedConfig:
         assert len(profiles) == 2
         for text in profiles:
             assert "Options:" not in text
-            assert "the list the template gives you" in text
+            # And no longer a *list* either. The rule quotes one line now, so
+            # "from the list the template gives you. Pick whichever fits"
+            # described a prompt the model was not given -- a contradiction
+            # eleven templates route to by saying "one CTA per the narrator
+            # profile", on every product render.
+            assert "the list the template gives you" not in text
+            assert "the exact call to action the template gives you" in text
