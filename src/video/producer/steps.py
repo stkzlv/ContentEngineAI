@@ -224,6 +224,7 @@ async def _fetch_stock_across_queries(
     video_count: int,
     assets_dir: Path,
     session: Any,
+    script: str | None = None,
 ) -> list[Any]:
     """Fetch stock media for several searches and pool the results.
 
@@ -252,7 +253,7 @@ async def _fetch_stock_across_queries(
         if not images_wanted and not videos_wanted:
             continue
         found = await fetcher.fetch_and_download_stock(
-            query, images_wanted, videos_wanted, assets_dir, session
+            query, images_wanted, videos_wanted, assets_dir, session, script=script
         )
         if not found:
             logger.warning("Stock search returned nothing for: %s", " ".join(query))
@@ -371,6 +372,7 @@ async def step_gather_visuals(ctx: PipelineContext):
                 ctx.secrets,
                 ctx.config.media_settings,
                 ctx.config.api_settings,
+                llm_settings=ctx.config.llm_settings,
             )
             # The provider joins these into one query string, so every term
             # added narrows the search. A topic states its own terms; use them
@@ -463,6 +465,10 @@ async def step_gather_visuals(ctx: PipelineContext):
                     ctx.profile.stock_video_count,
                     ctx.run_paths["assets_dir"],
                     ctx.session,
+                    # The judge scores each candidate against the narration;
+                    # None on the product-first order, where no script exists
+                    # yet, and the search keeps its random sample.
+                    script=ctx.script,
                 )
 
         all_visuals = scraped_images + scraped_videos

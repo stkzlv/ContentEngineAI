@@ -174,7 +174,7 @@ class _FakeFetcher:
         self.video_paths = video_paths or set()
 
     async def fetch_and_download_stock(
-        self, keywords, image_count, video_count, assets_dir, session
+        self, keywords, image_count, video_count, assets_dir, session, script=None
     ):
         self.calls.append((list(keywords), image_count, video_count))
         query = " ".join(keywords)

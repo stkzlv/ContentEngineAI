@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.102.0] - 2026-09-07
+
+### Added
+- Stock candidates are judged by what the photo shows. Every candidate the library returns for a search phrase is scored 0-3 against the script by the multimodal model, from its thumbnail, and the best-scoring are the ones downloaded; random within a score, so renders still vary. Every text signal was measured and refuted on #307 -- an oriental tea box with a decorative fan ranks first for `laptop fan always on` under all of them, because its caption honestly says both words -- and the thumbnail judgement is what separates it from a cooling fan. Measured on the full pools the library returns: for a concrete subject fits are common but provider rank is noise (31 of 80 for `laptop fan clogged dust`, at a median rank near 45, so a rank-based shortlist would have held two), and for an abstract one they are scarce (three or four per pool for the wifi phrases), where a random sample of eight expects none and the judge takes them all. So the whole pool is scored, never a shortlist. Configured under `llm_settings.stock_relevance` in `config/ai_services.yaml`, on in the bundled config and off by model default. Below `min_score` a candidate is used only when there are not enough above it, since a stock shortfall skips the render; a failed judgement is an unknown score, and a pool with none keeps the random sample. Each item's score lands in `gathered_visuals.json` as `relevance_score`, beside the query it came from. Closes #341.
+
 ## [0.101.2] - 2026-09-07
 
 ### Fixed

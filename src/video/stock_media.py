@@ -50,6 +50,10 @@ class StockMediaInfo:
         author: Creator/photographer name for attribution
         path: Local filesystem path where the media is stored
         duration: Length in seconds (for videos only, None for images)
+        relevance_score: The multimodal model's 0-3 judgement of the item
+            against the script, when the judge ran (#341); None when it did
+            not, or when this item's judgement failed and it was chosen as a
+            last resort.
         query: The search phrase this item came back from, when the render
             searched several. A render whose footage does not match its
             narration has two possible causes needing opposite fixes -- the
@@ -66,6 +70,7 @@ class StockMediaInfo:
     path: Path
     duration: float | None = None
     query: str | None = None
+    relevance_score: int | None = None
 
 
 class StockMediaFetcher:
@@ -85,6 +90,7 @@ class StockMediaFetcher:
         secrets: dict[str, str],
         media_settings: MediaSettings,
         api_settings=None,
+        llm_settings: Any = None,
     ):
         """Initialize the stock media fetcher with configuration and credentials.
 
@@ -94,12 +100,17 @@ class StockMediaFetcher:
             secrets: Dictionary containing API keys and credentials
             media_settings: Media format and quality settings
             api_settings: API configuration for timeouts and concurrency limits
+            llm_settings: The LLM settings, for the relevance judge and its API
+                key name; None leaves selection as the random sample
 
         """
         self.settings = settings
         self.secrets = secrets
         self.media_settings = media_settings
         self.api_settings = api_settings
+        # Carries `stock_relevance` and the model's API key name; None means
+        # the judge is off and selection is the random sample (#341).
+        self.llm_settings = llm_settings
         self.api_key = secrets.get(settings.pexels_api_key_env_var)
         self.pexels_client = None
         # Cache for API query results
@@ -135,6 +146,8 @@ class StockMediaFetcher:
         count: int,
         orientation: str = "portrait",
         size: str = "large",
+        script: str | None = None,
+        session: aiohttp.ClientSession | None = None,
     ) -> list[dict[str, Any]]:
         if not self.pexels_client or count <= 0 or not search_query:
             return []
@@ -152,6 +165,17 @@ class StockMediaFetcher:
             self.api_settings.stock_media_max_per_page if self.api_settings else 80
         )
         per_page = min(count * multiplier, max_per_page)
+        relevance = self._relevance()
+        if relevance and script and session:
+            # The judge scores the whole page, not a slice sized for a random
+            # sample: at twice the count it would see six thumbnails per
+            # phrase, which by measurement hold about none of the fits, and
+            # the selection would be the random sample it replaces. Never
+            # smaller than the unjudged request, or a low cap would return
+            # fewer items than the profile asked for and skip the render.
+            per_page = min(
+                max_per_page, max(count * multiplier, relevance[0].max_candidates)
+            )
         logger.debug(
             f"Searching Pexels for {item_type} with query '{search_query}' "
             f"(per_page={per_page})..."
@@ -209,6 +233,7 @@ class StockMediaFetcher:
                         {
                             "id": photo.get("id"),
                             "url": original_url,
+                            "thumbnail": photo.get("src", {}).get("tiny"),
                             "photographer": photo.get("photographer") or "Unknown",
                             "type": "image",
                             "duration": None,
@@ -236,6 +261,7 @@ class StockMediaFetcher:
                         {
                             "id": video.get("id"),
                             "url": best_file_url,
+                            "thumbnail": video.get("image"),
                             "photographer": video.get("user", {}).get("name")
                             or "Unknown",
                             "type": "video",
@@ -244,12 +270,67 @@ class StockMediaFetcher:
                         }
                     )
 
-        selected_items = random.sample(  # noqa: S311
-            processed_items, min(count, len(processed_items))
+        selected_items = await self._select(
+            processed_items, count, search_query, script, session
         )
         self._query_cache[cache_key] = selected_items  # Cache results
         logger.debug(f"Selected {len(selected_items)} {item_type} for download.")
         return selected_items
+
+    def _relevance(self) -> tuple[Any, str] | None:
+        """The judge's settings and API key when it is on and reachable."""
+        settings = self.llm_settings
+        cfg = getattr(settings, "stock_relevance", None) if settings else None
+        if cfg is None or not cfg.enabled:
+            return None
+        api_key = self.secrets.get(settings.api_key_env_var) if self.secrets else None
+        if not api_key:
+            logger.debug(
+                "Stock relevance judge skipped: no API key (%s)",
+                settings.api_key_env_var,
+            )
+            return None
+        return cfg, api_key
+
+    async def _select(
+        self,
+        candidates: list[dict[str, Any]],
+        count: int,
+        search_query: str,
+        script: str | None,
+        session: aiohttp.ClientSession | None,
+    ) -> list[dict[str, Any]]:
+        """The judge's pick when it can run; the random sample otherwise."""
+        relevance = self._relevance()
+        if relevance and script and session and len(candidates) > count:
+            from src.video.stock_relevance import (
+                score_candidates,
+                select_by_relevance,
+            )
+
+            cfg, api_key = relevance
+            scores = await score_candidates(
+                candidates,
+                search_query,
+                script,
+                api_key=api_key,
+                settings=cfg,
+                session=session,
+            )
+            chosen = select_by_relevance(candidates, scores, count, cfg.min_score)
+            if chosen is not None:
+                logger.info(
+                    "Stock relevance for '%s': %d candidates judged, chose scores %s",
+                    search_query,
+                    sum(1 for s in scores if s is not None),
+                    [item["score"] for item in chosen],
+                )
+                return chosen
+            logger.warning(
+                "Stock relevance judge returned no scores for '%s'; random sample",
+                search_query,
+            )
+        return random.sample(candidates, min(count, len(candidates)))  # noqa: S311
 
     @pexels_circuit_breaker
     async def fetch_and_download_stock(
@@ -259,6 +340,7 @@ class StockMediaFetcher:
         video_count: int,
         download_dir: Path,
         session: aiohttp.ClientSession,
+        script: str | None = None,
     ) -> list[StockMediaInfo]:
         all_downloaded_info: list[StockMediaInfo] = []
         ensure_dirs_exist(download_dir)
@@ -289,6 +371,8 @@ class StockMediaFetcher:
                 count=image_count,
                 orientation="portrait",
                 size="large",
+                script=script,
+                session=session,
             )
             logger.info(f"Queuing {len(selected_images)} stock images for download.")
             for i, item in enumerate(selected_images):
@@ -308,6 +392,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(img_url, save_path))
                 download_tasks.append(
                     (task, "image", img_url, author, save_path, source, None)
+                    + (item.get("score"),)
                 )
 
         if video_count > 0 and self.pexels_client:
@@ -316,6 +401,8 @@ class StockMediaFetcher:
                 item_type="videos",
                 count=video_count,
                 orientation="portrait",
+                script=script,
+                session=session,
             )
             logger.info(f"Queuing {len(selected_videos)} stock videos for download.")
             for i, item in enumerate(selected_videos):
@@ -336,6 +423,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(vid_url, save_path))
                 download_tasks.append(
                     (task, "video", vid_url, author, save_path, source, duration)
+                    + (item.get("score"),)
                 )
 
         if not download_tasks:
@@ -351,7 +439,9 @@ class StockMediaFetcher:
 
         for i, result in enumerate(download_results):
             task_info = download_tasks[i]
-            media_type, media_url, author, save_path, source, duration = task_info[1:]
+            media_type, media_url, author, save_path, source, duration, score = (
+                task_info[1:]
+            )
             if isinstance(result, Exception):
                 logger.error(
                     f"Stock media download failed for {media_type} from {media_url}: "
@@ -367,6 +457,7 @@ class StockMediaFetcher:
                             author=author,
                             path=save_path,
                             duration=duration,
+                            relevance_score=score,
                         )
                     )
                 else:

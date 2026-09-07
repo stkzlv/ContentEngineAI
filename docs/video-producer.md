@@ -240,6 +240,13 @@ The phrases are configured under `llm_settings.visual_search_terms` in
 A failure to derive phrases leaves the existing search terms in place rather
 than failing the render.
 
+What comes back from each search is then judged: every candidate's thumbnail
+is scored 0-3 against the script by the multimodal model, and the best-scoring
+are downloaded (`llm_settings.stock_relevance`). The score is recorded per
+item in `temp/gathered_visuals.json` as `relevance_score`, so reading that
+file after a render says both which phrase each shot came from and how well
+the judge thought it fit. A failed judgement keeps the random sample.
+
 One consequence worth knowing when reading `--step` output: the step order
 depends on the profile, so on `slideshow_stock`, `generate_script` runs first
 and `gather_visuals` second.

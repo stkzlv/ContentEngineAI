@@ -80,6 +80,23 @@ llm_settings:
     max_phrases: 3
     max_words_per_phrase: 5
 
+  # Every candidate the library returns for a phrase is scored 0-3 against
+  # the script by the multimodal model, judging the thumbnail rather than the
+  # caption, and the best-scoring are the ones downloaded. Measured on #341:
+  # provider rank is noise for a concrete subject (fits at a median rank
+  # near 45 of 80) and fits are scarce for an abstract one (three or four
+  # per pool); a judge over the whole pool finds them in both cases where a
+  # random sample of eight expects none. Below min_score a candidate is used
+  # only when there are not enough above it, so the judge shortens nothing.
+  # A failed judgement leaves the random sample in place.
+  stock_relevance:
+    enabled: true
+    model: "gemini-2.5-flash-lite"
+    min_score: 2
+    max_candidates: 80
+    concurrency: 6
+    timeout_seconds: 20
+
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:
     provider: "openrouter"

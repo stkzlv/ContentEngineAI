@@ -1310,6 +1310,41 @@ instead. Deriving the phrases never blocks a render either way: no API key, a
 provider failure, or an unusable answer leaves the existing search terms in
 place. A profile that shows product photography ignores this section.
 
+#### Judging the candidates
+
+Every candidate the library returns for a phrase is scored 0-3 against the
+script by the multimodal model, from its thumbnail, and the best-scoring are
+downloaded. The caption is not consulted: every text signal was measured and
+refuted, since a decorative paper fan is captioned as honestly as a cooling
+one. Configure this next to the phrases:
+
+```yaml
+llm_settings:
+  stock_relevance:
+    enabled: true
+    model: "gemini-2.5-flash-lite"
+    min_score: 2              # used below this only when short of candidates
+    max_candidates: 80        # the whole page the library returns
+    concurrency: 6
+    timeout_seconds: 20
+```
+
+The whole pool is scored rather than a shortlist, because provider rank was
+measured to be noise: for a concrete subject the fitting photos sit at a
+median rank near 45 of 80, and for an abstract one there are three or four in
+the pool, which a random sample of eight would miss. A three-phrase render
+judges about 240 thumbnails in under a minute for well under a cent.
+
+Nothing here can lose a render. A failed judgement is an unknown score, a pool
+with no known scores keeps the random sample, and when fewer than the
+requested count score at or above `min_score` the rest are filled from below
+it with a warning, since a stock shortfall skips the render and a loosely
+related shot is the smaller loss. Each downloaded item carries its score in
+`gathered_visuals.json` as `relevance_score`, beside the query it came from,
+so a mismatched shot can be traced to the judge or to the phrase. The judge
+runs only where a script exists when the visuals are gathered, which is the
+script-first order the stock profiles use.
+
 </details>
 
 <details>
