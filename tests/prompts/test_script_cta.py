@@ -252,39 +252,98 @@ class TestBothEntryPointsCarryTheOverride:
 
         assert _build_cli_overrides(args)["cta"] == PRODUCT_CTAS[2]
 
-    def test_the_batch_carries_it_too(self) -> None:
-        """The batch builds its own dict and never runs the producer CLI's
-        apply block, so the two have to be checked apart.
+    def test_the_batch_carries_the_flag_the_whole_way(self) -> None:
+        """The batch chain is parser, then `load_global_batch_config`, then
+        `GlobalBatchConfig.cta`, then its own override dict. Pinning only the
+        two ends leaves the middle free to drop the key, which is where the
+        inert flag lived.
+        """
+        from src.pipeline import global_batch
+        from src.pipeline.config import load_global_batch_config
+
+        args = global_batch.create_argument_parser().parse_args(
+            [
+                "--product-ids",
+                "B0X",
+                "--profile",
+                "slideshow_images1",
+                "--cta",
+                PRODUCT_CTAS[1],
+            ]
+        )
+        cfg = load_global_batch_config(cli_args=args)
+        assert cfg.cta == PRODUCT_CTAS[1]
+
+        orch = global_batch.GlobalPipelineOrchestrator.__new__(
+            global_batch.GlobalPipelineOrchestrator
+        )
+        orch.config = cfg
+        overrides = orch._build_cli_overrides()
+        assert overrides is not None
+        assert overrides["cta"] == PRODUCT_CTAS[1]
+
+    def test_the_render_path_calls_the_apply(self) -> None:
+        """A helper nothing calls is the same inert flag one layer down, and
+        no behavioural test of the helper can see it. Read the call site, the
+        way the publish hooks are pinned.
         """
         import ast
+        import inspect
 
-        batch = (REPO / "src/pipeline/global_batch.py").read_text(encoding="utf-8")
-        tree = ast.parse(batch)
-        flags = {
-            a.value
+        from src.video.producer import orchestration
+
+        tree = ast.parse(inspect.getsource(orchestration.create_video_for_product))
+        called = {
+            node.func.id
             for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and getattr(node.func, "attr", "") == "add_argument"
-            for a in node.args
-            if isinstance(a, ast.Constant) and isinstance(a.value, str)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         }
 
-        assert "--cta" in flags
-        assert 'overrides["cta"]' in batch
+        assert "apply_script_template_overrides" in called
 
-    def test_the_override_reaches_the_settings_on_both_paths(self) -> None:
-        """`orchestration` is where a batch override lands, and the producer
-        routes through the same function, so this is the single site that
-        makes the flag real on either path.
+    def test_the_apply_changes_what_gets_selected(self) -> None:
+        """The end of the chain, driving the real apply and asserting what it
+        selects. A grep for `fixed_cta` in the file passes on an apply that
+        writes a neighbouring attribute, and a test that sets `fixed_cta`
+        itself never runs the apply at all -- both of which is how this
+        shipped parsed, forwarded and inert.
         """
-        orch = (REPO / "src/video/producer/orchestration.py").read_text(
-            encoding="utf-8"
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer.orchestration import (
+            apply_script_template_overrides,
         )
 
-        assert "script_templates.fixed_cta" in orch
-        assert 'cli_overrides.get("cta")' in orch
+        config = load_video_config_modular()
+        st = config.llm_settings.script_templates
+        pool = st.cta_options_for(False)
+        unforced = select_cta(pool, "B0AAAAAAAA", st.fixed_cta)
+        forced = next(c for c in pool if c != unforced)
 
-    def test_the_chosen_line_is_the_one_rendered(self, monkeypatch) -> None:
+        apply_script_template_overrides(config, {"cta": forced})
+
+        assert st.fixed_cta == forced
+        assert select_cta(pool, "B0AAAAAAAA", st.fixed_cta) == forced
+
+    def test_the_apply_leaves_the_sibling_override_alone(self) -> None:
+        """The two overrides share a settings object, so writing the wrong
+        attribute is the mistake this helper exists to make visible.
+        """
+        from src.video.config import load_video_config_modular
+        from src.video.producer.orchestration import (
+            apply_script_template_overrides,
+        )
+
+        config = load_video_config_modular()
+        st = config.llm_settings.script_templates
+        before = st.fixed_template
+
+        apply_script_template_overrides(config, {"cta": PRODUCT_CTAS[1]})
+
+        assert st.fixed_template == before
+        assert st.fixed_cta == PRODUCT_CTAS[1]
+
+    def test_the_chosen_line_is_the_one_rendered(self) -> None:
         """End of the chain: an override that reaches `fixed_cta` has to come
         out in the prompt the model is given.
         """

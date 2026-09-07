@@ -302,6 +302,31 @@ def failed_step_from_result(result: str | Path | None) -> str | None:
     return None
 
 
+def apply_script_template_overrides(
+    config: Any, cli_overrides: dict[str, Any] | None
+) -> None:
+    """Fold the per-run script overrides into the loaded settings.
+
+    A function rather than two lines inline, so a test can drive the real
+    apply. Asserting the substring `fixed_cta` appears in this file passes on
+    an apply that writes a neighbouring attribute, and a test that sets
+    `fixed_cta` itself never touches this code at all -- both of which is how
+    `--cta` shipped parsed, forwarded, and inert.
+
+    This is also the batch's only route to these settings: it builds an
+    overrides dict and never runs the producer CLI's own apply block, so an
+    override applied only there does nothing on the path `make batch-lowpri`
+    takes.
+    """
+    if not cli_overrides:
+        return
+    templates = config.llm_settings.script_templates
+    if cli_overrides.get("script_template"):
+        templates.fixed_template = cli_overrides["script_template"]
+    if cli_overrides.get("cta"):
+        templates.fixed_cta = cli_overrides["cta"]
+
+
 async def create_video_for_product(
     config: VideoConfig,
     product: ProductData,
@@ -367,18 +392,7 @@ async def create_video_for_product(
         profile = config.get_profile(profile_name)
         ensure_dirs_exist(run_paths["run_root"])
 
-        # Apply script template override to LLM settings
-        if cli_overrides and cli_overrides.get("script_template"):
-            config.llm_settings.script_templates.fixed_template = cli_overrides[
-                "script_template"
-            ]
-
-        # And the closing line. This is the batch's only route to it: the
-        # batch builds an overrides dict and never touches the CLI's own
-        # apply block, so a flag applied only there is inert on the path
-        # `make batch-lowpri` runs.
-        if cli_overrides and cli_overrides.get("cta"):
-            config.llm_settings.script_templates.fixed_cta = cli_overrides["cta"]
+        apply_script_template_overrides(config, cli_overrides)
 
         ctx = PipelineContext(
             product,
