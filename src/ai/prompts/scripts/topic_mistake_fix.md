@@ -22,6 +22,11 @@ End with one CTA per the narrator profile. One line.
 - **Do not invent a product.** There may be none. Never say "this thing", "I
   picked one up", or anything implying an object the viewer could buy, unless
   the detail below actually names one.
+- **Name a menu path or a URL only if you can state it exactly -- the labels in
+  order, or the address in full -- for a platform you name.** If you cannot,
+  name what the viewer can see or feel on the device instead, or say plainly
+  that it differs by device and what to look for. Both are followable. The
+  detail below saying a method exists is not the same as it naming one.
 - The correction must be something the viewer can do today, without buying
   anything. If the only fix costs money, say so plainly instead of hiding it.
 - One instruction per sentence.
