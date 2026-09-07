@@ -485,6 +485,13 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # Include script template metadata (saved by step_generate_script)
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("script_template"):
         step_state["script_template"] = ctx.state["script_template"]
+    # The chosen closing line, mirrored the same way and for the same reason:
+    # a truncating resume keeps only the step entries, so a top-level scalar
+    # is dropped and the truncated file written back. `step_generate_script`
+    # short-circuits on an existing script, so it is never re-recorded and
+    # the loss is permanent for that product.
+    if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("cta"):
+        step_state["cta"] = ctx.state["cta"]
     # Include TTS metadata if available (saved by step_create_voiceover)
     if step_name == STEP_CREATE_VOICEOVER and ctx.state.get("tts_metadata"):
         step_state["tts_metadata"] = ctx.state["tts_metadata"]

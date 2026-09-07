@@ -290,6 +290,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "script_template") and args.script_template is not None:
         overrides["script_template"] = args.script_template
 
+    # Closing call-to-action override
+    if hasattr(args, "cta") and args.cta is not None:
+        overrides["cta"] = args.cta
+
     # Content pillar override (drives template filter and runtime preamble)
     if hasattr(args, "pillar") and args.pillar is not None:
         overrides["pillar"] = args.pillar

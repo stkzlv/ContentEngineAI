@@ -373,6 +373,13 @@ async def create_video_for_product(
                 "script_template"
             ]
 
+        # And the closing line. This is the batch's only route to it: the
+        # batch builds an overrides dict and never touches the CLI's own
+        # apply block, so a flag applied only there is inert on the path
+        # `make batch-lowpri` runs.
+        if cli_overrides and cli_overrides.get("cta"):
+            config.llm_settings.script_templates.fixed_cta = cli_overrides["cta"]
+
         ctx = PipelineContext(
             product,
             profile,

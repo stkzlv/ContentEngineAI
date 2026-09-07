@@ -232,25 +232,68 @@ class TestBothEntryPointsCarryTheOverride:
     the path `make batch-lowpri` runs.
     """
 
-    def test_the_flag_exists_on_both(self) -> None:
-        cli = (REPO / "src/video/producer/cli.py").read_text(encoding="utf-8")
-        batch = (REPO / "src/pipeline/global_batch.py").read_text(encoding="utf-8")
-
-        assert '"--cta"' in cli
-        assert '"--cta"' in batch
-
-    def test_the_producer_applies_it_to_the_settings(self) -> None:
-        """A flag parsed and never read is the shape this repo ships most
-        often; the producer is where the override has to land.
+    def test_the_producer_carries_the_flag_into_its_overrides(self) -> None:
+        """The first version of these tests asserted the *strings*
+        `"--cta"`, `script_templates.fixed_cta` and `overrides["cta"]` were
+        present in the two files. All three were, and the flag did nothing:
+        `_build_cli_overrides` never put `cta` in the dict, so the apply
+        branch reading it could not fire. A test that greps for a symbol
+        passes on a flag parsed and never read, which is the shape it was
+        written to catch.
         """
-        cli = (REPO / "src/video/producer/cli.py").read_text(encoding="utf-8")
+        from src.video.producer.cli import (
+            _build_cli_overrides,
+            create_argument_parser,
+        )
 
-        assert "script_templates.fixed_cta" in cli
+        args = create_argument_parser().parse_args(
+            ["outputs/B0X/data.json", "slideshow_images1", "--cta", PRODUCT_CTAS[2]]
+        )
 
-    def test_the_batch_forwards_it(self) -> None:
+        assert _build_cli_overrides(args)["cta"] == PRODUCT_CTAS[2]
+
+    def test_the_batch_carries_it_too(self) -> None:
+        """The batch builds its own dict and never runs the producer CLI's
+        apply block, so the two have to be checked apart.
+        """
+        import ast
+
         batch = (REPO / "src/pipeline/global_batch.py").read_text(encoding="utf-8")
+        tree = ast.parse(batch)
+        flags = {
+            a.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and getattr(node.func, "attr", "") == "add_argument"
+            for a in node.args
+            if isinstance(a, ast.Constant) and isinstance(a.value, str)
+        }
 
+        assert "--cta" in flags
         assert 'overrides["cta"]' in batch
+
+    def test_the_override_reaches_the_settings_on_both_paths(self) -> None:
+        """`orchestration` is where a batch override lands, and the producer
+        routes through the same function, so this is the single site that
+        makes the flag real on either path.
+        """
+        orch = (REPO / "src/video/producer/orchestration.py").read_text(
+            encoding="utf-8"
+        )
+
+        assert "script_templates.fixed_cta" in orch
+        assert 'cli_overrides.get("cta")' in orch
+
+    def test_the_chosen_line_is_the_one_rendered(self, monkeypatch) -> None:
+        """End of the chain: an override that reaches `fixed_cta` has to come
+        out in the prompt the model is given.
+        """
+        from src.ai.script_generator import select_cta
+
+        chosen = select_cta(PRODUCT_CTAS, "B0TEST0001", fixed_cta=PRODUCT_CTAS[3])
+        rule = render_cta_rule(chosen)
+
+        assert f'"{PRODUCT_CTAS[3]}"' in rule
 
 
 @pytest.mark.unit

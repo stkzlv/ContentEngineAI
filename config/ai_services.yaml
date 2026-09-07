@@ -160,6 +160,8 @@ llm_settings:
     # Takes priority over random selection. Set null for random.
     # Example: "curiosity_hook"
     fixed_template: null
+    # Force one closing line for every record; null selects per record.
+    fixed_cta: null
     # Pillar -> list of template names. See docs/requirements.md "Content Pillars".
     # When a run is scoped to a pillar, deterministic per-product selection picks
     # from this list instead of the full pool. A template can fit more than one

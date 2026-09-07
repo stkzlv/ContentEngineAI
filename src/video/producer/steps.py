@@ -577,8 +577,11 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.state["script_template"] = template_name
             if cta_line:
                 # A top-level string, beside `script_template`: the state
-                # loader tells step entries from scalars by isinstance, and
-                # the analytics that segment by variant read it from here.
+                # loader tells step entries from scalars by isinstance.
+                # Mirrored into the step entry by `_update_state_after_step`,
+                # so a truncating resume does not drop it. Persisted so the
+                # analytics layer can segment by closing line; nothing reads
+                # it yet.
                 ctx.state["cta"] = cta_line
             logger.info(
                 "Script generated (template=%s) and saved to %s",
