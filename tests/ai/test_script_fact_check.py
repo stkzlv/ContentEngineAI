@@ -7,8 +7,8 @@ every rule in the template, and is still the wrong page.
 
 Measured precision is 14 flags right in 16, so roughly one flag in eight is
 wrong. That number is why the guards below exist: a false positive must be
-able to damage the sentence it named and nothing else, and must never be able
-to cost the render. Every test here is offline.
+able to damage the sentences it named and the one following each, and nothing
+beyond that, and must never be able to cost the render. Every test here is offline.
 """
 
 from __future__ import annotations
@@ -380,7 +380,7 @@ class TestAcceptingARevision:
             f"{CTA}"
         )
         accepted, reason = accept_revision(GOOD, fabricated, alternate, **GUARDS)
-        assert accepted is None and "apart from its closing line" in reason
+        assert accepted is None and "no sentence of the original" in reason
 
     def test_most_of_a_script_may_still_be_repaired(self) -> None:
         """The floor has to leave the repair that motivated the feature. Three
@@ -400,6 +400,25 @@ class TestAcceptingARevision:
         accepted, reason = accept_revision(GOOD, repaired, three, **GUARDS)
         assert accepted is not None, reason
 
+    def test_the_first_three_of_five_may_still_be_repaired(self) -> None:
+        """The floor counts what survived, not what the claims permitted.
+        Counting permission refused this: sentence 3 was touchable merely for
+        following a flagged one and sentence 4 is the CTA, so nothing was
+        left even though two sentences came back verbatim, and the recorded
+        reason said the claims covered the script when they covered three of
+        five.
+        """
+        old = sentences(GOOD)
+        three = [FactCheckClaim(claim=old[i], reason="r", fix="f") for i in (0, 1, 2)]
+        repaired = (
+            "Ports on one laptop differ in the power they can deliver. "
+            "On Windows, open Settings, then System, then Power and battery. "
+            "The wattage for each port is listed on that page. "
+            f"{old[3]} {CTA}"
+        )
+        accepted, reason = accept_revision(GOOD, repaired, three, **GUARDS)
+        assert accepted is not None, reason
+
     def test_a_sentence_ending_in_a_quoted_label_still_splits(self) -> None:
         """A how-to quotes interface labels, so its sentences end `."` -- and
         a lookbehind demanding the punctuation last merged that sentence into
@@ -412,6 +431,29 @@ class TestAcceptingARevision:
             "Find the right one."
         )
         assert len(split) == 3
+
+    def test_a_repair_ending_on_a_quoted_label_passes_validation(self) -> None:
+        """The containment guard and the CTA validator have to split
+        sentences the same way. They did not: this module widened its own
+        splitter while `validate_script_completeness` kept the narrow one, so
+        a rewritten sentence closing on a quoted interface label merged into
+        the CTA and the repair was refused for not ending on one -- the shape
+        the revise prompt asks for, on scripts that quote labels constantly.
+        """
+        flagged = [
+            FactCheckClaim(
+                claim="Look for the lightning bolt symbol next to the port.",
+                reason="Vendors mark it differently.",
+                fix='The marking may read "Power Delivery" instead.',
+            )
+        ]
+        revised = swap(
+            GOOD,
+            "Look for the lightning bolt symbol next to the port.",
+            'Look for a bolt or the words "Power Delivery."',
+        )
+        accepted, reason = accept_revision(GOOD, revised, flagged, **GUARDS)
+        assert accepted is not None, reason
 
     def test_a_pure_reordering_is_refused(self) -> None:
         """Membership alone let this through: every sentence unchanged,

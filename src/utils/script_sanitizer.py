@@ -106,3 +106,26 @@ def sanitize_script(
             logger.error(f"Debug: Failed to save sanitized script comparison: {e}")
 
     return script.strip()
+
+
+# One sentence splitter for everything that reasons about a script's
+# sentences: the fact check's containment guard, the CTA validator, and the
+# publisher's first-comment stripper. They have to agree about where a
+# sentence ends or they contradict each other on the same text -- a repair
+# confined correctly by one and refused by another for not ending on a CTA,
+# with the recorded reason blaming the reviser.
+#
+# Split where sentence-final punctuation, optionally through a closing quote
+# or bracket, is followed by whitespace and something that starts a sentence.
+# The closing-quote half matters because a how-to quotes interface labels, so
+# its sentences end `."`; a lookbehind demanding the punctuation come last
+# merged such a sentence into the next one. The lookahead keeps an ellipsis or
+# an abbreviation mid-sentence from splitting it.
+_SENTENCE_SPLIT = re.compile(
+    r"(?:(?<=[.!?])|(?<=[.!?][\"')\]]))\s+(?=[\"'(\[]?[A-Z0-9])"
+)
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split a spoken script into sentences."""
+    return [s.strip() for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]

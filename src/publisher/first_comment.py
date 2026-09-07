@@ -24,10 +24,10 @@ if TYPE_CHECKING:
     from src.publisher.metadata import PublishMetadata
     from src.publisher.models import FirstCommentConfig
 
+from src.utils.script_sanitizer import split_sentences
+
 logger = logging.getLogger(__name__)
 
-# Sentence boundary: terminator followed by whitespace or end of string.
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 # Openers of the channel-wide CTA lines the narrator profile allows. The
 # engagement-bait beat sits immediately before the CTA, so the CTA has to be
@@ -64,7 +64,7 @@ def extract_closing_line(script: str) -> str | None:
     if not script or not script.strip():
         return None
 
-    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(script.strip()) if s.strip()]
+    sentences = split_sentences(script)
     # Anchored to the start of the sentence. A substring match anywhere
     # popped a closing beat that merely *contained* a marker word -- "Save
     # this or skip it, which would you do?" -- and made the sentence before

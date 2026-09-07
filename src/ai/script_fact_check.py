@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from src.video.config.llm_settings import ScriptFactCheckConfig
 
+from src.utils.script_sanitizer import split_sentences
+
 logger = logging.getLogger(__name__)
 
 _CLAIM_BLOCK = re.compile(
@@ -42,13 +44,6 @@ _CLAIM_BLOCK = re.compile(
     r"REASON:\s*(?P<reason>.+?)\s*"
     r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)|\Z)",
     re.S | re.I,
-)
-# Split only where a sentence really ends: punctuation, whitespace, and then
-# something that starts a sentence. Splitting on punctuation alone cut
-# "expand Components... then read the Power page." into two entries, so the
-# checker's copy of the whole sentence matched neither half.
-_SENTENCE_SPLIT = re.compile(
-    r"(?:(?<=[.!?])|(?<=[.!?][\"\')\]]))\s+(?=[\"\'(\[]?[A-Z0-9])"
 )
 
 # A ruling of "correct" arriving in the shape of a fix. Measured live, twice:
@@ -145,7 +140,12 @@ def _normalise(text: str) -> str:
 
 
 def sentences(text: str) -> list[str]:
-    return [s.strip() for s in _SENTENCE_SPLIT.split(text.strip()) if s.strip()]
+    """The shared splitter, named here for this module's readers.
+
+    It has to be the one `validate_script_completeness` uses, or a repair
+    confined correctly here is refused there for not ending on a CTA.
+    """
+    return split_sentences(text)
 
 
 def _ruling_is_wrong(ruling: str | None) -> bool:
@@ -263,7 +263,8 @@ def accept_revision(
     The containment guard is the important one. Measured precision is 14 in 16,
     so roughly one flag in eight is wrong, and without containment a bad
     correction could rewrite a script that was fine. With it, a false positive
-    can damage the sentences it named and nothing else.
+    can damage the sentences it named and the one following each, and nothing
+    beyond that.
     """
     from src.ai.script_generator import validate_script_completeness
     from src.utils.script_sanitizer import sanitize_script
@@ -324,27 +325,37 @@ def accept_revision(
         if spanned:
             touchable.add(spanned[-1] + 1)
     kept_old = [(i, s) for i, s in enumerate(old_sentences) if i not in touchable]
+    new_norm = [_normalise(s) for s in new_sentences]
 
-    # The per-claim bound is not an aggregate one: three claims naming
+    # The per-claim bound is not an aggregate one: a few claims naming
     # alternate sentences, each within its own span, between them make every
-    # sentence of a short script touchable -- and then `kept_old` is empty or
-    # holds only the closing line, so the checks below are vacuous and a
-    # wholly fabricated rewrite is accepted. At the shipped
-    # `max_flags_to_revise: 3` that needs a script of six split sentences,
-    # which the shorter renders are.
+    # sentence of a short script touchable -- and then the checks below have
+    # nothing left to compare and a wholly fabricated rewrite is accepted.
     #
-    # A script whose every line but the CTA is flagged is the checker
-    # rejecting it wholesale, and an ungrounded sentence-by-sentence patch is
-    # not the instrument for that. Refusing ships the original with its wrong
-    # claims, which is the worse-looking half of a real trade: the alternative
-    # is a rewrite bounded by nothing but its length.
-    protected = [i for i, _ in kept_old if i != len(old_sentences) - 1]
-    if not protected:
+    # Measured on what came back, not on what the claims permitted. Counting
+    # permission refused a correct repair of the first three sentences of
+    # five, because the fourth was touchable merely for following a flagged
+    # one and the fifth was the CTA, and the recorded reason then said the
+    # claims covered the script when they covered three of five. That is also
+    # why this sits here rather than beside the span check it otherwise
+    # belongs with: survival cannot be read before the revision is split.
+    #
+    # A script with no body sentence left standing is the checker rejecting
+    # it wholesale, and an ungrounded sentence-by-sentence patch is not the
+    # instrument for that. Refusing ships the original with its wrong claims,
+    # which is the worse-looking half of a real trade: the alternative is a
+    # rewrite bounded by nothing but its length.
+    survivors = [
+        i
+        for i, sentence in enumerate(old_sentences)
+        if i != len(old_sentences) - 1 and _normalise(sentence) in new_norm
+    ]
+    if not survivors:
         return (
             None,
-            "the flagged claims cover the script apart from its closing line",
+            "the revision left no sentence of the original but its closing line",
         )
-    new_norm = [_normalise(s) for s in new_sentences]
+
     missing = [s for _, s in kept_old if _normalise(s) not in new_norm]
     if missing:
         return (

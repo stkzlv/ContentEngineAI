@@ -1374,8 +1374,8 @@ ones a flagged claim names and the sentence following each claim, since a
 correction often has to carry into the step that referenced the wrong thing;
 every other sentence must come back unchanged and in the same order, and at
 most one new sentence per flag may appear. A claim that quotes more than two
-sentences is refused outright, and so is a set of claims that between them
-cover everything but the closing line: a script flagged that heavily is being
+sentences is refused outright, and so is a revision that leaves no body
+sentence of the original standing: a script flagged that heavily is being
 rejected wholesale rather than repaired, and patching it sentence by sentence
 would leave nothing protected. It must also keep the closing call to action verbatim,
 pass the usual script validation, and stay within `max_length_drift` of the
