@@ -166,7 +166,7 @@ class TestParsingTheAnswer:
 
     def test_a_repeated_claim_is_listed_once(self) -> None:
         """Observed on a real topic render: four claims that were two, each
-        listed twice, so two of the three repair slots went to sentences
+        listed twice, so one of the three repair slots went to a sentence
         already named. The repair was good there, but on a script with three
         genuinely wrong claims a duplicate pushes a real one out of the
         window with nothing to show it happened.
@@ -186,23 +186,78 @@ class TestParsingTheAnswer:
         assert r.flagged[0].claim.startswith("Blast air")
         assert r.flagged[1].claim.startswith("This should")
 
-    def test_the_first_fix_is_the_one_kept(self) -> None:
-        r = parse_check_answer(
-            "VERDICT: FLAGGED\n"
-            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: first.\n---\n"
-            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: second.\n"
-        )
-        assert [c.fix for c in r.flagged] == ["first."]
-
-    def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:
-        """Keyed on the same normalisation the containment guard matches on,
-        so a key that disagreed with containment would merge claims the guard
-        then treats as distinct.
+    def test_two_errors_in_one_sentence_keep_both_fixes(self) -> None:
+        """The claim alone reads as the obvious key -- it is what containment
+        matches on -- but the prompt asks for one block per *claim*, and the
+        checker does decompose a sentence: the one real answer available
+        rules a single sentence in three parts. Keying on the claim alone
+        drops the second correction before the reviser sees it.
         """
         r = parse_check_answer(
             "VERDICT: FLAGGED\n"
-            "CLAIM: Open the settings page.\nRULING: wrong\nREASON: r\nFIX: f.\n---\n"
-            "CLAIM: open the settings page\nRULING: wrong\nREASON: r\nFIX: g.\n"
+            "CLAIM: Open Settings then Power.\nRULING: wrong\nREASON: path\n"
+            "FIX: It is System then Power.\n---\n"
+            "CLAIM: Open Settings then Power.\nRULING: wrong\nREASON: timeout\n"
+            "FIX: The timeout is 15 minutes.\n"
+        )
+        assert [c.fix for c in r.flagged] == [
+            "It is System then Power.",
+            "The timeout is 15 minutes.",
+        ]
+
+    def test_an_affirmation_does_not_shadow_a_real_fix(self) -> None:
+        """The dedup runs after the discard filters, and that ordering is
+        load-bearing. Deduping the raw list first -- the obvious
+        simplification, one call instead of two -- lets a `FIX: Correct.`
+        first copy take the key, so the real correction vanishes and the
+        sentence ships unrepaired with "nothing flagged" recorded.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: Correct.\n---\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\n"
+            "FIX: It is actually the other page.\n"
+        )
+        assert [c.fix for c in r.flagged] == ["It is actually the other page."]
+
+    def test_a_correct_verdict_does_not_shadow_a_real_fix(self) -> None:
+        """The same ordering on the JSON path, where the shadowing key would
+        come from `verdict` rather than from the fix text.
+        """
+        r = parse_check_answer(
+            '{"claims": [{"claim": "A.", "verdict": "correct", "fix": "x"}, '
+            '{"claim": "A.", "verdict": "wrong", "fix": "the real one"}]}'
+        )
+        assert [c.fix for c in r.flagged] == ["the real one"]
+
+    def test_a_run_on_verdict_header_does_not_land_in_the_fix(self) -> None:
+        """A real answer repeated its whole block set with the second
+        `VERDICT: FLAGGED` running on from the previous `FIX:` with no
+        newline. Without the verdict alternative in the lookahead the first
+        copy's fix absorbed the header, and that contaminated string was
+        handed to the reviser as the correct fact.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\n"
+            "FIX: Use short bursts instead.VERDICT: FLAGGED\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\n"
+            "FIX: Use short bursts instead.\n"
+        )
+        assert [c.fix for c in r.flagged] == ["Use short bursts instead."]
+
+    def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:
+        """The normalisation is the guard's own, so two spellings of one
+        sentence collapse here exactly as they would there. Both halves of
+        the key are normalised, or a fix differing only in case would keep a
+        duplicate the guard treats as one sentence.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: Open the settings page.\nRULING: wrong\nREASON: r\n"
+            "FIX: It is the power page.\n---\n"
+            "CLAIM: open the settings page\nRULING: wrong\nREASON: r\n"
+            "FIX: it is the POWER page\n"
         )
         assert len(r.flagged) == 1
 
@@ -212,7 +267,7 @@ class TestParsingTheAnswer:
         """
         r = parse_check_answer(
             '{"claims": [{"claim": "A.", "verdict": "wrong", "fix": "x"}, '
-            '{"claim": "A.", "verdict": "wrong", "fix": "y"}, '
+            '{"claim": "A.", "verdict": "wrong", "fix": "x"}, '
             '{"claim": "B.", "verdict": "wrong", "fix": "z"}]}'
         )
         assert [c.claim for c in r.flagged] == ["A.", "B."]

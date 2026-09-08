@@ -42,7 +42,14 @@ _CLAIM_BLOCK = re.compile(
     r"CLAIM:\s*(?P<claim>.+?)\s*"
     r"(?:RULING:\s*(?P<ruling>.+?)\s*)?"
     r"REASON:\s*(?P<reason>.+?)\s*"
-    r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)|\Z)",
+    # The FIX runs to the next separator, the next claim, a repeated verdict
+    # header, or the end. The verdict alternative is not decoration: a real
+    # answer repeated its whole block set with the second `VERDICT: FLAGGED`
+    # running on from the previous `FIX:` with no newline, so without it the
+    # first copy's fix absorbed the header and that contaminated string was
+    # handed to the reviser as the correct fact.
+    r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)"
+    r"|(?:\n?\s*VERDICT:)|\Z)",
     re.S | re.I,
 )
 
@@ -198,20 +205,33 @@ def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
     """One entry per named sentence, keeping the first and its fix.
 
     Observed on a real topic render: the checker returned four claims that
-    were two, each listed twice, so `max_flags_to_revise` spent two of its
-    three slots on sentences already named. The repair was still good there,
+    were two, each listed twice, so `max_flags_to_revise` spent one of its
+    three slots on a sentence already named. The repair was still good there,
     but on a script with three genuinely wrong claims a duplicate pushes a
     real one out of the window silently.
 
-    Keyed on `_normalise`, the same normalisation the containment guard
-    matches claims against, so two spellings of one sentence collapse here
-    exactly as they would there -- a key that disagreed with containment
-    would merge claims the guard then treats as distinct.
+    Keyed on the claim *and* its fix, both normalised. The claim alone reads
+    as the obvious key -- it is what the containment guard matches on -- but
+    the prompt asks for one block per claim, and the checker does decompose a
+    sentence into independent parts: the one real answer available rules a
+    single sentence in three, on dust, indexing and paste. Two blocks naming
+    that sentence with different corrections are two errors in it, and keying
+    on the claim alone would drop the second fix before the reviser saw it.
+    Adding the fix costs nothing on the case this exists for, where the
+    repeated blocks are identical.
+
+    The normalisation is the guard's own, so two spellings of one sentence
+    still collapse here exactly as they would there.
+
+    Runs after the discard filters, not before: an affirmation (`FIX:
+    Correct.`) or a `verdict: correct` first copy would otherwise take the
+    key and shadow a genuine later correction, so the sentence would ship
+    unrepaired with "nothing flagged" recorded.
     """
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
     unique: list[FactCheckClaim] = []
     for claim in claims:
-        key = _normalise(claim.claim)
+        key = (_normalise(claim.claim), _normalise(claim.fix))
         if key in seen:
             continue
         seen.add(key)
