@@ -266,6 +266,37 @@ class TestParsingTheAnswer:
             "The court records it as a verdict: usually within two days."
         ]
 
+    def test_a_run_on_ok_header_does_not_land_in_the_fix(self) -> None:
+        """`OK` is the other half of the alternation, and the prompt makes it
+        reachable: it specifies `VERDICT: OK` as a real header value, so a
+        repeated answer set can begin with one. Dropping that half from the
+        lookahead left every other test in this file green.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\n"
+            "FIX: Paste is a separate job.VERDICT: OK\n"
+        )
+        assert [c.fix for c in r.flagged] == ["Paste is a separate job."]
+
+    def test_a_fix_saying_verdict_before_a_word_starting_ok_is_kept(
+        self,
+    ) -> None:
+        """The word boundary after the alternation, not just the alternation.
+        Without it, `OK` matches the start of `okay` and the fix is cut at
+        "the verdict:" -- the same truncation the anchoring exists to stop,
+        reached through the other half. Dropping that boundary also left
+        every other test in this file green.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: The step is optional.\nRULING: wrong\nREASON: r\n"
+            "FIX: The manual calls the verdict: okay to proceed.\n"
+        )
+        assert [c.fix for c in r.flagged] == [
+            "The manual calls the verdict: okay to proceed."
+        ]
+
     def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:
         """The normalisation is the guard's own, so two spellings of one
         sentence collapse here exactly as they would there. Both halves of

@@ -205,7 +205,7 @@ def _covers(claim: str, sentence: str) -> bool:
 
 
 def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
-    """One entry per named sentence, keeping the first and its fix.
+    """One entry per (sentence, correction) pair, keeping the first.
 
     Observed on a real topic render: the checker returned four claims that
     were two, each listed twice, so `max_flags_to_revise` spent one of its
