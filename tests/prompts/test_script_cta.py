@@ -97,9 +97,12 @@ class TestTheRuleSitsNextToTheBeat:
             assert f'"{other}"' not in rule
 
     def test_the_topic_tail_does_not_point_at_a_beat_rule(self) -> None:
-        """Topic templates have no closing-beat rule above the placeholder;
-        the line above is an honest-limit rule, and "the closing beat above"
-        would point the model at that.
+        """Topic templates have no closing-beat rule in their Rules block at
+        all; they state their close in the body. "The closing beat above"
+        would point the model at whatever bullet happens to sit last, which
+        is a delivery-format rule on one template and a debunk rule on
+        another. Phrased against the body, the tail stays right however the
+        bullets are ordered.
         """
         assert "closing beat above" in render_cta_rule(PRODUCT_CTAS[0])
         assert "closing beat above" not in render_cta_rule(

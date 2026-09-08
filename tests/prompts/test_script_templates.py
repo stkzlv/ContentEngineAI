@@ -251,9 +251,11 @@ def test_topic_template_places_the_honest_limit_inside_the_method(
     """Topic scripts closed on the caveat instead of the result.
 
     Each template's body asks the script to finish on the result, and the
-    Rules block asked for an honest limit without saying where. The limit
-    bullet sat directly above `{CTA_RULE}`, so it was the nearest imperative
-    to the ending and won: the last spoken line before the call to action was
+    Rules block asked for an honest limit without saying where. On two of the
+    three the limit bullet sat directly above `{CTA_RULE}`; on
+    `topic_answer_first` a delivery-format bullet sat between and it closed on
+    the caveat just as often, so adjacency is part of the mechanism and not
+    all of it. Either way the model put the caveat last: the last spoken line before the call to action was
     "if it's still loud, you might have more serious issues". That is the
     body-versus-Rules placement class, with the two instructions competing for
     the same final beat.
