@@ -280,13 +280,13 @@ class TestUnifiedSubtitleGenerator:
             assert result.success is False
 
     def test_a_segment_does_not_outlive_the_start_of_the_next(self, generator) -> None:
-        """Whisper emits word windows that overlap: on the measured
-        transcript 115 of 131 consecutive pairs overlapped by 40ms and one by
-        240ms, and the smoother's lead doubles it by moving starts earlier
-        without moving ends. Two dialogue lines carry the same position, so
-        an overlap draws one caption on top of the other -- which is both the
-        "words drawn twice" and the sentence boundary that reads as though
-        its space were missing.
+        """The timing smoother shifts every word's start earlier and leaves
+        ends alone, so a caption appears just before it is spoken. Whisper's
+        own windows are contiguous, so that shift is the whole of the
+        overlap. Two dialogue lines carry the same position, so an overlap
+        draws one caption on top of the other -- which is both the "words
+        drawn twice" and the sentence boundary that reads as though its
+        space were missing.
 
         Four words at three per line, so the break falls after "three" and
         the fourth word starts 0.1s before the third word ends.
@@ -309,12 +309,17 @@ class TestUnifiedSubtitleGenerator:
         start -- losing the words rather than overlapping them, which is the
         worse failure. No pair on the measured transcript is this degenerate;
         the guard is for the one that is.
+
+        The successor starts exactly where this segment did, which is the
+        boundary the guard's `>` sits on. An earlier version used a strictly
+        earlier successor, and that leaves `>=` -- the one-character
+        loosening -- passing while it deletes the first caption.
         """
         timings = [
             {"word": "one", "start_time": 1.0, "end_time": 1.4},
             {"word": "two", "start_time": 1.0, "end_time": 1.8},
             {"word": "three", "start_time": 1.0, "end_time": 2.2},
-            {"word": "four", "start_time": 0.5, "end_time": 2.6},
+            {"word": "four", "start_time": 1.0, "end_time": 2.6},
         ]
         segments = generator._create_segments(timings, voiceover_duration=None)
 
