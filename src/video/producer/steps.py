@@ -1213,19 +1213,27 @@ def resolve_subtitle_engine(subtitle_settings: Any) -> str | None:
     )
 
 
-def supersede_two_part_upper_line(upper_line: Any, subtitle_settings: Any) -> bool:
-    """Turn two-part's upper line off when the overlay renders one.
+def supersede_two_part_upper_line(
+    upper_line: Any, subtitle_settings: Any, resolved_text: str | None
+) -> bool:
+    """Turn two-part's upper line off when the overlay will render one.
 
     Both draw a static line above the visual, so leaving both on renders the
     text twice under FFmpeg -- and the overlay is the half that survives
     pycaps, which is the point of #88. The voiceover-synced lower line is
     untouched.
 
-    A function rather than two lines inline so a test can drive the decision;
-    the branch it replaced sat two hundred lines into `step_generate_subtitles`
-    with no reachable seam.
+    `resolved_text` is what makes this safe. The overlay draws nothing when
+    its source resolves to nothing, so superseding on `enabled` alone loses
+    the line altogether on exactly those renders: a topic under the shipped
+    `affiliate_link`, or `link_in_bio` with no URL set. Two-part keeps its
+    line in that case, which is what rendered before this feature existed.
+
+    A function rather than a branch inline so a test can drive the decision;
+    it otherwise sits two hundred lines into `step_generate_subtitles` with
+    no reachable seam.
     """
-    if not getattr(upper_line, "enabled", False):
+    if not getattr(upper_line, "enabled", False) or not resolved_text:
         return False
     two_part = subtitle_settings.two_part_subtitles
     if not (two_part.enabled and two_part.upper_line.enabled):
@@ -1286,12 +1294,23 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # two-part (upper+lower) which is FFmpeg-only in this iteration.
         two_part_enabled = subtitle_settings.two_part_subtitles.enabled
 
-        if supersede_two_part_upper_line(
-            ctx.config.video_settings.upper_line, subtitle_settings
-        ):
+        # Resolved before superseding, not after. The overlay only draws when
+        # its source resolves, so turning two-part's line off on `enabled`
+        # alone loses the line entirely on a render whose source is empty --
+        # a topic under `affiliate_link`, or `link_in_bio` with no URL set --
+        # and six bundled profiles have two-part's upper line on.
+        upper_settings = merged_profile_settings.video_settings.upper_line
+        upper_text, upper_reason = resolve_upper_line_text(upper_settings, ctx.product)
+        ctx.state["upper_line_text"] = upper_text or ""
+        if supersede_two_part_upper_line(upper_settings, subtitle_settings, upper_text):
             logger.info(
                 "Two-part upper line disabled: video_settings.upper_line "
                 "renders the static line on both engines"
+            )
+        elif upper_settings.enabled and not upper_text:
+            logger.info(
+                "Upper line not rendered: %s; two-part's own line is untouched",
+                upper_reason,
             )
 
         # One resolved decision, recorded where every later consumer reads it,
@@ -1568,14 +1587,21 @@ async def step_assemble_video(ctx: PipelineContext):
         # nothing is ordinary -- a topic has no affiliate link, an install
         # may not have set the bio URL -- so the reason is logged and the
         # line is simply absent (#88).
-        upper = ctx.config.video_settings.upper_line
-        if upper.enabled:
-            text, reason = resolve_upper_line_text(upper, ctx.product)
-            assembler.upper_line_text = text
-            if text:
-                logger.info("Upper line from %s: %s", reason, text)
-            else:
+        # The subtitle step already resolved this and recorded it, so the two
+        # cannot disagree about whether a line is drawn -- which is what the
+        # supersede decision was made on.
+        recorded = ctx.state.get("upper_line_text")
+        if recorded is None:
+            # A resume that truncated the state, or a `--step assemble_video`
+            # run that never executed the subtitle step. Resolve it here so
+            # the line is not silently absent on those paths.
+            upper = ctx.config.get_profile_merged_settings(
+                ctx.profile_name, ctx.cli_overrides
+            ).video_settings.upper_line
+            recorded, reason = resolve_upper_line_text(upper, ctx.product)
+            if upper.enabled and not recorded:
                 logger.info("Upper line not rendered: %s", reason)
+        assembler.upper_line_text = recorded or None
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.
         # When the script file doesn't exist (rare), the assembler treats the

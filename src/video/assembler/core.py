@@ -692,7 +692,14 @@ class VideoAssembler:
             # keeps the top of the z-order. Engine-independent by design: the
             # pycaps burn composes over this output, and the FFmpeg caption
             # fallback runs after it, so the line survives both (#88).
-            upper = self.config.video_settings.upper_line
+            # The profile-merged object, not the global one: a profile
+            # override that nothing reads is the fourth-condition
+            # failure this repo documents.
+            upper = (
+                self.profile_settings.video_settings.upper_line
+                if self.profile_settings is not None
+                else self.config.video_settings.upper_line
+            )
             video_filters = apply_upper_line_overlay(
                 video_filters,
                 upper,

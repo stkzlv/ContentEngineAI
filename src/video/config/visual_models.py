@@ -149,8 +149,10 @@ class UpperLineSettings(BaseModel):
 
     `link_in_bio_url` is deliberately absent: the public config ships no
     account-specific value, so the bio page's address is read from the
-    environment. The pipeline does not otherwise know it -- the link-in-bio
-    module carries OAuth credentials and no public URL.
+    environment. The link-in-bio module itself carries OAuth credentials and
+    no public URL, so it cannot supply one -- but `SUBTITLE_BUSINESS_URL`
+    already holds exactly this for the two-part upper line, and is read as a
+    fallback rather than replaced by a second variable for the same value.
     """
 
     enabled: bool = Field(
@@ -173,7 +175,10 @@ class UpperLineSettings(BaseModel):
         description=(
             "Environment variable holding the public bio page address, for "
             "`source: link_in_bio`. Never the URL itself: the bundled config "
-            "carries no account-specific value."
+            "carries no account-specific value. Falls back to "
+            "SUBTITLE_BUSINESS_URL, which the two-part upper line has read "
+            "since it shipped, so an installation already showing its bio "
+            "page keeps working without setting a second variable."
         ),
     )
     size_factor: float = Field(

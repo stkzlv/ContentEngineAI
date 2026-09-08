@@ -1,6 +1,6 @@
 """Persistent on-frame overlays burned by the assembler.
 
-Two overlays live here:
+Three overlays live here:
 
 - `apply_disclosure_overlay`: FTC `#ad` / Spain `#publi` corner badge,
   visible for the full clip duration. Last filter in the chain; rewrites
@@ -13,6 +13,13 @@ Two overlays live here:
   the disclosure stays on top in the z-order. Preserves the chain's
   terminal ``copy[v_out]`` so the disclosure rewrite still finds the
   expected shape.
+
+- `apply_upper_line_overlay` (#88): a static line above the visual, held for
+  the full clip. Unlike the hook it *consumes* the terminal ``copy[v_out]``
+  the way the disclosure does, so the two compose by whichever runs second
+  normalising what the first left. Engine-independent on purpose: the
+  two-part subtitle system's own upper line is dropped whenever the engine
+  is pycaps, and this one is not.
 """
 
 from __future__ import annotations
@@ -526,9 +533,12 @@ def resolve_upper_line_text(
     background over the visual.
 
     `link_in_bio` reads the environment because the public config ships no
-    account-specific value, and the pipeline has no other route to that
-    address: the link-in-bio module carries OAuth credentials and no public
-    URL.
+    account-specific value and the link-in-bio module carries OAuth
+    credentials rather than a public URL. `SUBTITLE_BUSINESS_URL` is read as
+    a fallback: the two-part upper line has taken the same value from it
+    since it shipped, and six bundled profiles point at it, so treating this
+    as a new variable would silently lose the line for an installation that
+    already had one.
     """
     source = settings.source
     if source == "custom":
@@ -537,14 +547,30 @@ def resolve_upper_line_text(
 
     if source == "link_in_bio":
         var = settings.link_in_bio_url_env_var
-        value = (env or os.environ).get(var, "").strip()
-        return (value, "link_in_bio") if value else (None, f"{var} is not set")
+        source_env = env if env is not None else os.environ
+        value = source_env.get(var, "").strip()
+        if not value:
+            # The two-part upper line has read this since it shipped, and six
+            # bundled profiles point at it. Reading it as a fallback keeps an
+            # installation that already shows its bio page working, instead
+            # of silently losing the line to a second variable for the same
+            # value.
+            value = source_env.get(_LEGACY_BUSINESS_URL_VAR, "").strip()
+            if value:
+                return value, f"link_in_bio ({_LEGACY_BUSINESS_URL_VAR})"
+            return None, f"neither {var} nor {_LEGACY_BUSINESS_URL_VAR} is set"
+        return value, "link_in_bio"
 
     for field in ("shortened_affiliate_link", "affiliate_link", "url"):
         value = (getattr(product, field, None) or "").strip()
         if value:
             return value, f"affiliate_link ({field})"
     return None, "the record carries no affiliate link"
+
+
+# The variable the two-part upper line has read since it shipped, documented
+# in `.env.example` and referenced by six bundled profiles.
+_LEGACY_BUSINESS_URL_VAR = "SUBTITLE_BUSINESS_URL"
 
 
 def build_upper_line_drawtext(
@@ -596,9 +622,15 @@ def _truncate_to_chars(text: str, max_chars: int) -> str:
     text = text.strip()
     if len(text) <= max_chars:
         return text
+    if " " not in text:
+        # A single unbroken token, which a URL is. Cutting one mid-address
+        # leaves a link nobody can use held on screen for the whole video,
+        # which is the one thing this line exists to do. Better to draw
+        # nothing and say so.
+        return ""
     cut = text[:max_chars].rsplit(" ", 1)[0]
     if not cut:
-        cut = text[:max_chars]
+        return ""
     return cut.rstrip() + "..."
 
 
@@ -619,6 +651,18 @@ def apply_upper_line_overlay(
     ``[v_out]`` at all.
     """
     if not settings.enabled or not text:
+        return video_filters
+
+    if not _truncate_to_chars(text, settings.max_chars):
+        # A single unbroken token longer than the budget: a URL that would be
+        # cut mid-address. Declining is the point -- an unusable link held for
+        # the whole video is worse than no line.
+        logger.warning(
+            "Upper line skipped: %r does not fit in %d characters and has no "
+            "word boundary to trim on",
+            text,
+            settings.max_chars,
+        )
         return video_filters
 
     if not video_filters:

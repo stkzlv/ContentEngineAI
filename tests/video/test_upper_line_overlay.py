@@ -76,11 +76,37 @@ class TestResolvingTheText:
         )
         assert text == "https://lnk.bio/example" and reason == "link_in_bio"
 
-    def test_an_unset_bio_url_names_the_variable(self) -> None:
+    def test_an_unset_bio_url_names_both_variables(self) -> None:
         text, reason = resolve_upper_line_text(
             UpperLineSettings(source="link_in_bio"), product(), env={}
         )
-        assert text is None and "LINK_IN_BIO_URL" in reason
+        assert text is None
+        assert "LINK_IN_BIO_URL" in reason and "SUBTITLE_BUSINESS_URL" in reason
+
+    def test_the_existing_business_url_still_works(self) -> None:
+        """The two-part upper line has read SUBTITLE_BUSINESS_URL since it
+        shipped, and six bundled profiles point at it. A second variable for
+        the same value would have silently lost the line for an installation
+        that already had one -- and this feature turns two-part's line off.
+        """
+        text, reason = resolve_upper_line_text(
+            UpperLineSettings(source="link_in_bio"),
+            product(),
+            env={"SUBTITLE_BUSINESS_URL": "https://lnk.bio/legacy"},
+        )
+        assert text == "https://lnk.bio/legacy"
+        assert "SUBTITLE_BUSINESS_URL" in reason
+
+    def test_the_new_variable_wins_when_both_are_set(self) -> None:
+        text, _ = resolve_upper_line_text(
+            UpperLineSettings(source="link_in_bio"),
+            product(),
+            env={
+                "LINK_IN_BIO_URL": "https://lnk.bio/new",
+                "SUBTITLE_BUSINESS_URL": "https://lnk.bio/legacy",
+            },
+        )
+        assert text == "https://lnk.bio/new"
 
     def test_custom_text_is_rendered_verbatim(self) -> None:
         text, _ = resolve_upper_line_text(
@@ -162,20 +188,38 @@ class TestTheDrawnFilter:
             == chain
         )
 
-    def test_a_long_url_is_trimmed_rather_than_drawn_off_frame(self, tmp_path) -> None:
+    def test_long_prose_is_trimmed_on_a_word_boundary(self, tmp_path) -> None:
         """Drawtext does not wrap; the overflow is drawn past the frame edge
         with no sign the line was cut.
         """
         apply_upper_line_overlay(
             ["[v_0]copy[v_out]"],
             UpperLineSettings(enabled=True, max_chars=20),
-            "https://www.amazon.com/dp/B0EXAMPLE?tag=something-20",
+            "the full guide and every link lives in my bio",
             60,
             FRAME_H,
             tmp_path,
         )
         written = (tmp_path / "upper_line_text.txt").read_text(encoding="utf-8")
         assert len(written) <= 24 and written.endswith("...")
+
+    def test_an_unbreakable_overlong_url_draws_nothing(self, tmp_path) -> None:
+        """A URL has no spaces, so trimming cuts mid-address and holds a link
+        nobody can use on screen for the whole video -- the one thing this
+        line exists to do. The third resolver rung reaches a 500-character
+        Amazon SERP address, so this is not hypothetical.
+        """
+        chain = ["[v_0]copy[v_out]"]
+        out = apply_upper_line_overlay(
+            chain,
+            UpperLineSettings(enabled=True, max_chars=20),
+            "https://www.amazon.com/dp/B0EXAMPLE?tag=something-20",
+            60,
+            FRAME_H,
+            tmp_path,
+        )
+        assert out == chain
+        assert not (tmp_path / "upper_line_text.txt").exists()
 
     def test_it_composes_with_the_disclosure(self, tmp_path) -> None:
         """Both rewrite the chain's terminal, so whichever runs second has to
@@ -284,14 +328,18 @@ class TestItSupersedesTheTwoPartUpperLine:
         from src.video.producer.steps import supersede_two_part_upper_line
 
         settings = self._settings()
-        assert supersede_two_part_upper_line(UpperLineSettings(enabled=True), settings)
+        assert supersede_two_part_upper_line(
+            UpperLineSettings(enabled=True), settings, "https://a.co/x"
+        )
         assert settings.two_part_subtitles.upper_line.enabled is False
 
     def test_the_lower_line_is_untouched(self) -> None:
         from src.video.producer.steps import supersede_two_part_upper_line
 
         settings = self._settings()
-        supersede_two_part_upper_line(UpperLineSettings(enabled=True), settings)
+        supersede_two_part_upper_line(
+            UpperLineSettings(enabled=True), settings, "https://a.co/x"
+        )
         assert settings.two_part_subtitles.lower_line.enabled is True
         assert settings.two_part_subtitles.enabled is True
 
@@ -300,7 +348,7 @@ class TestItSupersedesTheTwoPartUpperLine:
 
         settings = self._settings()
         assert not supersede_two_part_upper_line(
-            UpperLineSettings(enabled=False), settings
+            UpperLineSettings(enabled=False), settings, "https://a.co/x"
         )
         assert settings.two_part_subtitles.upper_line.enabled is True
 
@@ -311,7 +359,9 @@ class TestItSupersedesTheTwoPartUpperLine:
         from src.video.producer.steps import supersede_two_part_upper_line
 
         assert not supersede_two_part_upper_line(
-            UpperLineSettings(enabled=True), self._settings(two_part=False)
+            UpperLineSettings(enabled=True),
+            self._settings(two_part=False),
+            "https://a.co/x",
         )
 
 
@@ -334,3 +384,46 @@ class TestTheProfileDecides:
 
     def test_the_code_default_is_off(self) -> None:
         assert UpperLineSettings().enabled is False
+
+    def test_a_profile_override_reaches_the_consumer(self) -> None:
+        """The merge existing is not the same as anything reading it.
+
+        Every consumer took the global `config.video_settings.upper_line`
+        while the merged value sat unread, so a profile enabling the line was
+        a complete no-op and a profile disabling it did nothing -- all three
+        declaration conditions satisfied and the fourth, that something reads
+        the target, missed. Driving a consumer is what tells the two apart.
+        """
+        from src.video.config import load_video_config_modular
+
+        config = load_video_config_modular()
+        name = next(iter(config.video_profiles))
+        profile = config.video_profiles[name]
+        assert config.video_settings.upper_line.enabled is False
+
+        profile.upper_line = PartialUpperLine(enabled=True, size_factor=0.8)
+        try:
+            merged = config.get_profile_merged_settings(name)
+            reserved = upper_line_bottom(
+                FRAME_H,
+                merged.video_settings.upper_line,
+                max(
+                    8,
+                    int(
+                        round(FRAME_H * config.video_settings.base_font_height_percent)
+                    ),
+                ),
+            )
+            assert reserved > 0, "the profile's line reserves no rows"
+
+            band = visual_band(
+                FRAME_H,
+                caption_top=1200,
+                top_offset=0,
+                centred=True,
+                upper_line_bottom_px=reserved,
+            )
+            plain = visual_band(FRAME_H, caption_top=1200, top_offset=0, centred=True)
+            assert band.top > plain.top, "the image did not move down for it"
+        finally:
+            profile.upper_line = None

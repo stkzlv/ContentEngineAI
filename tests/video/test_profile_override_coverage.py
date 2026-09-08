@@ -105,6 +105,10 @@ class TestNoDeclaredOverrideIsDropped:
 
         assert f"profile.{field_name}" in source
         assert "merge_into" in source
+        # The merge existing is not the same as a consumer reading it -- the
+        # fourth-condition failure. That half is pinned behaviourally, by
+        # driving a consumer with a profile override, in
+        # tests/video/test_upper_line_overlay.py.
 
 
 class TestEveryMappedTargetIsReal:

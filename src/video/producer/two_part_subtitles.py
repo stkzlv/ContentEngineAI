@@ -190,7 +190,7 @@ class TwoPartSubtitleHandler:
             # against a band the image no longer occupies.
             upper_line_bottom_px=upper_line_bottom(
                 frame_height,
-                vs.upper_line,
+                video_settings.upper_line,
                 max(8, int(round(frame_height * vs.base_font_height_percent))),
             ),
         )

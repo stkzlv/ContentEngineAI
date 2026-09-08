@@ -475,7 +475,11 @@ class VisualFilterBuilder:
             safe_zone_min_y=self._safe_zone().min_y,
             upper_line_bottom_px=upper_line_bottom(
                 height,
-                vs.upper_line,
+                (
+                    self.profile_settings.video_settings.upper_line
+                    if self.profile_settings is not None
+                    else vs.upper_line
+                ),
                 max(8, int(round(height * vs.base_font_height_percent))),
             ),
         )
