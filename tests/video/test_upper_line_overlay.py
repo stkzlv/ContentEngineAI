@@ -502,6 +502,23 @@ class TestTheAssemblerReservesTheRows:
         assert assembler.visual_builder is not None
         assert assembler.visual_builder.upper_line_text == "https://a.co/d/xY9"
 
+    def test_the_step_writes_the_text_back_to_the_context(self) -> None:
+        """`ctx.upper_line_text` is what the pycaps burn step reads, through
+        `TwoPartSubtitleHandler._image_band`. On a `--step assemble_video`
+        re-run the burn executes in the same process without the subtitle
+        step having set it, so leaving the re-resolved value local made the
+        burn's caption bounds describe an image position the assembler did
+        not draw -- inert while pycaps ignores the bounds, live on the FFmpeg
+        caption fallback that places captions against them.
+        """
+        import inspect
+
+        from src.video.producer.steps import step_assemble_video
+
+        source = inspect.getsource(step_assemble_video)
+
+        assert "ctx.upper_line_text = recorded" in source
+
     def test_the_step_assigns_before_it_builds(self) -> None:
         """Read the call order, because the failure is an ordering one and a
         unit test of either half passes on its own.

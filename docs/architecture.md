@@ -276,7 +276,7 @@ dependencies = {
 - **`core.py`** - VideoAssembler orchestrator
 - **`visual_builder.py`** - Visual filter chains
 - **`subtitle_builder.py`** - Subtitle positioning
-- **`overlay_builder.py`** - Disclosure and hook drawtext overlays
+- **`overlay_builder.py`** - Disclosure, hook and upper-line drawtext overlays
 - **`audio_builder.py`** - Audio filter chains
 - **`video_strategies.py`** - Video mode strategies
 - **`media_inspector.py`** - Media file inspection

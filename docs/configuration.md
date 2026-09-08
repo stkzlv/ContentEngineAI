@@ -551,13 +551,13 @@ video_settings:
     max_chars: 60                # Trimmed on a word boundary
 ```
 
-The two-part subtitle system renders a line of its own, but only under the FFmpeg engine: pycaps has a single caption track and no static element, so a profile that switched engines lost the line with one debug line. This one is a `drawtext` overlay like the disclosure, so it survives both engines, the pycaps burn that composes over the assembler's output, and the FFmpeg caption fallback. When it draws a line, two-part's upper line is turned off so the text is not drawn twice under FFmpeg; the lower, voiceover-synced half is unaffected. The two are not equivalent, so the swap is visible: every bundled two-part profile shows its line only during the CTA moments (`use_full_duration: false`) while this one is held for the whole clip, and there is no `prefix_replace`, so a profile that displayed `Product: …` shows the raw text. The text can change too: two-part reads `SUBTITLE_BUSINESS_URL` ahead of any product field, so an installation that sets it is showing its bio page there — and the shipped `source: affiliate_link` substitutes the product's link. Use `source: link_in_bio` to keep the same address. When the source resolves to nothing, or to a link too long to show without cutting it mid-address, two-part keeps its line and nothing changes.
+The two-part subtitle system renders a line of its own, but only under the FFmpeg engine: pycaps has a single caption track and no static element, so a profile that switched engines lost the line with one debug line. This one is a `drawtext` overlay like the disclosure, so it survives both engines, the pycaps burn that composes over the assembler's output, and the FFmpeg caption fallback. When it draws a line, two-part's upper line is turned off so the text is not drawn twice under FFmpeg; the lower, voiceover-synced half is unaffected. The two are not equivalent, so the swap is visible: every bundled two-part profile shows its line only during the CTA moments (`use_full_duration: false`) while this one is held for the whole clip, and there is no `prefix_replace`, so a profile that displayed `Product: …` shows the raw text. The text can change too: two-part reads `SUBTITLE_BUSINESS_URL` ahead of any product field, so an installation that sets it is showing its bio page there — and the shipped `source: affiliate_link` substitutes the product's link. Use `source: link_in_bio` to keep the same address. It is also drawn one size smaller (`size_factor` 0.55 against two-part's `font_size_scale` 0.7) at a fixed height, rather than tracking the image per segment, and a configured `two_part_subtitles.upper_line.custom_url` is dropped along with the rest. When the source resolves to nothing, or to a link too long to show without cutting it mid-address, two-part keeps its line and nothing changes.
 
 `source: link_in_bio` reads the address from the environment and never from this file, since the public config ships no account-specific value and the link-in-bio module itself carries OAuth credentials rather than a public URL. Set `LINK_IN_BIO_URL` in `.env`. `SUBTITLE_BUSINESS_URL`, which the two-part upper line has read since it shipped, is used as a fallback, so an installation already showing its bio page needs no second variable.
 
 A source that resolves to nothing renders no line and logs which: a topic render has no affiliate link, and an installation that has not set the bio URL has no bio page. The alternative is an empty background box over the visual.
 
-`max_chars` bounds characters, not width, so the line is refused separately when it is estimated wider than about 90% of the frame (the check runs against an estimate, so the effective margin moves a few points with the shape of the text) — drawtext does not wrap and this filter centres the text, so an over-wide line is clipped at both ends rather than running off one. At the default `size_factor` that is roughly 30 characters. A shortened affiliate link fits; a full `/dp/` URL with a tag does not, and is skipped with its measured width in the log. Shorten the link, lower `size_factor`, or use `source: custom`.
+`max_chars` bounds characters, not width, so the line is refused separately when its *estimated* width exceeds 95% of the frame. The estimate is not the rendered width: it overshoots lowercase URLs and undershoots capitals even after the uppercase weighting, so the real ceiling runs roughly 85% to 100% of the frame depending on case — drawtext does not wrap and this filter centres the text, so an over-wide line is clipped at both ends rather than running off one. At the default `size_factor` that is roughly 30 characters. A shortened affiliate link fits; a full `/dp/` URL with a tag does not, and is skipped with its measured width in the log. Shorten the link, lower `size_factor`, or use `source: custom`.
 
 The image below is fitted into the rows the line leaves, so it moves down by the line's height plus a gap; the caption block is unchanged. A profile overrides any subset of these fields with its own `upper_line:` block, deep-merged onto the global one.
 
@@ -1900,6 +1900,15 @@ image_vertical_align: "top"          # Override global vertical alignment ("top"
 video_top_position_percent: 0.10     # Content's top edge as a fraction of frame height
 video_content_height_percent: 0.75   # Band height reserved for the content
 video_vertical_align: "top"          # "top" places the content's top edge at the percent; "center" ignores it
+
+# Upper Line — single nested block, deep-merged onto video_settings.upper_line.
+# Only the fields set here change; the rest inherit. Bounds are enforced on
+# the merged result, so an out-of-range value fails the render rather than
+# loading clean.
+upper_line:
+  enabled: true                      # Turn the static line on for this profile
+  source: "custom"                   # affiliate_link | link_in_bio | custom
+  custom_text: "guide in bio"
 
 # Subtitle Settings — single nested block. Any field on the global
 # subtitle_settings can be overridden here; unset fields inherit from global.

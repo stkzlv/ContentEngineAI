@@ -1609,6 +1609,15 @@ async def step_assemble_video(ctx: PipelineContext):
             )
             if upper.enabled and not recorded:
                 logger.info("Upper line not rendered: %s", reason)
+        # Written back, not only handed to the assembler: `ctx.upper_line_text`
+        # is what `step_burn_pycaps_subtitles` reads through
+        # `TwoPartSubtitleHandler._image_band`, and on a `--step assemble_video`
+        # re-run that step executes in the same process without
+        # `generate_subtitles` having set it. Left None there, the burn's
+        # caption bounds describe an image position the assembler did not
+        # draw -- inert while pycaps ignores the bounds, live on the FFmpeg
+        # caption fallback, which places captions against them.
+        ctx.upper_line_text = recorded or None
         assembler.upper_line_text = recorded or None
 
         assembler.set_profile_settings(
