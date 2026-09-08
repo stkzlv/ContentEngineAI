@@ -262,11 +262,25 @@ class TestTheSweepCoversTheShippedCadence:
         slots_per_week = len(config.schedule_config.slots)
         assert slots_per_week, "the bundled schedule declares no slots"
 
-        # Five weeks of retention, at the cadence the schedule declares.
-        posts_in_retention = round(35 * slots_per_week / 7)
-        assert config.analytics_config.limit >= posts_in_retention, (
-            f"{slots_per_week} slots a week fills {posts_in_retention} posts "
-            f"into the retention window, but the sweep measures only "
+        # Derived from the window rather than restated, or raising
+        # DURABILITY_WINDOW_DAYS leaves this green while the sweep no longer
+        # reaches the posts it governs. The five days are slack for a missed
+        # sweep; the schedule runs daily.
+        days = DURABILITY_WINDOW_DAYS + 5
+        needed = round(days * slots_per_week / 7)
+
+        assert config.analytics_config.limit >= needed, (
+            f"{slots_per_week} slots a week fills {needed} posts into "
+            f"{days} days, but the bundled sweep measures only "
             f"{config.analytics_config.limit}; a post ages out before day "
             f"{DURABILITY_WINDOW_DAYS} and its ratio is lost for good"
+        )
+
+        # The default carries the same requirement. A config with no
+        # `analytics:` section falls back to it and logs nothing, so an
+        # installation whose file predates that section is governed by this
+        # number alone.
+        assert AnalyticsConfig().limit >= needed, (
+            f"the bundled schedule needs {needed}, but a config with no "
+            f"analytics section silently gets {AnalyticsConfig().limit}"
         )
