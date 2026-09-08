@@ -27,7 +27,13 @@ STEPS="gather_visuals generate_description create_voiceover download_music
 # Enumerate through the project's loader: product id, title, description and
 # keywords per topic, NUL-delimited so no title can break the framing. The
 # output root comes from config rather than a hardcoded "outputs".
-records=$("$PY" - "$TOPICS_FILE" <<'PY'
+# Via a temp file, not $(...): command substitution strips NUL bytes -- bash
+# cannot hold a NUL in a variable at all -- so routing the records through one
+# collapses every field into the first and the run reports "no topics".
+records_file=$(mktemp) || { echo "cannot create temp file" >&2; exit 1; }
+trap 'rm -f "$records_file"' EXIT
+
+"$PY" - "$TOPICS_FILE" > "$records_file" <<'PY'
 import sys
 from pathlib import Path
 from src.video.config import config
@@ -40,9 +46,10 @@ for s in specs:
     out += [topic_product_id(s.title), s.title, s.description, ", ".join(s.keywords)]
 sys.stdout.write("\0".join(out))
 PY
-) || { echo "could not read topics from $TOPICS_FILE" >&2; exit 1; }
+PY_EXIT=$?
+[ "$PY_EXIT" -eq 0 ] || { echo "could not read topics from $TOPICS_FILE" >&2; exit 1; }
 
-mapfile -d '' -t fields < <(printf '%s' "$records")
+mapfile -d '' -t fields < "$records_file"
 root=${fields[0]}
 total=$(( (${#fields[@]} - 1) / 4 ))
 [ "$total" -gt 0 ] || { echo "no topics in $TOPICS_FILE" >&2; exit 1; }
