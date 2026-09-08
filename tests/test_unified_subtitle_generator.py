@@ -300,6 +300,11 @@ class TestUnifiedSubtitleGenerator:
 
         assert len(segments) == 2
         assert segments[0]["end"] <= segments[1]["start"]
+        # Which side moves is part of the contract. Delaying the successor
+        # satisfies the invariant too, and undoes the lead at every clamped
+        # boundary -- the outcome this fix exists to avoid. Nothing else
+        # here, nor counting overlapping dialogue lines, tells the two apart.
+        assert segments[1]["start"] == 1.4
 
     def test_the_clamp_only_shortens(self, generator) -> None:
         """Where a real pause separates two captions, the earlier one keeps
@@ -308,8 +313,8 @@ class TestUnifiedSubtitleGenerator:
         caption forward through the pause, and stretches its karaoke sweep
         with it, since the tag durations are derived from the segment's.
 
-        Seven of the 43 boundaries on the measured transcript have a real
-        gap, and an assignment moved five segment ends by 220-380ms there.
+        Five of the 43 boundaries on the measured transcript have a real
+        gap, and an assignment moved all five segment ends, by 220-390ms.
         Nothing caught it -- neither test above, nor the check for
         overlapping dialogue lines, which an assignment also passes.
         """
