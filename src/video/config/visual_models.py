@@ -241,13 +241,24 @@ class PartialUpperLine(BaseModel):
     max_chars: int | None = None
 
     def merge_into(self, base: UpperLineSettings) -> UpperLineSettings:
-        """A copy of base with this profile's non-None fields applied."""
+        """A copy of base with this profile's non-None fields applied.
+
+        Rebuilt through the target model rather than `model_copy(update=…)`,
+        which does not validate. The partial declares no bounds of its own,
+        so a profile writing `vertical_position: 0.9` -- rejected outright at
+        the global level, where the field is `le=0.5` -- otherwise loaded
+        clean and pushed the image off the bottom of the frame with no error
+        anywhere: the band came out with a negative height and ffmpeg
+        accepted the resulting scale expression.
+        """
         updates = {
             name: value
             for name in self.__class__.model_fields
             if (value := getattr(self, name)) is not None
         }
-        return base.model_copy(update=updates) if updates else base
+        if not updates:
+            return base
+        return UpperLineSettings(**{**base.model_dump(), **updates})
 
 
 class HookOverlaySettings(BaseModel):

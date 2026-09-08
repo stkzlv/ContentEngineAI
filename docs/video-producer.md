@@ -219,6 +219,7 @@ separate headline prompt: the product one requires a product category noun,
 which on a topic with no device makes the model invent one. The topic prompt
 asks for the symptom or the fix and forbids naming anything the script does
 not cover.
+- `upper_line` — a static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Rendered as an assembler overlay rather than as a subtitle, so it survives both engines, unlike the two-part upper line it supersedes. Off by default; see [Configuration](configuration.md) §3.1 for the sources, the width limit and what the swap changes.
 - `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.

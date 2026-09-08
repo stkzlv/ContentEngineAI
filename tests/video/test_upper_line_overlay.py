@@ -254,6 +254,16 @@ class TestTheLineHasToFitTheFrame:
         _, reason = self._drawable("x" * 40 + " " + "y" * 40)
         assert "px wide" in reason and "does not wrap" in reason
 
+    def test_a_realistic_bio_url_is_not_refused(self) -> None:
+        """The budget is applied to an *estimate*, so it has to absorb the
+        estimator's bias as well as the margin. At 0.9 this 34-character URL
+        was refused while rendering at 87.5% of the frame -- inside the
+        margin the docs promise, and the exact shape `source: link_in_bio`
+        produces.
+        """
+        text, reason = self._drawable("https://www.mybrandstore.com/deals")
+        assert text is not None, reason
+
     def test_no_frame_width_means_no_width_gate(self) -> None:
         """The character gate still applies; callers that cannot supply the
         frame keep the old behaviour rather than silently refusing.
@@ -551,6 +561,24 @@ class TestTheProfileDecides:
 
         assert merged.enabled is True
         assert merged.size_factor == 0.9
+        assert merged.font_color == "yellow"
+
+    def test_an_out_of_range_value_is_refused(self) -> None:
+        """The partial declares no bounds of its own and `model_copy(update=)`
+        does not validate, so `vertical_position: 0.9` -- rejected outright at
+        the global level, where the field is `le=0.5` -- loaded clean through
+        a profile and pushed the image off the bottom of the frame. The band
+        came out with a negative height and ffmpeg accepted the resulting
+        scale expression, so nothing failed anywhere.
+        """
+        with pytest.raises(ValueError):
+            PartialUpperLine(vertical_position=0.9).merge_into(UpperLineSettings())
+
+    def test_an_in_range_value_still_merges(self) -> None:
+        merged = PartialUpperLine(vertical_position=0.2).merge_into(
+            UpperLineSettings(font_color="yellow")
+        )
+        assert merged.vertical_position == 0.2
         assert merged.font_color == "yellow"
 
     def test_an_unknown_key_is_refused_at_load(self) -> None:

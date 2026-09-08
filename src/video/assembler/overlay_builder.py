@@ -568,10 +568,18 @@ def resolve_upper_line_text(
     return None, "the record carries no affiliate link"
 
 
-# How much of the frame width the line may occupy. The disclosure keeps a 4%
-# margin per side; this leaves a little more, because a clipped URL is
-# unusable rather than merely tight.
-_UPPER_LINE_MAX_WIDTH_FRACTION = 0.9
+# How much of the frame width the line may occupy, measured against the
+# *estimate* rather than the rendered width -- so the number has to absorb
+# the estimator's bias, not just the margin.
+#
+# `_estimate_hook_text_width` overshoots URL-shaped text by about 6% at this
+# font (measured ratios 1.06, 1.089, 1.112 against real renders), so a plain
+# 0.9 here refused a 34-character bio URL that renders at 87.5% of the frame
+# -- inside the margin the docs promise. 0.95 puts the effective threshold
+# back at roughly 90% for URL text while still leaving room the other way:
+# the estimator *under*shoots capital-heavy text by 5-7%, and a line accepted
+# at this budget renders around 1035px in a 1080px frame.
+_UPPER_LINE_MAX_WIDTH_FRACTION = 0.95
 
 
 # The variable the two-part upper line has read since it shipped, documented
