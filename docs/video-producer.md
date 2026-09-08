@@ -255,10 +255,10 @@ falsifiable claims are wrong; an ungrounded second call rewrites only the
 sentences that were named, and the rewrite is kept only if it confines itself
 to those sentences and the one following each, leaves the rest of the script
 in place and in order, and still passes validation. A claim quoting more than
-two sentences is refused, since it would leave nothing protected. The outcome lands in
-`temp/script_fact_check.json` whatever happened. No failure on this path can
-cost the render, and product renders are excluded by default because a search
-answers a product claim against the wrong item.
+three sentences is refused, since it would leave nothing protected. The outcome
+lands in `temp/script_fact_check.json` whatever happened. No failure on this
+path can cost the render, and product renders are excluded by default because a
+search answers a product claim against the wrong item.
 
 One consequence worth knowing when reading `--step` output: the step order
 depends on the profile, so on `slideshow_stock`, `generate_script` runs first

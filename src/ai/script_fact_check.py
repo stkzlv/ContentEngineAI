@@ -47,9 +47,12 @@ _CLAIM_BLOCK = re.compile(
     # answer repeated its whole block set with the second `VERDICT: FLAGGED`
     # running on from the previous `FIX:` with no newline, so without it the
     # first copy's fix absorbed the header and that contaminated string was
-    # handed to the reviser as the correct fact.
+    # handed to the reviser as the correct fact. Anchored on the header's own
+    # grammar rather than on the bare word: unanchored, a correction reading
+    # "the court records it as a verdict: usually within two days" is
+    # truncated at "verdict:" and the fragment goes to the reviser as fact.
     r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)"
-    r"|(?:\n?\s*VERDICT:)|\Z)",
+    r"|(?:\n?\s*VERDICT:\s*(?:FLAGGED|OK)\b)|\Z)",
     re.S | re.I,
 )
 
@@ -220,8 +223,11 @@ def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
     Adding the fix costs nothing on the case this exists for, where the
     repeated blocks are identical.
 
-    The normalisation is the guard's own, so two spellings of one sentence
-    still collapse here exactly as they would there.
+    The normalisation is the guard's own, so two spellings differing only in
+    case or punctuation collapse. The *relation* is not shared: the guard
+    matches by containment either way, this by equality, so a partial quote
+    of the same sentence is not collapsed and still takes a slot. Narrower is
+    the safe direction -- it never merges what the guard treats as distinct.
 
     Runs after the discard filters, not before: an affirmation (`FIX:
     Correct.`) or a `verdict: correct` first copy would otherwise take the

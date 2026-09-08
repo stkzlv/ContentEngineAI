@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.106.1] - 2026-09-08
 
 ### Fixed
-- The script fact check listed a repeated claim more than once, spending its repair slots on sentences already named. Seen on a real topic render: the checker returned four claims that were two, each listed twice, so one of the three slots went to a repeat. The repair was still good there, but on a script carrying three genuinely wrong claims a duplicate pushes a real one out of the window with nothing to show it happened. Claims are now deduplicated on both parse paths, keyed on the same normalisation the containment guard matches against, so two spellings of one sentence collapse here exactly as they would there. Closes #386.
+- The script fact check listed a repeated claim more than once, spending its repair slots on sentences already named. Seen on a real topic render: the checker returned four claims that were two, each listed twice, so one of the three slots went to a repeat. The repair was still good there, but on a script carrying three genuinely wrong claims a duplicate pushes a real one out of the window with nothing to show it happened. Claims are now deduplicated on both parse paths, keyed on the containment guard's own normalisation, so two spellings differing only in case or punctuation collapse. The relation is not shared: the guard matches by containment either way and this by equality, so a partial quote of the same sentence still takes a slot. Narrower is the safe direction, since it never merges what the guard treats as distinct. Closes #386.
 
 ## [0.106.0] - 2026-09-08
 

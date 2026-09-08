@@ -205,27 +205,29 @@ class TestParsingTheAnswer:
             "The timeout is 15 minutes.",
         ]
 
-    def test_an_affirmation_does_not_shadow_a_real_fix(self) -> None:
-        """The dedup runs after the discard filters, and that ordering is
-        load-bearing. Deduping the raw list first -- the obvious
-        simplification, one call instead of two -- lets a `FIX: Correct.`
-        first copy take the key, so the real correction vanishes and the
+    def test_a_correct_verdict_does_not_shadow_an_identical_wrong_one(
+        self,
+    ) -> None:
+        """The dedup runs after the discard filters, and on the JSON path
+        that ordering is load-bearing. Deduping first -- the obvious
+        simplification, one call instead of two -- lets the `verdict:
+        correct` copy take the key, so the real correction vanishes and the
         sentence ships unrepaired with "nothing flagged" recorded.
-        """
-        r = parse_check_answer(
-            "VERDICT: FLAGGED\n"
-            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: Correct.\n---\n"
-            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\n"
-            "FIX: It is actually the other page.\n"
-        )
-        assert [c.fix for c in r.flagged] == ["It is actually the other page."]
 
-    def test_a_correct_verdict_does_not_shadow_a_real_fix(self) -> None:
-        """The same ordering on the JSON path, where the shadowing key would
-        come from `verdict` rather than from the fix text.
+        Both entries carry the *same* fix on purpose. With different fixes
+        the keys already differ, the dedup never fires, and the test passes
+        against the reordered code it is meant to catch -- which is what an
+        earlier version of it did.
+
+        The fix-text filter cannot be pinned this way and does not need to
+        be: `_is_not_a_fix` is a pure function of the normalised fix, which
+        is half the key, so two entries with equal keys always get the same
+        verdict from it and the two orders are equivalent by construction.
+        Only `verdict`, which is not part of the key, can shadow.
         """
         r = parse_check_answer(
-            '{"claims": [{"claim": "A.", "verdict": "correct", "fix": "x"}, '
+            '{"claims": [{"claim": "A.", "verdict": "correct", '
+            '"fix": "the real one"}, '
             '{"claim": "A.", "verdict": "wrong", "fix": "the real one"}]}'
         )
         assert [c.fix for c in r.flagged] == ["the real one"]
