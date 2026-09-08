@@ -2265,7 +2265,7 @@ poetry run python -m src.publisher.late single B0BTYCRJSS \
 ```bash
 # Monday: Scrape and produce videos
 poetry run python -m src.pipeline.global_batch \
-  --keywords "wireless earbuds" --max-products 14 \
+  --keywords "wireless earbuds" --max-products 14 --products-per-keyword 14 \
   --profile slideshow_images1 --debug
 
 # Monday: Schedule all videos for the week (two per day)
