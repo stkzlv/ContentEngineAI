@@ -541,11 +541,11 @@ topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFI
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" LOWPRI_PYTHON="$$PY" \
-			    TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" NICE_LEVEL="$(NICE_LEVEL)" \
+			    TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			./scripts/render-topics-batch.sh; \
 	else \
 		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
-		LOWPRI_PYTHON="$$PY" TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" NICE_LEVEL="$(NICE_LEVEL)" \
+		LOWPRI_PYTHON="$$PY" TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			./scripts/render-topics-batch.sh; \
 	fi

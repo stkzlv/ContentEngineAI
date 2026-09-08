@@ -702,7 +702,7 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 
 `make topics-batch TOPICS=<topics.yaml>` renders each topic in a YAML file of the same shape `--topics-file` accepts (see `topics.example.yaml`; copy it to a `*.private.yaml` name, which is gitignored). `PROFILE` defaults to `slideshow_stock`.
 
-`--topics-file` already renders a list of topics, so the difference is not the list: it does so in **one producer run**, which means the whole list shares a single `pipeline_timeout_sec`. That budget covers every step, and a Whisper pass alone can consume most of it, leaving assembly to die with the render nearly complete. This target runs **one pipeline step per process**, so each step gets its own budget.
+`--topics-file` already renders a list of topics, and it applies `pipeline_timeout_sec` **per record**, so it is not the list that differs. The constraint is that all eight steps of a single topic share that one budget: a Whisper pass alone can consume most of it, leaving assembly to die with the render nearly complete. This target runs **one pipeline step per process**, so each step gets its own budget.
 
 The file is read through the project's own topic loader, so validation, the slug and the product id have one implementation. Deriving the output directory in the shell instead diverged on accented titles, on titles past the slug length cap and on titles that normalise to nothing — and matching directories by prefix silently rendered one topic's steps into another's when one title's slug was a prefix of another's.
 

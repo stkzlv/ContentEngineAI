@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Render a list of topics, one pipeline step per process.
 #
-# Why not one producer run per topic: `pipeline_timeout_sec` is a single budget
-# covering every step, and a Whisper pass can consume most of it, so assembly
-# is reached with nothing left (issues #398, #402). Each `--step` call is its
-# own process and gets its own budget. `--topics-file` renders a list in one
-# run and so shares that single budget; this target is for when that does not
-# fit. Assembly also has a separate limit, `final_assembly_timeout_sec`, which
-# this script does not touch -- raise that one if assembly is what times out.
+# `pipeline_timeout_sec` is one budget covering all eight steps of a topic,
+# and a Whisper pass can consume most of it, so assembly is reached with
+# nothing left (issues #398, #402). Each `--step` call is its own process and
+# gets its own budget. `--topics-file` does not help here: it applies the same
+# timeout per record, so every topic in its list has the same problem. What
+# changes is the per-step process, not the list. Assembly also has a separate
+# limit, `final_assembly_timeout_sec`, which this script does not touch --
+# raise that one if assembly is what times out.
 #
 # TOPICS is the same YAML `--topics-file` accepts. The project's own loader
 # reads it, so validation, the slug and the product id all come from one place:
@@ -23,6 +24,10 @@ STEPS="gather_visuals generate_description create_voiceover download_music
        generate_subtitles assemble_video burn_pycaps_subtitles"
 
 [ -r "$TOPICS_FILE" ] || { echo "cannot read $TOPICS_FILE" >&2; exit 1; }
+# The recipe guards this too, but the script is executable and takes its input
+# from the environment, so it can be run without make. Without the guard, a box
+# where ffprobe is absent reports every good render as a failure.
+command -v ffprobe >/dev/null 2>&1 || { echo "ffprobe not found" >&2; exit 1; }
 
 # Enumerate through the project's loader: product id, title, description and
 # keywords per topic, NUL-delimited so no title can break the framing. The
@@ -33,19 +38,12 @@ STEPS="gather_visuals generate_description create_voiceover download_music
 records_file=$(mktemp) || { echo "cannot create temp file" >&2; exit 1; }
 trap 'rm -f "$records_file"' EXIT
 
-"$PY" - "$TOPICS_FILE" > "$records_file" <<'PY'
-import sys
-from pathlib import Path
-from src.video.config import config
-from src.video.producer.topic_input import load_topics_file, topic_product_id
-
-specs = load_topics_file(Path(sys.argv[1]))
-root = config.global_output_root_path
-out = [str(root)]
-for s in specs:
-    out += [topic_product_id(s.title), s.title, s.description, ", ".join(s.keywords)]
-sys.stdout.write("\0".join(out))
-PY
+# The records go to a path, NOT to stdout: importing the config chain prints
+# three lines to stdout before any of this runs, so capturing stdout would put
+# them in the first field. The enumeration lives in tools/enumerate_topics.py
+# rather than inline here because it is the part that has broken twice, and as
+# a module it has a test.
+"$PY" tools/enumerate_topics.py "$TOPICS_FILE" "$records_file"
 PY_EXIT=$?
 [ "$PY_EXIT" -eq 0 ] || { echo "could not read topics from $TOPICS_FILE" >&2; exit 1; }
 
@@ -87,7 +85,9 @@ for ((i = 0; i < total; i++)); do
 
   # Check the artifact, not the exit code: a timeout leaves a truncated .mp4
   # under the finished render's name, non-zero in size and failing ffprobe.
-  mp4s=( "$dir"/*.mp4 )
+  # This profile's render: a topic rendered under two profiles keeps both, and
+  # the alphabetically first may not be the one this run produced.
+  mp4s=( "$dir"/video_*_"$PROFILE".mp4 )
   mp4=${mp4s[0]}
   if [ ! -f "$mp4" ]; then
     summary+=("FAIL  $title (no mp4)"); failed=$((failed + 1)); continue
