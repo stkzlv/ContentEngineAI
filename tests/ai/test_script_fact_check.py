@@ -164,6 +164,59 @@ class TestParsingTheAnswer:
         )
         assert len(r.flagged) == 1
 
+    def test_a_repeated_claim_is_listed_once(self) -> None:
+        """Observed on a real topic render: four claims that were two, each
+        listed twice, so two of the three repair slots went to sentences
+        already named. The repair was good there, but on a script with three
+        genuinely wrong claims a duplicate pushes a real one out of the
+        window with nothing to show it happened.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: Blast air into the vents for ten seconds.\n"
+            "RULING: wrong\nREASON: r\nFIX: Use short bursts.\n---\n"
+            "CLAIM: This should clear most of the dust.\n"
+            "RULING: wrong\nREASON: r\nFIX: It clears the loose dust only.\n---\n"
+            "CLAIM: Blast air into the vents for ten seconds.\n"
+            "RULING: wrong\nREASON: r\nFIX: Use short bursts.\n---\n"
+            "CLAIM: This should clear most of the dust.\n"
+            "RULING: wrong\nREASON: r\nFIX: It clears the loose dust only.\n"
+        )
+        assert len(r.flagged) == 2
+        assert r.flagged[0].claim.startswith("Blast air")
+        assert r.flagged[1].claim.startswith("This should")
+
+    def test_the_first_fix_is_the_one_kept(self) -> None:
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: first.\n---\n"
+            "CLAIM: One sentence.\nRULING: wrong\nREASON: r\nFIX: second.\n"
+        )
+        assert [c.fix for c in r.flagged] == ["first."]
+
+    def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:
+        """Keyed on the same normalisation the containment guard matches on,
+        so a key that disagreed with containment would merge claims the guard
+        then treats as distinct.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: Open the settings page.\nRULING: wrong\nREASON: r\nFIX: f.\n---\n"
+            "CLAIM: open the settings page\nRULING: wrong\nREASON: r\nFIX: g.\n"
+        )
+        assert len(r.flagged) == 1
+
+    def test_the_json_form_dedupes_too(self) -> None:
+        """Both parse paths, or the behaviour depends on which shape the
+        model happened to answer in.
+        """
+        r = parse_check_answer(
+            '{"claims": [{"claim": "A.", "verdict": "wrong", "fix": "x"}, '
+            '{"claim": "A.", "verdict": "wrong", "fix": "y"}, '
+            '{"claim": "B.", "verdict": "wrong", "fix": "z"}]}'
+        )
+        assert [c.claim for c in r.flagged] == ["A.", "B."]
+
     @pytest.mark.parametrize("text", ["", None, "   ", "I could not check this."])
     def test_nothing_usable_is_not_an_error_worth_failing_on(self, text) -> None:
         r = parse_check_answer(text)

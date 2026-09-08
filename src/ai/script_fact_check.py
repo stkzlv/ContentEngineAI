@@ -194,6 +194,31 @@ def _covers(claim: str, sentence: str) -> bool:
     return f" {b} " in f" {a} " or f" {a} " in f" {b} "
 
 
+def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
+    """One entry per named sentence, keeping the first and its fix.
+
+    Observed on a real topic render: the checker returned four claims that
+    were two, each listed twice, so `max_flags_to_revise` spent two of its
+    three slots on sentences already named. The repair was still good there,
+    but on a script with three genuinely wrong claims a duplicate pushes a
+    real one out of the window silently.
+
+    Keyed on `_normalise`, the same normalisation the containment guard
+    matches claims against, so two spellings of one sentence collapse here
+    exactly as they would there -- a key that disagreed with containment
+    would merge claims the guard then treats as distinct.
+    """
+    seen: set[str] = set()
+    unique: list[FactCheckClaim] = []
+    for claim in claims:
+        key = _normalise(claim.claim)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(claim)
+    return unique
+
+
 def parse_check_answer(text: str | None) -> FactCheckResult:
     """Read the checker's answer, in either shape it may arrive in.
 
@@ -227,7 +252,9 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
         ]
         return FactCheckResult(
             ran=True,
-            flagged=[c for c in claims if c.claim and not _is_not_a_fix(c.fix)],
+            flagged=_dedupe_claims(
+                [c for c in claims if c.claim and not _is_not_a_fix(c.fix)]
+            ),
             raw=text,
         )
 
@@ -248,7 +275,9 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
     # prompt is built from the fix, and a claim without one asks the model to
     # invent the correction, which is the failure this module exists to catch.
     # A fix that only says the claim was right is dropped for the same reason.
-    flagged = [c for c in flagged if c.claim and not _is_not_a_fix(c.fix)]
+    flagged = _dedupe_claims(
+        [c for c in flagged if c.claim and not _is_not_a_fix(c.fix)]
+    )
     if not flagged and "VERDICT" not in body.upper():
         return FactCheckResult(ran=True, raw=text, error="unparsed")
     return FactCheckResult(ran=True, flagged=flagged, raw=text)
