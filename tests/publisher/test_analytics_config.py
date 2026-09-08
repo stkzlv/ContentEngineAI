@@ -245,6 +245,13 @@ class TestTheSweepCoversTheShippedCadence:
     This asserts the two shipped values against each other rather than
     pinning either one, so changing the cadence is free and changing it
     alone is not.
+
+    It counts *slots*, not posts, and those differ: with
+    ``use_platform_specific_content`` on, a slot produces one post per
+    platform, so three times the sweep depth is consumed and this stays
+    green. That configuration was already under-sized before the cadence
+    changed, so it is a stated limit of this guard rather than something
+    the doubled cadence introduced.
     """
 
     def test_the_shipped_limit_reaches_back_past_the_durability_window(
@@ -264,8 +271,11 @@ class TestTheSweepCoversTheShippedCadence:
 
         # Derived from the window rather than restated, or raising
         # DURABILITY_WINDOW_DAYS leaves this green while the sweep no longer
-        # reaches the posts it governs. The five days are slack for a missed
-        # sweep; the schedule runs daily.
+        # reaches the posts it governs. One of the five days is required
+        # rather than slack: the ratio is withheld unless the last row falls
+        # *strictly* past the cutoff, so a post is first measurable on day
+        # 31. The other four are slack for missed sweeps; the schedule runs
+        # daily.
         days = DURABILITY_WINDOW_DAYS + 5
         needed = round(days * slots_per_week / 7)
 

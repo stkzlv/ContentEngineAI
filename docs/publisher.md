@@ -409,8 +409,11 @@ ratio for it at all.
 Repeat runs are safe. Readings merge per field, and a later, better figure
 replaces an earlier partial one. They are not free, though: a sweep costs one
 timeline call per measured post plus the paging to list them, so the shipped
-size is roughly 73 requests. Daily sits comfortably inside the documented hourly
-cap; several times an hour does not.
+size is roughly 73 requests. That is most of one hour on the standard tier's
+100, so a daily sweep fits but should not share its hour with a publish run;
+several times an hour does not fit at all. A rate-limited timeline call is not
+retried, and the sweep walks newest-first, so what a 429 costs is the oldest
+posts measured -- the ones whose ratio window is about to close.
 
 **What to configure, and where.** Two files, split by what reads them:
 
@@ -706,9 +709,12 @@ stagger_delay_max: 60              # Max delay between batch uploads (seconds)
 
 # === Analytics Capture ===
 analytics:
-  limit: 50                        # Posts measured per sweep; must exceed the
+  limit: 70                        # Posts measured per sweep; must exceed the
                                    # number published inside the ~5-week
-                                   # retention horizon or the oldest expire
+                                   # retention horizon or the oldest expire.
+                                   # 70 is that horizon at the bundled
+                                   # two-slot-a-day schedule; raise it with
+                                   # the cadence
 
 # === Affiliate Disclosure ===
 affiliate_disclosure:
@@ -2259,7 +2265,7 @@ poetry run python -m src.publisher.late single B0BTYCRJSS \
 ```bash
 # Monday: Scrape and produce videos
 poetry run python -m src.pipeline.global_batch \
-  --keywords "wireless earbuds" --max-products 7 \
+  --keywords "wireless earbuds" --max-products 14 \
   --profile slideshow_images1 --debug
 
 # Monday: Schedule all videos for the week (two per day)
