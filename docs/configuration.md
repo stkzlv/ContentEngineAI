@@ -1226,7 +1226,7 @@ llm_settings:
 | `templates_dir` | path | Where the `.md` template files live. |
 | `template_pool` | list[str] | Names (without `.md`) eligible for selection. Empty = all templates in `templates_dir`. |
 | `fixed_template` | str \| null | Force one template for every product. Null = deterministic per-product MD5 selection. |
-| `fixed_cta` | str \| null | Force one closing line, the `--cta` flag's home. Null = deterministic per-record selection. A value outside the pool in use warns and falls through to selection, since rendering a rule the validator then refuses costs the render a retry loop. The product and topic pools share no lines, so on a mixed run one line can only force one family and the other selects normally; force a line from each family, or neither. |
+| `fixed_cta` | str \| null | Force one closing line, the `--cta` flag's home. Null = deterministic per-record selection. A value outside the pool in use warns and falls through to selection, since rendering a rule the validator then refuses costs the render a retry loop. The product and topic pools share no lines, so on a mixed run one line can only force one family and the other selects normally. There is one field, not one per family. |
 | `pillars` | dict[str, list[str]] | Pillar name -> templates that fit it. A template can be in multiple pillars. Empty dict disables pillar filtering. |
 | `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |

@@ -317,7 +317,7 @@ class TestBothEntryPointsCarryTheOverride:
             script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
         )
         try:
-            await script_generator.generate_script(
+            returned = await script_generator.generate_script(
                 _product(),
                 settings,
                 {settings.api_key_env_var: "k"},
@@ -332,6 +332,11 @@ class TestBothEntryPointsCarryTheOverride:
         assert seen, "the generator never called the model"
         assert f'word for word:** "{forced}"' in seen[0]
         assert hashed not in seen[0]
+        # The third return value is what the state records. Returning a line
+        # other than the one the prompt asked for would make the record a lie
+        # about what shipped, which is why it is returned rather than
+        # recomputed by the caller.
+        assert returned[2] == forced
 
     @pytest.mark.asyncio
     async def test_the_render_path_actually_runs_the_apply(self, tmp_path) -> None:
@@ -765,7 +770,12 @@ class TestTheShippedConfig:
         from src.utils.script_sanitizer import split_sentences
 
         raw = (REPO / "config" / "ai_services.yaml").read_text()
-        examples = re.findall(r"Voice example \(.*?\):\n\n      (.+?)\n", raw, re.S)
+        # The whole block, to the blank line. Capturing the first physical
+        # line only meant a rewrapped example could end on a CTA three
+        # lines down with this green.
+        examples = re.findall(
+            r"Voice example \(.*?\):\n\n((?:      [^\n]+\n)+)", raw, re.S
+        )
         every_cta = {c for options in shipped_ctas.values() for c in options}
 
         assert len(examples) == 2
