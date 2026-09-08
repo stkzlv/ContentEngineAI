@@ -182,6 +182,25 @@ recurring_schedule:
     - day_of_week: sunday
       time: "10:00:00"
 
+    # Evening slot, 12 hours after the morning one. Added for topic videos,
+    # but not reserved for them: `RecurringSlot` carries only a day, a time
+    # and a timezone, and nothing in the scheduler routes by content format,
+    # so whatever is next in the queue takes whichever slot comes first.
+    - day_of_week: monday
+      time: "22:00:00"
+    - day_of_week: tuesday
+      time: "22:00:00"
+    - day_of_week: wednesday
+      time: "22:00:00"
+    - day_of_week: thursday
+      time: "22:00:00"
+    - day_of_week: friday
+      time: "22:00:00"
+    - day_of_week: saturday
+      time: "22:00:00"
+    - day_of_week: sunday
+      time: "22:00:00"
+
 # ============================================================================
 # SCHEDULE VALIDATION RULES
 # ============================================================================
@@ -427,10 +446,16 @@ synthetic_media_disclosure: false
 #
 # At one post per day the horizon holds about 35 posts, so 50 leaves headroom.
 # A faster cadence needs a larger value: two posts a day puts 70 inside the
-# window, and 50 would quietly lose the oldest 20.
+# window, and 50 would quietly lose the oldest 20. The bundled schedule has
+# two slots a day, which is why this is 70 -- raise it with the cadence, or
+# every post ages out of the sweep before its durability ratio can be taken.
 #
 # Cost scales with it. A sweep is one timeline call per measured post plus the
-# paging to list them, so 50 is roughly 53 requests. Daily sits well inside
-# the documented hourly cap; several times an hour does not.
+# paging to list them, so 70 is roughly 73 requests -- most of the standard
+# tier's hundred an hour. A daily sweep fits, but should not share its hour
+# with a publish run; several times an hour does not fit at all. A
+# rate-limited timeline call is not retried, and the sweep walks
+# newest-first, so what a 429 costs is the oldest posts measured: the ones
+# whose ratio window is about to close.
 analytics:
-  limit: 50
+  limit: 70
