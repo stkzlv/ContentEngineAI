@@ -248,6 +248,24 @@ class TestParsingTheAnswer:
         )
         assert [c.fix for c in r.flagged] == ["Use short bursts instead."]
 
+    def test_a_fix_containing_the_word_verdict_is_kept_whole(self) -> None:
+        """The lookahead stops at the header's own grammar -- the word, then
+        FLAGGED or OK -- not at the bare word. Matching the bare word reads a
+        correction that happens to say "verdict:" as the start of the next
+        block, truncates the fix there, and hands the reviser a fragment as
+        the correct fact. The fix is the only thing the revise prompt is
+        built from, so a truncated one is a wrong repair, not a missing one.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: The ruling takes a week.\nRULING: wrong\nREASON: r\n"
+            "FIX: The court records it as a verdict: usually within two "
+            "days.\n"
+        )
+        assert [c.fix for c in r.flagged] == [
+            "The court records it as a verdict: usually within two days."
+        ]
+
     def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:
         """The normalisation is the guard's own, so two spellings of one
         sentence collapse here exactly as they would there. Both halves of
