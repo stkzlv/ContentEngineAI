@@ -262,6 +262,15 @@ Examples:
         help="Override script template for all products (name without .md).",
     )
     producer_group.add_argument(
+        "--cta",
+        type=str,
+        metavar="LINE",
+        help=(
+            "Override the closing call to action for all products (must be "
+            "one of the configured options)."
+        ),
+    )
+    producer_group.add_argument(
         "--pillar",
         type=str,
         metavar="NAME",
@@ -644,6 +653,8 @@ class GlobalPipelineOrchestrator:
             overrides["voice_profile"] = self.config.voice_profile
         if self.config.script_template:
             overrides["script_template"] = self.config.script_template
+        if self.config.cta:
+            overrides["cta"] = self.config.cta
         if self.config.pillar:
             overrides["pillar"] = self.config.pillar
         if self.config.subtitle_format:

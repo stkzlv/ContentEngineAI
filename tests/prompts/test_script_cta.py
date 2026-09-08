@@ -20,9 +20,11 @@ import yaml
 
 from src.ai.script_generator import (
     NO_CTA_REASON,
+    _looks_like_cta_attempt,
     ends_with_cta,
     format_prompt,
     render_cta_rule,
+    select_cta,
     validate_script_completeness,
 )
 from src.scraper.amazon.models import ProductData
@@ -34,6 +36,10 @@ PRODUCT_CTAS = [
     "Follow for more finds like this.",
     "Drop a comment if you've tried it.",
     "Share with someone who needs this.",
+]
+TOPIC_CTAS = [
+    "Save this for the next time it happens.",
+    "Follow for more fixes like this.",
 ]
 
 BODY = (
@@ -76,32 +82,44 @@ class TestTheRuleSitsNextToTheBeat:
 
         assert lines[beat + 1] == "{CTA_RULE}"
 
-    def test_the_rule_quotes_every_option_verbatim(self) -> None:
-        rule = render_cta_rule(PRODUCT_CTAS)
+    def test_the_rule_quotes_the_one_chosen_line(self) -> None:
+        """One line, not the pool. The rule used to quote all four and leave
+        the choice to the model, which took the first every time: five of
+        five product scripts on one day and all four on the next day's
+        batches closed on the same line. `select_cta` decides instead, and
+        one imperative binds better than a menu.
+        """
+        rule = render_cta_rule(PRODUCT_CTAS[1])
 
-        for cta in PRODUCT_CTAS:
-            assert f'"{cta}"' in rule
+        assert f'"{PRODUCT_CTAS[1]}"' in rule
         assert "very last sentence" in rule
+        for other in PRODUCT_CTAS[0], PRODUCT_CTAS[2]:
+            assert f'"{other}"' not in rule
 
     def test_the_topic_tail_does_not_point_at_a_beat_rule(self) -> None:
         """Topic templates have no closing-beat rule above the placeholder;
         the line above is an honest-limit rule, and "the closing beat above"
         would point the model at that.
         """
-        assert "closing beat above" in render_cta_rule(PRODUCT_CTAS)
-        assert "closing beat above" not in render_cta_rule(PRODUCT_CTAS, is_topic=True)
+        assert "closing beat above" in render_cta_rule(PRODUCT_CTAS[0])
+        assert "closing beat above" not in render_cta_rule(
+            PRODUCT_CTAS[0], is_topic=True
+        )
         assert "closing line the template asks for" in render_cta_rule(
-            PRODUCT_CTAS, is_topic=True
+            PRODUCT_CTAS[0], is_topic=True
         )
 
-    def test_no_options_renders_nothing(self) -> None:
-        assert render_cta_rule([]) == ""
+    def test_no_line_renders_nothing(self) -> None:
+        assert render_cta_rule("") == ""
 
     def test_the_prompt_renders_it(self) -> None:
         template = (REPO / "src/ai/prompts/scripts/curiosity_hook.md").read_text()
 
         prompt = format_prompt(
-            template, _product(), "buyers", cta_rule=render_cta_rule(PRODUCT_CTAS)
+            template,
+            _product(),
+            "buyers",
+            cta_rule=render_cta_rule(PRODUCT_CTAS[0]),
         )
 
         assert "{CTA_RULE}" not in prompt
@@ -207,6 +225,291 @@ class TestTheValidatorRefusesAScriptWithoutOne:
 
 
 @pytest.mark.unit
+class TestBothEntryPointsCarryTheOverride:
+    """The Module/Batch Alignment Rule, as a test.
+
+    The producer CLI and `global_batch` re-implement the same argument
+    surface, so a flag added to one and not the other is silently absent on
+    the path `make batch-lowpri` runs.
+    """
+
+    def test_the_producer_carries_the_flag_into_its_overrides(self) -> None:
+        """The first version of these tests asserted the *strings*
+        `"--cta"`, `script_templates.fixed_cta` and `overrides["cta"]` were
+        present in the two files. All three were, and the flag did nothing:
+        `_build_cli_overrides` never put `cta` in the dict, so the apply
+        branch reading it could not fire. A test that greps for a symbol
+        passes on a flag parsed and never read, which is the shape it was
+        written to catch.
+        """
+        from src.video.producer.cli import (
+            _build_cli_overrides,
+            create_argument_parser,
+        )
+
+        args = create_argument_parser().parse_args(
+            ["outputs/B0X/data.json", "slideshow_images1", "--cta", PRODUCT_CTAS[2]]
+        )
+
+        assert _build_cli_overrides(args)["cta"] == PRODUCT_CTAS[2]
+
+    def test_the_batch_carries_the_flag_the_whole_way(self) -> None:
+        """The batch chain is parser, then `load_global_batch_config`, then
+        `GlobalBatchConfig.cta`, then its own override dict. Pinning only the
+        two ends leaves the middle free to drop the key, which is where the
+        inert flag lived.
+        """
+        from src.pipeline import global_batch
+        from src.pipeline.config import load_global_batch_config
+
+        args = global_batch.create_argument_parser().parse_args(
+            [
+                "--product-ids",
+                "B0X",
+                "--profile",
+                "slideshow_images1",
+                "--cta",
+                PRODUCT_CTAS[1],
+            ]
+        )
+        cfg = load_global_batch_config(cli_args=args)
+        assert cfg.cta == PRODUCT_CTAS[1]
+
+        orch = global_batch.GlobalPipelineOrchestrator.__new__(
+            global_batch.GlobalPipelineOrchestrator
+        )
+        orch.config = cfg
+        overrides = orch._build_cli_overrides()
+        assert overrides is not None
+        assert overrides["cta"] == PRODUCT_CTAS[1]
+
+    @pytest.mark.asyncio
+    async def test_the_forced_line_reaches_the_composed_prompt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The last link, and the one every earlier test stopped short of.
+        Dropping the `fixed_cta` argument at the `select_cta` call, or
+        replacing the chosen line with the pool's first entry, both left the
+        whole suite green while making the flag inert and reverting the
+        headline behaviour.
+        """
+        from unittest.mock import AsyncMock
+
+        from src.ai import script_generator
+        from src.video.config import load_video_config_modular
+
+        settings = load_video_config_modular().llm_settings
+        pool = settings.script_templates.cta_options_for(False)
+        hashed = script_generator.select_cta(pool, "B0TEST0001")
+        # Not the pool's first entry either: a fixture that happens to pick
+        # it cannot tell the chosen line apart from the old always-first
+        # behaviour, and a mutation reverting to `cta_options[0]` passes.
+        forced = next(c for c in pool if c not in (hashed, pool[0]))
+        settings.script_templates.fixed_cta = forced
+
+        seen: list[str] = []
+
+        async def capture(prompt, *a, **k):
+            seen.append(prompt)
+            return f"{BODY} {forced}"
+
+        monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", capture)
+        monkeypatch.setattr(
+            script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
+        )
+        try:
+            returned = await script_generator.generate_script(
+                _product(),
+                settings,
+                {settings.api_key_env_var: "k"},
+                None,
+                {},
+                False,
+                product_id="B0TEST0001",
+            )
+        finally:
+            settings.script_templates.fixed_cta = None
+
+        assert seen, "the generator never called the model"
+        assert f'word for word:** "{forced}"' in seen[0]
+        assert hashed not in seen[0]
+        # The third return value is what the state records. Returning a line
+        # other than the one the prompt asked for would make the record a lie
+        # about what shipped, which is why it is returned rather than
+        # recomputed by the caller.
+        assert returned[2] == forced
+
+    @pytest.mark.asyncio
+    async def test_the_render_path_actually_runs_the_apply(self, tmp_path) -> None:
+        """`ast.walk` has no notion of reachability, so the call-site test
+        above passes on a call guarded by a condition that never holds. This
+        one runs the real function far enough to observe the settings change.
+        """
+        from unittest.mock import patch
+
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer import orchestration
+
+        config = load_video_config_modular()
+        config.global_output_root_path = tmp_path
+        st = config.llm_settings.script_templates
+        pool = st.cta_options_for(False)
+        forced = next(c for c in pool if c != select_cta(pool, "B0AAAAAAAA"))
+
+        boom = RuntimeError("stop after the apply")
+        with patch.object(orchestration, "PipelineContext", side_effect=boom):
+            await orchestration.create_video_for_product(
+                config,
+                _product(),
+                "slideshow_images1",
+                {},
+                None,
+                False,
+                False,
+                None,
+                cli_overrides={"cta": forced},
+            )
+
+        assert st.fixed_cta == forced
+        st.fixed_cta = None
+
+    def test_the_render_path_calls_the_apply(self) -> None:
+        """A helper nothing calls is the same inert flag one layer down, and
+        no behavioural test of the helper can see it. Read the call site, the
+        way the publish hooks are pinned.
+        """
+        import ast
+        import inspect
+
+        from src.video.producer import orchestration
+
+        tree = ast.parse(inspect.getsource(orchestration.create_video_for_product))
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+
+        assert "apply_script_template_overrides" in called
+
+    def test_the_apply_changes_what_gets_selected(self) -> None:
+        """The end of the chain, driving the real apply and asserting what it
+        selects. A grep for `fixed_cta` in the file passes on an apply that
+        writes a neighbouring attribute, and a test that sets `fixed_cta`
+        itself never runs the apply at all -- both of which is how this
+        shipped parsed, forwarded and inert.
+        """
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer.orchestration import (
+            apply_script_template_overrides,
+        )
+
+        config = load_video_config_modular()
+        st = config.llm_settings.script_templates
+        pool = st.cta_options_for(False)
+        unforced = select_cta(pool, "B0AAAAAAAA", st.fixed_cta)
+        forced = next(c for c in pool if c != unforced)
+
+        apply_script_template_overrides(config, {"cta": forced})
+
+        assert st.fixed_cta == forced
+        assert select_cta(pool, "B0AAAAAAAA", st.fixed_cta) == forced
+
+    def test_the_apply_leaves_the_sibling_override_alone(self) -> None:
+        """The two overrides share a settings object, so writing the wrong
+        attribute is the mistake this helper exists to make visible.
+        """
+        from src.video.config import load_video_config_modular
+        from src.video.producer.orchestration import (
+            apply_script_template_overrides,
+        )
+
+        config = load_video_config_modular()
+        st = config.llm_settings.script_templates
+        before = st.fixed_template
+
+        apply_script_template_overrides(config, {"cta": PRODUCT_CTAS[1]})
+
+        assert st.fixed_template == before
+        assert st.fixed_cta == PRODUCT_CTAS[1]
+
+    def test_the_chosen_line_is_the_one_rendered(self) -> None:
+        """End of the chain: an override that reaches `fixed_cta` has to come
+        out in the prompt the model is given.
+        """
+        from src.ai.script_generator import select_cta
+
+        chosen = select_cta(PRODUCT_CTAS, "B0TEST0001", fixed_cta=PRODUCT_CTAS[3])
+        rule = render_cta_rule(chosen)
+
+        assert f'"{PRODUCT_CTAS[3]}"' in rule
+
+
+@pytest.mark.unit
+class TestTheLineIsChosenPerProduct:
+    """The pool always yielded its first entry.
+
+    `render_cta_rule` quoted all four options and left the choice to the
+    model, which took the first every time: five of five product scripts on
+    one day, and all four on the next day's batches, closed on `Link in bio
+    if you want one.` A pool that always yields its first entry is one CTA
+    and three unused strings, and every render sharing a closing line is the
+    templated-sameness signal the platforms throttle on.
+    """
+
+    def test_the_same_product_gets_the_same_line(self) -> None:
+        first = select_cta(PRODUCT_CTAS, "B0AAAAAAAA")
+        assert all(select_cta(PRODUCT_CTAS, "B0AAAAAAAA") == first for _ in range(5))
+
+    def test_a_batch_does_not_land_on_one_line(self) -> None:
+        """The defect, stated as a test. Not a distribution claim -- just
+        that selection reads the product id at all.
+        """
+        ids = [f"B0TEST{n:04d}" for n in range(40)]
+        chosen = {select_cta(PRODUCT_CTAS, i) for i in ids}
+        assert len(chosen) > 1
+        assert chosen <= set(PRODUCT_CTAS)
+
+    def test_topic_and_product_pools_are_separate(self) -> None:
+        assert select_cta(TOPIC_CTAS, "topic-x") in TOPIC_CTAS
+
+    def test_no_product_id_takes_the_first(self) -> None:
+        """A caller with nothing to hash still needs a line, and the first is
+        the one the pool has always produced.
+        """
+        assert select_cta(PRODUCT_CTAS) == PRODUCT_CTAS[0]
+
+    def test_an_empty_pool_yields_nothing(self) -> None:
+        assert select_cta([], "B0AAAAAAAA") == ""
+
+    def test_the_override_wins(self) -> None:
+        assert (
+            select_cta(PRODUCT_CTAS, "B0AAAAAAAA", fixed_cta=PRODUCT_CTAS[3])
+            == PRODUCT_CTAS[3]
+        )
+
+    def test_an_override_outside_the_pool_falls_through(self) -> None:
+        """Rendering a rule the validator will then refuse costs the render a
+        retry loop and ends on an appended line the rule never asked for.
+        """
+        chosen = select_cta(PRODUCT_CTAS, "B0AAAAAAAA", fixed_cta="Buy it now.")
+        assert chosen == select_cta(PRODUCT_CTAS, "B0AAAAAAAA")
+
+
+def _chosen_cta(product_id: str = "B0TEST0001") -> str:
+    """The line `select_cta` picks for the product the generator tests use.
+
+    Derived rather than written down, so the test says "the line the rule
+    asked for" instead of pinning today's hash output.
+    """
+    from src.ai.script_generator import select_cta
+
+    return select_cta(PRODUCT_CTAS, product_id)
+
+
+@pytest.mark.unit
 class TestTheGeneratorAppliesItEverywhere:
     def test_all_four_attempt_paths_validate_through_one_closure(self) -> None:
         """Primary, fallback provider, discovered model: one site skipped is
@@ -236,7 +539,7 @@ class TestTheGeneratorAppliesItEverywhere:
         monkeypatch.setattr(
             script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
         )
-        script, _ = await script_generator.generate_script(
+        script, _, _ = await script_generator.generate_script(
             _product(),
             settings,
             {settings.api_key_env_var: "k"},
@@ -269,7 +572,10 @@ class TestTheGeneratorAppliesItEverywhere:
 
         assert calls >= 2, "no retry happened"
         assert script is not None
-        assert script.endswith(PRODUCT_CTAS[0])
+        # The line the rule asked for, not the pool's first entry. Appending
+        # a different one would make the recorded choice a lie about what
+        # shipped, and would put every fallback render back on one CTA.
+        assert script.endswith(_chosen_cta())
         assert "25,000-hour lifespan." in script
 
     @pytest.mark.asyncio
@@ -286,7 +592,7 @@ class TestTheGeneratorAppliesItEverywhere:
         script, _ = await self._run(monkeypatch, [para] * 4)
 
         assert script is not None
-        assert script.endswith(PRODUCT_CTAS[0])
+        assert script.endswith(_chosen_cta())
         assert "in my bio if you want it" not in script
         assert extract_closing_line(script) == "Team magnetic or team plug-in?"
 
@@ -335,6 +641,70 @@ class TestTheFirstCommentStillFindsTheBeat:
 
 
 @pytest.mark.unit
+class TestTheStepRecordsWhatItAskedFor:
+    """The handoff from the pipeline step, which nothing covered.
+
+    `product_id` is what makes the selection a selection. Passing None there
+    puts every record back on the pool's first entry, and the whole suite
+    stayed green under that mutation -- the same shape as the two inert links
+    earlier passes found, one layer up.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_step_passes_the_record_id_and_records_the_line(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer import steps
+        from src.video.producer.context import PipelineContext
+        from src.video.producer.state import (
+            STEP_GENERATE_SCRIPT,
+            _update_state_after_step,
+            get_video_run_paths,
+        )
+
+        config = load_video_config_modular()
+        monkeypatch.setattr(config, "global_output_root_path", tmp_path)
+        paths = get_video_run_paths(config, "B0TEST0001", "slideshow_images1")
+        pool = config.llm_settings.script_templates.cta_options_for(False)
+        expected = select_cta(pool, "B0TEST0001")
+
+        product = MagicMock(asin="B0TEST0001", topic=None, title="A thing")
+        ctx = PipelineContext(
+            product=product,
+            profile=config.video_profiles["slideshow_images1"],
+            profile_name="slideshow_images1",
+            config=config,
+            secrets={},
+            session=MagicMock(),
+            run_paths=paths,
+            debug_mode=False,
+        )
+
+        seen: dict[str, object] = {}
+
+        async def fake(*args, **kwargs):
+            seen.update(kwargs)
+            return f"{BODY} {expected}", "curiosity_hook", expected
+
+        monkeypatch.setattr(steps, "generate_ai_script", fake)
+        monkeypatch.setattr(steps, "_ensure_fact_checked", AsyncMock())
+        monkeypatch.setattr(steps, "_ensure_hook_headline", AsyncMock())
+
+        await steps.step_generate_script(ctx)
+
+        assert seen.get("product_id") == "B0TEST0001"
+        assert ctx.state["cta"] == expected
+
+        await _update_state_after_step(ctx, STEP_GENERATE_SCRIPT)
+
+        assert ctx.state[STEP_GENERATE_SCRIPT]["cta"] == expected
+
+
+@pytest.mark.unit
 class TestTheShippedConfig:
     def test_both_lists_are_present_and_distinct(self, shipped_ctas) -> None:
         assert len(shipped_ctas["product"]) >= 3
@@ -367,9 +737,11 @@ class TestTheShippedConfig:
     def test_the_narrator_profiles_no_longer_carry_the_lists(self) -> None:
         """One source. A second copy in prose is the drift that started this.
 
-        The voice examples may still *end* on a CTA -- an example that agrees
-        with the rule reinforces it -- so this checks for the list, the
-        `Options: "..." / "..."` shape, not for the phrases themselves.
+        The voice example no longer ends on a CTA either. It used to end on a
+        paraphrase of the first option, which agreed with a rule that quoted
+        all four; against a rule naming one line it disagrees for three
+        products in four, and this repo's own lesson is that an example beats
+        the rule it contradicts.
         """
         raw = (REPO / "config" / "ai_services.yaml").read_text()
         profiles = re.findall(
@@ -379,4 +751,43 @@ class TestTheShippedConfig:
         assert len(profiles) == 2
         for text in profiles:
             assert "Options:" not in text
-            assert "the list the template gives you" in text
+            # And no longer a *list* either. The rule quotes one line now, so
+            # "from the list the template gives you. Pick whichever fits"
+            # described a prompt the model was not given -- a contradiction
+            # eleven templates route to by saying "one CTA per the narrator
+            # profile", on every product render.
+            assert "the list the template gives you" not in text
+            assert "the exact call to action the template gives you" in text
+
+    def test_no_voice_example_ends_on_a_configured_line(self, shipped_ctas) -> None:
+        """An example ending on a configured CTA agreed with a rule quoting
+        all four. Against a rule naming one line it disagrees for three
+        records in four, and the example wins. Substituting an ordinary
+        sentence is not the fix either -- eight templates ask their beat to
+        be a material-or-use claim, so the example would demonstrate beat,
+        then stop, which is the defect that moved the rule next to the beat.
+        Both examples stop before their close.
+        """
+        from src.utils.script_sanitizer import split_sentences
+
+        raw = (REPO / "config" / "ai_services.yaml").read_text()
+        # The whole block, to the blank line. Capturing the first physical
+        # line only meant a rewrapped example could end on a CTA three
+        # lines down with this green.
+        examples = re.findall(
+            r"Voice example \(.*?\):\n\n((?:      [^\n]+\n)+)", raw, re.S
+        )
+        every_cta = {c for options in shipped_ctas.values() for c in options}
+
+        assert len(examples) == 2
+        for text in examples:
+            # Normalised first: the block keeps its wrapping, so a closing
+            # sentence straddling a line break can never equal a configured
+            # line and slips through unnormalised.
+            last = split_sentences(" ".join(text.split()))[-1]
+            assert last not in every_cta
+            # And not a paraphrase either. That is the worse case: the
+            # validator refuses it, burning the retry loop, and a paraphrase
+            # that survives becomes the YouTube first comment. It is also
+            # what the product example carried before this branch.
+            assert not _looks_like_cta_attempt(last, sorted(every_cta)), last

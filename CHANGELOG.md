@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.105.0] - 2026-09-08
+
+### Changed
+- The closing call to action is chosen per record rather than left to the model. The four options were all quoted into every template's rule, and the model took the first one every time: five of five product scripts on one day, and all four on the next day's batches, ended on `Link in bio if you want one.` A pool that always yields its first entry is one call to action and three unused strings, and every render sharing a closing line is the templated-sameness signal the platforms throttle on. One line is now selected by the same salted hash the script template, the font, the colour and the voice already use, so a record's closing line is stable across runs and varies across a batch, and only that line is rendered into the rule -- one imperative binds better than a menu, which is the lesson that moved this rule next to the beat in the first place. The line is recorded in `pipeline_state.json`, and the last-resort append at the end of the retry loop uses it rather than the first option, so what ships matches what was asked for. Validation still accepts any configured line: a script that reached for a sibling has still closed on a call to action, and refusing it would cost a retry for nothing. `--cta` on the producer and the batch pipeline forces one. Closes #377.
+
 ## [0.104.0] - 2026-09-07
 
 ### Added

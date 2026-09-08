@@ -18,6 +18,7 @@ class ScriptTemplateConfig(BaseModel):
     templates_dir: str = "src/ai/prompts/scripts"
     template_pool: list[str] = Field(default_factory=list)
     fixed_template: str | None = None
+    fixed_cta: str | None = None
     # Pillar -> list of template names. A template may appear under more
     # than one pillar. When a pillar is selected at runtime, deterministic
     # MD5 selection picks from the matching list instead of the full pool.

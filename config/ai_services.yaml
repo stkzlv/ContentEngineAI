@@ -160,6 +160,8 @@ llm_settings:
     # Takes priority over random selection. Set null for random.
     # Example: "curiosity_hook"
     fixed_template: null
+    # Force one closing line for every record; null selects per record.
+    fixed_cta: null
     # Pillar -> list of template names. See docs/requirements.md "Content Pillars".
     # When a run is scoped to a pillar, deterministic per-product selection picks
     # from this list instead of the full pool. A template can fit more than one
@@ -204,7 +206,7 @@ llm_settings:
 
       Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
 
-      CTA: the script ends on exactly one call to action, from the list the template gives you. Pick whichever fits the script.
+      CTA: the script ends on the exact call to action the template gives you, word for word. There is one, and it is chosen for you.
 
       Things to avoid because they read as AI:
       - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting", "It's important to note".
@@ -215,9 +217,11 @@ llm_settings:
       - Generic summary closers: "In essence", "Ultimately", "At the end of the day".
       - Stacked hedges: "might possibly potentially".
 
-      Voice example (one short script that lands the voice end-to-end):
+      Voice example (the voice, not the ending -- it stops before the close
+      on purpose, so it demonstrates neither a closing beat nor a call to
+      action; the template's own rules own both):
 
-      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal. The battery is fine, not great. About six hours under load. If you want one, link in bio.
+      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal.
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.
@@ -235,6 +239,15 @@ llm_settings:
     # a CTA. Each template renders these into its own Rules, next to the beat
     # that precedes them, and the generator refuses a script that does not end
     # on one. Edit the list, not the templates.
+    #
+    # One is chosen per product, by the same salted hash the script template,
+    # the font, the colour and the voice use, and only that one is rendered
+    # into the rule. Quoting all four and letting the model pick meant it
+    # picked the first every time: five of five product scripts on one day
+    # and all four on the next day's batches closed on the same line, which
+    # is the templated-sameness signal the platforms throttle on. Validation
+    # still accepts any line in the list, since a script that reached for a
+    # sibling has still closed on a CTA. `--cta` overrides the choice.
     cta_options:
       - "Link in bio if you want one."
       - "Follow for more finds like this."
@@ -271,7 +284,7 @@ llm_settings:
 
       Imperfection: contractions and sentence fragments are fine. Vary sentence length. One mild filler word per script at most.
 
-      CTA: the script ends on exactly one call to action, from the list the template gives you, and never one that implies something to buy.
+      CTA: the script ends on the exact call to action the template gives you, word for word. There is one, it is chosen for you, and it never implies something to buy.
 
       Things to avoid because they read as AI:
       - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting".
@@ -280,9 +293,11 @@ llm_settings:
       - Generic closers: "In essence", "Ultimately", "At the end of the day".
       - Three consecutive sentences starting with the same word.
 
-      Voice example (one short script that lands the voice end-to-end):
+      Voice example (the voice, not the ending -- it stops before the close
+      on purpose, so it demonstrates neither a closing beat nor a call to
+      action; the template's own rules own both):
 
-      If your wifi drops every evening, it is almost always the channel, not the router. Open the admin page, find the 2.4 gigahertz channel setting, and put it on 1, 6, or 11. Those three do not overlap; everything else does. Evening is when your neighbours all come home and crowd the same band. If it still drops with nothing else on the network, then it is the hardware, and that is a different video. Save this for the next time it happens.
+      If your wifi drops every evening, it is almost always the channel, not the router. Open the admin page, find the 2.4 gigahertz channel setting, and put it on 1, 6, or 11. Those three do not overlap; everything else does. Evening is when your neighbours all come home and crowd the same band.
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.

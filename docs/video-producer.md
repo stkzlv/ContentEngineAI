@@ -95,6 +95,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 |----------|-------------|---------|
 | `--script-template` | Force a specific script template (filename without `.md`) | `--script-template curiosity_hook` |
 | `--voice-profile` | Force a specific TTS voice profile | `--voice-profile calm_confident` |
+| `--cta` | Force the closing call to action (must be one of the configured options; otherwise selection proceeds normally) | `--cta "Follow for more finds like this."` |
 | `--pillar` | Content pillar for the run (filters templates, prepends pillar preamble, picks pillar audience) | `--pillar value` |
 
 **Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). Configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, the product record's own pillar applies when it has one — the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies. `--pillar` works with `--topic` too: the preambles and audiences have topic counterparts (`pillar_preambles_topic`, `pillar_audiences_topic`) using the same keys, because the product versions are written about a thing being shown and would put a purchase in a script that recommends nothing. Template narrowing does not apply on a topic, since `pillars` maps to product templates and a topic uses the topic family; the pillar still shapes the preamble and the audience. See [Requirements](requirements.md) "Content Pillars" for the full system.

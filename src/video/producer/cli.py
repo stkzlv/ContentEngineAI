@@ -290,6 +290,10 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if hasattr(args, "script_template") and args.script_template is not None:
         overrides["script_template"] = args.script_template
 
+    # Closing call-to-action override
+    if hasattr(args, "cta") and args.cta is not None:
+        overrides["cta"] = args.cta
+
     # Content pillar override (drives template filter and runtime preamble)
     if hasattr(args, "pillar") and args.pillar is not None:
         overrides["pillar"] = args.pillar
@@ -681,6 +685,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help="Override script template (name without .md).",
     )
     parser.add_argument(
+        "--cta",
+        type=str,
+        help=(
+            "Override the closing call to action (must be one of the "
+            "configured options; otherwise selection proceeds normally)."
+        ),
+    )
+    parser.add_argument(
         "--pillar",
         type=str,
         help=(
@@ -829,6 +841,8 @@ async def main():
         config.llm_settings.script_templates.fixed_template = cli_overrides[
             "script_template"
         ]
+    if cli_overrides.get("cta"):
+        config.llm_settings.script_templates.fixed_cta = cli_overrides["cta"]
 
     # Log applied CLI overrides (already applied via config loader)
     if cli_overrides:

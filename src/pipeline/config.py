@@ -397,6 +397,7 @@ class GlobalBatchConfig:
 
     # Script template override
     script_template: str | None = None
+    cta: str | None = None
 
     # Content pillar override (filters template pool and adds runtime preamble)
     pillar: str | None = None
@@ -1173,6 +1174,7 @@ def load_global_batch_config(
     script_template = getattr(cli_args, "script_template", None) or yaml_config.get(
         "script_template"
     )
+    cta = getattr(cli_args, "cta", None) or yaml_config.get("cta")
 
     # Content pillar override
     pillar = getattr(cli_args, "pillar", None) or yaml_config.get("pillar")
@@ -1231,6 +1233,7 @@ def load_global_batch_config(
         platform_specific_content=platform_specific_content,
         voice_profile=voice_profile,
         script_template=script_template,
+        cta=cta,
         pillar=pillar,
         subtitle_format=subtitle_format,
         subtitle_engine=subtitle_engine,
