@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.107.0] - 2026-09-08
+
+### Added
+- A second daily publishing slot at 22:00, twelve hours after the existing morning one, doubling the cadence from seven slots a week to fourteen. It is not reserved for any kind of content and the bundled config says so: a slot carries only a day, a time and a timezone, and nothing in the scheduler routes by content format, so whichever item is next in the queue takes whichever slot comes first. Anything already scheduled keeps its existing time.
+- `analytics.limit` raised from 50 to 70, because the sweep size and the cadence are coupled: a durability ratio needs a post older than thirty days whose timeline still reaches publication, and the provider retains about five weeks, so the sweep has to cover five weeks at whatever rate the schedule publishes. At two posts a day that is seventy, and leaving it at fifty would have cost every post published from now on its ratio -- silently, since a short sweep looks exactly like a complete one, and unrecoverably, since the rows expire. A test now asserts the two shipped values against each other, so changing the cadence again is free and changing it alone is not.
+
 ## [0.106.2] - 2026-09-08
 
 ### Fixed

@@ -409,7 +409,7 @@ ratio for it at all.
 Repeat runs are safe. Readings merge per field, and a later, better figure
 replaces an earlier partial one. They are not free, though: a sweep costs one
 timeline call per measured post plus the paging to list them, so the shipped
-size is roughly 53 requests. Daily sits comfortably inside the documented hourly
+size is roughly 73 requests. Daily sits comfortably inside the documented hourly
 cap; several times an hour does not.
 
 **What to configure, and where.** Two files, split by what reads them:
@@ -495,7 +495,7 @@ Cron works too, but has no equivalent of `Persistent=true`:
 
 | Option | Required | Description |
 |---|---|---|
-| `--limit N` | No | How many recent published posts to measure. Defaults to `analytics.limit` in `config/publisher.yaml`, shipped as 50. The other subcommands' `--limit` flags are not config-backed |
+| `--limit N` | No | How many recent published posts to measure. Defaults to `analytics.limit` in `config/publisher.yaml`, shipped as 70, sized against the bundled two-slot-a-day schedule. The other subcommands' `--limit` flags are not config-backed |
 | `--rank-only` | No | Rank stored metrics without fetching. Makes no network call, but publisher config still loads first, so an API key must be configured |
 | `--outputs-dir PATH` | No | Where `post_metrics.json` lives (default: `outputs`) |
 | `--debug` | No | Enable debug logging |
@@ -1267,7 +1267,7 @@ recurring_schedule:
       time: "10:00:00"
     - day_of_week: wednesday
       time: "10:00:00"
-    # ... daily slots at 10:00 AM CET
+    # ... daily slots at 10:00 and 22:00 CET
 ```
 
 **CLI Usage:**
@@ -2262,7 +2262,7 @@ poetry run python -m src.pipeline.global_batch \
   --keywords "wireless earbuds" --max-products 7 \
   --profile slideshow_images1 --debug
 
-# Monday: Schedule all videos for the week (one per day)
+# Monday: Schedule all videos for the week (two per day)
 poetry run python -m src.publisher.late schedule auto \
   --platform youtube --platform tiktok --platform instagram \
   --debug

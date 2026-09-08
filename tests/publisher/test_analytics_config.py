@@ -227,3 +227,46 @@ class TestMalformedSectionDoesNotBreakThePublisher:
         """``bool`` is an int subclass, so ``posts[:True]`` measures one post."""
         with pytest.raises(TypeError):
             AnalyticsConfig(limit=True)
+
+
+class TestTheSweepCoversTheShippedCadence:
+    """The sweep size and the publishing cadence are coupled and nothing
+    reads them together.
+
+    A durability ratio needs a post older than ``DURABILITY_WINDOW_DAYS``
+    while its timeline still reaches publication, and the provider retains
+    about five weeks. So the sweep has to reach back at least that far, and
+    how many posts that is depends entirely on how many slots a week the
+    bundled schedule declares. Doubling the slots without raising the limit
+    costs every post its ratio, permanently and silently -- a short sweep
+    looks exactly like a complete one, and the rows are unrecoverable once
+    they age past retention.
+
+    This asserts the two shipped values against each other rather than
+    pinning either one, so changing the cadence is free and changing it
+    alone is not.
+    """
+
+    def test_the_shipped_limit_reaches_back_past_the_durability_window(
+        self, monkeypatch
+    ):
+        from src.publisher.analytics import DURABILITY_WINDOW_DAYS
+
+        # The bundled file carries no key; the loader refuses without one.
+        monkeypatch.setenv("LATE_API_KEY", "sk_test_not_a_real_key")
+        config = load_publisher_config(
+            config_path=Path(__file__).resolve().parents[2]
+            / "config"
+            / "publisher.yaml"
+        )
+        slots_per_week = len(config.schedule_config.slots)
+        assert slots_per_week, "the bundled schedule declares no slots"
+
+        # Five weeks of retention, at the cadence the schedule declares.
+        posts_in_retention = round(35 * slots_per_week / 7)
+        assert config.analytics_config.limit >= posts_in_retention, (
+            f"{slots_per_week} slots a week fills {posts_in_retention} posts "
+            f"into the retention window, but the sweep measures only "
+            f"{config.analytics_config.limit}; a post ages out before day "
+            f"{DURABILITY_WINDOW_DAYS} and its ratio is lost for good"
+        )

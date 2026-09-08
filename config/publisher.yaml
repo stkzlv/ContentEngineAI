@@ -446,10 +446,12 @@ synthetic_media_disclosure: false
 #
 # At one post per day the horizon holds about 35 posts, so 50 leaves headroom.
 # A faster cadence needs a larger value: two posts a day puts 70 inside the
-# window, and 50 would quietly lose the oldest 20.
+# window, and 50 would quietly lose the oldest 20. The bundled schedule has
+# two slots a day, which is why this is 70 -- raise it with the cadence, or
+# every post ages out of the sweep before its durability ratio can be taken.
 #
 # Cost scales with it. A sweep is one timeline call per measured post plus the
-# paging to list them, so 50 is roughly 53 requests. Daily sits well inside
+# paging to list them, so 70 is roughly 73 requests. Daily sits well inside
 # the documented hourly cap; several times an hour does not.
 analytics:
-  limit: 50
+  limit: 70
