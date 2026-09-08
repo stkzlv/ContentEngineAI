@@ -9,13 +9,14 @@ data, so they are what these tests pin.
 """
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 
 from tools.enumerate_topics import enumerate_records, main, write_records
 
-FIXTURE = [
+FIXTURE: list[dict[str, Any]] = [
     # Two keywords, because the joiner is what the producer splits on again:
     # joining with a space instead of ", " merges two search phrases into one.
     {"title": "Topic A", "description": "d1", "keywords": ["kw a", "kw b"]},
@@ -98,7 +99,15 @@ class TestTheHandoff:
 
         assert main(["prog", str(topics_file), str(out)]) == 0
 
-        assert out.read_bytes().split(b"\0")[0].decode() != ""
+        fields = out.read_bytes().split(b"\0")
+        assert fields[0].decode() != ""
+        # Read a non-ASCII title back out of the *bytes*, not the in-memory
+        # list: the encode is what carries the title to --topic, and a lossy
+        # one writes a mangled title beside a correct product id. The producer
+        # then derives a different id from that title, creates that directory,
+        # and the run reports the topic missing -- after paying for its script
+        # step. Asserting only on the returned list leaves that path untested.
+        assert fields[6].decode() == str(FIXTURE[1]["title"])
         assert "\0" not in capsys.readouterr().out
 
     def test_a_nul_inside_a_field_is_refused(self, tmp_path: Path) -> None:
