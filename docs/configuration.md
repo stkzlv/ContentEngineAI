@@ -551,7 +551,7 @@ video_settings:
     max_chars: 60                # Trimmed on a word boundary
 ```
 
-The two-part subtitle system renders a line of its own, but only under the FFmpeg engine: pycaps has a single caption track and no static element, so a profile that switched engines lost the line with one warning. This one is a `drawtext` overlay like the disclosure, so it survives both engines, the pycaps burn that composes over the assembler's output, and the FFmpeg caption fallback. Turning it on disables two-part's upper line, which would otherwise draw the same text twice under FFmpeg; the lower, voiceover-synced half is unaffected.
+The two-part subtitle system renders a line of its own, but only under the FFmpeg engine: pycaps has a single caption track and no static element, so a profile that switched engines lost the line with one debug line. This one is a `drawtext` overlay like the disclosure, so it survives both engines, the pycaps burn that composes over the assembler's output, and the FFmpeg caption fallback. When it draws a line, two-part's upper line is turned off so the same text is not drawn twice under FFmpeg; the lower, voiceover-synced half is unaffected. When the source resolves to nothing, or to a link too long to show without cutting it mid-address, two-part keeps its line and nothing changes.
 
 `source: link_in_bio` reads the address from the environment and never from this file, since the public config ships no account-specific value and the link-in-bio module itself carries OAuth credentials rather than a public URL. Set `LINK_IN_BIO_URL` in `.env`. `SUBTITLE_BUSINESS_URL`, which the two-part upper line has read since it shipped, is used as a fallback, so an installation already showing its bio page needs no second variable.
 

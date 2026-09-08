@@ -3,7 +3,7 @@
 The two-part subtitle system already rendered a line above the visual, but
 only under FFmpeg: `step_generate_subtitles` disables two-part mode when the
 engine is pycaps, so a profile that switched engines lost the line with a
-single warning. pycaps has one caption track and no static element, so it
+single debug line. pycaps has one caption track and no static element, so it
 could never carry it.
 
 The line is static for the whole video and needs no subtitle engine. Drawn as
@@ -22,6 +22,7 @@ import pytest
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_upper_line_overlay,
+    drawable_upper_line,
     resolve_upper_line_text,
 )
 from src.video.assembler.visual_band import upper_line_bottom, visual_band
@@ -123,6 +124,94 @@ class TestResolvingTheText:
 
 
 @pytest.mark.unit
+class TestOnePredicateForEveryGate:
+    """The three gates used to differ, and the gap lost the line.
+
+    The image band reserved rows on `enabled` alone, the supersede of
+    two-part's line ran on the resolved text, and the drawing ran on the
+    *trimmable* text. A resolved-but-untrimmable value -- a bare affiliate
+    URL, which the shipped config produces with no associate tag -- switched
+    two-part's line off, drew nothing, and still pushed the image down for a
+    line that was never there.
+    """
+
+    def test_a_bare_overlong_url_is_declined(self) -> None:
+        """No spaces, so trimming cuts mid-address. Real records carry 457 to
+        569 character SERP URLs, and `max_chars` tops out at 200.
+        """
+        text, reason = drawable_upper_line(
+            UpperLineSettings(enabled=True, max_chars=60),
+            product(shortened_affiliate_link="https://www.amazon.com/" + "x" * 500),
+        )
+        assert text is None and "does not fit" in reason
+
+    def test_a_label_before_a_link_is_declined_too(self) -> None:
+        """The word-boundary trim drops the link and keeps the label, leaving
+        "Shop:..." on screen for the whole video. That reads as a line rather
+        than as a failure, which is worse than drawing nothing.
+        """
+        text, _ = drawable_upper_line(
+            UpperLineSettings(
+                enabled=True,
+                max_chars=20,
+                source="custom",
+                custom_text="Shop: https://www.example.com/a/very/long/path",
+            ),
+            product(),
+        )
+        assert text is None
+
+    def test_prose_with_no_link_still_trims(self) -> None:
+        text, _ = drawable_upper_line(
+            UpperLineSettings(
+                enabled=True,
+                max_chars=20,
+                source="custom",
+                custom_text="the full guide and every link lives in my bio",
+            ),
+            product(),
+        )
+        assert text is not None and text.endswith("...") and len(text) <= 24
+
+    def test_a_disabled_line_declines_before_resolving(self) -> None:
+        text, reason = drawable_upper_line(
+            UpperLineSettings(enabled=False),
+            product(shortened_affiliate_link="https://a.co/x"),
+        )
+        assert text is None and "disabled" in reason
+
+    def test_the_band_reserves_nothing_for_a_declined_line(self) -> None:
+        """Reserving on `enabled` alone made the image smaller and lower for
+        a line the assembler then declined to draw, silently.
+        """
+        settings = UpperLineSettings(enabled=True)
+        assert upper_line_bottom(FRAME_H, settings, 60, None) == 0
+        assert upper_line_bottom(FRAME_H, settings, 60, "") == 0
+        assert upper_line_bottom(FRAME_H, settings, 60, "guide in bio") > 0
+
+    def test_the_supersede_and_the_drawing_agree(self) -> None:
+        """Both take the output of the same predicate, so two-part's line is
+        only given up when a line is actually drawn in its place.
+        """
+        from src.video.config.subtitle_models import SubtitleSettings
+        from src.video.producer.steps import supersede_two_part_upper_line
+
+        settings = UpperLineSettings(enabled=True, max_chars=60)
+        long_url = product(
+            shortened_affiliate_link="https://www.amazon.com/" + "x" * 500
+        )
+        text, _ = drawable_upper_line(settings, long_url)
+
+        subs = SubtitleSettings()
+        subs.two_part_subtitles.enabled = True
+        subs.two_part_subtitles.upper_line.enabled = True
+
+        assert text is None
+        assert not supersede_two_part_upper_line(settings, subs, text)
+        assert subs.two_part_subtitles.upper_line.enabled is True
+
+
+@pytest.mark.unit
 class TestTheDrawnFilter:
     def _apply(self, tmp_path, **over):
         settings = UpperLineSettings(enabled=True, **over)
@@ -188,38 +277,20 @@ class TestTheDrawnFilter:
             == chain
         )
 
-    def test_long_prose_is_trimmed_on_a_word_boundary(self, tmp_path) -> None:
-        """Drawtext does not wrap; the overflow is drawn past the frame edge
-        with no sign the line was cut.
+    def test_it_writes_the_text_it_was_given(self, tmp_path) -> None:
+        """Trimming happens in `drawable_upper_line`, not here, so all three
+        gates ask one question. The applier draws what it is handed.
         """
         apply_upper_line_overlay(
             ["[v_0]copy[v_out]"],
             UpperLineSettings(enabled=True, max_chars=20),
-            "the full guide and every link lives in my bio",
+            "already trimmed...",
             60,
             FRAME_H,
             tmp_path,
         )
         written = (tmp_path / "upper_line_text.txt").read_text(encoding="utf-8")
-        assert len(written) <= 24 and written.endswith("...")
-
-    def test_an_unbreakable_overlong_url_draws_nothing(self, tmp_path) -> None:
-        """A URL has no spaces, so trimming cuts mid-address and holds a link
-        nobody can use on screen for the whole video -- the one thing this
-        line exists to do. The third resolver rung reaches a 500-character
-        Amazon SERP address, so this is not hypothetical.
-        """
-        chain = ["[v_0]copy[v_out]"]
-        out = apply_upper_line_overlay(
-            chain,
-            UpperLineSettings(enabled=True, max_chars=20),
-            "https://www.amazon.com/dp/B0EXAMPLE?tag=something-20",
-            60,
-            FRAME_H,
-            tmp_path,
-        )
-        assert out == chain
-        assert not (tmp_path / "upper_line_text.txt").exists()
+        assert written == "already trimmed..."
 
     def test_it_composes_with_the_disclosure(self, tmp_path) -> None:
         """Both rewrite the chain's terminal, so whichever runs second has to
@@ -268,7 +339,7 @@ class TestTheImageMakesRoom:
         the caption end.
         """
         settings = UpperLineSettings(enabled=True)
-        reserved = upper_line_bottom(FRAME_H, settings, 60)
+        reserved = upper_line_bottom(FRAME_H, settings, 60, "guide in bio")
         band = visual_band(
             FRAME_H,
             caption_top=1200,
@@ -279,7 +350,9 @@ class TestTheImageMakesRoom:
         assert band.top > reserved
 
     def test_a_disabled_line_reserves_nothing(self) -> None:
-        assert upper_line_bottom(FRAME_H, UpperLineSettings(enabled=False), 60) == 0
+        assert (
+            upper_line_bottom(FRAME_H, UpperLineSettings(enabled=False), 60, "x") == 0
+        )
         with_line = visual_band(FRAME_H, caption_top=1200, top_offset=0, centred=True)
         assert (
             with_line.top
@@ -301,7 +374,7 @@ class TestTheImageMakesRoom:
             top_offset=0,
             centred=True,
             upper_line_bottom_px=upper_line_bottom(
-                FRAME_H, UpperLineSettings(enabled=True), 60
+                FRAME_H, UpperLineSettings(enabled=True), 60, "guide in bio"
             ),
         )
         assert plain.bottom == with_line.bottom
@@ -385,15 +458,20 @@ class TestTheProfileDecides:
     def test_the_code_default_is_off(self) -> None:
         assert UpperLineSettings().enabled is False
 
-    def test_a_profile_override_reaches_the_consumer(self) -> None:
-        """The merge existing is not the same as anything reading it.
+    def test_a_profile_override_reaches_the_real_consumer(self) -> None:
+        """The merge existing is not the same as a consumer reading it.
 
         Every consumer took the global `config.video_settings.upper_line`
         while the merged value sat unread, so a profile enabling the line was
-        a complete no-op and a profile disabling it did nothing -- all three
+        a no-op and a profile disabling it did nothing -- all three
         declaration conditions satisfied and the fourth, that something reads
-        the target, missed. Driving a consumer is what tells the two apart.
+        the target, missed. An earlier version of this test called the pure
+        band helpers with an already-merged object, which cannot tell the two
+        apart: reverting both consumers to the global object left the whole
+        video suite green. This drives `VisualFilterBuilder` itself.
         """
+        from src.video.assembler.media_inspector import MediaInspector
+        from src.video.assembler.visual_builder import VisualFilterBuilder
         from src.video.config import load_video_config_modular
 
         config = load_video_config_modular()
@@ -401,29 +479,29 @@ class TestTheProfileDecides:
         profile = config.video_profiles[name]
         assert config.video_settings.upper_line.enabled is False
 
-        profile.upper_line = PartialUpperLine(enabled=True, size_factor=0.8)
+        profile.upper_line = PartialUpperLine(enabled=True)
         try:
             merged = config.get_profile_merged_settings(name)
-            reserved = upper_line_bottom(
-                FRAME_H,
-                merged.video_settings.upper_line,
-                max(
-                    8,
-                    int(
-                        round(FRAME_H * config.video_settings.base_font_height_percent)
-                    ),
-                ),
+            builder = VisualFilterBuilder(
+                MediaInspector(),
+                config,
+                None,
+                merged,
+                upper_line_text="guide in bio",
             )
-            assert reserved > 0, "the profile's line reserves no rows"
+            with_profile = builder._image_band(FRAME_H, 0, centred=True)
 
-            band = visual_band(
-                FRAME_H,
-                caption_top=1200,
-                top_offset=0,
-                centred=True,
-                upper_line_bottom_px=reserved,
+            builder_off = VisualFilterBuilder(
+                MediaInspector(),
+                config,
+                None,
+                merged,
+                upper_line_text=None,
             )
-            plain = visual_band(FRAME_H, caption_top=1200, top_offset=0, centred=True)
-            assert band.top > plain.top, "the image did not move down for it"
+            without = builder_off._image_band(FRAME_H, 0, centred=True)
         finally:
             profile.upper_line = None
+
+        assert (
+            with_profile.top > without.top
+        ), "the builder did not read the profile's upper line"

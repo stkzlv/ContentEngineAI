@@ -52,6 +52,12 @@ class PipelineContext:
         self.description: str | None = None
         self.voiceover_duration: float | None = None
         self.state: dict[str, Any] = {}
+        # The static upper line's text for this run, or None when no line is
+        # drawn. Deliberately an attribute rather than a `state` key: `state`
+        # is persisted to pipeline_state.json and outlives the run, so a
+        # later `--step assemble_video` after a config edit would draw the
+        # previous run's text with nothing to detect it (#88).
+        self.upper_line_text: str | None = None
 
         # Background processing support
         self.background_processor: Any | None = None

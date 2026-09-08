@@ -137,7 +137,7 @@ class UpperLineSettings(BaseModel):
     The two-part subtitle system already renders one, but only on the FFmpeg
     engine: `step_generate_subtitles` disables two-part mode when the engine
     is pycaps, so a profile that switches engines lost the line with one
-    warning (#88). pycaps has a single caption track and no static element,
+    debug line (#88). pycaps has a single caption track and no static element,
     so it could never carry it.
 
     The line is static for the whole video, so it needs no subtitle engine at

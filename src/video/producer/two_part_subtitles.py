@@ -192,6 +192,7 @@ class TwoPartSubtitleHandler:
                 frame_height,
                 video_settings.upper_line,
                 max(8, int(round(frame_height * vs.base_font_height_percent))),
+                getattr(self.ctx, "upper_line_text", None),
             ),
         )
 

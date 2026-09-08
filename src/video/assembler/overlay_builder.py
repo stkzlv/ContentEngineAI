@@ -573,6 +573,35 @@ def resolve_upper_line_text(
 _LEGACY_BUSINESS_URL_VAR = "SUBTITLE_BUSINESS_URL"
 
 
+def drawable_upper_line(
+    settings: UpperLineSettings,
+    product: Any,
+    env: Mapping[str, str] | None = None,
+) -> tuple[str | None, str]:
+    """The exact text the overlay will draw, or None and the reason.
+
+    One predicate for all three gates. They used to differ: the image band
+    reserved rows on `enabled` alone, the supersede of two-part's line ran on
+    the resolved text, and the drawing ran on the *trimmable* text. So a
+    resolved-but-untrimmable value -- a bare affiliate URL, which is what the
+    shipped config produces with no associate tag -- switched two-part's line
+    off, drew nothing, and still pushed the image down for a line that was
+    never there. Every caller now asks this one question.
+    """
+    if not settings.enabled:
+        return None, "the upper line is disabled"
+    text, reason = resolve_upper_line_text(settings, product, env)
+    if not text:
+        return None, reason
+    drawable = _truncate_to_chars(text, settings.max_chars)
+    if not drawable:
+        return None, (
+            f"{reason} does not fit in {settings.max_chars} characters "
+            "without cutting a link mid-address"
+        )
+    return drawable, reason
+
+
 def build_upper_line_drawtext(
     settings: UpperLineSettings,
     text: str,
@@ -591,9 +620,8 @@ def build_upper_line_drawtext(
     percent or a backslash are all reachable.
     """
     font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-    trimmed = _truncate_to_chars(text, settings.max_chars)
     text_file = temp_dir / "upper_line_text.txt"
-    text_file.write_text(_escape_drawtext_textfile(trimmed), encoding="utf-8")
+    text_file.write_text(_escape_drawtext_textfile(text), encoding="utf-8")
     text_path = text_file.as_posix().replace(":", r"\:")
     y = int(frame_height * settings.vertical_position)
 
@@ -625,11 +653,16 @@ def _truncate_to_chars(text: str, max_chars: int) -> str:
     if " " not in text:
         # A single unbroken token, which a URL is. Cutting one mid-address
         # leaves a link nobody can use held on screen for the whole video,
-        # which is the one thing this line exists to do. Better to draw
-        # nothing and say so.
+        # which is the one thing this line exists to do.
         return ""
     cut = text[:max_chars].rsplit(" ", 1)[0]
     if not cut:
+        return ""
+    if "://" in text and "://" not in cut:
+        # Prose in front of a link: the word-boundary trim drops the link and
+        # keeps the label, leaving "Shop:..." on screen for the whole video.
+        # That reads as a line rather than as a failure, which is worse than
+        # drawing nothing.
         return ""
     return cut.rstrip() + "..."
 
@@ -651,18 +684,6 @@ def apply_upper_line_overlay(
     ``[v_out]`` at all.
     """
     if not settings.enabled or not text:
-        return video_filters
-
-    if not _truncate_to_chars(text, settings.max_chars):
-        # A single unbroken token longer than the budget: a URL that would be
-        # cut mid-address. Declining is the point -- an unusable link held for
-        # the whole video is worse than no line.
-        logger.warning(
-            "Upper line skipped: %r does not fit in %d characters and has no "
-            "word boundary to trim on",
-            text,
-            settings.max_chars,
-        )
         return video_filters
 
     if not video_filters:

@@ -23,7 +23,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
-from src.video.assembler.overlay_builder import resolve_upper_line_text
+from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -1300,8 +1300,14 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # a topic under `affiliate_link`, or `link_in_bio` with no URL set --
         # and six bundled profiles have two-part's upper line on.
         upper_settings = merged_profile_settings.video_settings.upper_line
-        upper_text, upper_reason = resolve_upper_line_text(upper_settings, ctx.product)
-        ctx.state["upper_line_text"] = upper_text or ""
+        upper_text, upper_reason = drawable_upper_line(upper_settings, ctx.product)
+        # On the context, not in `ctx.state`: the state is persisted to
+        # pipeline_state.json and survives the run, so a later
+        # `--step assemble_video` after an edit to `custom_text` would draw
+        # the previous run's text with nothing to detect it. A plain
+        # attribute is scoped to the process, and a step run on its own
+        # resolves for itself.
+        ctx.upper_line_text = upper_text
         if supersede_two_part_upper_line(upper_settings, subtitle_settings, upper_text):
             logger.info(
                 "Two-part upper line disabled: video_settings.upper_line "
@@ -1590,15 +1596,16 @@ async def step_assemble_video(ctx: PipelineContext):
         # The subtitle step already resolved this and recorded it, so the two
         # cannot disagree about whether a line is drawn -- which is what the
         # supersede decision was made on.
-        recorded = ctx.state.get("upper_line_text")
+        recorded = getattr(ctx, "upper_line_text", None)
         if recorded is None:
-            # A resume that truncated the state, or a `--step assemble_video`
-            # run that never executed the subtitle step. Resolve it here so
-            # the line is not silently absent on those paths.
+            # A `--step assemble_video` run, which never executed the subtitle
+            # step. Resolving here rather than reading a persisted value is
+            # what keeps an edited `custom_text` from being ignored on a
+            # re-render of a finished product.
             upper = ctx.config.get_profile_merged_settings(
                 ctx.profile_name, ctx.cli_overrides
             ).video_settings.upper_line
-            recorded, reason = resolve_upper_line_text(upper, ctx.product)
+            recorded, reason = drawable_upper_line(upper, ctx.product)
             if upper.enabled and not recorded:
                 logger.info("Upper line not rendered: %s", reason)
         assembler.upper_line_text = recorded or None

@@ -187,6 +187,7 @@ class VideoAssembler:
             self.debug_mode,
             normalize_video_callback=self._normalize_video_format,
             subtitle_engine=self.subtitle_engine,
+            upper_line_text=self.upper_line_text,
         )
 
         # Initialize subtitle builder

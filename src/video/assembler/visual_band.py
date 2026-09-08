@@ -98,14 +98,25 @@ def upper_line_bottom(
     frame_height: int,
     upper_line: Any,
     subtitle_font_size_pixels: int,
+    drawable_text: str | None,
 ) -> int:
-    """Last row the static upper line occupies, or 0 when it is off.
+    """Last row the static upper line occupies, or 0 when none is drawn.
 
     The line is drawn at `vertical_position` and is one line of text tall.
     The height is the font size plus the box padding drawtext adds on both
     sides (`boxborderw=8`), which is what the image has to clear.
+
+    `drawable_text` is the text the overlay will actually draw, and is
+    required rather than defaulted: reserving on `enabled` alone pushed the
+    image down for a line the assembler then declined to draw -- a topic with
+    no affiliate link, or a URL too long to trim -- so the image came out
+    smaller and lower than the config asked for, silently. A default would
+    let a caller reintroduce that by omission. None or empty means no line
+    and no rows.
     """
     if upper_line is None or not getattr(upper_line, "enabled", False):
+        return 0
+    if not drawable_text:
         return 0
     size_factor = _fraction(getattr(upper_line, "size_factor", 0.55), 0.55)
     position = _fraction(getattr(upper_line, "vertical_position", 0.16), 0.16)
