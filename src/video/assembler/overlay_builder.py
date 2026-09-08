@@ -568,18 +568,43 @@ def resolve_upper_line_text(
     return None, "the record carries no affiliate link"
 
 
-# How much of the frame width the line may occupy, measured against the
-# *estimate* rather than the rendered width -- so the number has to absorb
-# the estimator's bias, not just the margin.
+# How much of the frame width the line may occupy.
 #
-# `_estimate_hook_text_width` overshoots URL-shaped text by about 6% at this
-# font (measured ratios 1.06, 1.089, 1.112 against real renders), so a plain
-# 0.9 here refused a 34-character bio URL that renders at 87.5% of the frame
-# -- inside the margin the docs promise. 0.95 puts the effective threshold
-# back at roughly 90% for URL text while still leaving room the other way:
-# the estimator *under*shoots capital-heavy text by 5-7%, and a line accepted
-# at this budget renders around 1035px in a 1080px frame.
+# Wider than the hook overlay's 0.78 on purpose: the hook is prose that wraps
+# to `max_lines`, so it can afford a generous inset, while this line is
+# usually a URL that must be readable in one piece and cannot wrap at all.
+# Whether it should nonetheless respect the 60px horizontal inset
+# `docs/platform-safe-zones.md` states is an open question, tracked
+# separately -- it needs a real post to settle, not arithmetic.
 _UPPER_LINE_MAX_WIDTH_FRACTION = 0.95
+
+# Uppercase letters are wider than the average the hook's estimator scores
+# them at: it classes only `mwMWAGOQ@` as wide, so `SHOP NOW AT WWW...`
+# estimated 1005px and rendered 1135px in a 1080px frame -- accepted by the
+# gate and clipped at both edges, held for the whole clip. Measured across
+# four realistic all-caps lines the estimate ran 11-16% short, against a 6%
+# *overshoot* on URL-shaped text, so no single budget separates them.
+#
+# Weighting every uppercase character brings estimate-over-real into
+# 0.92-1.07 across both shapes, which one budget can then divide. Kept local
+# rather than folded into `_estimate_hook_text_width`, because that function
+# decides the hook's wrap points and this branch has no measurements for
+# what moving them would do.
+_UPPER_LINE_CAPITAL_WEIGHT = 1.15
+
+
+def _estimate_upper_line_width(text: str, font_size: int) -> int:
+    """Estimated rendered width, with uppercase weighted (see above)."""
+    base = _estimate_hook_text_width(text, font_size)
+    if not text:
+        return base
+    avg = font_size * _HOOK_WIDTH_TO_HEIGHT_RATIO
+    extra = sum(
+        avg * (_UPPER_LINE_CAPITAL_WEIGHT - 1.0)
+        for char in text
+        if char.isupper() and char not in _WIDE_CHARS
+    )
+    return int(base + extra)
 
 
 # The variable the two-part upper line has read since it shipped, documented
@@ -624,7 +649,7 @@ def drawable_upper_line(
     # measured against real renders for #160.
     if frame_width and subtitle_font_size_pixels:
         font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
-        width = _estimate_hook_text_width(drawable, font_size)
+        width = _estimate_upper_line_width(drawable, font_size)
         budget = int(frame_width * _UPPER_LINE_MAX_WIDTH_FRACTION)
         if width > budget:
             return None, (

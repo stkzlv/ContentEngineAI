@@ -264,6 +264,34 @@ class TestTheLineHasToFitTheFrame:
         text, reason = self._drawable("https://www.mybrandstore.com/deals")
         assert text is not None, reason
 
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "SHOP NOW AT WWW.MYAWESOMESHOP.COM",
+            "GET YOURS AT WWW.MYSTOREONLINE.COM",
+            "LINK IN BIO - WWW.MYAWESOMESHOP.COM",
+            "GET 20% OFF AT WWW.MYSHOPONLINE.COM",
+        ],
+    )
+    def test_capital_heavy_text_that_would_clip_is_refused(self, text) -> None:
+        """Every other width test here used lowercase URLs or lowercase
+        prose, which is why four review passes missed this. The hook's
+        estimator classes only `mwMWAGOQ@` as wide, so these lines estimated
+        around 1005px, passed the gate, and rendered 1100-1135px in a 1080px
+        frame -- clipped at both edges and held for the whole clip.
+        `source: custom` is what the docs recommend for a too-wide link, so
+        this shape is reachable rather than contrived.
+        """
+        drawn, reason = self._drawable(text)
+        assert drawn is None, f"would clip: {reason}"
+
+    def test_capital_heavy_text_that_fits_is_kept(self) -> None:
+        """The weighting must not simply refuse everything uppercase: this
+        one renders 1046px, inside the frame.
+        """
+        text, reason = self._drawable("MEGA SALE AT WWW.MYSHOPSTORE.COM")
+        assert text is not None, reason
+
     def test_no_frame_width_means_no_width_gate(self) -> None:
         """The character gate still applies; callers that cannot supply the
         frame keep the old behaviour rather than silently refusing.
