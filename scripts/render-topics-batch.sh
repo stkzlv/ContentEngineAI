@@ -23,6 +23,19 @@ PY=${LOWPRI_PYTHON:?no project interpreter}
 STEPS="gather_visuals generate_description create_voiceover download_music
        generate_subtitles assemble_video burn_pycaps_subtitles"
 
+# Resolve the topics path before moving, then run from the repo root. Two
+# reasons. A relative `tools/...` path only resolves from the root, so running
+# this without make otherwise failed with a message blaming the topics file.
+# And a script *path* puts that script's directory on sys.path, not the cwd,
+# so `import src` fell through to the venv's editable-install .pth -- which
+# names whichever checkout the venv was built from. In a worktree the
+# enumeration then read one checkout's output root while the producer, invoked
+# with -m, rendered into another's, and every topic failed its directory check
+# after its script step had been paid for. `-m` on both sides keeps them
+# resolving from the same tree.
+case "$TOPICS_FILE" in /*) ;; *) TOPICS_FILE="$PWD/$TOPICS_FILE" ;; esac
+cd "$(dirname "$0")/.." || { echo "cannot reach the repo root" >&2; exit 1; }
+
 [ -r "$TOPICS_FILE" ] || { echo "cannot read $TOPICS_FILE" >&2; exit 1; }
 # The recipe guards this too, but the script is executable and takes its input
 # from the environment, so it can be run without make. Without the guard, a box
@@ -43,7 +56,7 @@ trap 'rm -f "$records_file"' EXIT
 # them in the first field. The enumeration lives in tools/enumerate_topics.py
 # rather than inline here because it is the part that has broken twice, and as
 # a module it has a test.
-"$PY" tools/enumerate_topics.py "$TOPICS_FILE" "$records_file"
+"$PY" -m tools.enumerate_topics "$TOPICS_FILE" "$records_file"
 PY_EXIT=$?
 [ "$PY_EXIT" -eq 0 ] || { echo "could not read topics from $TOPICS_FILE" >&2; exit 1; }
 
@@ -86,8 +99,10 @@ for ((i = 0; i < total; i++)); do
   # Check the artifact, not the exit code: a timeout leaves a truncated .mp4
   # under the finished render's name, non-zero in size and failing ffprobe.
   # This profile's render: a topic rendered under two profiles keeps both, and
-  # the alphabetically first may not be the one this run produced.
-  mp4s=( "$dir"/video_*_"$PROFILE".mp4 )
+  # the alphabetically first may not be the one this run produced. The glob is
+  # loose enough for both shapes the config allows -- video_<id>_<profile>.mp4
+  # in the bundled file, video_<profile>.mp4 in the model default.
+  mp4s=( "$dir"/video_*"$PROFILE".mp4 )
   mp4=${mp4s[0]}
   if [ ! -f "$mp4" ]; then
     summary+=("FAIL  $title (no mp4)"); failed=$((failed + 1)); continue

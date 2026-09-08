@@ -16,7 +16,12 @@ import yaml
 from tools.enumerate_topics import enumerate_records, main, write_records
 
 FIXTURE = [
-    {"title": "Topic A", "description": "d1", "keywords": ["kw a"]},
+    # Two keywords, because the joiner is what the producer splits on again:
+    # joining with a space instead of ", " merges two search phrases into one.
+    {"title": "Topic A", "description": "d1", "keywords": ["kw a", "kw b"]},
+    # Non-ASCII, because the encode is what carries the title to --topic:
+    # a lossy encode mangles it and the render is titled wrongly.
+    {"title": "Café wifi tips", "description": "d3", "keywords": ["kw c"]},
     # Last entry deliberately has no keywords: its joined value is empty, and
     # NUL-*separated* output would end on a delimiter and lose it.
     {"title": "Topic B without keywords", "description": "d2"},
@@ -40,8 +45,10 @@ class TestEnumeration:
         # by to get the topic total, so a dropped field silently loses a topic.
         assert len(records) == 1 + 4 * len(FIXTURE)
         assert records[2] == "Topic A"
-        assert records[6] == "Topic B without keywords"
-        assert records[8] == ""
+        assert records[4] == "kw a, kw b"
+        assert records[6] == "Café wifi tips"
+        assert records[10] == "Topic B without keywords"
+        assert records[12] == ""
 
     def test_the_product_id_is_the_one_the_producer_will_use(
         self, topics_file: Path
@@ -56,7 +63,8 @@ class TestEnumeration:
         records = enumerate_records(topics_file)
 
         assert records[1] == topic_product_id("Topic A")
-        assert records[5] == topic_product_id("Topic B without keywords")
+        assert records[5] == topic_product_id("Café wifi tips")
+        assert records[9] == topic_product_id("Topic B without keywords")
 
     def test_the_root_comes_from_config_not_a_hardcoded_outputs(
         self, topics_file: Path
@@ -93,5 +101,40 @@ class TestTheHandoff:
         assert out.read_bytes().split(b"\0")[0].decode() != ""
         assert "\0" not in capsys.readouterr().out
 
+    def test_a_nul_inside_a_field_is_refused(self, tmp_path: Path) -> None:
+        """A NUL is the delimiter, and YAML can produce one. Written through,
+        it terminates its field early and shifts every later field by one, so
+        a description is read as a keyword list and a product id as a title --
+        and that gets rendered. Failing costs nothing by comparison.
+        """
+        with pytest.raises(ValueError, match="NUL"):
+            write_records(["root", "before\0after"], tmp_path / "records")
+
     def test_wrong_argument_count_is_refused(self) -> None:
         assert main(["prog", "only-one"]) == 2
+
+
+class TestTheScriptAndThePipelineAgree:
+    """The shell carries its own copy of the step list.
+
+    Nothing else makes the two agree, so a ninth step would be skipped by this
+    target while every topic still reported OK -- the silent-success shape the
+    project has been bitten by before.
+    """
+
+    def test_the_scripts_step_list_covers_every_pipeline_step(self) -> None:
+        import re
+
+        from src.video.producer.state import VALID_STEPS
+
+        script = (
+            Path(__file__).resolve().parents[2] / "scripts" / "render-topics-batch.sh"
+        ).read_text()
+
+        block = re.search(r"^STEPS=\"(.*?)\"", script, re.S | re.M)
+        assert block, "STEPS assignment not found in the script"
+        steps = set(block.group(1).split())
+
+        # generate_script is run separately, with the topic flags, so it is
+        # not in STEPS but is still covered by the target.
+        assert steps | {"generate_script"} == set(VALID_STEPS)

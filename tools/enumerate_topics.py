@@ -40,7 +40,21 @@ def enumerate_records(topics_file: Path) -> list[str]:
 
 
 def write_records(records: list[str], destination: Path) -> None:
-    """Write NUL-*terminated* records, so a trailing empty field survives."""
+    """Write NUL-*terminated* records, so a trailing empty field survives.
+
+    A NUL inside a field is refused rather than written. It is reachable --
+    a YAML escape in a double-quoted scalar produces one -- and it
+    would terminate its field early, shifting every later field by one: the
+    reader would take a description as a keyword list and a product id as a
+    title, then render that. Failing here costs nothing; the alternative is a
+    fully paid, silently wrong render.
+    """
+    for field in records:
+        if "\0" in field:
+            raise ValueError(
+                "a topic field contains a NUL byte, which is the record "
+                f"delimiter: {field!r}"
+            )
     destination.write_bytes(b"".join(f.encode() + b"\0" for f in records))
 
 
