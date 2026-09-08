@@ -1,0 +1,7 @@
+# Topics to render, in the same shape `--topics-file` accepts.
+# Copy to a gitignored name (`*.private.yaml`) and edit:
+#   make topics-batch TOPICS=topics.private.yaml
+
+- title: "Why your router reboots at night"
+  description: "Firmware updates and scheduled reboots, and how to tell which one it was."
+  keywords: ["wifi router", "home network"]

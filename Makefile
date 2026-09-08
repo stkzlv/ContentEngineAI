@@ -18,7 +18,7 @@ NC := \033[0m # No Color
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	install-botasaurus validate-migration rollback-migration \
 	scrape-test scrape-advanced produce-video migration-status \
-	batch batch-lowpri scrape-lowpri scrape-watch produce-lowpri publish publish-lowpri analytics \
+	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
 	print-python install-analytics-timer uninstall-analytics-timer analytics-timer-status
 
@@ -96,6 +96,7 @@ help:
 	@echo "  scrape-lowpri      - Run scraper with reduced priority"
 	@echo "  produce-video      - Generate video from scraped data"
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
+	@echo "  topics-batch       - Render several topics step by step (TOPICS=topics.yaml)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
 	@echo "  publish-lowpri     - Same but with reduced priority"
 	@echo "  analytics          - Capture day-N views and durability (size: analytics.limit)"
@@ -434,6 +435,7 @@ NICE_LEVEL := 15
 IONICE_CLASS := 2
 IONICE_LEVEL := 6
 MEM_LIMIT := 6G
+PROFILE := slideshow_stock
 
 # `systemd-run --user --scope` starts the process via the user service manager,
 # which does not inherit the caller's PATH / virtualenv, so `poetry run python`
@@ -527,6 +529,26 @@ scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:590
 		pkill -x x11vnc 2>/dev/null || true; \
 		rm -f /tmp/ceai-xvfb.pid; \
 		exit $$ret
+
+topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFILE=slideshow_stock])
+	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ffprobe >/dev/null 2>&1 || { echo "$(RED)ffprobe not found; the batch verifies each render with it$(NC)"; exit 1; }
+	@[ -n "$(TOPICS)" ] || { echo "$(RED)Set TOPICS=<topics.yaml> (same shape as --topics-file; see topics.example.yaml)$(NC)"; exit 1; }
+	@PY='$(LOWPRI_PYTHON)'; \
+	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
+	if command -v systemd-run >/dev/null 2>&1; then \
+		echo "$(BLUE)Rendering topics from $(TOPICS) with nice=$(NICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
+		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			env PATH="$$(dirname "$$PY"):$$PATH" LOWPRI_PYTHON="$$PY" \
+			    TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
+			./scripts/render-topics-batch.sh; \
+	else \
+		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		LOWPRI_PYTHON="$$PY" TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
+			nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
+			./scripts/render-topics-batch.sh; \
+	fi
 
 produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }

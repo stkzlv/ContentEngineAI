@@ -689,11 +689,28 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 # Video production only
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
+# Several topics, one pipeline step per process (see below)
+make topics-batch TOPICS=topics.private.yaml
+
 # Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
 ```
 
 Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.
+
+### Rendering a batch of topics
+
+`make topics-batch TOPICS=<topics.yaml>` renders each topic in a YAML file of the same shape `--topics-file` accepts (see `topics.example.yaml`; copy it to a `*.private.yaml` name, which is gitignored). `PROFILE` defaults to `slideshow_stock`.
+
+`--topics-file` already renders a list of topics, and it applies `pipeline_timeout_sec` **per record**, so it is not the list that differs. The constraint is that all eight steps of a single topic share that one budget: a Whisper pass alone can consume most of it, leaving assembly to die with the render nearly complete. This target runs **one pipeline step per process**, so each step gets its own budget.
+
+The file is read through the project's own topic loader, so validation, the slug and the product id have one implementation. Deriving the output directory in the shell instead diverged on accented titles, on titles past the slug length cap and on titles that normalise to nothing — and matching directories by prefix silently rendered one topic's steps into another's when one title's slug was a prefix of another's.
+
+Assembly has a *second*, independent limit — `ffmpeg_settings.final_assembly_timeout_sec` in `config/performance.yaml`, 600s by default. This target does not raise it. On slower hardware a run can clear Whisper, reach assembly and still time out inside FFmpeg; if that is what fails, raise that value rather than the pipeline one.
+
+Topics are isolated: one failing does not abort the rest, and the closing summary names the step each failure stopped at. Each result is checked with `ffprobe`, not by exit code, because a timeout leaves a truncated `.mp4` under the finished render's name that passes an existence check.
+
+Nothing is published. Use the publisher separately once the renders are in place.
 
 ---
 

@@ -655,9 +655,9 @@ make perf-report
    rm -rf outputs/cache/
    ```
 
-### `make *-lowpri` reports `No project interpreter found`
+### A cgroup-scoped `make` target reports `No project interpreter found`
 
-**Error:** `scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, or `publish-lowpri` stops immediately with `No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.`
+**Error:** `scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri` or `topics-batch` stops immediately with `No project interpreter found (tried active venv, python3, poetry env). Run 'poetry install' first.`
 
 **Cause:** these targets deliberately do not use `poetry run`. They run the pipeline inside a `systemd-run --user --scope` cgroup to cap memory, and that scope starts the process through the user service manager, which does not carry the caller's virtualenv. `poetry run python` inside the scope resolves an interpreter without the project's dependencies and the run dies on import. The targets instead probe for an interpreter that can import a project dependency, and this error means no candidate passed.
 
@@ -668,7 +668,7 @@ poetry install
 # or activate the project virtualenv first, then retry
 ```
 
-The probe checks the pyenv virtualenv named in `.python-version`, then the active virtualenv, the interpreter `python3` resolves to, and the environment `poetry env info -p` reports, in that order. `.python-version` comes first because it is the only one of the four that names this project; the rest read the ambient environment, so an unrelated project's virtualenv active in the shell captures all three at once and none of them can import the project's dependencies. An unusual setup that satisfies none of the four (a bare conda env, or a Poetry install the shell can't see) needs the project virtualenv activated before running `make`. The plain, non-`lowpri` targets are unaffected because they run outside the scope.
+The probe checks the pyenv virtualenv named in `.python-version`, then the active virtualenv, the interpreter `python3` resolves to, and the environment `poetry env info -p` reports, in that order. `.python-version` comes first because it is the only one of the four that names this project; the rest read the ambient environment, so an unrelated project's virtualenv active in the shell captures all three at once and none of them can import the project's dependencies. An unusual setup that satisfies none of the four (a bare conda env, or a Poetry install the shell can't see) needs the project virtualenv activated before running `make`. The targets that run outside the scope are unaffected. Note that the `-lowpri` suffix is not the test: `topics-batch` carries no such suffix and does run inside the scope, so it needs the same interpreter.
 
 ## Configuration Issues
 
