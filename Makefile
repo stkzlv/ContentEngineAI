@@ -96,7 +96,7 @@ help:
 	@echo "  scrape-lowpri      - Run scraper with reduced priority"
 	@echo "  produce-video      - Generate video from scraped data"
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
-	@echo "  topics-batch       - Render several topics step by step (TOPICS=file.tsv)"
+	@echo "  topics-batch       - Render several topics step by step (TOPICS=topics.yaml)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
 	@echo "  publish-lowpri     - Same but with reduced priority"
 	@echo "  analytics          - Capture day-N views and durability (size: analytics.limit)"
@@ -530,9 +530,10 @@ scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:590
 		rm -f /tmp/ceai-xvfb.pid; \
 		exit $$ret
 
-topics-batch: ## Render a list of topics step by step (TOPICS=file.tsv [PROFILE=slideshow_stock])
+topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFILE=slideshow_stock])
 	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
-	@[ -n "$(TOPICS)" ] || { echo "$(RED)Set TOPICS=<file> (lines of 'title|description|kw1, kw2')$(NC)"; exit 1; }
+	@command -v ffprobe >/dev/null 2>&1 || { echo "$(RED)ffprobe not found; the batch verifies each render with it$(NC)"; exit 1; }
+	@[ -n "$(TOPICS)" ] || { echo "$(RED)Set TOPICS=<topics.yaml> (same shape as --topics-file; see topics.example.yaml)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \

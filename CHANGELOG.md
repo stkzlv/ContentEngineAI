@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.107.1] - 2026-09-08
+## [0.108.0] - 2026-09-08
 
 ### Added
-- `make topics-batch TOPICS=<file>` renders a list of topics, one pipeline step per process. Rendering several topics previously had no supported entry point -- `produce-lowpri` takes one product and `batch-lowpri` runs the whole global pipeline including scrape and publish -- so it was done with a shell loop outside the repo that had to re-solve the same problems each time. One run per topic does not fit `pipeline_timeout_sec`, which is a single budget covering every step: a Whisper pass on a ~60s voiceover measured 565-646s on a 16-core machine, so assembly is reached with little left. Per-step processes each get their own budget. Topics are isolated, the summary names the step each failure stopped at, and every result is checked with `ffprobe` rather than by exit code, since a timeout leaves a truncated file under the finished render's name. Assembly's separate `final_assembly_timeout_sec` is untouched and is what to raise if assembly is what times out. Closes #400.
+- `make topics-batch TOPICS=<topics.yaml>` renders a list of topics, one pipeline step per process. `--topics-file` already renders a list, but in a single producer run, so the whole list shares one `pipeline_timeout_sec` -- a budget covering every step, which a Whisper pass alone can consume (#402). Per-step processes each get their own. It takes the same YAML `--topics-file` accepts and reads it through the project's own loader, so validation, the slug and the product id have one implementation rather than a second one in shell that diverged on accents, on titles past the slug length cap, and on titles that normalise to nothing. Topics are isolated, the summary names the step each failure stopped at, and every result is checked with `ffprobe` rather than by exit code, since a timeout leaves a truncated file under the finished render's name. Assembly's separate `final_assembly_timeout_sec` is untouched and is what to raise if assembly is what times out. Closes #400.
 
 ## [0.107.0] - 2026-09-08
 

@@ -690,7 +690,7 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
 # Several topics, one pipeline step per process (see below)
-make topics-batch TOPICS=topics.tsv
+make topics-batch TOPICS=topics.private.yaml
 
 # Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
@@ -700,9 +700,11 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 
 ### Rendering a batch of topics
 
-`make topics-batch TOPICS=<file>` renders each topic in a `title|description|comma, separated, keywords` file (see `topics.tsv.example`; blank lines and `#` comments are skipped). `PROFILE` defaults to `slideshow_stock`.
+`make topics-batch TOPICS=<topics.yaml>` renders each topic in a YAML file of the same shape `--topics-file` accepts (see `topics.example.yaml`; copy it to a `*.private.yaml` name, which is gitignored). `PROFILE` defaults to `slideshow_stock`.
 
-It runs **one pipeline step per process** rather than one run per topic, because `pipeline_timeout_sec` is a single budget covering every step and a Whisper pass on a ~60s voiceover can consume most of it, leaving assembly to die with the render nearly complete. Each `--step` invocation gets its own budget.
+`--topics-file` already renders a list of topics, so the difference is not the list: it does so in **one producer run**, which means the whole list shares a single `pipeline_timeout_sec`. That budget covers every step, and a Whisper pass alone can consume most of it, leaving assembly to die with the render nearly complete. This target runs **one pipeline step per process**, so each step gets its own budget.
+
+The file is read through the project's own topic loader, so validation, the slug and the product id have one implementation. Deriving the output directory in the shell instead diverged on accented titles, on titles past the slug length cap and on titles that normalise to nothing — and matching directories by prefix silently rendered one topic's steps into another's when one title's slug was a prefix of another's.
 
 Assembly has a *second*, independent limit — `ffmpeg_settings.final_assembly_timeout_sec` in `config/performance.yaml`, 600s by default. This target does not raise it. On slower hardware a run can clear Whisper, reach assembly and still time out inside FFmpeg; if that is what fails, raise that value rather than the pipeline one.
 
