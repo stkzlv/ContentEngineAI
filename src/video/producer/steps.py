@@ -23,6 +23,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
+from src.video.assembler.overlay_builder import resolve_upper_line_text
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -1212,6 +1213,27 @@ def resolve_subtitle_engine(subtitle_settings: Any) -> str | None:
     )
 
 
+def supersede_two_part_upper_line(upper_line: Any, subtitle_settings: Any) -> bool:
+    """Turn two-part's upper line off when the overlay renders one.
+
+    Both draw a static line above the visual, so leaving both on renders the
+    text twice under FFmpeg -- and the overlay is the half that survives
+    pycaps, which is the point of #88. The voiceover-synced lower line is
+    untouched.
+
+    A function rather than two lines inline so a test can drive the decision;
+    the branch it replaced sat two hundred lines into `step_generate_subtitles`
+    with no reachable seam.
+    """
+    if not getattr(upper_line, "enabled", False):
+        return False
+    two_part = subtitle_settings.two_part_subtitles
+    if not (two_part.enabled and two_part.upper_line.enabled):
+        return False
+    two_part.upper_line.enabled = False
+    return True
+
+
 async def step_generate_subtitles(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
@@ -1263,6 +1285,14 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # a raw Whisper transcript for the downstream burn step, and disables
         # two-part (upper+lower) which is FFmpeg-only in this iteration.
         two_part_enabled = subtitle_settings.two_part_subtitles.enabled
+
+        if supersede_two_part_upper_line(
+            ctx.config.video_settings.upper_line, subtitle_settings
+        ):
+            logger.info(
+                "Two-part upper line disabled: video_settings.upper_line "
+                "renders the static line on both engines"
+            )
 
         # One resolved decision, recorded where every later consumer reads it,
         # and passed explicitly to everything that acts on it. Config is not
@@ -1532,6 +1562,20 @@ async def step_assemble_video(ctx: PipelineContext):
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
         assembler.set_product_id(product_id)
         assembler.carries_affiliate_content = carries_affiliate_content(ctx.product)
+
+        # The static upper line. Resolved here rather than in the assembler,
+        # which holds a product id and not the record. A source resolving to
+        # nothing is ordinary -- a topic has no affiliate link, an install
+        # may not have set the bio URL -- so the reason is logged and the
+        # line is simply absent (#88).
+        upper = ctx.config.video_settings.upper_line
+        if upper.enabled:
+            text, reason = resolve_upper_line_text(upper, ctx.product)
+            assembler.upper_line_text = text
+            if text:
+                logger.info("Upper line from %s: %s", reason, text)
+            else:
+                logger.info("Upper line not rendered: %s", reason)
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.
         # When the script file doesn't exist (rare), the assembler treats the

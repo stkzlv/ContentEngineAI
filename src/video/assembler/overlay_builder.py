@@ -18,9 +18,16 @@ Two overlays live here:
 from __future__ import annotations
 
 import logging
+import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
-from src.video.config.visual_models import DisclosureSettings, HookOverlaySettings
+from src.video.config.visual_models import (
+    DisclosureSettings,
+    HookOverlaySettings,
+    UpperLineSettings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -503,3 +510,138 @@ def apply_hook_overlay(
     # Preserve the terminal copy[v_out] so the disclosure rewrite still works.
     new_terminal = "[v_hook]copy[v_out]"
     return [*video_filters[:-1], hook_filter, new_terminal]
+
+
+def resolve_upper_line_text(
+    settings: UpperLineSettings,
+    product: Any,
+    env: Mapping[str, str] | None = None,
+) -> tuple[str | None, str]:
+    """The line's text, or None and the reason it has none.
+
+    A source that resolves to nothing is ordinary, not an error: a topic
+    render has no affiliate link, and an installation that has not set the
+    bio URL has no bio page to show. Returning the reason lets the caller log
+    which of those happened, rather than drawing an empty box or a bare
+    background over the visual.
+
+    `link_in_bio` reads the environment because the public config ships no
+    account-specific value, and the pipeline has no other route to that
+    address: the link-in-bio module carries OAuth credentials and no public
+    URL.
+    """
+    source = settings.source
+    if source == "custom":
+        text = (settings.custom_text or "").strip()
+        return (text, "custom") if text else (None, "custom_text is empty")
+
+    if source == "link_in_bio":
+        var = settings.link_in_bio_url_env_var
+        value = (env or os.environ).get(var, "").strip()
+        return (value, "link_in_bio") if value else (None, f"{var} is not set")
+
+    for field in ("shortened_affiliate_link", "affiliate_link", "url"):
+        value = (getattr(product, field, None) or "").strip()
+        if value:
+            return value, f"affiliate_link ({field})"
+    return None, "the record carries no affiliate link"
+
+
+def build_upper_line_drawtext(
+    settings: UpperLineSettings,
+    text: str,
+    subtitle_font_size_pixels: int,
+    frame_height: int,
+    temp_dir: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    """One drawtext filter holding `text` above the visual for the whole video.
+
+    `textfile=` rather than an inline `text=`, for the reason the hook and the
+    disclosure use it: this sits in the assembler's multi-filter chain, where
+    an inline apostrophe makes FFmpeg swallow the filter's own trailing args.
+    The text here is a URL or operator-supplied prose, so an apostrophe, a
+    percent or a backslash are all reachable.
+    """
+    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    trimmed = _truncate_to_chars(text, settings.max_chars)
+    text_file = temp_dir / "upper_line_text.txt"
+    text_file.write_text(_escape_drawtext_textfile(trimmed), encoding="utf-8")
+    text_path = text_file.as_posix().replace(":", r"\:")
+    y = int(frame_height * settings.vertical_position)
+
+    parts = [
+        f"{input_stream}drawtext=",
+        f"textfile='{text_path}':",
+        f"fontsize={font_size}:",
+        f"fontcolor={settings.font_color}:",
+        f"borderw={settings.outline_thickness}:",
+        f"bordercolor={settings.outline_color}:",
+    ]
+    if settings.background_enabled:
+        parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=8:")
+    parts.append(f"x=(w-text_w)/2:y={y}{output_stream}")
+
+    return "".join(parts)
+
+
+def _truncate_to_chars(text: str, max_chars: int) -> str:
+    """Trim to `max_chars` on a word boundary, appending an ellipsis when cut.
+
+    A full affiliate URL outruns the frame at this size, and drawtext does not
+    wrap: the overflow is drawn off-frame rather than onto a second line, so
+    the visible line ends mid-address with no sign it was cut.
+    """
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars].rsplit(" ", 1)[0]
+    if not cut:
+        cut = text[:max_chars]
+    return cut.rstrip() + "..."
+
+
+def apply_upper_line_overlay(
+    video_filters: list[str],
+    settings: UpperLineSettings,
+    text: str | None,
+    subtitle_font_size_pixels: int,
+    frame_height: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Inject the upper line as the final filter before ``[v_out]``.
+
+    Same terminal-rewrite mechanism as the disclosure, so the two compose:
+    whichever runs second normalizes the chain the first one left and appends
+    itself. Returns the chain unchanged when the overlay is off, when the
+    source resolved to nothing, or when the terminal filter does not produce
+    ``[v_out]`` at all.
+    """
+    if not settings.enabled or not text:
+        return video_filters
+
+    if not video_filters:
+        logger.warning("Upper line skipped: empty video_filters list")
+        return video_filters
+
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "Upper line skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
+        )
+        return video_filters
+
+    video_filters = normalized
+    input_stream = video_filters[-1].replace("copy[v_out]", "")
+    rewritten = build_upper_line_drawtext(
+        settings,
+        text,
+        subtitle_font_size_pixels,
+        frame_height,
+        temp_dir,
+        input_stream=input_stream,
+        output_stream="[v_out]",
+    )
+    return [*video_filters[:-1], rewritten]

@@ -23,10 +23,12 @@ the audit does not go stale the next time one is added.
 from __future__ import annotations
 
 import ast
+import inspect
 from pathlib import Path
 
 import pytest
 
+from src.video.config.core_models import VideoConfig
 from src.video.config.visual_models import VideoProfile, VideoSettings
 
 CORE_MODELS = Path("src/video/config/core_models.py")
@@ -65,6 +67,14 @@ def test_the_map_is_found_at_all():
     assert len(override_map()) > 5
 
 
+# Declared on both models but merged at their own call site rather than
+# through `_collect_overrides`, because they are nested models: the map
+# replaces a whole field, so a profile setting one flag would reset its
+# siblings to the model defaults. The test below reads the merge, so the
+# exemption cannot hide a field that is merely dropped.
+MERGED_SEPARATELY = {"upper_line"}
+
+
 class TestNoDeclaredOverrideIsDropped:
     def test_every_field_on_both_models_is_mapped(self):
         """The original silent-drop shape.
@@ -74,12 +84,27 @@ class TestNoDeclaredOverrideIsDropped:
         assembler.
         """
         shared = set(VideoSettings.model_fields) & set(VideoProfile.model_fields)
-        unmapped = sorted(shared - set(override_map()))
+        unmapped = sorted(shared - set(override_map()) - MERGED_SEPARATELY)
 
         assert not unmapped, (
             f"{unmapped} are declared on both models but not in the override "
             "map, so a profile setting them is silently ignored"
         )
+
+    @pytest.mark.parametrize("field_name", sorted(MERGED_SEPARATELY))
+    def test_a_separately_merged_field_really_is_merged(self, field_name):
+        """The exemption above has to be earned, not asserted.
+
+        `_collect_overrides` replaces whole fields, which is wrong for a
+        nested model: a profile turning one flag on would reset every sibling
+        to its default. Such a field merges at its own call site instead --
+        but an exemption with nothing behind it is exactly the silent drop
+        this file exists to catch, so read the merge.
+        """
+        source = inspect.getsource(VideoConfig.get_profile_merged_settings)
+
+        assert f"profile.{field_name}" in source
+        assert "merge_into" in source
 
 
 class TestEveryMappedTargetIsReal:

@@ -16,6 +16,7 @@ from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_band import (
     VisualBand,
     caption_band_top,
+    upper_line_bottom,
     visual_band,
 )
 
@@ -472,6 +473,11 @@ class VisualFilterBuilder:
             top_offset=top_offset,
             centred=centred,
             safe_zone_min_y=self._safe_zone().min_y,
+            upper_line_bottom_px=upper_line_bottom(
+                height,
+                vs.upper_line,
+                max(8, int(round(height * vs.base_font_height_percent))),
+            ),
         )
 
     def _safe_zone(self) -> Any:

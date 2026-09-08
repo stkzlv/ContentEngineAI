@@ -532,6 +532,33 @@ video_settings:
 
 `size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
 
+**Upper line** — a static line held above the visual for the whole video: the affiliate link, the public link-in-bio page, or a fixed line of text.
+
+```yaml
+video_settings:
+  upper_line:
+    enabled: false               # Off by default
+    source: "affiliate_link"     # affiliate_link | link_in_bio | custom
+    custom_text: ""              # Used when source is custom
+    link_in_bio_url_env_var: "LINK_IN_BIO_URL"
+    size_factor: 0.55            # Fraction of the subtitle font size
+    vertical_position: 0.16      # Top edge; clears the 14% header band
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 3
+    background_enabled: true
+    background_color: "black@0.5"
+    max_chars: 60                # Trimmed on a word boundary
+```
+
+The two-part subtitle system renders a line of its own, but only under the FFmpeg engine: pycaps has a single caption track and no static element, so a profile that switched engines lost the line with one warning. This one is a `drawtext` overlay like the disclosure, so it survives both engines, the pycaps burn that composes over the assembler's output, and the FFmpeg caption fallback. Turning it on disables two-part's upper line, which would otherwise draw the same text twice under FFmpeg; the lower, voiceover-synced half is unaffected.
+
+`source: link_in_bio` reads the address from the environment and never from this file — the public config ships no account-specific value, and the pipeline has no other route to it, since the link-in-bio module carries OAuth credentials and no public URL. Set `LINK_IN_BIO_URL` in `.env`.
+
+A source that resolves to nothing renders no line and logs which: a topic render has no affiliate link, and an installation that has not set the bio URL has no bio page. The alternative is an empty background box over the visual.
+
+The image below is fitted into the rows the line leaves, so it moves down by the line's height plus a gap; the caption block is unchanged. A profile overrides any subset of these fields with its own `upper_line:` block, deep-merged onto the global one.
+
 **Hook overlay** — a short headline held on the opening seconds to win the scroll-past decision.
 
 ```yaml

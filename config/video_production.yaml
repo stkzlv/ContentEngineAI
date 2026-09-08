@@ -186,6 +186,38 @@ video_settings:
     margin_x_percent: 0.04            # 4% from horizontal edge
     margin_y_percent: 0.12            # 12% from vertical edge (clears Shorts header / TikTok bottom)
 
+  # A static line held above the visual for the whole video: the affiliate
+  # link, the public link-in-bio page, or a fixed line of text.
+  #
+  # Off by default. The two-part subtitle system renders a line of its own,
+  # but only under the FFmpeg engine -- pycaps has one caption track and no
+  # static element, so a profile that switched engines lost it. This one is a
+  # drawtext overlay like the disclosure, so it survives both engines, the
+  # pycaps burn that composes over the assembler's output, and the FFmpeg
+  # caption fallback. Turning it on supersedes two-part's upper line, which
+  # would otherwise draw the same text twice on FFmpeg.
+  #
+  # `link_in_bio` reads the address from the environment, never from here:
+  # the public config ships no account-specific value, and the pipeline has
+  # no other route to it -- the link-in-bio module carries OAuth credentials
+  # and no public URL. Set LINK_IN_BIO_URL in .env to use that source.
+  #
+  # A source that resolves to nothing renders no line and logs why. A topic
+  # render has no affiliate link, which is ordinary rather than an error.
+  upper_line:
+    enabled: false
+    source: "affiliate_link"          # affiliate_link | link_in_bio | custom
+    custom_text: ""                   # for source: custom
+    link_in_bio_url_env_var: "LINK_IN_BIO_URL"
+    size_factor: 0.55                 # fraction of the subtitle font size
+    vertical_position: 0.16           # top edge; clears the 14% header band
+    font_color: "white"
+    outline_color: "black"
+    outline_thickness: 3
+    background_enabled: true
+    background_color: "black@0.5"
+    max_chars: 60                     # trimmed on a word boundary; drawtext does not wrap
+
   # Phase 1.2c hook overlay (also closes Issue #102). Renders the first
   # sentence of the spoken script as a centre-upper static text on the
   # first 1.5s. NOT karaoke — one line held for the full hook window.

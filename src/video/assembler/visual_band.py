@@ -94,6 +94,26 @@ def caption_band_top(
     return int(frame_height * safe_zone_max_y - line_px)
 
 
+def upper_line_bottom(
+    frame_height: int,
+    upper_line: Any,
+    subtitle_font_size_pixels: int,
+) -> int:
+    """Last row the static upper line occupies, or 0 when it is off.
+
+    The line is drawn at `vertical_position` and is one line of text tall.
+    The height is the font size plus the box padding drawtext adds on both
+    sides (`boxborderw=8`), which is what the image has to clear.
+    """
+    if upper_line is None or not getattr(upper_line, "enabled", False):
+        return 0
+    size_factor = _fraction(getattr(upper_line, "size_factor", 0.55), 0.55)
+    position = _fraction(getattr(upper_line, "vertical_position", 0.16), 0.16)
+    font_px = max(8, int(round(subtitle_font_size_pixels * size_factor)))
+    box_padding = 16 if getattr(upper_line, "background_enabled", True) else 0
+    return int(frame_height * position) + font_px + box_padding
+
+
 def visual_band(
     frame_height: int,
     *,
@@ -101,6 +121,7 @@ def visual_band(
     top_offset: int,
     centred: bool,
     safe_zone_min_y: float = SAFE_ZONE_MIN_Y,
+    upper_line_bottom_px: int = 0,
 ) -> VisualBand:
     """The band an image is fitted into.
 
@@ -111,7 +132,14 @@ def visual_band(
     when the caption block reaches its top; the caller then fits the image
     from the band's top to the bottom of the frame rather than into a zero
     height, keeping the header clear and accepting the block over it.
+
+    The static upper line takes its rows from the top of the band, plus the
+    same gap kept above the captions (#88). Without that the image is fitted
+    under the header and the line is drawn on top of it, which is the defect
+    the band exists to prevent at the other end.
     """
     top = int(frame_height * safe_zone_min_y) if centred else top_offset
+    if upper_line_bottom_px:
+        top = max(top, upper_line_bottom_px + int(frame_height * _GAP_FRACTION))
     bottom = caption_top - int(frame_height * _GAP_FRACTION)
     return VisualBand(top=top, bottom=max(top, bottom))
