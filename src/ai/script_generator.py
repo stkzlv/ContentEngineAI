@@ -178,9 +178,12 @@ def render_cta_rule(cta_line: str, is_topic: bool = False) -> str:
     if not cta_line:
         return ""
     # The referent differs by family. Product templates carry a closing-beat
-    # rule directly above this line; topic templates state their close in
-    # the body, and the rule above this one there is an honest-limit rule,
-    # which "the closing beat above" would point at instead.
+    # rule directly above this line; topic templates state their close in the
+    # body and carry no closing-beat rule in their Rules block at all, so
+    # "the closing beat above" would point at whatever bullet happens to sit
+    # last -- a delivery-format rule, or the honest limit before #378 moved
+    # it. Phrased against the body rather than the bullet order, so it stays
+    # true however those are arranged.
     after = (
         "It comes after the closing line the template asks for"
         if is_topic

@@ -10,7 +10,8 @@ the answer.
 
 Then explain the method, one step at a time, in the order someone would actually
 do them. Two or three steps is enough for this length. Finish on the result, so
-the viewer knows what success looks like.
+the viewer knows what success looks like, and say that last, immediately
+before the call to action.
 
 End with one CTA per the narrator profile. One line.
 
@@ -33,10 +34,12 @@ End with one CTA per the narrator profile. One line.
   detail below saying a method exists is not the same as it naming one.
 - Every step needs to stand alone as an instruction. One instruction per
   sentence; a sentence carrying three steps cannot be followed.
+- **One honest limit, inside the method rather than after it**: when the fix
+  will not work, or what it will not solve. One sentence, placed among the
+  steps. The last thing before the call to action is the result. A video
+  that ends on a caveat sends the viewer away unsure it worked.
 - Prefer the cheap or free fix first. Leading with the thing that costs money
   reads as an advertisement and loses trust for the rest of the video.
-- Include one honest limit: when the fix will not work, or what it will not
-  solve. One sentence.
 - No numbered list read aloud ("step one, step two"). Narrate it the way you
   would tell someone over the phone.
 {CTA_RULE}

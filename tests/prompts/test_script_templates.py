@@ -245,6 +245,52 @@ def test_topic_template_states_the_answer_first(template: Path) -> None:
 
 
 @pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_places_the_honest_limit_inside_the_method(
+    template: Path,
+) -> None:
+    """Topic scripts closed on the caveat instead of the result.
+
+    Each template's body asks the script to finish on the result, and the
+    Rules block asked for an honest limit without saying where. On two of the
+    three the limit bullet sat directly above `{CTA_RULE}`; on
+    `topic_answer_first` a delivery-format bullet sat between and it closed on
+    the caveat just as often, so adjacency is part of the mechanism and not
+    all of it. Either way the model put the caveat last: the last spoken line before the call to action was
+    "if it's still loud, you might have more serious issues". That is the
+    body-versus-Rules placement class, with the two instructions competing for
+    the same final beat.
+
+    The best-practice guidance puts the payoff last and caveats in the method,
+    because a video ending on a caveat sends the viewer away unsure it worked.
+    """
+    text = " ".join(template.read_text().split())
+    assert "One honest limit, inside the method rather than after it" in text
+    assert "placed among the steps" in text
+    # And the body has to name the position too, or the Rules bullet is the
+    # only thing saying where the close goes and the body still competes.
+    assert "immediately before the call to action" in text
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
+def test_topic_template_does_not_end_its_rules_on_the_limit(
+    template: Path,
+) -> None:
+    """Position, not wording, is what displaced the closing beat.
+
+    A rule stating where the limit goes while itself sitting last before
+    `{CTA_RULE}` still puts a caveat in the model's path to the ending, which
+    is how it shipped on two of the three by position. It is not the whole mechanism --
+    `topic_answer_first` had a delivery-format bullet in between and still
+    closed on the caveat -- so the wording assertion above carries the rest.
+    This one pins the half a re-ordering can silently undo.
+    """
+    body, _, _ = template.read_text().partition("{CTA_RULE}")
+    last_bullet = [ln for ln in body.splitlines() if ln.startswith("- ")][-1]
+
+    assert "honest limit" not in last_bullet
+
+
+@pytest.mark.parametrize("template", _topic_templates(), ids=lambda p: p.stem)
 def test_topic_template_requires_the_spoken_search_phrase(template: Path) -> None:
     """Platforms index the transcript, so the phrase has to be said aloud."""
     text = template.read_text()
