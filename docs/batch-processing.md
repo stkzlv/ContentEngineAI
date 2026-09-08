@@ -689,11 +689,26 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 # Video production only
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
+# Several topics, one pipeline step per process (see below)
+make topics-batch TOPICS=topics.tsv
+
 # Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
 ```
 
 Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.
+
+### Rendering a batch of topics
+
+`make topics-batch TOPICS=<file>` renders each topic in a `title|description|comma, separated, keywords` file (see `topics.tsv.example`; blank lines and `#` comments are skipped). `PROFILE` defaults to `slideshow_stock`.
+
+It runs **one pipeline step per process** rather than one run per topic, because `pipeline_timeout_sec` is a single budget covering every step and a Whisper pass on a ~60s voiceover can consume most of it, leaving assembly to die with the render nearly complete. Each `--step` invocation gets its own budget.
+
+Assembly has a *second*, independent limit — `ffmpeg_settings.final_assembly_timeout_sec` in `config/performance.yaml`, 600s by default. This target does not raise it. On slower hardware a run can clear Whisper, reach assembly and still time out inside FFmpeg; if that is what fails, raise that value rather than the pipeline one.
+
+Topics are isolated: one failing does not abort the rest, and the closing summary names the step each failure stopped at. Each result is checked with `ffprobe`, not by exit code, because a timeout leaves a truncated `.mp4` under the finished render's name that passes an existence check.
+
+Nothing is published. Use the publisher separately once the renders are in place.
 
 ---
 
