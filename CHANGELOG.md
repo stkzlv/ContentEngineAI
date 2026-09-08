@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.106.2] - 2026-09-08
+
+### Fixed
+- FFmpeg-engine captions drew two lines on top of each other at nearly every caption change. Both dialogue lines carry the same position, so the frame showed one caption superimposed on the next: the words looked drawn twice and slightly offset, and a sentence boundary read as though its space were missing, because the tail of one caption and the head of the next were on screen together. Whisper emits word windows that overlap -- 115 of 131 consecutive pairs by 40ms on a measured transcript, and one by 240ms -- and the timing smoother shifts every start earlier without moving ends, which doubles it; nothing then clamped the result, so 36 of 43 boundaries overlapped in the rendered subtitle file. A segment now ends no later than its successor begins, which is the clamp the minimum-duration rule already applied on the one path it covered. On the measured render the overlaps go from 36 to none with every caption and its text unchanged. The pycaps engine was never affected, since it derives its own display windows. Closes #389.
+
 ## [0.106.1] - 2026-09-08
 
 ### Fixed

@@ -279,6 +279,47 @@ class TestUnifiedSubtitleGenerator:
 
             assert result.success is False
 
+    def test_a_segment_does_not_outlive_the_start_of_the_next(self, generator) -> None:
+        """Whisper emits word windows that overlap: on the measured
+        transcript 115 of 131 consecutive pairs overlapped by 40ms and one by
+        240ms, and the smoother's lead doubles it by moving starts earlier
+        without moving ends. Two dialogue lines carry the same position, so
+        an overlap draws one caption on top of the other -- which is both the
+        "words drawn twice" and the sentence boundary that reads as though
+        its space were missing.
+
+        Four words at three per line, so the break falls after "three" and
+        the fourth word starts 0.1s before the third word ends.
+        """
+        timings = [
+            {"word": "one", "start_time": 0.0, "end_time": 0.4},
+            {"word": "two", "start_time": 0.4, "end_time": 0.8},
+            {"word": "three", "start_time": 0.8, "end_time": 1.5},
+            {"word": "four", "start_time": 1.4, "end_time": 2.0},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert len(segments) == 2
+        assert segments[0]["end"] <= segments[1]["start"]
+
+    def test_a_degenerate_overlap_keeps_the_caption(self, generator) -> None:
+        """The clamp must not zero a segment's duration. A successor that
+        starts at or before this segment did would do exactly that, and the
+        length check downstream drops a segment that does not outlast its
+        start -- losing the words rather than overlapping them, which is the
+        worse failure. No pair on the measured transcript is this degenerate;
+        the guard is for the one that is.
+        """
+        timings = [
+            {"word": "one", "start_time": 1.0, "end_time": 1.4},
+            {"word": "two", "start_time": 1.0, "end_time": 1.8},
+            {"word": "three", "start_time": 1.0, "end_time": 2.2},
+            {"word": "four", "start_time": 0.5, "end_time": 2.6},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert [s["text"] for s in segments] == ["one two three", "four"]
+
     def test_create_segments_from_script(self, generator):
         """Test segment creation from script text."""
         script_text = "Hello world. This is a test. Another sentence here."
