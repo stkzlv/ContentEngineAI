@@ -16,6 +16,7 @@ from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_band import (
     VisualBand,
     caption_band_top,
+    upper_line_bottom,
     visual_band,
 )
 
@@ -181,6 +182,7 @@ class VisualFilterBuilder:
         debug_mode: bool = False,
         normalize_video_callback: (Callable[[Path], Awaitable[Path]] | None) = None,
         subtitle_engine: str | None = None,
+        upper_line_text: str | None = None,
     ):
         """Initialize VisualFilterBuilder.
 
@@ -194,6 +196,7 @@ class VisualFilterBuilder:
             normalize_video_callback: Async callback for video format normalization
             subtitle_engine: The engine that will burn this run's captions, as
                 the producer resolved it
+            upper_line_text: Text the static upper line will draw, or None.
 
         """
         self.inspector = media_inspector
@@ -205,6 +208,9 @@ class VisualFilterBuilder:
         # producer (`subtitle_engine_resolved`), not the one config names:
         # the two disagree on a default install that falls back to FFmpeg.
         self.subtitle_engine = subtitle_engine
+        # The text the overlay will draw, or None. The band reserves rows
+        # only for a line that is actually drawn.
+        self.upper_line_text = upper_line_text
         self.normalize_video_callback = normalize_video_callback
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
@@ -472,6 +478,16 @@ class VisualFilterBuilder:
             top_offset=top_offset,
             centred=centred,
             safe_zone_min_y=self._safe_zone().min_y,
+            upper_line_bottom_px=upper_line_bottom(
+                height,
+                (
+                    self.profile_settings.video_settings.upper_line
+                    if self.profile_settings is not None
+                    else vs.upper_line
+                ),
+                max(8, int(round(height * vs.base_font_height_percent))),
+                self.upper_line_text,
+            ),
         )
 
     def _safe_zone(self) -> Any:

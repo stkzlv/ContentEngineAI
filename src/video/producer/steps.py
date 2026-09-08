@@ -23,6 +23,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
+from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -1212,6 +1213,35 @@ def resolve_subtitle_engine(subtitle_settings: Any) -> str | None:
     )
 
 
+def supersede_two_part_upper_line(
+    upper_line: Any, subtitle_settings: Any, resolved_text: str | None
+) -> bool:
+    """Turn two-part's upper line off when the overlay will render one.
+
+    Both draw a static line above the visual, so leaving both on renders the
+    text twice under FFmpeg -- and the overlay is the half that survives
+    pycaps, which is the point of #88. The voiceover-synced lower line is
+    untouched.
+
+    `resolved_text` is what makes this safe. The overlay draws nothing when
+    its source resolves to nothing, so superseding on `enabled` alone loses
+    the line altogether on exactly those renders: a topic under the shipped
+    `affiliate_link`, or `link_in_bio` with no URL set. Two-part keeps its
+    line in that case, which is what rendered before this feature existed.
+
+    A function rather than a branch inline so a test can drive the decision;
+    it otherwise sits two hundred lines into `step_generate_subtitles` with
+    no reachable seam.
+    """
+    if not getattr(upper_line, "enabled", False) or not resolved_text:
+        return False
+    two_part = subtitle_settings.two_part_subtitles
+    if not (two_part.enabled and two_part.upper_line.enabled):
+        return False
+    two_part.upper_line.enabled = False
+    return True
+
+
 async def step_generate_subtitles(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
@@ -1263,6 +1293,39 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # a raw Whisper transcript for the downstream burn step, and disables
         # two-part (upper+lower) which is FFmpeg-only in this iteration.
         two_part_enabled = subtitle_settings.two_part_subtitles.enabled
+
+        # Resolved before superseding, not after. The overlay only draws when
+        # its source resolves, so turning two-part's line off on `enabled`
+        # alone loses the line entirely on a render whose source is empty --
+        # a topic under `affiliate_link`, or `link_in_bio` with no URL set --
+        # and six bundled profiles have two-part's upper line on.
+        upper_settings = merged_profile_settings.video_settings.upper_line
+        vs = ctx.config.video_settings
+        upper_text, upper_reason = drawable_upper_line(
+            upper_settings,
+            ctx.product,
+            frame_width=vs.resolution[0],
+            subtitle_font_size_pixels=max(
+                8, int(round(vs.resolution[1] * vs.base_font_height_percent))
+            ),
+        )
+        # On the context, not in `ctx.state`: the state is persisted to
+        # pipeline_state.json and survives the run, so a later
+        # `--step assemble_video` after an edit to `custom_text` would draw
+        # the previous run's text with nothing to detect it. A plain
+        # attribute is scoped to the process, and a step run on its own
+        # resolves for itself.
+        ctx.upper_line_text = upper_text
+        if supersede_two_part_upper_line(upper_settings, subtitle_settings, upper_text):
+            logger.info(
+                "Two-part upper line disabled: video_settings.upper_line "
+                "renders the static line on both engines"
+            )
+        elif upper_settings.enabled and not upper_text:
+            logger.info(
+                "Upper line not rendered: %s; two-part's own line is untouched",
+                upper_reason,
+            )
 
         # One resolved decision, recorded where every later consumer reads it,
         # and passed explicitly to everything that acts on it. Config is not
@@ -1522,6 +1585,41 @@ async def step_assemble_video(ctx: PipelineContext):
                 ctx.profile_name, ctx.cli_overrides
             )
             engine = resolve_subtitle_engine(merged.subtitle_settings)
+        # Before `set_profile_settings`, which constructs the visual builder
+        # and hands it this value. Assigned after, the builder captured None
+        # and reserved no rows, so the image was drawn under the line -- the
+        # defect the band exists to prevent.
+        recorded = ctx.upper_line_text
+        if recorded is None:
+            # A `--step assemble_video` run, which never executed the subtitle
+            # step. Resolving here rather than reading a persisted value is
+            # what keeps an edited `custom_text` from being ignored on a
+            # re-render of a finished product.
+            upper = ctx.config.get_profile_merged_settings(
+                ctx.profile_name, ctx.cli_overrides
+            ).video_settings.upper_line
+            vs = ctx.config.video_settings
+            recorded, reason = drawable_upper_line(
+                upper,
+                ctx.product,
+                frame_width=vs.resolution[0],
+                subtitle_font_size_pixels=max(
+                    8, int(round(vs.resolution[1] * vs.base_font_height_percent))
+                ),
+            )
+            if upper.enabled and not recorded:
+                logger.info("Upper line not rendered: %s", reason)
+        # Written back, not only handed to the assembler: `ctx.upper_line_text`
+        # is what `step_burn_pycaps_subtitles` reads through
+        # `TwoPartSubtitleHandler._image_band`, and on a `--step assemble_video`
+        # re-run that step executes in the same process without
+        # `generate_subtitles` having set it. Left None there, the burn's
+        # caption bounds describe an image position the assembler did not
+        # draw -- inert while pycaps ignores the bounds, live on the FFmpeg
+        # caption fallback, which places captions against them.
+        ctx.upper_line_text = recorded or None
+        assembler.upper_line_text = recorded or None
+
         assembler.set_profile_settings(
             ctx.profile_name, ctx.cli_overrides, subtitle_engine=engine
         )  # Apply profile settings with CLI overrides
@@ -1532,6 +1630,7 @@ async def step_assemble_video(ctx: PipelineContext):
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
         assembler.set_product_id(product_id)
         assembler.carries_affiliate_content = carries_affiliate_content(ctx.product)
+
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.
         # When the script file doesn't exist (rare), the assembler treats the

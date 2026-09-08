@@ -30,6 +30,7 @@ from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
+    apply_upper_line_overlay,
     resolve_hook_line,
 )
 from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
@@ -85,6 +86,10 @@ class VideoAssembler:
         # missing disclosure misstates a material connection, while a needless
         # one only costs reach.
         self.carries_affiliate_content: bool = True
+        # The static upper line's text, resolved by the caller because the
+        # assembler holds an id rather than the record. None means the source
+        # resolved to nothing and no line is drawn (#88).
+        self.upper_line_text: str | None = None
 
         # Initialize standalone utilities (no profile dependency)
         self.media_inspector = MediaInspector()
@@ -182,6 +187,7 @@ class VideoAssembler:
             self.debug_mode,
             normalize_video_callback=self._normalize_video_format,
             subtitle_engine=self.subtitle_engine,
+            upper_line_text=self.upper_line_text,
         )
 
         # Initialize subtitle builder
@@ -682,6 +688,27 @@ class VideoAssembler:
                         self.config.video_settings.resolution[0],
                         temp_dir,
                     )
+
+            # The static upper line, before the disclosure so the disclosure
+            # keeps the top of the z-order. Engine-independent by design: the
+            # pycaps burn composes over this output, and the FFmpeg caption
+            # fallback runs after it, so the line survives both (#88).
+            # The profile-merged object, not the global one: a profile
+            # override that nothing reads is the fourth-condition
+            # failure this repo documents.
+            upper = (
+                self.profile_settings.video_settings.upper_line
+                if self.profile_settings is not None
+                else self.config.video_settings.upper_line
+            )
+            video_filters = apply_upper_line_overlay(
+                video_filters,
+                upper,
+                self.upper_line_text,
+                subtitle_font_size_pixels,
+                frame_height,
+                temp_dir,
+            )
 
             disclosure = self.config.video_settings.disclosure_overlay
             if self.carries_affiliate_content:

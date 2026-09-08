@@ -155,7 +155,11 @@ class TwoPartSubtitleHandler:
 
     def _image_band(self, frame_height: int) -> "VisualBand":
         """The same band the assembler centres a product image in."""
-        from src.video.assembler.visual_band import caption_band_top, visual_band
+        from src.video.assembler.visual_band import (
+            caption_band_top,
+            upper_line_bottom,
+            visual_band,
+        )
 
         subtitle_settings = self.merged_profile_settings.subtitle_settings
         video_settings = self.merged_profile_settings.video_settings
@@ -181,6 +185,15 @@ class TwoPartSubtitleHandler:
             ),
             centred=video_settings.image_vertical_align == "center",
             safe_zone_min_y=subtitle_settings.safe_zone.min_y,
+            # The pre-assembly estimate has to reserve the same rows the
+            # assembler does, or the caption geometry it derives is computed
+            # against a band the image no longer occupies.
+            upper_line_bottom_px=upper_line_bottom(
+                frame_height,
+                video_settings.upper_line,
+                max(8, int(round(frame_height * vs.base_font_height_percent))),
+                getattr(self.ctx, "upper_line_text", None),
+            ),
         )
 
     def _estimate_centered_image_bounds(

@@ -131,6 +131,136 @@ class DisclosureSettings(BaseModel):
     )
 
 
+class UpperLineSettings(BaseModel):
+    """A static line of text held above the visual for the whole video.
+
+    The two-part subtitle system already renders one, but only on the FFmpeg
+    engine: `step_generate_subtitles` disables two-part mode when the engine
+    is pycaps, so a profile that switches engines lost the line with one
+    debug line (#88). pycaps has a single caption track and no static element,
+    so it could never carry it.
+
+    The line is static for the whole video, so it needs no subtitle engine at
+    all. Rendered here as a drawtext overlay the way the disclosure and the
+    hook already are, it survives both engines, the pycaps burn that composes
+    over the assembler's output, and the FFmpeg fallback when a pycaps burn
+    fails -- the case where a subtitle-side implementation would lose it
+    exactly when the fallback is doing its job.
+
+    `link_in_bio_url` is deliberately absent: the public config ships no
+    account-specific value, so the bio page's address is read from the
+    environment. The link-in-bio module itself carries OAuth credentials and
+    no public URL, so it cannot supply one -- but `SUBTITLE_BUSINESS_URL`
+    already holds exactly this for the two-part upper line, and is read as a
+    fallback rather than replaced by a second variable for the same value.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Render the static upper line on every frame of the video.",
+    )
+    source: Literal["affiliate_link", "link_in_bio", "custom"] = Field(
+        "affiliate_link",
+        description=(
+            "Where the text comes from: the product's affiliate link, the "
+            "public link-in-bio page, or `custom_text`."
+        ),
+    )
+    custom_text: str = Field(
+        "",
+        description="Text for `source: custom`. A URL or not; rendered verbatim.",
+    )
+    link_in_bio_url_env_var: str = Field(
+        "LINK_IN_BIO_URL",
+        description=(
+            "Environment variable holding the public bio page address, for "
+            "`source: link_in_bio`. Never the URL itself: the bundled config "
+            "carries no account-specific value. Falls back to "
+            "SUBTITLE_BUSINESS_URL, which the two-part upper line has read "
+            "since it shipped, so an installation already showing its bio "
+            "page keeps working without setting a second variable."
+        ),
+    )
+    size_factor: float = Field(
+        0.55,
+        ge=0.2,
+        le=1.5,
+        description="Font size as a fraction of the subtitle caption size.",
+    )
+    vertical_position: float = Field(
+        0.16,
+        ge=0.0,
+        le=0.5,
+        description=(
+            "Top edge as a fraction of frame height. The default clears the "
+            "14% header band that carries the platform UI."
+        ),
+    )
+    font_color: str = Field("white", description="FFmpeg color name or hex")
+    outline_color: str = Field("black", description="Outline for legibility")
+    outline_thickness: int = Field(3, ge=0)
+    background_enabled: bool = Field(
+        True, description="Draw a translucent box behind the text."
+    )
+    background_color: str = Field(
+        "black@0.5", description="FFmpeg color with alpha, e.g. black@0.5"
+    )
+    max_chars: int = Field(
+        60,
+        ge=10,
+        le=200,
+        description=(
+            "Trim longer text on a word boundary. A full affiliate URL can "
+            "outrun the frame at this size."
+        ),
+    )
+
+
+class PartialUpperLine(BaseModel):
+    """Per-profile override of the static upper line.
+
+    Partial rather than a whole `UpperLineSettings`, so a profile that only
+    turns the line on does not have to restate every styling field -- the
+    same reason `PartialSubtitleSettings` exists. `extra="forbid"` so a
+    misspelled key fails at config load instead of being dropped.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    enabled: bool | None = None
+    source: Literal["affiliate_link", "link_in_bio", "custom"] | None = None
+    custom_text: str | None = None
+    link_in_bio_url_env_var: str | None = None
+    size_factor: float | None = None
+    vertical_position: float | None = None
+    font_color: str | None = None
+    outline_color: str | None = None
+    outline_thickness: int | None = None
+    background_enabled: bool | None = None
+    background_color: str | None = None
+    max_chars: int | None = None
+
+    def merge_into(self, base: UpperLineSettings) -> UpperLineSettings:
+        """A copy of base with this profile's non-None fields applied.
+
+        Rebuilt through the target model rather than `model_copy(update=…)`,
+        which does not validate. The partial declares no bounds of its own,
+        so a profile writing `vertical_position: 0.9` -- rejected outright at
+        the global level, where the field is `le=0.5` -- otherwise loaded
+        clean and pushed the image off the bottom of the frame with no error
+        anywhere: the band came out with a negative height and ffmpeg
+        accepted the resulting scale expression.
+        """
+        updates = {
+            name: value
+            for name in self.__class__.model_fields
+            if (value := getattr(self, name)) is not None
+        }
+        if not updates:
+            return base
+        return UpperLineSettings(**{**base.model_dump(), **updates})
+
+
 class HookOverlaySettings(BaseModel):
     """Burned-in hook text overlay (Phase 1.2c, also closes #102).
 
@@ -307,6 +437,9 @@ class VideoSettings(BaseModel):
     )
     hook_overlay: HookOverlaySettings = Field(
         default_factory=HookOverlaySettings  # type: ignore[arg-type]
+    )
+    upper_line: UpperLineSettings = Field(
+        default_factory=UpperLineSettings  # type: ignore[arg-type]
     )
 
     # Media validation requirements (must match scraper config)
@@ -593,6 +726,13 @@ class VideoProfile(BaseModel):
     # subtitle_*/pycaps_*/two_part_subtitles_* fields. Profile YAML written
     # in the legacy flat shape is refused at load time by the
     # _reject_legacy_subtitle_keys validator below.
+    upper_line: PartialUpperLine | None = Field(
+        None,
+        description=(
+            "Per-profile override of the static upper line. Only non-None "
+            "fields apply; the rest come from video_settings.upper_line."
+        ),
+    )
     subtitle_settings: PartialSubtitleSettings | None = Field(
         None,
         description=(

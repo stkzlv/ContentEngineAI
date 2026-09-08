@@ -772,6 +772,17 @@ class VideoConfig(BaseModel):
                 )
         merged_video = self.video_settings.model_copy(update=video_overrides)
 
+        # The upper line is a nested model, so it merges rather than being
+        # collected by `_collect_overrides`, which replaces whole fields: a
+        # profile turning the line on would otherwise have to restate every
+        # styling field to avoid resetting them to the model defaults.
+        if profile.upper_line is not None:
+            merged_video = merged_video.model_copy(
+                update={
+                    "upper_line": profile.upper_line.merge_into(merged_video.upper_line)
+                }
+            )
+
         # --- Subtitle settings: YAML dict -> SubtitleSettings, then deep-merge
         # the profile's nested subtitle_settings PartialSubtitleSettings on top.
         from src.video.config.subtitle_models import SubtitleSettings

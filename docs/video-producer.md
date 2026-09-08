@@ -211,7 +211,7 @@ the profile and the global value.
 
 ### Hook Overlay and Pre-Motion
 
-Three visual-layer knobs live on `video_settings`. Only `first_frame_pre_motion` and `pre_motion_peak_zoom` are also per-profile: `VideoProfile` is `extra="forbid"` and declares neither `hook_overlay` nor `cold_open_variant_pool`, so writing either under a profile aborts the config load.
+Four visual-layer knobs live on `video_settings`. `first_frame_pre_motion`, `pre_motion_peak_zoom` and `upper_line` are also per-profile: `VideoProfile` is `extra="forbid"` and declares neither `hook_overlay` nor `cold_open_variant_pool`, so writing either under a profile aborts the config load.
 
 - `first_frame_pre_motion` / `pre_motion_peak_zoom` — when enabled, the first image segment starts at `pre_motion_peak_zoom` and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. Default off on the existing 30-45s profiles, on for `slideshow_short_20s`.
 - `hook_overlay` — burns a short headline as centre-upper static drawtext on the first `duration_sec` seconds (default 1.5), at `size_factor` times narration size, with no per-word reveal. The text is an authored headline generated separately from the spoken script, so the hook doesn't repeat the first caption line; when no headline is available it falls back to the script's first sentence. Long text wraps to at most `max_lines` lines, each held within `max_width_fraction` of the frame width, and the font shrinks when wrapping alone can't fit. Drawn after subtitles and before the disclosure rewrite so `#ad` stays on top. The headline lands in `pipeline_state.json::hook_headline`. A topic render uses a
@@ -219,6 +219,7 @@ separate headline prompt: the product one requires a product category noun,
 which on a topic with no device makes the model invent one. The topic prompt
 asks for the symptom or the fix and forbids naming anything the script does
 not cover.
+- `upper_line` — a static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Rendered as an assembler overlay rather than as a subtitle, so it survives both engines, unlike the two-part upper line it supersedes. Off by default; see [Configuration](configuration.md) §3.1 for the sources, the width limit and what the swap changes.
 - `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.

@@ -1,6 +1,6 @@
 """Persistent on-frame overlays burned by the assembler.
 
-Two overlays live here:
+Three overlays live here:
 
 - `apply_disclosure_overlay`: FTC `#ad` / Spain `#publi` corner badge,
   visible for the full clip duration. Last filter in the chain; rewrites
@@ -13,14 +13,28 @@ Two overlays live here:
   the disclosure stays on top in the z-order. Preserves the chain's
   terminal ``copy[v_out]`` so the disclosure rewrite still finds the
   expected shape.
+
+- `apply_upper_line_overlay` (#88): a static line above the visual, held for
+  the full clip. Unlike the hook it *consumes* the terminal ``copy[v_out]``
+  the way the disclosure does, so the two compose by whichever runs second
+  normalising what the first left. Engine-independent on purpose: the
+  two-part subtitle system's own upper line is dropped whenever the engine
+  is pycaps, and this one is not.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
-from src.video.config.visual_models import DisclosureSettings, HookOverlaySettings
+from src.video.config.visual_models import (
+    DisclosureSettings,
+    HookOverlaySettings,
+    UpperLineSettings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -503,3 +517,253 @@ def apply_hook_overlay(
     # Preserve the terminal copy[v_out] so the disclosure rewrite still works.
     new_terminal = "[v_hook]copy[v_out]"
     return [*video_filters[:-1], hook_filter, new_terminal]
+
+
+def resolve_upper_line_text(
+    settings: UpperLineSettings,
+    product: Any,
+    env: Mapping[str, str] | None = None,
+) -> tuple[str | None, str]:
+    """The line's text, or None and the reason it has none.
+
+    A source that resolves to nothing is ordinary, not an error: a topic
+    render has no affiliate link, and an installation that has not set the
+    bio URL has no bio page to show. Returning the reason lets the caller log
+    which of those happened, rather than drawing an empty box or a bare
+    background over the visual.
+
+    `link_in_bio` reads the environment because the public config ships no
+    account-specific value and the link-in-bio module carries OAuth
+    credentials rather than a public URL. `SUBTITLE_BUSINESS_URL` is read as
+    a fallback: the two-part upper line has taken the same value from it
+    since it shipped, and six bundled profiles point at it, so treating this
+    as a new variable would silently lose the line for an installation that
+    already had one.
+    """
+    source = settings.source
+    if source == "custom":
+        text = (settings.custom_text or "").strip()
+        return (text, "custom") if text else (None, "custom_text is empty")
+
+    if source == "link_in_bio":
+        var = settings.link_in_bio_url_env_var
+        source_env = env if env is not None else os.environ
+        value = source_env.get(var, "").strip()
+        if not value:
+            # The two-part upper line has read this since it shipped, and six
+            # bundled profiles point at it. Reading it as a fallback keeps an
+            # installation that already shows its bio page working, instead
+            # of silently losing the line to a second variable for the same
+            # value.
+            value = source_env.get(_LEGACY_BUSINESS_URL_VAR, "").strip()
+            if value:
+                return value, f"link_in_bio ({_LEGACY_BUSINESS_URL_VAR})"
+            return None, f"neither {var} nor {_LEGACY_BUSINESS_URL_VAR} is set"
+        return value, "link_in_bio"
+
+    for field in ("shortened_affiliate_link", "affiliate_link", "url"):
+        value = (getattr(product, field, None) or "").strip()
+        if value:
+            return value, f"affiliate_link ({field})"
+    return None, "the record carries no affiliate link"
+
+
+# How much of the frame width the line may occupy.
+#
+# Wider than the hook overlay's 0.78 on purpose: the hook is prose that wraps
+# to `max_lines`, so it can afford a generous inset, while this line is
+# usually a URL that must be readable in one piece and cannot wrap at all.
+# Whether it should nonetheless respect the 60px horizontal inset
+# `docs/platform-safe-zones.md` states is an open question, tracked
+# separately -- it needs a real post to settle, not arithmetic.
+_UPPER_LINE_MAX_WIDTH_FRACTION = 0.95
+
+# Uppercase letters are wider than the average the hook's estimator scores
+# them at: it classes only `mwMWAGOQ@` as wide, so `SHOP NOW AT WWW...`
+# estimated 1005px and rendered 1135px in a 1080px frame -- accepted by the
+# gate and clipped at both edges, held for the whole clip. Measured across
+# four realistic all-caps lines the estimate ran 11-16% short, against a 6%
+# *overshoot* on URL-shaped text, so no single budget separates them.
+#
+# Weighting every uppercase character brings estimate-over-real into
+# 0.92-1.07 across both shapes, which one budget can then divide. Kept local
+# rather than folded into `_estimate_hook_text_width`, because that function
+# decides the hook's wrap points and this branch has no measurements for
+# what moving them would do.
+_UPPER_LINE_CAPITAL_WEIGHT = 1.15
+
+
+def _estimate_upper_line_width(text: str, font_size: int) -> int:
+    """Estimated rendered width, with uppercase weighted (see above)."""
+    base = _estimate_hook_text_width(text, font_size)
+    if not text:
+        return base
+    avg = font_size * _HOOK_WIDTH_TO_HEIGHT_RATIO
+    extra = sum(
+        avg * (_UPPER_LINE_CAPITAL_WEIGHT - 1.0)
+        for char in text
+        if char.isupper() and char not in _WIDE_CHARS
+    )
+    return int(base + extra)
+
+
+# The variable the two-part upper line has read since it shipped, documented
+# in `.env.example` and referenced by six bundled profiles.
+_LEGACY_BUSINESS_URL_VAR = "SUBTITLE_BUSINESS_URL"
+
+
+def drawable_upper_line(
+    settings: UpperLineSettings,
+    product: Any,
+    env: Mapping[str, str] | None = None,
+    *,
+    frame_width: int | None = None,
+    subtitle_font_size_pixels: int | None = None,
+) -> tuple[str | None, str]:
+    """The exact text the overlay will draw, or None and the reason.
+
+    One predicate for all three gates. They used to differ: the image band
+    reserved rows on `enabled` alone, the supersede of two-part's line ran on
+    the resolved text, and the drawing ran on the *trimmable* text. So a
+    resolved-but-untrimmable value -- a bare affiliate URL, which is what the
+    shipped config produces with no associate tag -- switched two-part's line
+    off, drew nothing, and still pushed the image down for a line that was
+    never there. Every caller now asks this one question.
+    """
+    if not settings.enabled:
+        return None, "the upper line is disabled"
+    text, reason = resolve_upper_line_text(settings, product, env)
+    if not text:
+        return None, reason
+    drawable = _truncate_to_chars(text, settings.max_chars)
+    if not drawable:
+        return None, (
+            f"{reason} does not fit in {settings.max_chars} characters "
+            "without cutting a link mid-address"
+        )
+    # Characters are not width. drawtext does not wrap and this filter centres
+    # the line, so a string that passes the character gate and renders wider
+    # than the frame is clipped at *both* ends -- a 49-character tagged
+    # affiliate URL measures 1405px in a 1080px frame, which is the shipped
+    # default source. The estimator is the hook overlay's, whose ratio was
+    # measured against real renders for #160.
+    if frame_width and subtitle_font_size_pixels:
+        font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+        width = _estimate_upper_line_width(drawable, font_size)
+        budget = int(frame_width * _UPPER_LINE_MAX_WIDTH_FRACTION)
+        if width > budget:
+            return None, (
+                f"{reason} renders about {width}px wide, past the {budget}px "
+                "the frame allows, and drawtext does not wrap"
+            )
+    return drawable, reason
+
+
+def build_upper_line_drawtext(
+    settings: UpperLineSettings,
+    text: str,
+    subtitle_font_size_pixels: int,
+    frame_height: int,
+    temp_dir: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    """One drawtext filter holding `text` above the visual for the whole video.
+
+    `textfile=` rather than an inline `text=`, for the reason the hook and the
+    disclosure use it: this sits in the assembler's multi-filter chain, where
+    an inline apostrophe makes FFmpeg swallow the filter's own trailing args.
+    The text here is a URL or operator-supplied prose, so an apostrophe, a
+    percent or a backslash are all reachable.
+    """
+    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    text_file = temp_dir / "upper_line_text.txt"
+    text_file.write_text(_escape_drawtext_textfile(text), encoding="utf-8")
+    text_path = text_file.as_posix().replace(":", r"\:")
+    y = int(frame_height * settings.vertical_position)
+
+    parts = [
+        f"{input_stream}drawtext=",
+        f"textfile='{text_path}':",
+        f"fontsize={font_size}:",
+        f"fontcolor={settings.font_color}:",
+        f"borderw={settings.outline_thickness}:",
+        f"bordercolor={settings.outline_color}:",
+    ]
+    if settings.background_enabled:
+        parts.append(f"box=1:boxcolor={settings.background_color}:boxborderw=8:")
+    parts.append(f"x=(w-text_w)/2:y={y}{output_stream}")
+
+    return "".join(parts)
+
+
+def _truncate_to_chars(text: str, max_chars: int) -> str:
+    """Trim to `max_chars` on a word boundary, appending an ellipsis when cut.
+
+    A full affiliate URL outruns the frame at this size, and drawtext does not
+    wrap: the overflow is drawn off-frame rather than onto a second line, so
+    the visible line ends mid-address with no sign it was cut.
+    """
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    if " " not in text:
+        # A single unbroken token, which a URL is. Cutting one mid-address
+        # leaves a link nobody can use held on screen for the whole video,
+        # which is the one thing this line exists to do.
+        return ""
+    cut = text[:max_chars].rsplit(" ", 1)[0]
+    if not cut:
+        return ""
+    if "://" in text and "://" not in cut:
+        # Prose in front of a link: the word-boundary trim drops the link and
+        # keeps the label, leaving "Shop:..." on screen for the whole video.
+        # That reads as a line rather than as a failure, which is worse than
+        # drawing nothing.
+        return ""
+    return cut.rstrip() + "..."
+
+
+def apply_upper_line_overlay(
+    video_filters: list[str],
+    settings: UpperLineSettings,
+    text: str | None,
+    subtitle_font_size_pixels: int,
+    frame_height: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Inject the upper line as the final filter before ``[v_out]``.
+
+    Same terminal-rewrite mechanism as the disclosure, so the two compose:
+    whichever runs second normalizes the chain the first one left and appends
+    itself. Returns the chain unchanged when the overlay is off, when the
+    source resolved to nothing, or when the terminal filter does not produce
+    ``[v_out]`` at all.
+    """
+    if not settings.enabled or not text:
+        return video_filters
+
+    if not video_filters:
+        logger.warning("Upper line skipped: empty video_filters list")
+        return video_filters
+
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "Upper line skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
+        )
+        return video_filters
+
+    video_filters = normalized
+    input_stream = video_filters[-1].replace("copy[v_out]", "")
+    rewritten = build_upper_line_drawtext(
+        settings,
+        text,
+        subtitle_font_size_pixels,
+        frame_height,
+        temp_dir,
+        input_stream=input_stream,
+        output_stream="[v_out]",
+    )
+    return [*video_filters[:-1], rewritten]
