@@ -476,14 +476,18 @@ class UnifiedSubtitleGenerator:
                     # A caption that outlives the start of its successor is
                     # drawn on top of it: both dialogue lines carry the same
                     # \pos, so the frame shows one text superimposed on the
-                    # other. Whisper's own word windows are contiguous, but
-                    # the timing smoother's lead rule shifts every start 40ms
+                    # other. Whisper's own word windows are contiguous; the
+                    # timing smoother's lead rule shifts every start 40ms
                     # earlier and deliberately leaves ends alone, so that a
-                    # caption appears just before it is spoken. That is the
-                    # whole of the overlap, and it is wanted: what must not
-                    # follow from it is two captions on screen at once. So
-                    # the predecessor is shortened rather than the lead
-                    # undone. 36 of 43 boundaries overlapped in a rendered
+                    # caption appears just before it is spoken, and on the
+                    # measured transcript that accounted for every one of the
+                    # overlaps. It is not the only source -- the minimum
+                    # word duration extends a word under 120ms past its
+                    # successor's start, with or without the lead -- so this
+                    # clamps the result rather than reaching back to a cause.
+                    # The lead is wanted; what must not follow from it is two
+                    # captions on screen at once, so the predecessor is
+                    # shortened. 36 of 43 boundaries overlapped in a rendered
                     # ASS before this clamp.
                     # The branch above already applies this clamp when the
                     # minimum-duration rule extends a segment; the overlap

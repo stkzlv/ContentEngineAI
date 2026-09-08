@@ -281,12 +281,11 @@ class TestUnifiedSubtitleGenerator:
 
     def test_a_segment_does_not_outlive_the_start_of_the_next(self, generator) -> None:
         """The timing smoother shifts every word's start earlier and leaves
-        ends alone, so a caption appears just before it is spoken. Whisper's
-        own windows are contiguous, so that shift is the whole of the
-        overlap. Two dialogue lines carry the same position, so an overlap
-        draws one caption on top of the other -- which is both the "words
-        drawn twice" and the sentence boundary that reads as though its
-        space were missing.
+        ends alone, so a caption appears just before it is spoken. Two
+        dialogue lines carry the same position, so an overlap draws one
+        caption on top of the other -- which is both the "words drawn twice"
+        and the sentence boundary that reads as though its space were
+        missing.
 
         Four words at three per line, so the break falls after "three" and
         the fourth word starts 0.1s before the third word ends.
@@ -301,6 +300,29 @@ class TestUnifiedSubtitleGenerator:
 
         assert len(segments) == 2
         assert segments[0]["end"] <= segments[1]["start"]
+
+    def test_the_clamp_only_shortens(self, generator) -> None:
+        """Where a real pause separates two captions, the earlier one keeps
+        its own end. Assigning the successor's start instead of taking the
+        smaller of the two reads as the same fix and is not: it drags the
+        caption forward through the pause, and stretches its karaoke sweep
+        with it, since the tag durations are derived from the segment's.
+
+        Seven of the 43 boundaries on the measured transcript have a real
+        gap, and an assignment moved five segment ends by 220-380ms there.
+        Nothing caught it -- neither test above, nor the check for
+        overlapping dialogue lines, which an assignment also passes.
+        """
+        timings = [
+            {"word": "one", "start_time": 0.0, "end_time": 0.4},
+            {"word": "two", "start_time": 0.4, "end_time": 0.8},
+            {"word": "three", "start_time": 0.8, "end_time": 1.5},
+            {"word": "four", "start_time": 1.7, "end_time": 2.3},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert len(segments) == 2
+        assert segments[0]["end"] == 1.5
 
     def test_a_degenerate_overlap_keeps_the_caption(self, generator) -> None:
         """The clamp must not zero a segment's duration. A successor that
