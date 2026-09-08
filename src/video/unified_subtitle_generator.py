@@ -473,6 +473,37 @@ class UnifiedSubtitleGenerator:
                     if voiceover_duration:
                         segment_end = min(segment_end, voiceover_duration)
 
+                    # A caption that outlives the start of its successor is
+                    # drawn on top of it: both dialogue lines carry the same
+                    # \pos, so the frame shows one text superimposed on the
+                    # other. Whisper's own word windows are contiguous; the
+                    # timing smoother's lead rule shifts every start 40ms
+                    # earlier and deliberately leaves ends alone, so that a
+                    # caption appears just before it is spoken, and on the
+                    # measured transcript that accounted for every one of the
+                    # overlaps. It is not the only source -- the minimum
+                    # word duration extends a word under 120ms past its
+                    # successor's start, with or without the lead -- so this
+                    # clamps the result rather than reaching back to a cause.
+                    # The lead is wanted; what must not follow from it is two
+                    # captions on screen at once, so the predecessor is
+                    # shortened. 36 of 43 boundaries overlapped in a rendered
+                    # ASS before this clamp.
+                    # The branch above already applies this clamp when the
+                    # minimum-duration rule extends a segment; the overlap
+                    # arrives on the path where it does not, so the clamp has
+                    # to be unconditional rather than a special case.
+                    #
+                    # Guarded on leaving a non-empty segment. Clamping to a
+                    # successor that starts at or before this segment did
+                    # would zero the duration, and the check below drops a
+                    # segment that does not outlast its start -- losing the
+                    # words entirely, which is worse than the overlap this
+                    # fixes. No pair in the measured transcript is that
+                    # degenerate; the guard is for the one that is.
+                    if start_time > current_start:
+                        segment_end = min(segment_end, start_time)
+
                     if segment_end > current_start:
                         segments.append(
                             {

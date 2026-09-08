@@ -279,6 +279,79 @@ class TestUnifiedSubtitleGenerator:
 
             assert result.success is False
 
+    def test_a_segment_does_not_outlive_the_start_of_the_next(self, generator) -> None:
+        """The timing smoother shifts every word's start earlier and leaves
+        ends alone, so a caption appears just before it is spoken. Two
+        dialogue lines carry the same position, so an overlap draws one
+        caption on top of the other -- which is both the "words drawn twice"
+        and the sentence boundary that reads as though its space were
+        missing.
+
+        Four words at three per line, so the break falls after "three" and
+        the fourth word starts 0.1s before the third word ends.
+        """
+        timings = [
+            {"word": "one", "start_time": 0.0, "end_time": 0.4},
+            {"word": "two", "start_time": 0.4, "end_time": 0.8},
+            {"word": "three", "start_time": 0.8, "end_time": 1.5},
+            {"word": "four", "start_time": 1.4, "end_time": 2.0},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert len(segments) == 2
+        assert segments[0]["end"] <= segments[1]["start"]
+        # Which side moves is part of the contract. Delaying the successor
+        # satisfies the invariant too, and undoes the lead at every clamped
+        # boundary -- the outcome this fix exists to avoid. Nothing else
+        # here, nor counting overlapping dialogue lines, tells the two apart.
+        assert segments[1]["start"] == 1.4
+
+    def test_the_clamp_only_shortens(self, generator) -> None:
+        """Where a real pause separates two captions, the earlier one keeps
+        its own end. Assigning the successor's start instead of taking the
+        smaller of the two reads as the same fix and is not: it drags the
+        caption forward through the pause, and stretches its karaoke sweep
+        with it, since the tag durations are derived from the segment's.
+
+        Five of the 43 boundaries on the measured transcript have a real
+        gap, and an assignment moved all five segment ends, by 220-390ms.
+        Nothing caught it -- neither test above, nor the check for
+        overlapping dialogue lines, which an assignment also passes.
+        """
+        timings = [
+            {"word": "one", "start_time": 0.0, "end_time": 0.4},
+            {"word": "two", "start_time": 0.4, "end_time": 0.8},
+            {"word": "three", "start_time": 0.8, "end_time": 1.5},
+            {"word": "four", "start_time": 1.7, "end_time": 2.3},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert len(segments) == 2
+        assert segments[0]["end"] == 1.5
+
+    def test_a_degenerate_overlap_keeps_the_caption(self, generator) -> None:
+        """The clamp must not zero a segment's duration. A successor that
+        starts at or before this segment did would do exactly that, and the
+        length check downstream drops a segment that does not outlast its
+        start -- losing the words rather than overlapping them, which is the
+        worse failure. No pair on the measured transcript is this degenerate;
+        the guard is for the one that is.
+
+        The successor starts exactly where this segment did, which is the
+        boundary the guard's `>` sits on. An earlier version used a strictly
+        earlier successor, and that leaves `>=` -- the one-character
+        loosening -- passing while it deletes the first caption.
+        """
+        timings = [
+            {"word": "one", "start_time": 1.0, "end_time": 1.4},
+            {"word": "two", "start_time": 1.0, "end_time": 1.8},
+            {"word": "three", "start_time": 1.0, "end_time": 2.2},
+            {"word": "four", "start_time": 1.0, "end_time": 2.6},
+        ]
+        segments = generator._create_segments(timings, voiceover_duration=None)
+
+        assert [s["text"] for s in segments] == ["one two three", "four"]
+
     def test_create_segments_from_script(self, generator):
         """Test segment creation from script text."""
         script_text = "Hello world. This is a test. Another sentence here."
