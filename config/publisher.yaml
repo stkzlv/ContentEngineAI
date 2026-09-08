@@ -182,6 +182,25 @@ recurring_schedule:
     - day_of_week: sunday
       time: "10:00:00"
 
+    # Evening slot, 12 hours after the morning one. Added for topic videos,
+    # but not reserved for them: `RecurringSlot` carries only a day, a time
+    # and a timezone, and nothing in the scheduler routes by content format,
+    # so whatever is next in the queue takes whichever slot comes first.
+    - day_of_week: monday
+      time: "22:00:00"
+    - day_of_week: tuesday
+      time: "22:00:00"
+    - day_of_week: wednesday
+      time: "22:00:00"
+    - day_of_week: thursday
+      time: "22:00:00"
+    - day_of_week: friday
+      time: "22:00:00"
+    - day_of_week: saturday
+      time: "22:00:00"
+    - day_of_week: sunday
+      time: "22:00:00"
+
 # ============================================================================
 # SCHEDULE VALIDATION RULES
 # ============================================================================
