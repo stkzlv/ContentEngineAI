@@ -217,9 +217,11 @@ llm_settings:
       - Generic summary closers: "In essence", "Ultimately", "At the end of the day".
       - Stacked hedges: "might possibly potentially".
 
-      Voice example (one short script that lands the voice end-to-end):
+      Voice example (the voice, not the ending -- it stops before the close
+      on purpose, so it demonstrates neither a closing beat nor a call to
+      action; the template's own rules own both):
 
-      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal. The battery is fine, not great. About six hours under load. Worth it if you carry a phone and a bag.
+      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal. The battery is fine, not great. About six hours under load.
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.
@@ -291,9 +293,11 @@ llm_settings:
       - Generic closers: "In essence", "Ultimately", "At the end of the day".
       - Three consecutive sentences starting with the same word.
 
-      Voice example (one short script that lands the voice end-to-end):
+      Voice example (the voice, not the ending -- it stops before the close
+      on purpose, so it demonstrates neither a closing beat nor a call to
+      action; the template's own rules own both):
 
-      If your wifi drops every evening, it is almost always the channel, not the router. Open the admin page, find the 2.4 gigahertz channel setting, and put it on 1, 6, or 11. Those three do not overlap; everything else does. Evening is when your neighbours all come home and crowd the same band. If it still drops with nothing else on the network, then it is the hardware, and that is a different video. Save this for the next time it happens.
+      If your wifi drops every evening, it is almost always the channel, not the router. Open the admin page, find the 2.4 gigahertz channel setting, and put it on 1, 6, or 11. Those three do not overlap; everything else does. Evening is when your neighbours all come home and crowd the same band. If it still drops with nothing else on the network, then it is the hardware, and that is a different video.
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.

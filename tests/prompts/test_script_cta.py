@@ -635,6 +635,70 @@ class TestTheFirstCommentStillFindsTheBeat:
 
 
 @pytest.mark.unit
+class TestTheStepRecordsWhatItAskedFor:
+    """The handoff from the pipeline step, which nothing covered.
+
+    `product_id` is what makes the selection a selection. Passing None there
+    puts every record back on the pool's first entry, and the whole suite
+    stayed green under that mutation -- the same shape as the two inert links
+    earlier passes found, one layer up.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_step_passes_the_record_id_and_records_the_line(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.ai.script_generator import select_cta
+        from src.video.config import load_video_config_modular
+        from src.video.producer import steps
+        from src.video.producer.context import PipelineContext
+        from src.video.producer.state import (
+            STEP_GENERATE_SCRIPT,
+            _update_state_after_step,
+            get_video_run_paths,
+        )
+
+        config = load_video_config_modular()
+        monkeypatch.setattr(config, "global_output_root_path", tmp_path)
+        paths = get_video_run_paths(config, "B0TEST0001", "slideshow_images1")
+        pool = config.llm_settings.script_templates.cta_options_for(False)
+        expected = select_cta(pool, "B0TEST0001")
+
+        product = MagicMock(asin="B0TEST0001", topic=None, title="A thing")
+        ctx = PipelineContext(
+            product=product,
+            profile=config.video_profiles["slideshow_images1"],
+            profile_name="slideshow_images1",
+            config=config,
+            secrets={},
+            session=MagicMock(),
+            run_paths=paths,
+            debug_mode=False,
+        )
+
+        seen: dict[str, object] = {}
+
+        async def fake(*args, **kwargs):
+            seen.update(kwargs)
+            return f"{BODY} {expected}", "curiosity_hook", expected
+
+        monkeypatch.setattr(steps, "generate_ai_script", fake)
+        monkeypatch.setattr(steps, "_ensure_fact_checked", AsyncMock())
+        monkeypatch.setattr(steps, "_ensure_hook_headline", AsyncMock())
+
+        await steps.step_generate_script(ctx)
+
+        assert seen.get("product_id") == "B0TEST0001"
+        assert ctx.state["cta"] == expected
+
+        await _update_state_after_step(ctx, STEP_GENERATE_SCRIPT)
+
+        assert ctx.state[STEP_GENERATE_SCRIPT]["cta"] == expected
+
+
+@pytest.mark.unit
 class TestTheShippedConfig:
     def test_both_lists_are_present_and_distinct(self, shipped_ctas) -> None:
         assert len(shipped_ctas["product"]) >= 3
@@ -688,3 +752,23 @@ class TestTheShippedConfig:
             # profile", on every product render.
             assert "the list the template gives you" not in text
             assert "the exact call to action the template gives you" in text
+
+    def test_no_voice_example_ends_on_a_configured_line(self, shipped_ctas) -> None:
+        """An example ending on a configured CTA agreed with a rule quoting
+        all four. Against a rule naming one line it disagrees for three
+        records in four, and the example wins. Substituting an ordinary
+        sentence is not the fix either -- eight templates ask their beat to
+        be a material-or-use claim, so the example would demonstrate beat,
+        then stop, which is the defect that moved the rule next to the beat.
+        Both examples stop before their close.
+        """
+        from src.utils.script_sanitizer import split_sentences
+
+        raw = (REPO / "config" / "ai_services.yaml").read_text()
+        examples = re.findall(r"Voice example \(.*?\):\n\n      (.+?)\n", raw, re.S)
+        every_cta = {c for options in shipped_ctas.values() for c in options}
+
+        assert len(examples) == 2
+        for text in examples:
+            last = split_sentences(text)[-1]
+            assert last not in every_cta
