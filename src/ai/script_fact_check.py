@@ -42,7 +42,21 @@ _CLAIM_BLOCK = re.compile(
     r"CLAIM:\s*(?P<claim>.+?)\s*"
     r"(?:RULING:\s*(?P<ruling>.+?)\s*)?"
     r"REASON:\s*(?P<reason>.+?)\s*"
-    r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)|\Z)",
+    # The FIX runs to the next separator, the next claim, a repeated verdict
+    # header, or the end. The verdict alternative is not decoration: a real
+    # answer repeated its whole block set with the second `VERDICT: FLAGGED`
+    # running on from the previous `FIX:` with no newline, so without it the
+    # first copy's fix absorbed the header and that contaminated string was
+    # handed to the reviser as the correct fact. Anchored on the header's own
+    # grammar rather than on the bare word, and on the whole of it: the word,
+    # a verdict value, and then the end of the line. Matching less than that
+    # truncates a correction that merely quotes one -- "the scanner writes
+    # verdict: flagged into the log" ends at "writes", and the fragment goes
+    # to the reviser as the fact, which is the defect the anchor exists to
+    # stop, reached from the other side. Every run-on header observed ends
+    # its line, so requiring it costs nothing.
+    r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)"
+    r"|(?:\s*VERDICT:[ \t]*(?:FLAGGED|OK)[ \t]*(?:\n|\Z))|\Z)",
     re.S | re.I,
 )
 
@@ -194,6 +208,54 @@ def _covers(claim: str, sentence: str) -> bool:
     return f" {b} " in f" {a} " or f" {a} " in f" {b} "
 
 
+def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
+    """One entry per (sentence, correction) pair, keeping the first.
+
+    Observed on a real topic render: the checker returned four claims that
+    were two, each listed twice, so `max_flags_to_revise` spent one of its
+    three slots on a sentence already named. The repair was still good there,
+    but on a script with three genuinely wrong claims a duplicate pushes a
+    real one out of the window silently.
+
+    Keyed on the claim *and* its fix, both normalised. The claim alone reads
+    as the obvious key -- it is what the containment guard matches on -- but
+    the prompt asks for one block per claim, and the checker does decompose a
+    sentence into independent parts: the one real answer available rules a
+    single sentence in three, on dust, indexing and paste. Two blocks naming
+    that sentence with different corrections are two errors in it, and keying
+    on the claim alone would drop the second fix before the reviser saw it.
+    Adding the fix costs nothing on the case this exists for, where the
+    repeated blocks are identical.
+
+    The normalisation is the guard's own, so two spellings differing only in
+    case or punctuation collapse. The *relation* is not shared: the guard
+    matches by containment either way, this by equality, so a partial quote
+    of the same sentence is not collapsed and still takes a slot. Narrower is
+    the safe direction -- it never merges what the guard treats as distinct.
+
+    Runs after the discard filters, not before: a first copy that the
+    filters drop would otherwise take the key and shadow a genuine later
+    correction, so the sentence would ship unrepaired with "nothing flagged"
+    recorded. The filter that can actually do this is the `c.claim`
+    truthiness check, because the key normalises the claim and the check
+    reads it raw -- an empty claim and one that normalises to empty share a
+    key, and only the second survives. `_is_not_a_fix` cannot, being a pure
+    function of the normalised fix, which is half the key: equal keys always
+    get the same answer from it. Nor can the verdict check on the JSON path,
+    which sits inside the comprehension that builds the list and so is not
+    reorderable against this at all.
+    """
+    seen: set[tuple[str, str]] = set()
+    unique: list[FactCheckClaim] = []
+    for claim in claims:
+        key = (_normalise(claim.claim), _normalise(claim.fix))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(claim)
+    return unique
+
+
 def parse_check_answer(text: str | None) -> FactCheckResult:
     """Read the checker's answer, in either shape it may arrive in.
 
@@ -227,7 +289,9 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
         ]
         return FactCheckResult(
             ran=True,
-            flagged=[c for c in claims if c.claim and not _is_not_a_fix(c.fix)],
+            flagged=_dedupe_claims(
+                [c for c in claims if c.claim and not _is_not_a_fix(c.fix)]
+            ),
             raw=text,
         )
 
@@ -248,7 +312,9 @@ def parse_check_answer(text: str | None) -> FactCheckResult:
     # prompt is built from the fix, and a claim without one asks the model to
     # invent the correction, which is the failure this module exists to catch.
     # A fix that only says the claim was right is dropped for the same reason.
-    flagged = [c for c in flagged if c.claim and not _is_not_a_fix(c.fix)]
+    flagged = _dedupe_claims(
+        [c for c in flagged if c.claim and not _is_not_a_fix(c.fix)]
+    )
     if not flagged and "VERDICT" not in body.upper():
         return FactCheckResult(ran=True, raw=text, error="unparsed")
     return FactCheckResult(ran=True, flagged=flagged, raw=text)
