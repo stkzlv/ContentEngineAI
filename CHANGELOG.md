@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.105.1] - 2026-09-08
+
+### Fixed
+- Topic scripts closed on the honest-limit caveat instead of the result. Each topic template's body asks the script to finish on the result, and its Rules block asked for an honest limit without saying where; the limit bullet sat directly above the call-to-action rule, so it was the nearest imperative to the ending and won. The last spoken line before the call to action was a caveat, which sends the viewer away unsure the fix worked, and the payoff the body asked for was displaced. The limit rule now states its position, sits among the method bullets rather than last, and each body names the result as the line immediately before the call to action. Measured over nine scripts, three topics against all three templates: three closed on a caveat before, none after. Nine scripts is a small sample and the classifier is keyword-based, so it establishes the direction rather than a rate. Closes #378.
+
 ## [0.105.0] - 2026-09-08
 
 ### Changed

@@ -9,7 +9,8 @@ the first three seconds. The explanation earns trust, but it comes after the
 answer, not before it.
 
 Then give the method: what to change, in the order to change it. Close on how
-the viewer can tell it worked.
+the viewer can tell it worked, and say that last, immediately before the call
+to action.
 
 End with one CTA per the narrator profile. One line.
 
@@ -28,9 +29,12 @@ End with one CTA per the narrator profile. One line.
   that it differs by device and what to look for. Both are followable. The
   detail below saying a method exists is not the same as it naming one.
 - One instruction per sentence, so each step can be followed on its own.
+- **One honest limit, inside the method rather than after it**: the case where
+  this diagnosis is wrong. One sentence, placed among the steps. The last
+  thing before the call to action is how the viewer can tell it worked. A
+  video that ends on a caveat sends them away unsure it did.
 - Name one thing the viewer might blame that is usually not the cause. Correcting
   a wrong assumption is the most useful thing a short help video does.
-- Include one honest limit: the case where this diagnosis is wrong.
 {CTA_RULE}
 
 ## Topic

@@ -9,7 +9,7 @@ hook.
 
 Then explain briefly why the wrong way seems reasonable, so the viewer does not
 feel stupid for having done it. Give the correct method as steps. Close on the
-difference it makes.
+difference it makes, and say that last, immediately before the call to action.
 
 End with one CTA per the narrator profile. One line.
 
@@ -29,8 +29,11 @@ End with one CTA per the narrator profile. One line.
   detail below saying a method exists is not the same as it naming one.
 - The correction must be something the viewer can do today, without buying
   anything. If the only fix costs money, say so plainly instead of hiding it.
+- **One honest limit, inside the method rather than after it**: when the
+  common way is actually fine. One sentence, placed among the steps. The
+  last thing before the call to action is the difference the change makes.
+  A video that ends on a caveat sends the viewer away unsure it was worth it.
 - One instruction per sentence.
-- Include one honest limit: when the common way is actually fine.
 {CTA_RULE}
 
 ## Topic
