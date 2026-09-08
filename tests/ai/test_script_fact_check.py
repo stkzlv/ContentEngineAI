@@ -300,11 +300,17 @@ class TestParsingTheAnswer:
     def test_a_fix_saying_verdict_before_a_word_starting_ok_is_kept(
         self,
     ) -> None:
-        """The word boundary after the alternation, not just the alternation.
-        Without it, `OK` matches the start of `okay` and the fix is cut at
-        "the verdict:" -- the same truncation the anchoring exists to stop,
-        reached through the other half. Dropping that boundary also left
-        every other test in this file green.
+        """`OK` is a prefix of ordinary words, `okay` above all, so a fix
+        quoting "verdict: okay" is not quoting a header. What keeps it whole
+        is the end-of-line requirement -- `okay` leaves `ay to proceed.`
+        after the value, so the lookahead does not match.
+
+        An earlier form used a word boundary for this and no line
+        requirement, and this case is the one that made the difference then.
+        It no longer pins anything on its own: adding a boundary back is a
+        no-op, and removing the line requirement is caught by
+        `test_a_fix_quoting_a_whole_verdict_header_is_kept`. Kept as the
+        documented case, not as a unique guard.
         """
         r = parse_check_answer(
             "VERDICT: FLAGGED\n"
