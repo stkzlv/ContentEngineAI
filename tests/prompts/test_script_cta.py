@@ -20,6 +20,7 @@ import yaml
 
 from src.ai.script_generator import (
     NO_CTA_REASON,
+    _looks_like_cta_attempt,
     ends_with_cta,
     format_prompt,
     render_cta_rule,
@@ -780,5 +781,13 @@ class TestTheShippedConfig:
 
         assert len(examples) == 2
         for text in examples:
-            last = split_sentences(text)[-1]
+            # Normalised first: the block keeps its wrapping, so a closing
+            # sentence straddling a line break can never equal a configured
+            # line and slips through unnormalised.
+            last = split_sentences(" ".join(text.split()))[-1]
             assert last not in every_cta
+            # And not a paraphrase either. That is the worse case: the
+            # validator refuses it, burning the retry loop, and a paraphrase
+            # that survives becomes the YouTube first comment. It is also
+            # what the product example carried before this branch.
+            assert not _looks_like_cta_attempt(last, sorted(every_cta)), last
