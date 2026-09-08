@@ -205,32 +205,50 @@ class TestParsingTheAnswer:
             "The timeout is 15 minutes.",
         ]
 
-    def test_a_correct_verdict_does_not_shadow_an_identical_wrong_one(
-        self,
-    ) -> None:
-        """The dedup runs after the discard filters, and on the JSON path
-        that ordering is load-bearing. Deduping first -- the obvious
-        simplification, one call instead of two -- lets the `verdict:
-        correct` copy take the key, so the real correction vanishes and the
-        sentence ships unrepaired with "nothing flagged" recorded.
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            pytest.param(
+                '{"claims": [{"claim": "", "verdict": "wrong", '
+                '"fix": "the real one"}, '
+                '{"claim": "---", "verdict": "wrong", '
+                '"fix": "the real one"}]}',
+                id="json",
+            ),
+            pytest.param(
+                "VERDICT: FLAGGED\n"
+                'CLAIM: "\nRULING: wrong\nREASON: r\nFIX: the real one\n'
+                "---\n"
+                "CLAIM: .\nRULING: wrong\nREASON: r\nFIX: the real one\n",
+                id="labelled",
+            ),
+        ],
+    )
+    def test_an_empty_claim_does_not_shadow_a_real_one(self, answer: str) -> None:
+        """The dedup runs after the discard filters, and that ordering is
+        load-bearing. Deduping first -- the obvious simplification, one call
+        instead of two -- lets a copy the filters would have dropped take the
+        key, so the real correction vanishes and the sentence ships
+        unrepaired with "nothing flagged" recorded.
 
-        Both entries carry the *same* fix on purpose. With different fixes
-        the keys already differ, the dedup never fires, and the test passes
-        against the reordered code it is meant to catch -- which is what an
-        earlier version of it did.
+        The filter that can shadow is the raw `c.claim` truthiness check,
+        because the key normalises the claim and the check does not: an empty
+        claim and one that normalises to empty share a key, and only the
+        second survives. Both entries carry the same fix on purpose, or the
+        keys differ, the dedup never fires, and the test passes against the
+        reordered code it is meant to catch.
 
-        The fix-text filter cannot be pinned this way and does not need to
-        be: `_is_not_a_fix` is a pure function of the normalised fix, which
-        is half the key, so two entries with equal keys always get the same
-        verdict from it and the two orders are equivalent by construction.
-        Only `verdict`, which is not part of the key, can shadow.
+        The other two filters cannot be pinned this way and do not need to
+        be. `_is_not_a_fix` is a pure function of the normalised fix, which
+        is half the key, so equal keys always get the same answer from it.
+        The JSON path's verdict check sits inside the comprehension that
+        builds the list, so it is not reorderable against the dedup at all --
+        a test written against it pins nothing, which is what an earlier
+        version of this test did.
         """
-        r = parse_check_answer(
-            '{"claims": [{"claim": "A.", "verdict": "correct", '
-            '"fix": "the real one"}, '
-            '{"claim": "A.", "verdict": "wrong", "fix": "the real one"}]}'
-        )
+        r = parse_check_answer(answer)
         assert [c.fix for c in r.flagged] == ["the real one"]
+        assert r.flagged[0].claim
 
     def test_a_run_on_verdict_header_does_not_land_in_the_fix(self) -> None:
         """A real answer repeated its whole block set with the second
@@ -295,6 +313,24 @@ class TestParsingTheAnswer:
         )
         assert [c.fix for c in r.flagged] == [
             "The manual calls the verdict: okay to proceed."
+        ]
+
+    def test_a_fix_quoting_a_whole_verdict_header_is_kept(self) -> None:
+        """The anchor matches the header's whole grammar, ending the line
+        included. Stopping at the verdict value alone truncates a correction
+        that merely quotes a header mid-sentence, and the fix is the only
+        thing the revise prompt is built from, so the reviser is handed a
+        fragment as the fact -- the same defect the anchor exists to stop,
+        reached from the other side. Every run-on header observed ends its
+        line, so requiring that costs nothing.
+        """
+        r = parse_check_answer(
+            "VERDICT: FLAGGED\n"
+            "CLAIM: The log is silent.\nRULING: wrong\nREASON: r\n"
+            "FIX: The scanner writes verdict: flagged into the log.\n"
+        )
+        assert [c.fix for c in r.flagged] == [
+            "The scanner writes verdict: flagged into the log."
         ]
 
     def test_claims_differing_only_in_case_or_punctuation_collapse(self) -> None:

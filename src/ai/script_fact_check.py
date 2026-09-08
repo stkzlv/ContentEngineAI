@@ -48,11 +48,15 @@ _CLAIM_BLOCK = re.compile(
     # running on from the previous `FIX:` with no newline, so without it the
     # first copy's fix absorbed the header and that contaminated string was
     # handed to the reviser as the correct fact. Anchored on the header's own
-    # grammar rather than on the bare word: unanchored, a correction reading
-    # "the court records it as a verdict: usually within two days" is
-    # truncated at "verdict:" and the fragment goes to the reviser as fact.
+    # grammar rather than on the bare word, and on the whole of it: the word,
+    # a verdict value, and then the end of the line. Matching less than that
+    # truncates a correction that merely quotes one -- "the scanner writes
+    # verdict: flagged into the log" ends at "writes", and the fragment goes
+    # to the reviser as the fact, which is the defect the anchor exists to
+    # stop, reached from the other side. Every run-on header observed ends
+    # its line, so requiring it costs nothing.
     r"FIX:\s*(?P<fix>.+?)\s*(?=(?:\n\s*-{3,})|(?:\n\s*CLAIM:)"
-    r"|(?:\n?\s*VERDICT:\s*(?:FLAGGED|OK)\b)|\Z)",
+    r"|(?:\s*VERDICT:[ \t]*(?:FLAGGED|OK)[ \t]*(?:\n|\Z))|\Z)",
     re.S | re.I,
 )
 
@@ -229,10 +233,17 @@ def _dedupe_claims(claims: list[FactCheckClaim]) -> list[FactCheckClaim]:
     of the same sentence is not collapsed and still takes a slot. Narrower is
     the safe direction -- it never merges what the guard treats as distinct.
 
-    Runs after the discard filters, not before: an affirmation (`FIX:
-    Correct.`) or a `verdict: correct` first copy would otherwise take the
-    key and shadow a genuine later correction, so the sentence would ship
-    unrepaired with "nothing flagged" recorded.
+    Runs after the discard filters, not before: a first copy that the
+    filters drop would otherwise take the key and shadow a genuine later
+    correction, so the sentence would ship unrepaired with "nothing flagged"
+    recorded. The filter that can actually do this is the `c.claim`
+    truthiness check, because the key normalises the claim and the check
+    reads it raw -- an empty claim and one that normalises to empty share a
+    key, and only the second survives. `_is_not_a_fix` cannot, being a pure
+    function of the normalised fix, which is half the key: equal keys always
+    get the same answer from it. Nor can the verdict check on the JSON path,
+    which sits inside the comprehension that builds the list and so is not
+    reorderable against this at all.
     """
     seen: set[tuple[str, str]] = set()
     unique: list[FactCheckClaim] = []
