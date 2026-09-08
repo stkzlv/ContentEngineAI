@@ -277,8 +277,10 @@ def test_topic_template_does_not_end_its_rules_on_the_limit(
 
     A rule stating where the limit goes while itself sitting last before
     `{CTA_RULE}` still puts a caveat in the model's path to the ending, which
-    is how this shipped: the bullet was the last thing read before the CTA
-    rule on all three templates.
+    is how it shipped on two of the three by position. It is not the whole mechanism --
+    `topic_answer_first` had a delivery-format bullet in between and still
+    closed on the caveat -- so the wording assertion above carries the rest.
+    This one pins the half a re-ordering can silently undo.
     """
     body, _, _ = template.read_text().partition("{CTA_RULE}")
     last_bullet = [ln for ln in body.splitlines() if ln.startswith("- ")][-1]
