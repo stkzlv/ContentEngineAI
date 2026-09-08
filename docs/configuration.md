@@ -506,11 +506,11 @@ video_settings:
 </details>
 
 <details>
-<summary><strong>3.1. Overlay Settings (Disclosure and Hook)</strong></summary>
+<summary><strong>3.1. Overlay Settings (Disclosure, Hook and Upper Line)</strong></summary>
 
 ### 3.1. Overlay Settings
 
-Two text overlays are burned into the frame by the assembler. Both are nested under `video_settings`. They are drawn in a fixed order: subtitles first, then the hook, then the disclosure, so the disclosure always stays on top of the z-order.
+Three text overlays are burned into the frame by the assembler, all nested under `video_settings`. They are drawn in a fixed order: subtitles first, then the hook, then the upper line, then the disclosure, so the disclosure always stays on top of the z-order.
 
 **Disclosure overlay** — the persistent FTC affiliate marker. Required for affiliate content; disable only for non-affiliate renders.
 
@@ -556,6 +556,8 @@ The two-part subtitle system renders a line of its own, but only under the FFmpe
 `source: link_in_bio` reads the address from the environment and never from this file, since the public config ships no account-specific value and the link-in-bio module itself carries OAuth credentials rather than a public URL. Set `LINK_IN_BIO_URL` in `.env`. `SUBTITLE_BUSINESS_URL`, which the two-part upper line has read since it shipped, is used as a fallback, so an installation already showing its bio page needs no second variable.
 
 A source that resolves to nothing renders no line and logs which: a topic render has no affiliate link, and an installation that has not set the bio URL has no bio page. The alternative is an empty background box over the visual.
+
+`max_chars` bounds characters, not width, so the line is refused separately when it would render wider than 90% of the frame — drawtext does not wrap and this filter centres the text, so an over-wide line is clipped at both ends rather than running off one. At the default `size_factor` that is roughly 30 characters. A shortened affiliate link fits; a full `/dp/` URL with a tag does not, and is skipped with its measured width in the log. Shorten the link, lower `size_factor`, or use `source: custom`.
 
 The image below is fitted into the rows the line leaves, so it moves down by the line's height plus a gap; the caption block is unchanged. A profile overrides any subset of these fields with its own `upper_line:` block, deep-merged onto the global one.
 

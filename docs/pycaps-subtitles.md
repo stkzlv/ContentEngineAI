@@ -265,7 +265,7 @@ check a frame before trusting the output.
 - **Single-line captions only.** Two-part (upper URL + lower voiceover) is
   FFmpeg-only. When a profile has `subtitle_settings.two_part_subtitles.enabled:
   true` and you flip the engine to pycaps, the producer logs a warning and
-  disables the two-part system for that run. The upper URL is not rendered.
+  disables the two-part system for that run. The upper URL is not rendered by the two-part system. `video_settings.upper_line` renders the same static line as an assembler overlay instead, which works under both engines — see Configuration, Overlay Settings.
 - **Font randomization doesn't apply.** The `subtitle_settings.randomize_fonts`
   setting only affects the FFmpeg path. Pycaps templates ship their own `@font-face`
   declarations via their `resources/` directory.

@@ -195,8 +195,8 @@ class VisualFilterBuilder:
             debug_mode: Enable debug logging
             normalize_video_callback: Async callback for video format normalization
             subtitle_engine: The engine that will burn this run's captions, as
-            upper_line_text: Text the static upper line will draw, or None.
                 the producer resolved it
+            upper_line_text: Text the static upper line will draw, or None.
 
         """
         self.inspector = media_inspector

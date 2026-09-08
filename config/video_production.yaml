@@ -219,6 +219,13 @@ video_settings:
     background_enabled: true
     background_color: "black@0.5"
     max_chars: 60                     # trimmed on a word boundary; drawtext does not wrap
+    # Characters are not width. The line is also refused when it would render
+    # wider than 90% of the frame, because drawtext does not wrap and this
+    # filter centres the text, so an over-wide line is clipped at BOTH ends.
+    # At the default size that is roughly 30 characters: a shortened
+    # affiliate link fits, a full /dp/ URL with a tag does not and is skipped
+    # with the measured width in the log. Shorten the link, lower
+    # size_factor, or use `source: custom`.
 
   # Phase 1.2c hook overlay (also closes Issue #102). Renders the first
   # sentence of the spoken script as a centre-upper static text on the

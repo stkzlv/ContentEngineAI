@@ -1300,7 +1300,15 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # a topic under `affiliate_link`, or `link_in_bio` with no URL set --
         # and six bundled profiles have two-part's upper line on.
         upper_settings = merged_profile_settings.video_settings.upper_line
-        upper_text, upper_reason = drawable_upper_line(upper_settings, ctx.product)
+        vs = ctx.config.video_settings
+        upper_text, upper_reason = drawable_upper_line(
+            upper_settings,
+            ctx.product,
+            frame_width=vs.resolution[0],
+            subtitle_font_size_pixels=max(
+                8, int(round(vs.resolution[1] * vs.base_font_height_percent))
+            ),
+        )
         # On the context, not in `ctx.state`: the state is persisted to
         # pipeline_state.json and survives the run, so a later
         # `--step assemble_video` after an edit to `custom_text` would draw
@@ -1577,6 +1585,32 @@ async def step_assemble_video(ctx: PipelineContext):
                 ctx.profile_name, ctx.cli_overrides
             )
             engine = resolve_subtitle_engine(merged.subtitle_settings)
+        # Before `set_profile_settings`, which constructs the visual builder
+        # and hands it this value. Assigned after, the builder captured None
+        # and reserved no rows, so the image was drawn under the line -- the
+        # defect the band exists to prevent.
+        recorded = ctx.upper_line_text
+        if recorded is None:
+            # A `--step assemble_video` run, which never executed the subtitle
+            # step. Resolving here rather than reading a persisted value is
+            # what keeps an edited `custom_text` from being ignored on a
+            # re-render of a finished product.
+            upper = ctx.config.get_profile_merged_settings(
+                ctx.profile_name, ctx.cli_overrides
+            ).video_settings.upper_line
+            vs = ctx.config.video_settings
+            recorded, reason = drawable_upper_line(
+                upper,
+                ctx.product,
+                frame_width=vs.resolution[0],
+                subtitle_font_size_pixels=max(
+                    8, int(round(vs.resolution[1] * vs.base_font_height_percent))
+                ),
+            )
+            if upper.enabled and not recorded:
+                logger.info("Upper line not rendered: %s", reason)
+        assembler.upper_line_text = recorded or None
+
         assembler.set_profile_settings(
             ctx.profile_name, ctx.cli_overrides, subtitle_engine=engine
         )  # Apply profile settings with CLI overrides
@@ -1588,27 +1622,6 @@ async def step_assemble_video(ctx: PipelineContext):
         assembler.set_product_id(product_id)
         assembler.carries_affiliate_content = carries_affiliate_content(ctx.product)
 
-        # The static upper line. Resolved here rather than in the assembler,
-        # which holds a product id and not the record. A source resolving to
-        # nothing is ordinary -- a topic has no affiliate link, an install
-        # may not have set the bio URL -- so the reason is logged and the
-        # line is simply absent (#88).
-        # The subtitle step already resolved this and recorded it, so the two
-        # cannot disagree about whether a line is drawn -- which is what the
-        # supersede decision was made on.
-        recorded = getattr(ctx, "upper_line_text", None)
-        if recorded is None:
-            # A `--step assemble_video` run, which never executed the subtitle
-            # step. Resolving here rather than reading a persisted value is
-            # what keeps an edited `custom_text` from being ignored on a
-            # re-render of a finished product.
-            upper = ctx.config.get_profile_merged_settings(
-                ctx.profile_name, ctx.cli_overrides
-            ).video_settings.upper_line
-            recorded, reason = drawable_upper_line(upper, ctx.product)
-            if upper.enabled and not recorded:
-                logger.info("Upper line not rendered: %s", reason)
-        assembler.upper_line_text = recorded or None
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.
         # When the script file doesn't exist (rare), the assembler treats the

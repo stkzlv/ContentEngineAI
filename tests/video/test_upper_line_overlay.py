@@ -212,6 +212,62 @@ class TestOnePredicateForEveryGate:
 
 
 @pytest.mark.unit
+class TestTheLineHasToFitTheFrame:
+    """`max_chars` bounds characters, not rendered width.
+
+    drawtext does not wrap and this filter centres the line, so a string
+    that passes the character gate and renders wider than the frame is
+    clipped at *both* ends -- an unusable link, which is what the character
+    gate was added to prevent. The estimator is the hook overlay's, whose
+    ratio was measured against real renders.
+    """
+
+    def _drawable(self, text):
+        return drawable_upper_line(
+            UpperLineSettings(enabled=True, source="custom", custom_text=text),
+            product(),
+            frame_width=1080,
+            subtitle_font_size_pixels=96,
+        )
+
+    def test_a_tagged_affiliate_url_is_refused(self) -> None:
+        """49 characters, inside the 60-character gate, and about 1400px in a
+        1080px frame. This is the shipped default source.
+        """
+        text, reason = self._drawable(
+            "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
+        )
+        assert text is None and "px wide" in reason
+
+    def test_a_shortened_link_fits(self) -> None:
+        text, _ = self._drawable("https://a.co/d/xY9")
+        assert text == "https://a.co/d/xY9"
+
+    def test_a_short_line_of_prose_fits(self) -> None:
+        text, _ = self._drawable("guide in bio")
+        assert text == "guide in bio"
+
+    def test_the_reason_names_the_width(self) -> None:
+        """An operator needs to know why the line vanished and by how much,
+        or the remedy -- shorten the link, lower size_factor -- is guesswork.
+        """
+        _, reason = self._drawable("x" * 40 + " " + "y" * 40)
+        assert "px wide" in reason and "does not wrap" in reason
+
+    def test_no_frame_width_means_no_width_gate(self) -> None:
+        """The character gate still applies; callers that cannot supply the
+        frame keep the old behaviour rather than silently refusing.
+        """
+        text, _ = drawable_upper_line(
+            UpperLineSettings(
+                enabled=True, source="custom", custom_text="https://a.co/d/xY9"
+            ),
+            product(),
+        )
+        assert text == "https://a.co/d/xY9"
+
+
+@pytest.mark.unit
 class TestTheDrawnFilter:
     def _apply(self, tmp_path, **over):
         settings = UpperLineSettings(enabled=True, **over)
@@ -378,6 +434,52 @@ class TestTheImageMakesRoom:
             ),
         )
         assert plain.bottom == with_line.bottom
+
+
+@pytest.mark.unit
+class TestTheAssemblerReservesTheRows:
+    """The assignment has to precede the builders that capture it.
+
+    `set_profile_settings` constructs `VisualFilterBuilder` and hands it the
+    text. Assigning `assembler.upper_line_text` afterwards left the builder
+    holding None, so it reserved nothing and the image was drawn under the
+    line -- the defect the band exists to prevent. Constructing the builder
+    directly, as the sibling test does, cannot see this: only the step's own
+    call order can.
+    """
+
+    def test_the_builder_receives_the_text(self) -> None:
+        from src.video.assembler import VideoAssembler
+        from src.video.config import load_video_config_modular
+
+        config = load_video_config_modular()
+        assembler = VideoAssembler(config)
+
+        # Exactly the order `step_assemble_video` uses.
+        assembler.upper_line_text = "https://a.co/d/xY9"
+        assembler.set_profile_settings(
+            next(iter(config.video_profiles)), None, subtitle_engine="ffmpeg"
+        )
+
+        assert assembler.visual_builder is not None
+        assert assembler.visual_builder.upper_line_text == "https://a.co/d/xY9"
+
+    def test_the_step_assigns_before_it_builds(self) -> None:
+        """Read the call order, because the failure is an ordering one and a
+        unit test of either half passes on its own.
+        """
+        import inspect
+
+        from src.video.producer.steps import step_assemble_video
+
+        source = inspect.getsource(step_assemble_video)
+        assign = source.index("assembler.upper_line_text =")
+        build = source.index("assembler.set_profile_settings(")
+
+        assert assign < build, (
+            "the text is assigned after the builders capture it, so the band "
+            "reserves no rows and the image is drawn under the line"
+        )
 
 
 @pytest.mark.unit

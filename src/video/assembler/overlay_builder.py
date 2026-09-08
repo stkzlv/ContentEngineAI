@@ -568,6 +568,12 @@ def resolve_upper_line_text(
     return None, "the record carries no affiliate link"
 
 
+# How much of the frame width the line may occupy. The disclosure keeps a 4%
+# margin per side; this leaves a little more, because a clipped URL is
+# unusable rather than merely tight.
+_UPPER_LINE_MAX_WIDTH_FRACTION = 0.9
+
+
 # The variable the two-part upper line has read since it shipped, documented
 # in `.env.example` and referenced by six bundled profiles.
 _LEGACY_BUSINESS_URL_VAR = "SUBTITLE_BUSINESS_URL"
@@ -577,6 +583,9 @@ def drawable_upper_line(
     settings: UpperLineSettings,
     product: Any,
     env: Mapping[str, str] | None = None,
+    *,
+    frame_width: int | None = None,
+    subtitle_font_size_pixels: int | None = None,
 ) -> tuple[str | None, str]:
     """The exact text the overlay will draw, or None and the reason.
 
@@ -599,6 +608,21 @@ def drawable_upper_line(
             f"{reason} does not fit in {settings.max_chars} characters "
             "without cutting a link mid-address"
         )
+    # Characters are not width. drawtext does not wrap and this filter centres
+    # the line, so a string that passes the character gate and renders wider
+    # than the frame is clipped at *both* ends -- a 49-character tagged
+    # affiliate URL measures 1405px in a 1080px frame, which is the shipped
+    # default source. The estimator is the hook overlay's, whose ratio was
+    # measured against real renders for #160.
+    if frame_width and subtitle_font_size_pixels:
+        font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+        width = _estimate_hook_text_width(drawable, font_size)
+        budget = int(frame_width * _UPPER_LINE_MAX_WIDTH_FRACTION)
+        if width > budget:
+            return None, (
+                f"{reason} renders about {width}px wide, past the {budget}px "
+                "the frame allows, and drawtext does not wrap"
+            )
     return drawable, reason
 
 
