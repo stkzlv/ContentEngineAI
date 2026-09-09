@@ -129,6 +129,22 @@ class ScriptValidationConfig(BaseModel):
     min_words: int = Field(50)
 
 
+class DescriptionValidationConfig(BaseModel):
+    """Thresholds for description completeness validation (#404).
+
+    ``max_chars`` is the one that separates a description from a reasoning
+    model's monologue about writing one, and it is measured rather than
+    guessed: real generated descriptions on this pipeline ran 244-430
+    characters against a prompt asking for 150-300, while the chain-of-thought
+    outputs that reached publishing ran 1346-2686. 900 sits above twice the
+    largest real one and well below the smallest bad one.
+    """
+
+    min_chars: int = 50
+    min_words: int = 10
+    max_chars: int = 900
+
+
 class VisualSearchTermsConfig(BaseModel):
     """Deriving stock search phrases from the script that will be narrated.
 
@@ -254,6 +270,9 @@ class LLMSettings(BaseModel):
     # Script validation thresholds
     script_validation: ScriptValidationConfig = Field(
         default_factory=ScriptValidationConfig  # type: ignore[arg-type]
+    )
+    description_validation: DescriptionValidationConfig = Field(
+        default_factory=DescriptionValidationConfig
     )
     script_templates: ScriptTemplateConfig = Field(default_factory=ScriptTemplateConfig)
     script_fact_check: ScriptFactCheckConfig = Field(

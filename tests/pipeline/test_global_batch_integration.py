@@ -211,6 +211,7 @@ async def test_pipeline_with_product_ids_only(
             }
         )
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         return mock_metadata
 
     with (

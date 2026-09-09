@@ -869,6 +869,13 @@ llm_settings:
     min_chars: 200
     min_words: 50
 
+  # Description validation thresholds. max_chars is what separates a
+  # description from a reasoning model's monologue about writing one.
+  description_validation:
+    min_chars: 50
+    min_words: 10
+    max_chars: 900
+
   # Prompt configuration
   prompt_template_path: "src/ai/prompts/video_script.md"
   target_audience: "Tech-savvy young adults"
@@ -2489,7 +2496,18 @@ llm_settings:
   script_validation:
     min_chars: 200    # Minimum character count for valid scripts
     min_words: 50     # Minimum word count for valid scripts
+
+  # Description validation thresholds (nested under description_validation)
+  description_validation:
+    min_chars: 50     # Minimum character count for valid descriptions
+    min_words: 10     # Minimum word count for valid descriptions
+    max_chars: 900    # Above this the text reads as reasoning, not a description
 ```
+
+A description is also rejected for carrying markdown or for stopping
+mid-sentence. The floors alone cannot tell a description from a reasoning
+model's monologue about writing one, because that text is longer and wordier
+than a real description and clears every floor by a wide margin.
 
 ### Configuration Usage in Code
 

@@ -727,3 +727,72 @@ class TestClampToLimits:
         assert meta.title is not None
         assert len(meta.title) <= 100
         assert len(meta.description) <= 5000
+
+
+class TestClampForPlatforms:
+    """Unified captions clamp to the tightest target, on what is sent (#403).
+
+    Four topic publishes were refused with "Instagram caption is 2576
+    characters, exceeding the 2200-character limit" because the caption was
+    clamped against YouTube's 5000 and posted to Instagram, and because the
+    clamp measured `description` while `format_content()` is what goes out.
+    The refusal is total, so a caption too long for the tightest platform
+    loses the post on every platform.
+    """
+
+    def _oversized(self, platform=Platform.YOUTUBE):
+        return PublishMetadata(
+            platform=platform,
+            title="A short title",
+            description="word " * 600,  # ~3000 chars
+            hashtags=["tech", "howto", "fix"],
+            keywords=[],
+            product_id="B0TEST001",
+            disclosure="#ad",
+            carries_affiliate_content=True,
+        )
+
+    def test_clamps_to_the_tightest_target_not_the_first(self):
+        meta = self._oversized()
+        targets = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
+
+        trimmed = meta.clamp_for_platforms(targets)
+
+        assert "description" in trimmed
+        # YouTube's 5000 would have left it untouched.
+        assert len(meta.description) <= 2200
+
+    def test_the_composed_caption_fits_not_just_the_description(self):
+        meta = self._oversized()
+        meta.clamp_for_platforms([Platform.INSTAGRAM])
+
+        content = meta.format_content()
+        # The disclosure line, hashtag block and blank lines all count.
+        assert len(content) > len(meta.description)
+        assert len(content) <= 2200
+
+    def test_title_clamps_to_youtube_even_from_tiktok_metadata(self):
+        """TikTok declares no title cap, so a first-loaded TikTok file left
+        an over-cap title unclamped for the YouTube leg of the same post.
+        """
+        meta = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title="Word " * 30,  # 150 chars
+            description="A short description that needs no trimming at all.",
+        )
+        trimmed = meta.clamp_for_platforms([Platform.TIKTOK, Platform.YOUTUBE])
+
+        assert "title" in trimmed
+        assert meta.title is not None
+        assert len(meta.title) <= 100
+
+    def test_no_targets_is_a_no_op(self):
+        meta = self._oversized()
+        original = meta.description
+        assert meta.clamp_for_platforms([]) == ()
+        assert meta.description == original
+
+    def test_clamp_to_limits_delegates_to_this_platform(self):
+        meta = self._oversized(platform=Platform.TIKTOK)
+        assert "description" in meta.clamp_to_limits()
+        assert len(meta.format_content()) <= 2200

@@ -5,7 +5,9 @@ implementations, providing type-safe representations of publish results,
 metadata, configuration, and batch summaries.
 """
 
+import logging
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -14,6 +16,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
+
+logger = logging.getLogger(__name__)
 
 
 class PublishStatus(Enum):
@@ -389,24 +393,77 @@ class PublishMetadata:
         return True, "Content within limits"
 
     def clamp_to_limits(self) -> tuple[str, ...]:
-        """Trim title and description to platform limits on word boundaries.
+        """Trim title and description to this platform's limits.
 
         Returns the names of fields that were trimmed (empty tuple when
         nothing changed). Updates ``character_counts`` so downstream
         consumers see the new lengths.
-        """
-        trimmed: list[str] = []
-        limits = PLATFORM_LIMITS.get(self.platform, {})
 
-        title_lim = limits.get("title")
-        if isinstance(title_lim, int) and self.title and len(self.title) > title_lim:
-            self.title = _trim_on_word_boundary(self.title, title_lim)
+        A post that targets more than one platform must use
+        ``clamp_for_platforms`` instead: this one clamps to a single
+        platform's caps, which is the wrong answer when the caption is sent
+        to several (#403).
+        """
+        return self.clamp_for_platforms([self.platform])
+
+    def clamp_for_platforms(self, platforms: Iterable[Platform]) -> tuple[str, ...]:
+        """Trim so the composed caption fits every platform it is sent to.
+
+        Two things this gets right that clamping against one platform's
+        ``description`` limit does not (#403):
+
+        **The binding platform.** Unified publishing sends one caption to
+        every target, so the limit that binds is the minimum across them, not
+        whichever platform's metadata file happened to load first. Clamping a
+        caption to YouTube's 5000 and posting it to Instagram's 2200 loses the
+        post on *every* platform, including the ones it would have fitted.
+
+        **The quantity.** What is sent is ``format_content()``, not
+        ``description``: the disclosure lines, the hashtag block and the blank
+        lines between them all count against the cap. So the description's
+        budget is the cap less that wrapper. A description clamped to exactly
+        2200 still composes to more than 2200.
+
+        The wrapper does not depend on the description, so one pass is enough.
+
+        Returns the names of the fields that were trimmed.
+        """
+        targets = [p for p in platforms if p in PLATFORM_LIMITS]
+        if not targets:
+            return ()
+
+        trimmed: list[str] = []
+        title_lims: list[int] = []
+        desc_lims: list[int] = []
+        for platform in targets:
+            title_lim = PLATFORM_LIMITS[platform].get("title")
+            if isinstance(title_lim, int):
+                title_lims.append(title_lim)
+            desc_lim = PLATFORM_LIMITS[platform].get("description")
+            if isinstance(desc_lim, int):
+                desc_lims.append(desc_lim)
+
+        if title_lims and self.title and len(self.title) > min(title_lims):
+            self.title = _trim_on_word_boundary(self.title, min(title_lims))
             trimmed.append("title")
 
-        desc_lim = limits.get("description")
-        if isinstance(desc_lim, int) and len(self.description) > desc_lim:
-            self.description = _trim_on_word_boundary(self.description, desc_lim)
-            trimmed.append("description")
+        if desc_lims:
+            cap = min(desc_lims)
+            wrapper = len(self.format_content()) - len(self.description)
+            budget = cap - wrapper
+            if budget <= 0:
+                logger.warning(
+                    "Caption wrapper (%d chars) already exceeds the %d-char cap "
+                    "for %s; the description is trimmed to nothing and the post "
+                    "may still be refused",
+                    wrapper,
+                    cap,
+                    ", ".join(p.value for p in targets),
+                )
+                budget = 0
+            if len(self.description) > budget:
+                self.description = _trim_on_word_boundary(self.description, budget)
+                trimmed.append("description")
 
         if trimmed:
             self.character_counts["description"] = len(self.description)

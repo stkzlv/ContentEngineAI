@@ -33,6 +33,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.ai.model_pool import model_reject_reason
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
@@ -534,7 +535,15 @@ async def _fetch_and_select_model(
                             all_free_ids.add(model_id)
                             # Only auto-discover instruct/chat models
                             if "instruct" in model_id or "chat" in model_id:
-                                discoverable_free.add(model_id)
+                                reject = model_reject_reason(model)
+                                if reject:
+                                    logger.debug(
+                                        "Skipping discovered model %s: %s",
+                                        model_id,
+                                        reject,
+                                    )
+                                else:
+                                    discoverable_free.add(model_id)
 
             if not all_free_ids:
                 logger.warning("No free models found from API. Using fallback list.")
@@ -644,6 +653,12 @@ async def _discover_any_free_model(
                             logger.debug(
                                 f"Skipping small model: {model_id} "
                                 f"(context={context_length})"
+                            )
+                            continue
+                        reject = model_reject_reason(model)
+                        if reject:
+                            logger.debug(
+                                "Skipping discovered model %s: %s", model_id, reject
                             )
                             continue
 

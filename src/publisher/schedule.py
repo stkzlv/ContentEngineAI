@@ -105,6 +105,18 @@ def caption_from_metadata(
                 " ".join(f"#{t}" if not t.startswith("#") else t for t in tags)
             )
         return "\n\n".join(parts)
+
+    # Clamped for the destination, on the composed caption. Without this the
+    # cap the other publish paths get from `PublishMetadata` was not applied
+    # here at all, and a caption past the platform's limit is refused
+    # outright rather than trimmed (#403).
+    trimmed = metadata.clamp_for_platforms([platform])
+    if trimmed:
+        logger.info(
+            "Clamped %s for %s on the scheduling path",
+            ", ".join(trimmed),
+            platform.value,
+        )
     return metadata.format_content()
 
 
@@ -1005,11 +1017,10 @@ class ScheduleManager:
                                     if isinstance(fb, list) and fb:
                                         fb = fb[0]
                                     # The raw scraped title, routinely past
-                                    # YouTube's 100-character cap. The caption
-                                    # builder below constructs a
-                                    # `PublishMetadata` but never calls
-                                    # `clamp_to_limits`, so the cap the other
-                                    # paths get from it is applied here.
+                                    # YouTube's 100-character cap. This branch
+                                    # carries the title separately from the
+                                    # caption the builder returns, so it is
+                                    # trimmed here.
                                     title = _trim_on_word_boundary(
                                         fb.get("title", "Product Video"), 100
                                     )

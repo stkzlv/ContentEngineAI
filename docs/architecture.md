@@ -408,10 +408,10 @@ benefit under a voiceover.
 
 **Features:**
 - **Provider Fallback**: Configurable via `llm_settings.fallback_provider` in YAML
-- **Free Model Discovery**: OpenRouter auto-selects free models, filtered by blocklist and context length
+- **Free Model Discovery**: OpenRouter auto-selects free models, filtered by blocklist, context length, and `src/ai/model_pool.py`, which drops a model that outputs anything other than text or that reasons in its output by default
 - **Script Templates**: 15 prompt styles with deterministic per-product selection
 - **Script Sanitization**: Removes emojis, hashtags, formatting issues
-- **Configurable Validation**: min_chars/min_words thresholds in `script_validation`
+- **Configurable Validation**: min_chars/min_words thresholds in `script_validation`; min_chars/min_words/max_chars in `description_validation`
 
 ### 5. Media Processing
 
