@@ -428,12 +428,21 @@ async def _call_llm_api(
 
 _TERMINATORS = ".!?\u2026"
 
-# Trailing characters that legitimately sit after a sentence's own
-# punctuation: emoji and other symbols, variation selectors, combining marks,
-# and closing quotes or brackets. Real descriptions from this pipeline end
-# "...power up quicker! \u26a1\ufe0f", so a naive last-character check would
-# reject them.
-_TRAILING_CATEGORIES = frozenset({"So", "Sk", "Cf", "Mn", "Pe", "Pf", "Pi"})
+# Closing quotes and brackets sit after a sentence's own punctuation but do
+# not close anything themselves, so they are skipped over and the search
+# continues behind them.
+_CLOSING_CATEGORIES = frozenset({"Pe", "Pf", "Pi"})
+
+# Emoji, skin-tone modifiers, variation selectors and joiners. These *do*
+# close a description in this register -- the prompt permits emoji and the
+# real output uses them, both after the full stop ("power up quicker! (bolt)")
+# and instead of one ("Grab yours today (fire)").
+_EMOJI_CATEGORIES = frozenset({"So", "Sk", "Cf", "Mn", "Me"})
+
+# ...but only above U+2000. Below it the same categories hold the degree
+# sign, the copyright sign and the ASCII modifiers, and a description ending
+# "a super wide 155\u00b0" is truncated rather than finished.
+_EMOJI_MIN_ORDINAL = 0x2000
 
 _MARKDOWN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\*\*.+?\*\*", re.S), "bold markup"),
@@ -450,16 +459,27 @@ _MARKDOWN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 _TRAILING_HASHTAGS_RE = re.compile(r"(?:\s*#[^\s#]+)+\s*$")
 
 
+def _is_emoji_like(ch: str) -> bool:
+    """Whether this character reads as an emoji closing a caption."""
+    return (
+        ord(ch) >= _EMOJI_MIN_ORDINAL and unicodedata.category(ch) in _EMOJI_CATEGORIES
+    )
+
+
 def _ends_with_terminator(text: str) -> bool:
     """Whether the text closes a sentence, ignoring trailing emoji and tags."""
     text = _TRAILING_HASHTAGS_RE.sub("", text)
+    saw_emoji = False
     for ch in reversed(text):
-        if ch.isspace() or unicodedata.category(ch) in _TRAILING_CATEGORIES:
+        if ch.isspace():
             continue
-        if ch in ("'", '"'):
+        if _is_emoji_like(ch):
+            saw_emoji = True
             continue
-        return ch in _TERMINATORS
-    return False
+        if unicodedata.category(ch) in _CLOSING_CATEGORIES or ch in ("'", '"'):
+            continue
+        return ch in _TERMINATORS or saw_emoji
+    return saw_emoji
 
 
 def validate_description_completeness(
@@ -475,7 +495,8 @@ def validate_description_completeness(
     things a monologue does not satisfy, and each is something the prompt
     already asks for: a length near the 150-300 characters it requests, no
     markdown, and a finished last sentence. The published monologue broke
-    all three.
+    all three. An emoji closes a description as well as a full stop does,
+    because the prompt permits emoji and the real output ends on them.
 
     Hashtags are deliberately not checked. The prompt forbids them too, but
     a monologue is as likely to omit them as a description is, so the check

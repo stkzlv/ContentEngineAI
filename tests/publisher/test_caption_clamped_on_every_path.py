@@ -33,13 +33,57 @@ class TestSchedulePathClamps:
 
         assert len(caption) <= 2200
 
-    def test_youtube_caption_keeps_its_larger_budget(self):
-        """The clamp is per destination, not one global minimum."""
+    def test_youtube_only_post_keeps_its_larger_budget(self):
+        """A post that reaches only YouTube is clamped to YouTube's cap.
+
+        This is the platform-specific branch, one post per platform.
+        """
         from src.publisher.schedule import caption_from_metadata
 
         caption = caption_from_metadata(self._meta(3000), "B0TEST001", Platform.YOUTUBE)
 
         assert 2200 < len(caption) <= 5000
+
+    def test_unified_caption_is_clamped_for_every_target(self):
+        """The unified branch, which is the default, posts one caption to all.
+
+        It used to reuse whichever platform's caption was built first, and
+        `schedule` defaults to `youtube, tiktok, instagram`, so a caption
+        clamped to YouTube's 5000 went to Instagram's 2200 and the post was
+        refused on all three.
+        """
+        from src.publisher.schedule import caption_from_metadata
+
+        caption = caption_from_metadata(
+            self._meta(3000),
+            "B0TEST001",
+            Platform.YOUTUBE,
+            targets=[Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
+        )
+
+        assert len(caption) <= 2200
+
+    def test_unified_branch_passes_its_full_target_list(self):
+        """The parameter is only worth having if the branch supplies it.
+
+        `auto_schedule` is not drivable without a scheduler, connected
+        accounts and rendered files, so the call site is read instead.
+        """
+        source = Path("src/publisher/schedule.py").read_text()
+        tree = ast.parse(source)
+
+        with_targets = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "caption_from_metadata"
+            and any(kw.arg == "targets" for kw in node.keywords)
+        ]
+        assert len(with_targets) == 1, (
+            f"{len(with_targets)} caption_from_metadata call(s) pass targets; "
+            "the unified branch must, and the per-platform branch must not"
+        )
 
     def test_short_caption_is_untouched(self):
         from src.publisher.schedule import caption_from_metadata

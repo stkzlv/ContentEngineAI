@@ -352,3 +352,23 @@ class TestDescriptionAcceptsRealOutput:
         )
         is_complete, reason = validate_description_completeness(desc)
         assert is_complete, reason
+
+    def test_accepts_an_emoji_instead_of_a_full_stop(self):
+        """The prompt permits emoji and real output closes on one."""
+        desc = (
+            "Tired of tangled cables ruining your desk setup? This magnetic "
+            "organizer keeps every cable exactly where you left them. Grab "
+            "yours today \U0001f525"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert is_complete, reason
+
+    def test_rejects_a_truncated_measurement(self):
+        """A trailing degree sign is truncation, not an emoji close."""
+        desc = (
+            "Capture every adventure with this action camera. It shoots crisp "
+            "4K video at 120fps with a super wide 155°"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert not is_complete
+        assert "cut off" in reason
