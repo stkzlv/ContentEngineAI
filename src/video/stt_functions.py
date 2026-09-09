@@ -115,9 +115,11 @@ async def generate_subtitles_with_whisper(
         audio_duration = _get_audio_duration(audio_path)
         # Calculate timeout using configurable settings
         transcription_timeout = _calculate_timeout(audio_duration, whisper_settings)
+        _, capped_by_run = _stt_ceiling(whisper_settings)
         logger.info(
             f"Audio duration: {audio_duration:.1f}s, "
             f"timeout: {transcription_timeout:.1f}s"
+            + (" (capped by the render's remaining budget)" if capped_by_run else "")
         )
 
         # Add model config to options for subprocess
@@ -147,12 +149,19 @@ async def generate_subtitles_with_whisper(
                 break
             except TimeoutError:
                 elapsed = time.time() - start_time
+                _, capped_by_run = _stt_ceiling(whisper_settings)
+                remedy = (
+                    "the render's remaining budget capped it; raise "
+                    "pipeline_timeout_sec in config/core.yaml"
+                    if capped_by_run
+                    else "the limit is derived from audio duration alone; raise "
+                    "whisper_settings.duration_multiplier or max_timeout_sec in "
+                    "config/ai_services.yaml"
+                )
                 logger.error(
                     f"Whisper transcription timed out after {elapsed:.1f}s "
-                    f"(limit: {limit:.1f}s). The limit is derived from audio "
-                    f"duration alone; raise whisper_settings.duration_multiplier "
-                    f"or max_timeout_sec in config/ai_services.yaml, or run on a "
-                    f"less loaded machine."
+                    f"(limit: {limit:.1f}s). {remedy}, or run on a less "
+                    f"loaded machine."
                 )
                 if whisper_settings.enable_resource_monitoring:
                     _log_system_resources("after Whisper timeout")
@@ -467,12 +476,12 @@ def _get_audio_duration(audio_path: Path) -> float:
         return 60.0
 
 
-def _stt_ceiling(whisper_settings: WhisperSettings) -> float:
-    """The most this transcription may be allowed, outer budget included.
+def _stt_ceiling(whisper_settings: WhisperSettings) -> tuple[float, bool]:
+    """The most this transcription may be allowed, and whether the run capped it.
 
     `max_timeout_sec` alone is an inner limit derived from audio length, and
     with the shipped settings it can exceed the whole render's budget: a
-    59-second voiceover earned 1007s inside a 900s pipeline (#398). Whisper
+    59-second voiceover earned 1008s inside a 900s pipeline (#398). Whisper
     then finished inside its own limit having spent most of the run's, the
     pipeline timeout fired during assembly, and the log blamed the pipeline
     rather than the step that spent the time.
@@ -484,9 +493,9 @@ def _stt_ceiling(whisper_settings: WhisperSettings) -> float:
     """
     ceiling = float(whisper_settings.max_timeout_sec)
     remaining = remaining_pipeline_seconds()
-    if remaining is None:
-        return ceiling
-    return min(ceiling, remaining)
+    if remaining is None or remaining >= ceiling:
+        return ceiling, False
+    return remaining, True
 
 
 def _calculate_timeout(
@@ -496,7 +505,8 @@ def _calculate_timeout(
     timeout = whisper_settings.base_timeout_sec + (
         audio_duration * whisper_settings.duration_multiplier
     )
-    return min(timeout, _stt_ceiling(whisper_settings))
+    ceiling, _ = _stt_ceiling(whisper_settings)
+    return min(timeout, ceiling)
 
 
 def _timeout_schedule(
@@ -513,7 +523,7 @@ def _timeout_schedule(
     time the render does not have.
     """
     limits = [first_limit]
-    ceiling = _stt_ceiling(whisper_settings)
+    ceiling, _ = _stt_ceiling(whisper_settings)
     multiplier = whisper_settings.timeout_retry_multiplier
 
     for _ in range(max(0, whisper_settings.timeout_retry_attempts)):

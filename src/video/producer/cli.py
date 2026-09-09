@@ -1069,8 +1069,8 @@ async def main():
         try:
             # Steps that derive their own limits read this, so an inner limit
             # cannot exceed the budget this `wait_for` enforces (#398). Set
-            # before the call, because `wait_for` copies the context into the
-            # task it creates.
+            # inside the per-product loop: that, not `wait_for`, is what keeps
+            # one product from inheriting the previous one's spent budget.
             set_pipeline_deadline(config.pipeline_timeout_sec)
             result_path = await asyncio.wait_for(
                 create_video_for_product(

@@ -26,6 +26,7 @@ from src.utils.async_io import (
     async_run_ffmpeg,
     ffmpeg_semaphore,
 )
+from src.utils.pipeline_deadline import remaining_pipeline_seconds
 from src.video.assembler.audio_builder import AudioFilterBuilder
 from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
@@ -748,10 +749,19 @@ class VideoAssembler:
             # completed render. The finished name is only ever created by the
             # rename below, so it cannot exist unless ffmpeg exited 0.
             #
+            # In `temp_dir`, not beside the output. A sibling
+            # `video_<id>_<profile>.partial.mp4` is matched by the
+            # publisher's own `video_{asin}_*.mp4` discovery glob, and sorts
+            # ahead of a second profile's finished render, so a kill that
+            # skips the cleanup below -- an OOM or a SIGTERM, where `finally`
+            # does not run -- would leave an unplayable file for the
+            # publisher to select and upload. `temp_dir` is inside the run
+            # directory, so the rename stays on one filesystem and stays
+            # atomic, and the existing temp cleanup removes anything left
+            # behind.
+            #
             # The suffix is kept so ffmpeg still infers the muxer from it.
-            partial_path = output_path.with_name(
-                f"{output_path.stem}.partial{output_path.suffix}"
-            )
+            partial_path = temp_dir / f"{output_path.stem}.partial{output_path.suffix}"
 
             # Build complete FFmpeg command
             final_cmd = self._build_ffmpeg_command(
@@ -764,6 +774,7 @@ class VideoAssembler:
             )
 
             ensure_dirs_exist(output_path)
+            ensure_dirs_exist(partial_path)
 
             command_log_path = (
                 temp_dir / f"{output_path.stem}_ffmpeg_command.log"
@@ -772,12 +783,29 @@ class VideoAssembler:
             )
 
             try:
+                # Bounded by what remains of the render's budget, for the
+                # same reason the STT limit is (#398): a flat limit larger
+                # than the time left is a promise the run cannot keep, and
+                # the outer timeout then cancels the encode with this limit
+                # unreached, so the log blames the pipeline rather than the
+                # step that ran out. Never raises the configured value.
+                assembly_timeout = float(
+                    self.config.ffmpeg_settings.final_assembly_timeout_sec
+                )
+                remaining = remaining_pipeline_seconds()
+                if remaining is not None and remaining < assembly_timeout:
+                    logger.info(
+                        "Final assembly limited to %.1fs by the render's "
+                        "remaining budget, below the configured %.1fs",
+                        remaining,
+                        assembly_timeout,
+                    )
+                    assembly_timeout = remaining
+
                 success, stdout, stderr = await ffmpeg_semaphore.run_with_limit(
                     async_run_ffmpeg(
                         final_cmd,
-                        timeout_sec=(
-                            self.config.ffmpeg_settings.final_assembly_timeout_sec
-                        ),
+                        timeout_sec=assembly_timeout,
                         log_path=command_log_path,
                     )
                 )

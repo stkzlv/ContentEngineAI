@@ -2052,7 +2052,7 @@ These enhance functionality but are not required for basic operation.
 |----------|------|---------|-------------|
 | `CONTENT_ENGINE_DEBUG` | bool | false | Enable debug mode (alt: `DEBUG_MODE`) |
 | `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory (alt: `OUTPUTS_DIR`) |
-| `CONTENT_ENGINE_TIMEOUT` | int | 900 | Pipeline timeout in seconds |
+| `CONTENT_ENGINE_TIMEOUT` | int | 2700 | Pipeline timeout in seconds |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 
 ### Subtitle Configuration

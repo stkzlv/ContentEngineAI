@@ -3,19 +3,29 @@
 `pipeline_timeout_sec` bounds a whole render, and several steps derive their
 own limits independently of it. Nothing reconciled the two, so an inner limit
 could exceed the outer one: with the shipped settings a 59-second voiceover
-earned Whisper 1007s inside a 900s pipeline (#398). The step then finished
+earned Whisper 1008s inside a 900s pipeline (#398). The step then finished
 inside its own budget, having consumed most of the run's, and the timeout
 fired during assembly -- so the failure was attributed to the pipeline rather
 than to the step that spent the time, and the retry schedule was widening a
 limit that already had nothing behind it.
 
-A `ContextVar` rather than a module global or a threaded parameter. The
-caller that applies the pipeline timeout sets it, and `asyncio.wait_for`
-copies the context into the task it creates, so the value reaches every step
-without passing through the four signatures between here and the STT call --
-the same signatures that, on the subtitle engine, already produced a
-documented class of silent failure by disagreeing. Per-task rather than
-per-process, so two products rendered concurrently do not share one deadline.
+A `ContextVar` rather than a module global or a threaded parameter, so the
+value reaches every step without passing through the four signatures between
+here and the STT call -- the same signatures that, on the subtitle engine,
+already produced a documented class of silent failure by disagreeing.
+
+Reads propagate downward through everything on this path: measured on the
+pinned 3.12 interpreter, the value survives `asyncio.wait_for`, `gather`,
+`create_task` and `to_thread`. It is lost only through
+`loop.run_in_executor`, which the Whisper subprocess uses -- after the limit
+has already been read, so that does not matter here.
+
+The isolation between products comes from each caller setting it inside its
+own per-product loop, not from `wait_for`: on 3.12 `wait_for` awaits the
+coroutine in the current context rather than wrapping it in a task, so a set
+performed inside would leak back out to the caller. Nothing here sets it
+downward, so that is a caveat rather than a bug, but do not rely on
+`wait_for` for isolation. `create_task` and `gather` do isolate.
 """
 
 from __future__ import annotations

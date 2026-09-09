@@ -119,7 +119,7 @@ class TestTheAssemblerIsWiredThatWay:
 
     def test_ffmpeg_writes_to_the_partial_path(self):
         source = Path("src/video/assembler/core.py").read_text()
-        assert "partial_path = output_path.with_name(" in source
+        assert "partial_path = temp_dir /" in source
         assert "os.replace(partial_path, output_path)" in source
         assert "partial_path.unlink(missing_ok=True)" in source
 
@@ -135,6 +135,10 @@ class TestTheAssemblerIsWiredThatWay:
             if isinstance(sub, ast.Call)
             and isinstance(sub.func, ast.Attribute)
             and sub.func.attr == "unlink"
+            # The partial specifically. Any `finally` holding any `unlink`
+            # would otherwise satisfy this once a second one appears.
+            and isinstance(sub.func.value, ast.Name)
+            and sub.func.value.id == "partial_path"
         ]
         assert cleanups_in_finally, (
             "the partial file must be removed in a finally; the pipeline "
@@ -145,3 +149,26 @@ class TestTheAssemblerIsWiredThatWay:
         """Ffmpeg infers the muxer from the extension, so it must survive."""
         source = Path("src/video/assembler/core.py").read_text()
         assert ".partial{output_path.suffix}" in source
+
+    def test_the_partial_is_outside_the_publishers_glob(self):
+        """A kill that skips the cleanup must not leave a publishable file.
+
+        `finally` does not run on an OOM kill or a SIGTERM, and the
+        publisher discovers renders with `video_{asin}_*.mp4`. A sibling
+        `video_<id>_<profile>.partial.mp4` matches that glob and sorts ahead
+        of a second profile's finished render.
+        """
+        import tempfile
+
+        from src.publisher.video_selector import sole_render_for_product
+
+        with tempfile.TemporaryDirectory() as d:
+            product = Path(d) / "B0TEST"
+            (product / "temp").mkdir(parents=True)
+            # Where the assembler now puts it.
+            (product / "temp" / "video_B0TEST_a.partial.mp4").write_bytes(b"x")
+            (product / "video_B0TEST_video_sequential.mp4").write_bytes(b"ok")
+
+            chosen = sole_render_for_product(product, "B0TEST")
+            assert chosen is not None
+            assert chosen.name == "video_B0TEST_video_sequential.mp4"
