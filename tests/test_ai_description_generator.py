@@ -264,3 +264,111 @@ class TestGenerateDescription:
 
             # Validate the error condition setup
             assert mock_settings.prompt_template_path == "nonexistent_template.md"
+
+
+class TestDescriptionRejectsReasoningOutput:
+    """A reasoning model's monologue must not pass as a description (#404).
+
+    The floors it clears easily: the published chain-of-thought was 1346
+    characters and several hundred words, both far above the minimums. These
+    are the checks that separate the two, each grounded in what the real
+    output looked like -- it was 2491 characters, it opened with a numbered
+    markdown plan, and it stopped mid-sentence on a comma.
+    """
+
+    # Trimmed from a real published output. Kept short so the markdown and
+    # cut-off checks are exercised on their own rather than behind the length
+    # one, which fires first on the full text.
+    MONOLOGUE = (
+        "Here's a thinking process:\n\n"
+        "1.  **Analyze the Request:**\n"
+        "   - **Role:** Social media marketing expert\n"
+        "   - **Task:** Create an engaging video description for a video\n"
+        "   - **Length:** 150-300 characters\n\n"
+        "So the description should be"
+    )
+
+    def test_rejects_over_max_chars(self):
+        long_desc = "This is a perfectly ordinary sentence about a product. " * 30
+        assert len(long_desc) > 900
+        is_complete, reason = validate_description_completeness(long_desc)
+        assert not is_complete
+        assert "too long" in reason
+
+    def test_rejects_markdown(self):
+        is_complete, reason = validate_description_completeness(self.MONOLOGUE)
+        assert not is_complete
+        assert "markdown" in reason
+
+    def test_rejects_a_cut_off_sentence(self):
+        cut_off = (
+            "Your IP address gives away your rough city and internet provider, "
+            "not your exact name or home address. It changes when you restart "
+            "your router, switch networks,"
+        )
+        is_complete, reason = validate_description_completeness(cut_off)
+        assert not is_complete
+        assert "cut off" in reason
+
+    def test_max_chars_comes_from_config(self):
+        from src.video.config.llm_settings import DescriptionValidationConfig
+
+        desc = "This is a perfectly ordinary sentence about a product. " * 5
+        assert 250 < len(desc) < 900
+        assert validate_description_completeness(desc)[0]
+        tight = DescriptionValidationConfig(max_chars=100)
+        assert not validate_description_completeness(desc, tight)[0]
+
+
+class TestDescriptionAcceptsRealOutput:
+    """Shapes real descriptions from this pipeline actually take."""
+
+    def test_accepts_a_trailing_emoji(self):
+        """Real descriptions close on an emoji after the full stop."""
+        desc = (
+            "Is your laptop charging slower on one USB-C port? It's not just you! "
+            "Not all USB-C ports are created equal when it comes to power "
+            "delivery. This guide shows which port charges fastest. ⚡️"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert is_complete, reason
+
+    def test_accepts_a_trailing_hashtag_block(self):
+        """Hashtags are not checked; the terminator check must ignore them."""
+        desc = (
+            "Check out these amazing wireless headphones! Perfect for music "
+            "lovers who want quality sound without tangled wires. Great bass "
+            "and a comfortable fit. #wireless #headphones #ad"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert is_complete, reason
+
+    def test_accepts_decimals_and_numbers_mid_sentence(self):
+        """The numbered-list check is line-anchored, so specs do not trip it."""
+        desc = (
+            "Capture every adventure with this action camera! It has a "
+            "1/1.3-inch sensor and crisp 4K video at 120fps with a 155 degree "
+            "view. The battery lasts up to 150 mins even in the cold."
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert is_complete, reason
+
+    def test_accepts_an_emoji_instead_of_a_full_stop(self):
+        """The prompt permits emoji and real output closes on one."""
+        desc = (
+            "Tired of tangled cables ruining your desk setup? This magnetic "
+            "organizer keeps every cable exactly where you left them. Grab "
+            "yours today \U0001f525"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert is_complete, reason
+
+    def test_rejects_a_truncated_measurement(self):
+        """A trailing degree sign is truncation, not an emoji close."""
+        desc = (
+            "Capture every adventure with this action camera. It shoots crisp "
+            "4K video at 120fps with a super wide 155°"
+        )
+        is_complete, reason = validate_description_completeness(desc)
+        assert not is_complete
+        assert "cut off" in reason

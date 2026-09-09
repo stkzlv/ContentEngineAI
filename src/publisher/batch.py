@@ -535,11 +535,12 @@ class BatchPublisher:
                     )
                     continue
 
-                # Clamp before anything reads the title. The other two
-                # publish paths do this; here it did not matter until the
-                # payload started carrying a title, and a scraped Amazon
-                # title routinely runs past YouTube's 100-character cap.
-                trimmed = metadata.clamp_to_limits()
+                # Clamp before anything reads the title, for the platform
+                # this iteration is posting to rather than the one whose
+                # metadata loaded. A scraped Amazon title routinely runs past
+                # YouTube's 100-character cap, and the clamp measures the
+                # composed caption, not the description alone (#403).
+                trimmed = metadata.clamp_for_platforms([platform])
                 if trimmed:
                     logger.info(
                         "Clamped %s for %s to platform limits",

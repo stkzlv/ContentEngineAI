@@ -627,3 +627,45 @@ class TestMaterialConnectionReachesThePublisher:
 
         call = mock_publisher.publish.call_args
         assert call.kwargs["carries_affiliate_content"] is True
+
+
+class TestUnifiedCaptionFitsEveryTarget:
+    """The unified caption is clamped for the platforms it reaches (#403)."""
+
+    @pytest.mark.asyncio
+    async def test_caption_sent_fits_the_tightest_target(
+        self, mock_publisher, platforms
+    ):
+        from src.publisher.models import PublishMetadata
+
+        # YouTube metadata loads first, so the old clamp used YouTube's 5000
+        # and the same caption then went to TikTok, whose cap is 2200.
+        oversized = PublishMetadata(
+            platform=Platform.YOUTUBE,
+            title="A short title",
+            description="word " * 600,  # ~3000 chars
+            hashtags=["tech", "howto"],
+            keywords=[],
+            product_id="B0TEST001",
+            disclosure="#ad",
+            carries_affiliate_content=True,
+        )
+
+        with patch(
+            "src.publisher.publish_modes.load_platform_metadata",
+            return_value=oversized,
+        ):
+            await publish_product(
+                publisher=mock_publisher,
+                media_id="media_123",
+                product_id="B0TEST001",
+                platforms=platforms,
+                outputs_dir="outputs",
+                platform_specific=False,
+            )
+
+        kwargs = mock_publisher.publish.call_args.kwargs
+        # The composed caption is what the provider measures, not description.
+        assert len(kwargs["content"]) <= 2200
+        for entry in (kwargs["platform_contents"] or {}).values():
+            assert len(entry["content"]) <= 2200

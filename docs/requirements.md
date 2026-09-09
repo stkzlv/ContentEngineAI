@@ -275,7 +275,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 
 ### AI Service Integration
 - Provider fallback chain: primary provider (Gemini) with automatic fallback to secondary (OpenRouter)
-- OpenRouter free model discovery with blocklist filtering and context length minimum
+- OpenRouter free model discovery with blocklist filtering, context length minimum, and rejection of models that do not output text or that reason in their output by default
 - Configurable retry, validation thresholds, and model blocklist via `LLMSettings`
 - Google Cloud TTS and Gemini TTS with voice prioritization
 
@@ -500,6 +500,9 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - **Optimized mode**: Platform-tailored titles, descriptions, hashtags
 - Character limit validation per platform
 - Title and description that exceed the platform's hard cap are trimmed on a word boundary with an ellipsis before reaching the publisher. Hashtag-count violations are logged as warnings; the publisher does not invent or drop tags.
+- The cap applied is that of every platform the caption reaches, not one of them. A unified post sends the same caption everywhere, so the binding cap is the smallest across its targets; clamping to a larger one and posting to a smaller one is refused by the provider on every platform at once, including the ones the caption would have fitted.
+- The quantity measured is the composed caption, not the description alone. The disclosure line, the affiliate phrase, the hashtag block and the blank lines between them all count against the platform's cap, so a description trimmed to exactly the cap still exceeds it once composed.
+- Every publish path applies both rules, including the scheduling path and the immediate batch. Each builds its own caption, so a rule applied in one is absent from the others until it is added there too.
 - A per-platform payload carries every field its consumer reads. Where a platform derives a value when none is supplied (a title from the caption's first line, for example), a partially-populated payload is worse than none: the platform silently substitutes its own value and the result looks like working output. Any field added to one side of that contract is added to the other.
 - Platforms that accept a distinct video title are sent one. Not sending a title is not neutral, because the platform then derives one from the caption, and the caption leads with the disclosure line.
 - Length clamping happens before the per-platform payload is built, so a clamped value cannot be copied in its unclamped form.

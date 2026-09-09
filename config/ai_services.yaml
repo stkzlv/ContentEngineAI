@@ -71,6 +71,19 @@ llm_settings:
     min_chars: 200
     min_words: 50
 
+  # Description validation thresholds. The floors alone cannot tell a
+  # description from a reasoning model's monologue about writing one: that
+  # text is longer and wordier than a real description, so it clears every
+  # floor by a wide margin, and one was published as a video description
+  # (#404). max_chars is measured rather than chosen: real descriptions from
+  # this pipeline ran 244-430 characters against a prompt asking for 150-300,
+  # while the chain-of-thought outputs ran 1346-2686. Raising it past about
+  # 1300 puts the two back in the same band.
+  description_validation:
+    min_chars: 50
+    min_words: 10
+    max_chars: 900
+
   # Stock search phrases taken from the finished script. Only consulted by a
   # profile that draws every visual from stock (slideshow_stock), where the
   # search terms are the whole visual layer. Each phrase is searched

@@ -7,6 +7,7 @@ capabilities for the publisher module.
 import json
 import logging
 import tempfile
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +27,7 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
     _trim_on_word_boundary,
+    description_budget,
     strip_disclosure_tokens,
 )
 from src.publisher.product_registry import add_to_registry
@@ -44,9 +46,17 @@ logger = logging.getLogger(__name__)
 
 
 def caption_from_metadata(
-    meta: dict, product_id: str | None, platform: Platform
+    meta: dict,
+    product_id: str | None,
+    platform: Platform,
+    targets: Iterable[Platform] | None = None,
 ) -> str:
     """Build the caption `schedule auto` publishes, from a metadata file.
+
+    `targets` is every platform the caption will reach, which is not always
+    the one it is built from: the unified branch builds one caption and posts
+    it to all three, so it has to be clamped for all three. Defaults to
+    `[platform]`, which is right for the per-platform branch.
 
     Routed through `PublishMetadata.format_content` rather than assembling the
     parts here. Hand-assembling them is what left this path without the
@@ -104,7 +114,35 @@ def caption_from_metadata(
             parts.append(
                 " ".join(f"#{t}" if not t.startswith("#") else t for t in tags)
             )
-        return "\n\n".join(parts)
+        # Clamped here too, or this path returns above the clamp below and
+        # `targets` is silently ignored. Only one of the two raise conditions
+        # produces a long caption -- an empty description gives a short one --
+        # but a YouTube entry with no title keeps its whole description, so
+        # the unified branch could still send an over-cap caption (#403).
+        assembled = "\n\n".join(parts)
+        budget = description_budget(
+            targets if targets is not None else [platform],
+            len(assembled) - len(description),
+        )
+        if budget is not None and len(description) > budget:
+            parts[parts.index(description)] = _trim_on_word_boundary(
+                description, budget
+            )
+            assembled = "\n\n".join(parts)
+        return assembled
+
+    # Clamped for the destination, on the composed caption. Without this the
+    # cap the other publish paths get from `PublishMetadata` was not applied
+    # here at all, and a caption past the platform's limit is refused
+    # outright rather than trimmed (#403).
+    clamp_for = list(targets) if targets is not None else [platform]
+    trimmed = metadata.clamp_for_platforms(clamp_for)
+    if trimmed:
+        logger.info(
+            "Clamped %s for %s on the scheduling path",
+            ", ".join(trimmed),
+            ", ".join(p.value for p in clamp_for),
+        )
     return metadata.format_content()
 
 
@@ -964,6 +1002,11 @@ class ScheduleManager:
                         # no opinion, and a missing disclosure is the costly
                         # direction to be wrong in.
                         carries_affiliate: dict[str, bool] = {}
+                        # The metadata each caption was built from. The
+                        # unified branch needs it to rebuild one caption
+                        # clamped for every platform it posts to, rather than
+                        # reusing a caption clamped for one of them.
+                        metas_used: dict[str, dict] = {}
 
                         for p in platforms:
                             meta = None
@@ -982,6 +1025,7 @@ class ScheduleManager:
                                 carries_affiliate[p.value] = bool(
                                     meta.get("carries_affiliate_content", True)
                                 )
+                                metas_used[p.value] = meta
                                 desc = caption_from_metadata(meta, product_id, p)
                                 if p.value == "youtube" and meta.get("title"):
                                     platform_contents[p.value] = {
@@ -1005,11 +1049,10 @@ class ScheduleManager:
                                     if isinstance(fb, list) and fb:
                                         fb = fb[0]
                                     # The raw scraped title, routinely past
-                                    # YouTube's 100-character cap. The caption
-                                    # builder below constructs a
-                                    # `PublishMetadata` but never calls
-                                    # `clamp_to_limits`, so the cap the other
-                                    # paths get from it is applied here.
+                                    # YouTube's 100-character cap. This branch
+                                    # carries the title separately from the
+                                    # caption the builder returns, so it is
+                                    # trimmed here.
                                     title = _trim_on_word_boundary(
                                         fb.get("title", "Product Video"), 100
                                     )
@@ -1034,17 +1077,20 @@ class ScheduleManager:
                                         SimpleNamespace(**fb)
                                     )
                                     carries_affiliate[p.value] = fb_discloses
+                                    fb_meta = {
+                                        "title": title,
+                                        "description": f"{title}\n\n{desc}",
+                                        "carries_affiliate_content": fb_discloses,
+                                    }
+                                    # Recorded like the metadata-file branch's
+                                    # is, or the unified branch below finds
+                                    # nothing to rebuild from and falls back
+                                    # to reusing this caption, which is
+                                    # clamped for one platform (#403).
+                                    metas_used[p.value] = fb_meta
                                     platform_contents[p.value] = {
                                         "content": caption_from_metadata(
-                                            {
-                                                "title": title,
-                                                "description": f"{title}\n\n{desc}",
-                                                "carries_affiliate_content": (
-                                                    fb_discloses
-                                                ),
-                                            },
-                                            product_id,
-                                            p,
+                                            fb_meta, product_id, p
                                         ),
                                         "title": title,
                                     }
@@ -1130,9 +1176,31 @@ class ScheduleManager:
                             # Use first available platform's content as unified
                             if platform_contents:
                                 first_platform = next(iter(platform_contents))
-                                unified_content = platform_contents[first_platform].get(
-                                    "content", ""
-                                )
+                                # Rebuilt rather than reused. The captions
+                                # above are each clamped for their own
+                                # platform, and this one post carries a single
+                                # caption to all of them, so reusing the first
+                                # sent a caption clamped to YouTube's 5000 to
+                                # Instagram's 2200 and lost the post on every
+                                # platform (#403).
+                                unified_targets = [
+                                    Platform(d["platform"])
+                                    for d in platform_dicts
+                                    if d.get("platform")
+                                    in {pl.value for pl in Platform}
+                                ]
+                                first_meta = metas_used.get(first_platform)
+                                if first_meta is not None and unified_targets:
+                                    unified_content = caption_from_metadata(
+                                        first_meta,
+                                        product_id,
+                                        Platform(first_platform),
+                                        targets=unified_targets,
+                                    )
+                                else:
+                                    unified_content = platform_contents[
+                                        first_platform
+                                    ].get("content", "")
                                 # Copy same content for all platforms
                                 for p_dict in platform_dicts:
                                     p_name = p_dict["platform"]

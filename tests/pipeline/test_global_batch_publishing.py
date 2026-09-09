@@ -193,6 +193,7 @@ async def test_auto_scheduling_finds_first_unoccupied_slot(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test content")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_load_metadata.return_value = mock_metadata
 
         # Execute publishing phase
@@ -281,6 +282,7 @@ async def test_auto_scheduling_falls_back_to_immediate_when_all_slots_occupied(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test content")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_load_metadata.return_value = mock_metadata
 
         produced_videos = [(video_path, "B0TEST1")]
@@ -359,6 +361,7 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test content")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_load_metadata.return_value = mock_metadata
 
         produced_videos = [
@@ -441,6 +444,7 @@ async def test_cleanup_removes_directory_after_successful_publish(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_load_metadata.return_value = mock_metadata
 
         # Directory exists before
@@ -513,6 +517,7 @@ async def test_cleanup_preserves_directory_on_partial_failure(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_load_metadata.return_value = mock_metadata
 
         produced_videos = [(video_path, "B0TEST1")]
@@ -649,6 +654,7 @@ async def test_batch_publisher_gets_the_configured_synthetic_media_flag(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test content")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_metadata.carries_affiliate_content = True
         mock_load_metadata.return_value = mock_metadata
 
@@ -736,6 +742,7 @@ async def test_batch_publisher_gets_the_configured_tiktok_settings(
         mock_metadata = Mock()
         mock_metadata.format_content = Mock(return_value="Test content")
         mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
         mock_metadata.carries_affiliate_content = True
         mock_load_metadata.return_value = mock_metadata
 

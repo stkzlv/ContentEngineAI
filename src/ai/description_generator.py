@@ -17,6 +17,7 @@ import asyncio
 import logging
 import random
 import re
+import unicodedata
 from pathlib import Path
 
 import aiohttp
@@ -31,11 +32,12 @@ from tenacity import (
 )
 
 # Configure module logger
+from src.ai.model_pool import model_reject_reason
 from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
-from src.video.config.llm_settings import LLMSettings
+from src.video.config.llm_settings import DescriptionValidationConfig, LLMSettings
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +218,15 @@ async def _fetch_and_select_model(
                             all_free_ids.add(model_id)
                             # Only auto-discover instruct/chat models
                             if "instruct" in model_id or "chat" in model_id:
-                                discoverable_free.add(model_id)
+                                reject = model_reject_reason(model)
+                                if reject:
+                                    logger.debug(
+                                        "Skipping discovered model %s: %s",
+                                        model_id,
+                                        reject,
+                                    )
+                                else:
+                                    discoverable_free.add(model_id)
 
             if not all_free_ids:
                 logger.warning("No free models found from API. Using fallback list.")
@@ -328,6 +338,12 @@ async def _discover_any_free_model(
                                 f"(context={context_length})"
                             )
                             continue
+                        reject = model_reject_reason(model)
+                        if reject:
+                            logger.debug(
+                                "Skipping discovered model %s: %s", model_id, reject
+                            )
+                            continue
 
                         candidates.append((model_id, context_length))
 
@@ -410,31 +426,132 @@ async def _call_llm_api(
         raise DescriptionGenerationError(str(e)) from e
 
 
-def validate_description_completeness(description: str) -> tuple[bool, str]:
+_TERMINATORS = ".!?\u2026"
+
+# Closing quotes and brackets sit after a sentence's own punctuation but do
+# not close anything themselves, so they are skipped over and the search
+# continues behind them.
+_CLOSING_CATEGORIES = frozenset({"Pe", "Pf", "Pi"})
+
+# Emoji, skin-tone modifiers, variation selectors and joiners. These *do*
+# close a description in this register -- the prompt permits emoji and the
+# real output uses them, both after the full stop ("power up quicker! (bolt)")
+# and instead of one ("Grab yours today (fire)").
+_EMOJI_CATEGORIES = frozenset({"So", "Sk", "Cf", "Mn", "Me"})
+
+# ...but only above U+2000. Below it the same categories hold the degree
+# sign, the copyright sign and the ASCII modifiers, and a description ending
+# "a super wide 155\u00b0" is truncated rather than finished.
+_EMOJI_MIN_ORDINAL = 0x2000
+
+_MARKDOWN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\*\*.+?\*\*", re.S), "bold markup"),
+    (re.compile(r"^\s{0,3}#{1,6}\s", re.M), "a heading"),
+    (re.compile(r"^\s{0,3}\d+\.\s", re.M), "a numbered list"),
+    (re.compile(r"^\s{0,3}[-*+]\s", re.M), "a bullet list"),
+)
+
+
+# A trailing hashtag block, which the system appends anyway. Stripped before
+# the terminator check so that check does not double as a hashtag rejection:
+# a monologue is as likely to omit hashtags as a description is, so rejecting
+# on them costs a retry without separating the two.
+_TRAILING_HASHTAGS_RE = re.compile(r"(?:\s*#[^\s#]+)+\s*$")
+
+
+def _is_emoji_like(ch: str) -> bool:
+    """Whether this character reads as an emoji closing a caption."""
+    return (
+        ord(ch) >= _EMOJI_MIN_ORDINAL and unicodedata.category(ch) in _EMOJI_CATEGORIES
+    )
+
+
+def _ends_with_terminator(text: str) -> bool:
+    """Whether the text closes a sentence, ignoring trailing emoji and tags."""
+    text = _TRAILING_HASHTAGS_RE.sub("", text)
+    saw_emoji = False
+    for ch in reversed(text):
+        if ch.isspace():
+            continue
+        if _is_emoji_like(ch):
+            saw_emoji = True
+            continue
+        if unicodedata.category(ch) in _CLOSING_CATEGORIES or ch in ("'", '"'):
+            continue
+        return ch in _TERMINATORS or saw_emoji
+    return saw_emoji
+
+
+def validate_description_completeness(
+    description: str,
+    limits: DescriptionValidationConfig | None = None,
+) -> tuple[bool, str]:
     """Validate if a description appears complete and well-formed.
+
+    The floors alone cannot tell a description from a reasoning model's
+    monologue about writing one: that text is *longer* and *wordier* than a
+    real description, so it clears every floor by a wide margin and one was
+    published as a video description (#404). The checks after them assert
+    things a monologue does not satisfy, and each is something the prompt
+    already asks for: a length near the 150-300 characters it requests, no
+    markdown, and a finished last sentence. The published monologue broke
+    all three. An emoji closes a description as well as a full stop does,
+    because the prompt permits emoji and the real output ends on them.
+
+    Hashtags are deliberately not checked. The prompt forbids them too, but
+    a monologue is as likely to omit them as a description is, so the check
+    would cost a retry without separating the two.
+
+    A rejected description is not fatal. Every call site is inside the
+    generation loop, so the next model or the fallback provider is tried.
 
     Args:
     ----
         description: The generated description text
+        limits: Thresholds to apply. Defaults to the model's own defaults so
+            a caller with no settings to hand still gets the checks.
 
     Returns:
     -------
         Tuple of (is_complete: bool, reason: str)
 
     """
+    limits = limits or DescriptionValidationConfig()
+
     if not description or not description.strip():
         return False, "Description is empty"
 
     description = description.strip()
 
     # Check minimum length (descriptions should be substantial)
-    if len(description) < 50:
-        return False, f"Description too short ({len(description)} chars, minimum 50)"
+    if len(description) < limits.min_chars:
+        return (
+            False,
+            f"Description too short ({len(description)} chars, "
+            f"minimum {limits.min_chars})",
+        )
 
     # Check for reasonable word count
     words = description.split()
-    if len(words) < 10:
-        return False, f"Description too few words ({len(words)}, minimum 10)"
+    if len(words) < limits.min_words:
+        return (
+            False,
+            f"Description too few words ({len(words)}, minimum {limits.min_words})",
+        )
+
+    if len(description) > limits.max_chars:
+        return (
+            False,
+            f"Description too long ({len(description)} chars, "
+            f"maximum {limits.max_chars}); reads as reasoning, not a description",
+        )
+
+    for pattern, what in _MARKDOWN_PATTERNS:
+        if pattern.search(description):
+            return False, f"Description contains {what}; the prompt forbids markdown"
+
+    if not _ends_with_terminator(description):
+        return False, "Description does not end a sentence; it was cut off"
 
     return (
         True,
@@ -552,7 +669,7 @@ async def generate_description(
 
                 # Validate description completeness
                 is_complete, validation_reason = validate_description_completeness(
-                    clean_description
+                    clean_description, settings.description_validation
                 )
                 if is_complete:
                     logger.info(
@@ -625,7 +742,7 @@ async def generate_description(
                 )
                 clean_description = re.sub(r"```[\w\s]*", "", description_text).strip()
                 is_complete, validation_reason = validate_description_completeness(
-                    clean_description
+                    clean_description, settings.description_validation
                 )
                 if is_complete:
                     logger.info(f"Fallback success with {model} - {validation_reason}")
@@ -665,7 +782,7 @@ async def generate_description(
                         r"```[\w\s]*", "", description_text
                     ).strip()
                     is_complete, reason = validate_description_completeness(
-                        clean_description
+                        clean_description, settings.description_validation
                     )
                     if is_complete:
                         logger.info("Fallback success with %s - %s", model, reason)
@@ -691,7 +808,7 @@ async def generate_description(
                             r"```[\w\s]*", "", description_text
                         ).strip()
                         is_complete, reason = validate_description_completeness(
-                            clean_description
+                            clean_description, settings.description_validation
                         )
                         if is_complete:
                             logger.info(

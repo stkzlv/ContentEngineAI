@@ -75,6 +75,25 @@ def _build_platform_contents_with_comments(
     return platform_contents if platform_contents else None
 
 
+def _target_platforms(platforms: list[dict[str, str]]) -> list[Platform]:
+    """Resolve publish specs to the platforms the caption will actually reach.
+
+    Unknown names are dropped with a warning rather than raising: the caller
+    is mid-publish and a caption clamped against the platforms we do
+    recognise is better than no post at all.
+    """
+    resolved: list[Platform] = []
+    for spec in platforms:
+        try:
+            platform = Platform(spec["platform"])
+        except (KeyError, ValueError):
+            logger.warning("Unrecognised publish target, not clamped for: %r", spec)
+            continue
+        if platform not in resolved:
+            resolved.append(platform)
+    return resolved
+
+
 async def publish_product(
     publisher: BasePublisher,
     media_id: str,
@@ -163,12 +182,17 @@ async def _publish_unified(
     if disclosure_phrase and metadata.carries_affiliate_content:
         metadata.affiliate_disclosure = disclosure_phrase
 
-    trimmed = metadata.clamp_to_limits()
+    # One caption reaches every target, so it is clamped against the tightest
+    # of them and measured on the composed caption. Clamping against the
+    # first-loaded platform's description limit sent a 2576-character caption
+    # to Instagram's 2200 cap and lost the post on all three (#403).
+    targets = _target_platforms(platforms) or [metadata.platform]
+    trimmed = metadata.clamp_for_platforms(targets)
     if trimmed:
         logger.info(
-            "Clamped %s for %s to platform limits",
+            "Clamped %s to the tightest limit across %s",
             ", ".join(trimmed),
-            metadata.platform.value,
+            ", ".join(p.value for p in targets),
         )
 
     content = metadata.format_content()
@@ -232,12 +256,16 @@ async def _publish_platform_specific(
         if disclosure_phrase and metadata.carries_affiliate_content:
             metadata.affiliate_disclosure = disclosure_phrase
 
-        trimmed = metadata.clamp_to_limits()
+        # The post goes to this platform, which is not necessarily the one
+        # whose metadata was loaded: the fallback above can hand back another
+        # platform's file. Clamp for the destination, on the composed caption.
+        targets = _target_platforms([p_info]) or [metadata.platform]
+        trimmed = metadata.clamp_for_platforms(targets)
         if trimmed:
             logger.info(
                 "Clamped %s for %s to platform limits",
                 ", ".join(trimmed),
-                metadata.platform.value,
+                ", ".join(p.value for p in targets),
             )
 
         content = metadata.format_content()
