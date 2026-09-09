@@ -113,6 +113,9 @@ class TestEveryLoaderAndLookupAgrees:
     def test_the_batch_pipeline_loader_resolves_the_same_way(self):
         """The global batch has its own loader and its own lookup site."""
         import argparse
+        import pathlib
+
+        import yaml
 
         from src.pipeline.config import load_global_batch_config
         from src.scraper.base.keyword_pillars import pillar_for as lookup
@@ -125,9 +128,19 @@ class TestEveryLoaderAndLookupAgrees:
             assert (
                 lookup(keyword, config.keyword_pillar_map) is not None
             ), f"{keyword!r} lost its pillar on the batch path"
+
         # The spelling the config ships is not the spelling the map is keyed
-        # by, so a raw lookup is the defect this guards.
-        mixed = [k for k in config.keywords if k != k.casefold()]
+        # by, so a raw lookup is the defect this guards. Read the pool for
+        # that, not `config.keywords`: the loader returns `keywords_for_run`,
+        # a date-rotated slice of `keywords_per_run` entries, and the pool's
+        # four mixed-case keywords are in roughly one slice in three. Asserted
+        # against the slice, this failed on most days (#405).
+        pool, _ = read_keyword_pillars(
+            yaml.safe_load(pathlib.Path("config/scraper.yaml").read_text())
+            .get("batch", {})
+            .get("keywords")
+        )
+        mixed = [k for k in pool if k != k.casefold()]
         assert mixed, "expected at least one mixed-case keyword in the config"
         for keyword in mixed:
             assert config.keyword_pillar_map.get(keyword) is None
