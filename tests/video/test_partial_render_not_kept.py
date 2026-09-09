@@ -5,10 +5,15 @@ render uses, failing `ffprobe` with `moov atom not found`. Anything checking
 for existence rather than validity accepts that as a finished video, and the
 scheduler enumerates rendered files.
 
-The guarantee is structural rather than a cleanup handler: ffmpeg writes to a
-sibling `.partial.mp4` and the finished name is only ever created by the
+The guarantee is structural rather than a cleanup handler: ffmpeg writes to
+`temp/<stem>.partial.mp4` and the finished name is only ever created by the
 rename that follows a zero exit. The pipeline timeout arrives as a
 cancellation, which no `if not success:` branch would ever reach.
+
+It goes in `temp/` rather than beside the output because the publisher
+discovers renders with `video_{asin}_*.mp4`, which a sibling would match --
+and sort ahead of a second profile's finished render -- so a kill that skips
+the cleanup entirely would leave an unplayable file to publish.
 """
 
 import ast

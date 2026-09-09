@@ -131,7 +131,23 @@ async def generate_subtitles_with_whisper(
         # about machine speed, and by this point the run has already paid for
         # the LLM script and the TTS voiceover.
         result_w = None
-        for limit in _timeout_schedule(transcription_timeout, whisper_settings):
+        for scheduled in _timeout_schedule(transcription_timeout, whisper_settings):
+            # Clamped here rather than when the schedule was built. The
+            # schedule is computed once, before attempt 1, so its ceiling is
+            # the budget as it stood then; attempt 1 spending its whole limit
+            # leaves the retry promised time the render no longer has, and
+            # the outer timeout then cancels the run with this step's limit
+            # unreached -- the #398 misattribution, surviving on the retry
+            # path. `capped_by_run` is decided in the same breath as the
+            # limit, so the message below describes the limit that expired
+            # rather than the budget at the moment it expired.
+            limit, capped_by_run = _attempt_limit(scheduled, whisper_settings)
+            if limit <= 0:
+                logger.error(
+                    "No time left in the render's budget for Whisper; raise "
+                    "pipeline_timeout_sec in config/core.yaml."
+                )
+                break
             start_time = time.time()
             try:
                 result_w = await asyncio.wait_for(
@@ -149,7 +165,6 @@ async def generate_subtitles_with_whisper(
                 break
             except TimeoutError:
                 elapsed = time.time() - start_time
-                _, capped_by_run = _stt_ceiling(whisper_settings)
                 remedy = (
                     "the render's remaining budget capped it; raise "
                     "pipeline_timeout_sec in config/core.yaml"
@@ -509,6 +524,30 @@ def _calculate_timeout(
     return min(timeout, ceiling)
 
 
+def _attempt_limit(
+    scheduled: float, whisper_settings: WhisperSettings
+) -> tuple[float, bool]:
+    """The limit for one attempt, and whether the run's budget set it.
+
+    Read at the moment the attempt starts, not when the schedule was built.
+    The schedule is computed once, so its ceiling is the budget as it stood
+    before attempt 1; after attempt 1 spends its whole limit the retry would
+    otherwise be handed more time than the render has left, and the outer
+    timeout cancels the run with this step's limit unreached -- which is the
+    #398 misattribution, surviving on the retry path.
+
+    The flag is returned with the limit rather than recomputed when the
+    attempt fails, because the budget only shrinks: recomputing it later can
+    only turn a False into a True, and then the error names
+    `pipeline_timeout_sec` for a limit the formula set, sending the operator
+    to a knob that changes nothing.
+    """
+    ceiling, capped_by_run = _stt_ceiling(whisper_settings)
+    if scheduled <= ceiling:
+        return scheduled, False
+    return ceiling, capped_by_run
+
+
 def _timeout_schedule(
     first_limit: float, whisper_settings: WhisperSettings
 ) -> list[float]:
@@ -519,8 +558,10 @@ def _timeout_schedule(
     also makes the empty-retry case explicit rather than a loop that silently
     repeats itself.
 
-    The cap is the outer budget when one is set, so a retry is never promised
-    time the render does not have.
+    The outer budget caps the widening here too, but only as it stands when
+    the schedule is built. Each attempt is clamped again against the budget
+    left at the moment it starts, which is the check that actually holds:
+    this one cannot see what attempt 1 will spend.
     """
     limits = [first_limit]
     ceiling, _ = _stt_ceiling(whisper_settings)

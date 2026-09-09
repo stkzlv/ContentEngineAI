@@ -19,7 +19,11 @@ from src.utils.pipeline_deadline import (
     set_pipeline_deadline,
 )
 from src.video.config.llm_settings import LLMSettings  # noqa: F401  (config import)
-from src.video.stt_functions import _calculate_timeout, _timeout_schedule
+from src.video.stt_functions import (
+    _attempt_limit,
+    _calculate_timeout,
+    _timeout_schedule,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -88,6 +92,52 @@ class TestTheSttLimitIsBounded:
         assert limits
         assert all(limit <= 700 for limit in limits)
 
+    def test_the_retry_is_clamped_against_the_budget_it_actually_has(self):
+        """The schedule is built once; the budget shrinks as attempts run.
+
+        With a 2700s budget 300s in, the schedule is [1008, 1800]. Attempt 1
+        spending its whole 1008s leaves 1392s, so handing the retry its
+        scheduled 1800s promises time the render no longer has, and the outer
+        timeout then cancels the run with this step's limit unreached.
+        """
+        set_pipeline_deadline(2400)
+        schedule = _timeout_schedule(_calculate_timeout(59.2, _Whisper()), _Whisper())
+        assert schedule == [pytest.approx(1008.0), pytest.approx(1800.0)]
+
+        # Attempt 1 spends its whole limit.
+        set_pipeline_deadline(2400 - schedule[0])
+        remaining = remaining_pipeline_seconds()
+        assert remaining is not None
+        limit, _ = _attempt_limit(schedule[1], _Whisper())
+        assert limit <= remaining
+        assert limit < schedule[1]
+
+    def test_the_reason_describes_the_limit_not_a_later_clock(self):
+        """Recomputing the flag when the attempt fails can only mislead.
+
+        The budget only shrinks, so a later read turns False into True and
+        the error names `pipeline_timeout_sec` for a limit the formula set --
+        a knob that changes nothing.
+        """
+        set_pipeline_deadline(2400)
+        schedule = _timeout_schedule(_calculate_timeout(59.2, _Whisper()), _Whisper())
+
+        _, capped = _attempt_limit(schedule[0], _Whisper())
+        assert capped is False, "1008s came from base + duration * multiplier"
+
+        set_pipeline_deadline(2400 - schedule[0])
+        _, capped_later = _attempt_limit(schedule[1], _Whisper())
+        assert capped_later is True, "the retry really is capped by the budget"
+
+    def test_an_exhausted_budget_yields_no_time_rather_than_a_negative(self):
+        set_pipeline_deadline(1)
+        import time as _time
+
+        _time.sleep(1.05)
+        limit, capped = _attempt_limit(600.0, _Whisper())
+        assert limit == 0.0
+        assert capped is True
+
     def test_widening_still_happens_when_there_is_room(self):
         set_pipeline_deadline(2700)
         limits = _timeout_schedule(_calculate_timeout(30.0, _Whisper()), _Whisper())
@@ -128,6 +178,56 @@ class TestTheDeadlineIsSetWhereTheTimeoutIsApplied:
         assert (
             arg.attr == "pipeline_timeout_sec"
         ), "the deadline must carry the same budget the wait_for enforces"
+
+
+class TestTheAssemblyLimitIsBoundedToo:
+    """The other step with a limit of its own (#398, pass-1 finding 5).
+
+    A flat limit larger than the time left is the same promise the run cannot
+    keep, and the outer timeout then cancels the encode with the FFmpeg limit
+    unreached. Driving `assemble_video` needs a rendered product, so the call
+    site is read.
+    """
+
+    def test_the_assembler_reads_the_remaining_budget(self):
+        source = Path("src/video/assembler/core.py").read_text()
+        assert "remaining_pipeline_seconds()" in source, (
+            "assemble_video must bound its FFmpeg limit by the render's "
+            "remaining budget, as the STT limit is"
+        )
+
+    def test_the_bound_reaches_the_ffmpeg_call(self):
+        tree = ast.parse(Path("src/video/assembler/core.py").read_text())
+
+        ffmpeg_calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "async_run_ffmpeg"
+            and any(kw.arg == "timeout_sec" for kw in node.keywords)
+        ]
+        assert ffmpeg_calls, "no async_run_ffmpeg call carries a timeout_sec"
+
+        final = [
+            kw.value
+            for call in ffmpeg_calls
+            for kw in call.keywords
+            if kw.arg == "timeout_sec"
+            and isinstance(kw.value, ast.Name)
+            and kw.value.id == "assembly_timeout"
+        ]
+        assert final, (
+            "the final assembly must pass the bounded local, not "
+            "final_assembly_timeout_sec straight from config"
+        )
+
+    def test_the_bound_never_raises_the_configured_value(self):
+        """It is a min, so a large remaining budget changes nothing."""
+        source = Path("src/video/assembler/core.py").read_text()
+        assert (
+            "remaining < assembly_timeout" in source
+        ), "the bound must only ever lower the configured limit"
 
 
 class TestTheShippedNumbers:
