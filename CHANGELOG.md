@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The subtitle step can no longer report success having produced no captions. A `--step generate_subtitles` run exited 0 and logged completion with no subtitle file written; the only sign was the absence of a file nothing mentioned. Each generation branch checked its own output, but neither covered every way of reaching the end with nothing written, and the state recorder registered every subtitle artifact conditionally, so a step that produced none was recorded done with an empty artifact set. Verification checks recorded paths, so an empty set satisfied it and the run continued to an assembler with nothing to burn. The step now fails unless it left a caption source, naming each path it looked for, and recording an empty set warns rather than passing in silence. Closes #396.
+
 ## [0.108.2] - 2026-09-09
 
 ### Fixed

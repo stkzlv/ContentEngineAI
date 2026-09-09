@@ -455,14 +455,32 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         artifacts["voiceover_file"] = ctx.run_paths["voiceover_file"]
         artifacts["voiceover_duration_file"] = ctx.run_paths["voiceover_duration_file"]
     elif step_name == STEP_GENERATE_SUBTITLES:
-        # Either subtitle_file (ffmpeg engine) or whisper_transcript_file (pycaps).
-        # Both are recorded when present so state verification succeeds on rerun.
-        subtitle_file = ctx.run_paths["subtitle_file"]
-        if subtitle_file.exists():
-            artifacts["subtitle_file"] = subtitle_file
-        transcript_file = ctx.run_paths.get("whisper_transcript_file")
-        if transcript_file is not None and transcript_file.exists():
-            artifacts["whisper_transcript_file"] = transcript_file
+        # Either subtitle_file (ffmpeg engine) or whisper_transcript_file
+        # (pycaps), or the upper line alone on a two-part run whose lower line
+        # is off. Recorded when present so state verification succeeds on
+        # rerun.
+        #
+        # All three are conditional, so a step that produced none of them was
+        # recorded done with an empty artifact set -- and verification checks
+        # recorded paths, so an empty set is vacuously satisfied and the run
+        # continued to an assembler with no captions (#396). The step itself
+        # refuses to reach here empty-handed; this warns rather than raising,
+        # because a state recorder is the wrong place to decide a run has
+        # failed and the config can legitimately disable subtitles entirely.
+        for key in (
+            "subtitle_file",
+            "whisper_transcript_file",
+            "subtitle_upper_file",
+        ):
+            path = ctx.run_paths.get(key)
+            if path is not None and Path(path).exists():
+                artifacts[key] = Path(path)
+        if not artifacts:
+            logger.warning(
+                "Recording '%s' complete with no caption artifact; nothing "
+                "downstream can verify this step produced anything.",
+                step_name,
+            )
     elif step_name == STEP_DOWNLOAD_MUSIC:
         # Only when it exists: the step completes without writing it when no
         # provider returns a track, and recording an absent file invalidates

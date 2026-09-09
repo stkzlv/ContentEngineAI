@@ -1424,6 +1424,39 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 raise PipelineError("Subtitle generation process failed.")
             logger.info("Subtitles file created: %s", srt_path.name)
 
+        # Whichever branch ran, this step exists to produce a caption source,
+        # and it must not report success without one (#396). The branches each
+        # check their own path, but neither covers every way of arriving here
+        # with nothing written -- a two-part run whose lower line is disabled
+        # is the shape in the tree today -- and the state recorder registers
+        # both subtitle artifacts *conditionally*, so a step that produced
+        # neither is marked done with no artifacts at all. Verification then
+        # has nothing to check and the run continues to an assembler with no
+        # captions to burn.
+        _require_subtitle_artifact(ctx)
+
+
+def _require_subtitle_artifact(ctx: PipelineContext) -> None:
+    """Fail unless the subtitle step left something for the assembler.
+
+    Named per candidate rather than reporting a bare failure, because the
+    symptom this replaces was a silent one: the only sign was the absence of
+    a file nothing mentioned.
+    """
+    candidates = {
+        key: ctx.run_paths.get(key)
+        for key in ("subtitle_file", "whisper_transcript_file", "subtitle_upper_file")
+    }
+    if any(path is not None and Path(path).exists() for path in candidates.values()):
+        return
+
+    missing = ", ".join(
+        f"{key}={path}" for key, path in candidates.items() if path is not None
+    )
+    raise PipelineError(
+        f"Subtitle step produced no caption source; none of these exist: {missing}"
+    )
+
 
 async def step_download_music(ctx: PipelineContext):
     async with performance_monitor.measure_step(

@@ -354,6 +354,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 
 ### Pipeline Behavior
+- A step that produces none of its declared outputs fails rather than being recorded complete. Artifacts are registered conditionally, because which one a step writes depends on the engine and mode it ran in, and verification compares recorded paths — so a step that wrote none of them would otherwise be recorded with an empty artifact set that verification satisfies vacuously, and the run would continue on nothing. The failure names each path that was looked for, since the symptom this replaces was the absence of a file nothing mentioned.
 - `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
 - The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
 - Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`, or `pillar_preambles_topic` on a topic render) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.
