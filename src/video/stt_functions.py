@@ -20,6 +20,7 @@ import psutil
 from src.config_manager import get_config_value
 from src.utils import ensure_dirs_exist, format_timestamp
 from src.utils.circuit_breaker import google_stt_circuit_breaker
+from src.utils.pipeline_deadline import remaining_pipeline_seconds
 from src.video.config import (
     DEFAULT_WHISPER_MODEL_DIR,
     GoogleCloudSTTSettings,
@@ -113,10 +114,19 @@ async def generate_subtitles_with_whisper(
         # Get audio file info for timeout calculation
         audio_duration = _get_audio_duration(audio_path)
         # Calculate timeout using configurable settings
-        transcription_timeout = _calculate_timeout(audio_duration, whisper_settings)
+        # Both the number and its reason from the one helper the loop uses.
+        # Asking `_stt_ceiling` separately answers "is the budget binding
+        # now", not "did the budget set this limit", so a formula-derived
+        # limit was reported as budget-capped whenever the budget merely
+        # happened to be below `max_timeout_sec` -- and the error path, three
+        # lines down the same run, said the opposite of the same number.
+        transcription_timeout, capped_by_run = _attempt_limit(
+            _calculate_timeout(audio_duration, whisper_settings), whisper_settings
+        )
         logger.info(
             f"Audio duration: {audio_duration:.1f}s, "
             f"timeout: {transcription_timeout:.1f}s"
+            + (" (capped by the render's remaining budget)" if capped_by_run else "")
         )
 
         # Add model config to options for subprocess
@@ -128,7 +138,23 @@ async def generate_subtitles_with_whisper(
         # about machine speed, and by this point the run has already paid for
         # the LLM script and the TTS voiceover.
         result_w = None
-        for limit in _timeout_schedule(transcription_timeout, whisper_settings):
+        for scheduled in _timeout_schedule(transcription_timeout, whisper_settings):
+            # Clamped here rather than when the schedule was built. The
+            # schedule is computed once, before attempt 1, so its ceiling is
+            # the budget as it stood then; attempt 1 spending its whole limit
+            # leaves the retry promised time the render no longer has, and
+            # the outer timeout then cancels the run with this step's limit
+            # unreached -- the #398 misattribution, surviving on the retry
+            # path. `capped_by_run` is decided in the same breath as the
+            # limit, so the message below describes the limit that expired
+            # rather than the budget at the moment it expired.
+            limit, capped_by_run = _attempt_limit(scheduled, whisper_settings)
+            if limit <= 0:
+                logger.error(
+                    "No time left in the render's budget for Whisper; raise "
+                    "pipeline_timeout_sec in config/core.yaml."
+                )
+                break
             start_time = time.time()
             try:
                 result_w = await asyncio.wait_for(
@@ -146,12 +172,18 @@ async def generate_subtitles_with_whisper(
                 break
             except TimeoutError:
                 elapsed = time.time() - start_time
+                remedy = (
+                    "the render's remaining budget capped it; raise "
+                    "pipeline_timeout_sec in config/core.yaml"
+                    if capped_by_run
+                    else "the limit is derived from audio duration alone; raise "
+                    "whisper_settings.duration_multiplier or max_timeout_sec in "
+                    "config/ai_services.yaml"
+                )
                 logger.error(
                     f"Whisper transcription timed out after {elapsed:.1f}s "
-                    f"(limit: {limit:.1f}s). The limit is derived from audio "
-                    f"duration alone; raise whisper_settings.duration_multiplier "
-                    f"or max_timeout_sec in config/ai_services.yaml, or run on a "
-                    f"less loaded machine."
+                    f"(limit: {limit:.1f}s). {remedy}, or run on a less "
+                    f"loaded machine."
                 )
                 if whisper_settings.enable_resource_monitoring:
                     _log_system_resources("after Whisper timeout")
@@ -466,6 +498,28 @@ def _get_audio_duration(audio_path: Path) -> float:
         return 60.0
 
 
+def _stt_ceiling(whisper_settings: WhisperSettings) -> tuple[float, bool]:
+    """The most this transcription may be allowed, and whether the run capped it.
+
+    `max_timeout_sec` alone is an inner limit derived from audio length, and
+    with the shipped settings it can exceed the whole render's budget: a
+    59-second voiceover earned 1008s inside a 900s pipeline (#398). Whisper
+    then finished inside its own limit having spent most of the run's, the
+    pipeline timeout fired during assembly, and the log blamed the pipeline
+    rather than the step that spent the time.
+
+    Bounded by whatever remains of the render's budget, so a timeout here is
+    reported by the step that ran out and the retry schedule cannot widen a
+    limit past what exists. No deadline set means no outer bound, which is
+    the case for a caller that applies no pipeline timeout at all.
+    """
+    ceiling = float(whisper_settings.max_timeout_sec)
+    remaining = remaining_pipeline_seconds()
+    if remaining is None or remaining >= ceiling:
+        return ceiling, False
+    return remaining, True
+
+
 def _calculate_timeout(
     audio_duration: float, whisper_settings: WhisperSettings
 ) -> float:
@@ -473,7 +527,32 @@ def _calculate_timeout(
     timeout = whisper_settings.base_timeout_sec + (
         audio_duration * whisper_settings.duration_multiplier
     )
-    return min(timeout, whisper_settings.max_timeout_sec)
+    ceiling, _ = _stt_ceiling(whisper_settings)
+    return min(timeout, ceiling)
+
+
+def _attempt_limit(
+    scheduled: float, whisper_settings: WhisperSettings
+) -> tuple[float, bool]:
+    """The limit for one attempt, and whether the run's budget set it.
+
+    Read at the moment the attempt starts, not when the schedule was built.
+    The schedule is computed once, so its ceiling is the budget as it stood
+    before attempt 1; after attempt 1 spends its whole limit the retry would
+    otherwise be handed more time than the render has left, and the outer
+    timeout cancels the run with this step's limit unreached -- which is the
+    #398 misattribution, surviving on the retry path.
+
+    The flag is returned with the limit rather than recomputed when the
+    attempt fails, because the budget only shrinks: recomputing it later can
+    only turn a False into a True, and then the error names
+    `pipeline_timeout_sec` for a limit the formula set, sending the operator
+    to a knob that changes nothing.
+    """
+    ceiling, capped_by_run = _stt_ceiling(whisper_settings)
+    if scheduled <= ceiling:
+        return scheduled, False
+    return ceiling, capped_by_run
 
 
 def _timeout_schedule(
@@ -482,12 +561,17 @@ def _timeout_schedule(
     """Limits to try, widening after each timeout.
 
     A retry that gets the same limit cannot do better than the attempt that
-    just failed, so the schedule stops as soon as widening is capped by
-    `max_timeout_sec`. That also makes the empty-retry case explicit rather
-    than a loop that silently repeats itself.
+    just failed, so the schedule stops as soon as widening is capped. That
+    also makes the empty-retry case explicit rather than a loop that silently
+    repeats itself.
+
+    The outer budget caps the widening here too, but only as it stands when
+    the schedule is built. Each attempt is clamped again against the budget
+    left at the moment it starts, which is the check that actually holds:
+    this one cannot see what attempt 1 will spend.
     """
     limits = [first_limit]
-    ceiling = float(whisper_settings.max_timeout_sec)
+    ceiling, _ = _stt_ceiling(whisper_settings)
     multiplier = whisper_settings.timeout_retry_multiplier
 
     for _ in range(max(0, whisper_settings.timeout_retry_attempts)):

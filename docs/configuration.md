@@ -162,7 +162,7 @@ Global settings and output structure:
 # Base output directory and structure
 global_output_directory: "outputs"
 debug_mode: false
-pipeline_timeout_sec: 900
+pipeline_timeout_sec: 2700
 
 # System-wide timeouts for command execution and media analysis
 system_timeouts:
@@ -360,7 +360,7 @@ shortening as enabled.
 
 ```yaml
 # Pipeline execution timeout (seconds)
-pipeline_timeout_sec: 900
+pipeline_timeout_sec: 2700
 
 # Logging configuration
 logging_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
@@ -371,7 +371,7 @@ inter_product_delay_range: [30, 60]  # Random delay in seconds
 ```
 
 **Options:**
-- `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 900s)
+- `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
 - `logging_level`: Controls verbosity of logging output
 - `debug_mode`: Enables detailed tracing and intermediate file retention
 - `inter_product_delay_range`: Random delay between processing multiple products
@@ -1770,7 +1770,8 @@ whisper_settings:
   # Timeout settings (configurable for system performance)
   base_timeout_sec: 120              # Base timeout before audio duration added
   duration_multiplier: 15.0          # Multiplier for audio duration (timeout = base + duration * multiplier)
-  max_timeout_sec: 1800              # Maximum timeout (30 minutes)
+  max_timeout_sec: 1800              # Ceiling, further bounded at runtime by
+                                     # whatever remains of pipeline_timeout_sec
   timeout_retry_attempts: 1          # Retries after a timeout, each on a wider limit
   timeout_retry_multiplier: 2.0      # How much wider each retry's limit is
   progress_monitor_interval_sec: 30  # Progress monitoring interval
@@ -1800,7 +1801,7 @@ ffmpeg_settings:
   executable_path: "ffmpeg"           # Path to the FFmpeg executable
   temp_ffmpeg_dir: "temp"             # Working directory for intermediates
   intermediate_segment_preset: "fast" # x264 preset for intermediate segments
-  final_assembly_timeout_sec: 600     # Timeout for the final assembly pass
+  final_assembly_timeout_sec: 1800    # Timeout for the final assembly pass
   rw_timeout_microseconds: 30000000   # I/O timeout for file operations
   verification_timeout_sec: 60        # Timeout for the post-render ffprobe
 ```
@@ -1970,13 +1971,13 @@ Global timeouts for external command execution and basic connectivity checks.
 
 **Global Pipeline** (`config/core.yaml`):
 ```yaml
-pipeline_timeout_sec: 900  # Total pipeline execution timeout
+pipeline_timeout_sec: 2700  # Total pipeline execution timeout
 ```
 
 **FFmpeg Operations** (`config/performance.yaml`):
 ```yaml
 ffmpeg_settings:
-  final_assembly_timeout_sec: 600  # Video assembly timeout
+  final_assembly_timeout_sec: 1800  # Video assembly timeout
   rw_timeout_microseconds: 30000000  # I/O timeout (30 seconds)
 ```
 
@@ -2051,7 +2052,7 @@ These enhance functionality but are not required for basic operation.
 |----------|------|---------|-------------|
 | `CONTENT_ENGINE_DEBUG` | bool | false | Enable debug mode (alt: `DEBUG_MODE`) |
 | `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory (alt: `OUTPUTS_DIR`) |
-| `CONTENT_ENGINE_TIMEOUT` | int | 900 | Pipeline timeout in seconds |
+| `CONTENT_ENGINE_TIMEOUT` | int | 2700 | Pipeline timeout in seconds |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 
 ### Subtitle Configuration

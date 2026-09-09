@@ -96,8 +96,10 @@ for ((i = 0; i < total; i++)); do
     summary+=("FAIL  $title ($step_failed)"); failed=$((failed + 1)); continue
   fi
 
-  # Check the artifact, not the exit code: a timeout leaves a truncated .mp4
-  # under the finished render's name, non-zero in size and failing ffprobe.
+  # Check the artifact, not the exit code: an exit code cannot tell this
+  # run's render from an earlier profile's, and a clean exit is not the same
+  # as a readable file. (A timeout no longer leaves a truncated .mp4 under
+  # the finished name; the assembler renames into it only on success.)
   # This profile's render: a topic rendered under two profiles keeps both, and
   # the alphabetically first may not be the one this run produced. The glob is
   # loose enough for both shapes the config allows -- video_<id>_<profile>.mp4

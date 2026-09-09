@@ -14,8 +14,15 @@ ffmpeg_settings:
   # FFmpeg preset for intermediate processing
   intermediate_segment_preset: "ultrafast"
 
-  # Maximum time to wait for final video assembly in seconds
-  final_assembly_timeout_sec: 600
+  # Maximum time to wait for final video assembly in seconds.
+  #
+  # Sits inside `pipeline_timeout_sec`, so raising either alone leaves the
+  # other binding. The worst assembly observed was 543s on a loaded machine
+  # against 152s idle, and one run hit the old 600s limit while later
+  # attempts on the same topic and machine took 134-138s -- a 4.5x spread
+  # with no identified cause, which is what the margin here is sized for
+  # rather than the 543s alone.
+  final_assembly_timeout_sec: 1800
 
   # FFmpeg I/O timeout in microseconds
   # 30,000,000 microseconds = 30 seconds
