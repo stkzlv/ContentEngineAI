@@ -63,6 +63,42 @@ class TestSchedulePathClamps:
 
         assert len(caption) <= 2200
 
+    def test_every_per_platform_caption_records_its_metadata(self):
+        """The unified rebuild needs the metadata each caption came from.
+
+        `auto_schedule` builds a per-platform caption in two places: from a
+        metadata file, and from `data.json` when none exists. Only the first
+        recorded what it built from, so on a product with no metadata file
+        the unified branch found nothing to rebuild and fell back to reusing
+        a caption clamped for one platform.
+        """
+        tree = ast.parse(Path("src/publisher/schedule.py").read_text())
+
+        per_platform_calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "caption_from_metadata"
+            and not any(kw.arg == "targets" for kw in node.keywords)
+        ]
+        recorded = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(t, ast.Subscript)
+                and isinstance(t.value, ast.Name)
+                and t.value.id == "metas_used"
+                for t in node.targets
+            )
+        ]
+        assert len(recorded) == len(per_platform_calls), (
+            f"{len(per_platform_calls)} per-platform caption(s) built but "
+            f"{len(recorded)} recorded in metas_used; every branch that "
+            "builds one must record what it built from"
+        )
+
     def test_unified_branch_passes_its_full_target_list(self):
         """The parameter is only worth having if the branch supplies it.
 

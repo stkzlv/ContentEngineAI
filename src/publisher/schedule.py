@@ -1061,17 +1061,20 @@ class ScheduleManager:
                                         SimpleNamespace(**fb)
                                     )
                                     carries_affiliate[p.value] = fb_discloses
+                                    fb_meta = {
+                                        "title": title,
+                                        "description": f"{title}\n\n{desc}",
+                                        "carries_affiliate_content": fb_discloses,
+                                    }
+                                    # Recorded like the metadata-file branch's
+                                    # is, or the unified branch below finds
+                                    # nothing to rebuild from and falls back
+                                    # to reusing this caption, which is
+                                    # clamped for one platform (#403).
+                                    metas_used[p.value] = fb_meta
                                     platform_contents[p.value] = {
                                         "content": caption_from_metadata(
-                                            {
-                                                "title": title,
-                                                "description": f"{title}\n\n{desc}",
-                                                "carries_affiliate_content": (
-                                                    fb_discloses
-                                                ),
-                                            },
-                                            product_id,
-                                            p,
+                                            fb_meta, product_id, p
                                         ),
                                         "title": title,
                                     }
