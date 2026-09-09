@@ -113,6 +113,9 @@ class TestEveryLoaderAndLookupAgrees:
     def test_the_batch_pipeline_loader_resolves_the_same_way(self):
         """The global batch has its own loader and its own lookup site."""
         import argparse
+        import pathlib
+
+        import yaml
 
         from src.pipeline.config import load_global_batch_config
         from src.scraper.base.keyword_pillars import pillar_for as lookup
@@ -125,13 +128,65 @@ class TestEveryLoaderAndLookupAgrees:
             assert (
                 lookup(keyword, config.keyword_pillar_map) is not None
             ), f"{keyword!r} lost its pillar on the batch path"
+
         # The spelling the config ships is not the spelling the map is keyed
-        # by, so a raw lookup is the defect this guards.
-        mixed = [k for k in config.keywords if k != k.casefold()]
+        # by, so a raw lookup is the defect this guards. Read the pool for
+        # that, not `config.keywords`: the loader returns `keywords_for_run`,
+        # a date-rotated slice of `keywords_per_run` entries, and only about
+        # three slices in four hold one of the pool's seven mixed-case
+        # keywords, so asserted against the slice this failed on roughly one
+        # day in four (#405).
+        pool, _ = read_keyword_pillars(
+            yaml.safe_load(pathlib.Path("config/scraper.yaml").read_text())
+            .get("batch", {})
+            .get("keywords")
+        )
+        mixed = [k for k in pool if k != k.casefold()]
         assert mixed, "expected at least one mixed-case keyword in the config"
         for keyword in mixed:
             assert config.keyword_pillar_map.get(keyword) is None
             assert lookup(keyword, config.keyword_pillar_map) is not None
+
+    def test_the_batch_loader_keeps_the_configured_spelling(self):
+        """The loader must not casefold the list it hands back.
+
+        The keyword list is what gets searched, so `read_keyword_pillars`
+        keeps its original spelling and normalizes only the map. The test
+        above used to catch a loader that casefolded it, as a side effect of
+        asserting mixed case on the slice; reading the pool instead costs
+        that, and asserting it on the slice would only catch it on the three
+        days in four whose slice happens to hold a mixed-case keyword.
+
+        The rotation is stubbed out so the loader returns the whole pool and
+        the check bites every day.
+        """
+        import argparse
+        import pathlib
+        from unittest.mock import patch
+
+        import yaml
+
+        from src.pipeline.config import load_global_batch_config
+
+        pool, _ = read_keyword_pillars(
+            yaml.safe_load(pathlib.Path("config/scraper.yaml").read_text())
+            .get("batch", {})
+            .get("keywords")
+        )
+        assert [
+            k for k in pool if k != k.casefold()
+        ], "the config ships no mixed-case keyword, so this proves nothing"
+
+        with patch(
+            "src.pipeline.config.keywords_for_run", side_effect=lambda ks, _n: ks
+        ):
+            config = load_global_batch_config(
+                argparse.Namespace(), "config/pipeline.yaml"
+            )
+
+        assert set(config.keywords) == set(
+            pool
+        ), "the loader changed the spelling of the configured keywords"
 
     def test_the_scrapers_own_lookup_ignores_presentation(self):
         """`pillar_for_keyword` reads the scraper's own config copy."""
