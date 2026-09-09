@@ -124,10 +124,26 @@ class TestTheStepActuallyCallsIt:
                 top_level = list(stmt.body)
                 break
 
-        assert any(_is_guard(stmt) for stmt in top_level), (
-            "the guard must sit at the step's top level, after the branch "
-            "that chose how to generate captions; inside a branch it cannot "
-            "see the other one"
+        guard_at = [i for i, stmt in enumerate(top_level) if _is_guard(stmt)]
+        assert guard_at, (
+            "the guard must sit at the step's top level; inside a branch it "
+            "cannot see the other one"
+        )
+
+        # ...and after the branch, not before it. Membership alone passes a
+        # refactor that hoists the call to the top of the step, where every
+        # render fails because nothing has been generated yet.
+        branch_at = [
+            i
+            for i, stmt in enumerate(top_level)
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "two_part_enabled"
+        ]
+        assert branch_at, "could not find the two_part_enabled branch"
+        assert guard_at[0] > branch_at[0], (
+            "the guard must run after the branch that generates captions, "
+            "not before it"
         )
 
 
@@ -179,3 +195,75 @@ class TestRecordingNothingIsNotSilent:
 
         assert not any("no caption artifact" in r.message for r in caplog.records)
         assert ctx.state["generate_subtitles"]["artifacts"]["subtitle_file"]
+
+
+class TestThePycapsTranscriptMustBeThisRunsE:
+    """Existence is not enough on the pycaps arm (#396).
+
+    The transcript path is stable across runs and `temp/` survives a failed
+    one, so a run whose Whisper call timed out would return the *previous*
+    run's transcript. The step then reports success and the burn step draws
+    captions written for a script that may no longer be the one narrated.
+    This is the bundled default engine.
+    """
+
+    @staticmethod
+    def _call(tmp_path, whisper, prewrite: bool):
+        import asyncio
+        import json
+        from unittest.mock import AsyncMock, patch
+
+        from src.video.config import config as cfg
+        from src.video.subtitle_utils import create_unified_subtitles
+
+        temp = tmp_path / "temp"
+        temp.mkdir()
+        srt_out = tmp_path / "subtitles.ass"
+        transcript = srt_out.with_name("whisper_transcript.json")
+        if prewrite:
+            transcript.write_text(
+                json.dumps({"segments": [{"words": [{"word": "OLD"}]}]})
+            )
+        audio = tmp_path / "vo.wav"
+        audio.write_bytes(b"RIFF0000WAVEfmt ")
+
+        async def go():
+            with patch(
+                "src.video.subtitle_utils.generate_subtitles_with_whisper",
+                new=AsyncMock(side_effect=whisper),
+            ):
+                return await create_unified_subtitles(
+                    audio,
+                    srt_out,
+                    {"subtitle_engine": "pycaps", "enabled": True},
+                    cfg.whisper_settings,
+                    None,
+                    {},
+                    "a script",
+                    10.0,
+                    False,
+                    cfg,
+                    temp,
+                    "topic-x",
+                    engine="pycaps",
+                )
+
+        return asyncio.run(go()), transcript
+
+    def test_a_previous_runs_transcript_is_refused(self, tmp_path):
+        result, transcript = self._call(
+            tmp_path, TimeoutError("whisper timed out"), prewrite=True
+        )
+        assert transcript.exists(), "the fixture must leave the stale file in place"
+        assert result is None, "a transcript this run did not write was accepted"
+
+    def test_this_runs_transcript_is_accepted(self, tmp_path):
+        import json
+
+        def _writes(*_args, **kwargs):
+            out = kwargs.get("transcript_out_path")
+            Path(out).write_text(json.dumps({"segments": [{"words": [{"w": "NEW"}]}]}))
+            return [{"word": "NEW", "start_time": 0.0, "end_time": 1.0}]
+
+        result, transcript = self._call(tmp_path, _writes, prewrite=False)
+        assert result == transcript

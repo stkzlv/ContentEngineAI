@@ -1262,6 +1262,9 @@ async def step_generate_subtitles(ctx: PipelineContext):
         subtitle_enabled = subtitle_enabled_value
         if not subtitle_enabled:
             logger.info("Subtitle generation is disabled in config. Skipping.")
+            # Marked, so a resume can tell this from a step that produced
+            # nothing by accident: both record no artifacts (#396).
+            ctx.state.setdefault("generate_subtitles", {})["captions"] = "disabled"
             return
 
         voiceover_path = ctx.run_paths["voiceover_file"]

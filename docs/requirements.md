@@ -181,6 +181,8 @@ High-level requirements for ContentEngineAI.
 - Match final duration to voiceover (±1 second tolerance)
 
 ### Subtitles
+- The subtitle step fails unless it left a caption source, naming each path it looked for. Which artifact exists depends on the engine and on two-part mode, so each is recorded conditionally; producing none of them is a failure rather than a step recorded complete with an empty artifact set, which verification would satisfy vacuously. The pycaps arm additionally requires the transcript to be the one this run wrote: the path is stable across runs and the temp directory survives a failed one, so accepting whatever is there burns captions written for a script that may no longer be the one being narrated.
+- Where a run legitimately produces no captions, because they are disabled in config or the engine was unavailable and the policy is to skip, the step records why. A resume can then tell that from a step that produced nothing by accident.
 
 **Two rendering engines** selectable per-profile or per-run. Bundled
 `config/subtitles.yaml` selects the pycaps engine by default with
@@ -354,7 +356,6 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Deterministic per-product MD5 selection picks within the chosen pillar's templates instead of the full pool.
 
 ### Pipeline Behavior
-- A step that produces none of its declared outputs fails rather than being recorded complete. Artifacts are registered conditionally, because which one a step writes depends on the engine and mode it ran in, and verification compares recorded paths — so a step that wrote none of them would otherwise be recorded with an empty artifact set that verification satisfies vacuously, and the run would continue on nothing. The failure names each path that was looked for, since the symptom this replaces was the absence of a file nothing mentioned.
 - `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
 - The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
 - Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`, or `pillar_preambles_topic` on a topic render) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.

@@ -702,6 +702,10 @@ async def create_unified_subtitles(
 
     # Try to get STT timings (Whisper first, then Google Cloud STT)
     stt_timings = None
+    # Whether *this* run's Whisper call wrote the pycaps transcript. Captured
+    # before Google STT runs, because Google can set `stt_timings` without
+    # writing a transcript pycaps could read.
+    whisper_wrote_transcript = False
 
     # Try Whisper STT first
     if whisper_stt_settings and whisper_stt_settings.enabled and WHISPER_AVAILABLE:
@@ -722,6 +726,10 @@ async def create_unified_subtitles(
                 timing_smoothing_config=subtitle_settings.get("timing_smoothing"),
             )
             if stt_timings:
+                # Whisper writes the transcript only after a successful
+                # transcription, so this is also the record that the file at
+                # `whisper_transcript_target` is *this* run's.
+                whisper_wrote_transcript = bool(whisper_transcript_target)
                 logger.info(
                     f"Whisper STT successful, got {len(stt_timings)} word timings."
                 )
@@ -775,13 +783,26 @@ async def create_unified_subtitles(
     # fallback does not run here because its output shape doesn't match
     # pycaps' whisper_json format.
     if subtitle_engine == "pycaps":
-        if output_path.exists():
+        # Existence is not enough. The transcript path is stable across runs
+        # and `temp/` survives a failed one, so a run whose Whisper call timed
+        # out would otherwise return the *previous* run's transcript, and the
+        # step would report success and burn captions written for a script
+        # that may no longer be the one being narrated (#396). What this run
+        # wrote is the only acceptable answer.
+        if whisper_wrote_transcript and output_path.exists():
             logger.info("Pycaps transcript artifact ready: %s", output_path)
             return output_path
-        logger.error(
-            "Pycaps mode selected but Whisper did not produce a transcript at %s",
-            output_path,
-        )
+        if output_path.exists():
+            logger.error(
+                "Pycaps mode selected but Whisper produced no transcript this "
+                "run; the file at %s is from an earlier one and is not used.",
+                output_path,
+            )
+        else:
+            logger.error(
+                "Pycaps mode selected but Whisper did not produce a transcript at %s",
+                output_path,
+            )
         return None
 
     # Generate subtitles using unified system

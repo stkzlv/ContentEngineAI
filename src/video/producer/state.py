@@ -343,6 +343,30 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
             if not isinstance(data, dict):
                 continue
             if data.get("status") == "done":
+                # A step recorded done with no artifacts passes the loop below
+                # vacuously, so a `generate_subtitles` entry written during the
+                # exact failure this guards against is skipped forever and the
+                # run reaches the assembler with no captions (#396). The two
+                # paths that legitimately record nothing mark themselves.
+                if (
+                    step == STEP_GENERATE_SUBTITLES
+                    and not data.get("artifacts")
+                    and not data.get("captions")
+                ):
+                    logger.warning(
+                        "State is invalid. Step '%s' is recorded complete with "
+                        "no caption artifact and no reason. Restarting from it.",
+                        step,
+                    )
+                    step_order = resolved_step_order(ctx.profile)
+                    valid_steps = step_order[: step_order.index(step)]
+                    _discard_stale_artifacts(state_data, valid_steps)
+                    ctx.state = {
+                        k: v for k, v in state_data.items() if k in valid_steps
+                    }
+                    async with ctx._state_lock:
+                        await _save_pipeline_state(ctx)
+                    return True
                 for key, path_str in data.get("artifacts", {}).items():
                     reason = _artifact_invalid_reason(ctx, key, path_str)
                     if reason is not None:
