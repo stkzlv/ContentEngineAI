@@ -63,6 +63,35 @@ class TestSchedulePathClamps:
 
         assert len(caption) <= 2200
 
+    def test_the_fallback_caption_is_clamped_too(self):
+        """The builder falls back when `PublishMetadata` refuses the record.
+
+        That path hand-assembles a caption and returns before the clamp, so
+        it ignored `targets`. Only one of the two refusal conditions matters:
+        an empty description gives a short caption either way, but a YouTube
+        entry with no title keeps its whole description.
+        """
+        from src.publisher.schedule import caption_from_metadata
+
+        meta = {
+            "title": None,  # refused for YouTube
+            "description": "word " * 700,
+            "hashtags": ["tech"],
+            "carries_affiliate_content": True,
+        }
+
+        unified = caption_from_metadata(
+            meta,
+            "B0TEST001",
+            Platform.YOUTUBE,
+            targets=[Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM],
+        )
+        assert len(unified) <= 2200
+
+        # ...and a YouTube-only post keeps YouTube's larger budget.
+        youtube_only = caption_from_metadata(meta, "B0TEST001", Platform.YOUTUBE)
+        assert 2200 < len(youtube_only) <= 5000
+
     def test_every_per_platform_caption_records_its_metadata(self):
         """The unified rebuild needs the metadata each caption came from.
 
@@ -165,6 +194,7 @@ class TestImmediateBatchPathClamps:
         """`clamp_to_limits` reads the metadata's own platform, which is not
         necessarily the destination on a path with a metadata fallback.
         """
+        assert "clamp_to_limits" not in Path("src/publisher/schedule.py").read_text()
         assert "clamp_to_limits" not in Path("src/publisher/batch.py").read_text()
         assert (
             "clamp_to_limits" not in Path("src/publisher/publish_modes.py").read_text()

@@ -50,6 +50,31 @@ PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
     Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
 }
 
+
+def description_budget(platforms: Iterable[Platform], wrapper_chars: int) -> int | None:
+    """Characters a description may use, once the caption's wrapper is counted.
+
+    The binding cap is the smallest across the platforms the caption reaches,
+    and what the provider measures is the whole composed caption, so the
+    wrapper -- disclosure lines, hashtag block, the blank lines between them
+    -- comes off the top. Returns None when no target declares a description
+    limit, and never returns less than zero.
+
+    Shared with `caption_from_metadata`'s fallback path, which assembles its
+    caption by hand and so cannot use `clamp_for_platforms`.
+    """
+    limits = [
+        limit
+        for platform in platforms
+        if isinstance(
+            limit := PLATFORM_LIMITS.get(platform, {}).get("description"), int
+        )
+    ]
+    if not limits:
+        return None
+    return max(0, min(limits) - wrapper_chars)
+
+
 _ELLIPSIS = "..."
 
 
@@ -450,8 +475,9 @@ class PublishMetadata:
         if desc_lims:
             cap = min(desc_lims)
             wrapper = len(self.format_content()) - len(self.description)
-            budget = cap - wrapper
-            if budget <= 0:
+            budget = description_budget(targets, wrapper)
+            assert budget is not None  # desc_lims is non-empty
+            if budget == 0 and wrapper >= cap:
                 logger.warning(
                     "Caption wrapper (%d chars) already exceeds the %d-char cap "
                     "for %s; the description is trimmed to nothing and the post "
@@ -460,7 +486,6 @@ class PublishMetadata:
                     cap,
                     ", ".join(p.value for p in targets),
                 )
-                budget = 0
             if len(self.description) > budget:
                 self.description = _trim_on_word_boundary(self.description, budget)
                 trimmed.append("description")

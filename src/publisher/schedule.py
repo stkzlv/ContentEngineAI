@@ -27,6 +27,7 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
     _trim_on_word_boundary,
+    description_budget,
     strip_disclosure_tokens,
 )
 from src.publisher.product_registry import add_to_registry
@@ -113,7 +114,22 @@ def caption_from_metadata(
             parts.append(
                 " ".join(f"#{t}" if not t.startswith("#") else t for t in tags)
             )
-        return "\n\n".join(parts)
+        # Clamped here too, or this path returns above the clamp below and
+        # `targets` is silently ignored. Only one of the two raise conditions
+        # produces a long caption -- an empty description gives a short one --
+        # but a YouTube entry with no title keeps its whole description, so
+        # the unified branch could still send an over-cap caption (#403).
+        assembled = "\n\n".join(parts)
+        budget = description_budget(
+            targets if targets is not None else [platform],
+            len(assembled) - len(description),
+        )
+        if budget is not None and len(description) > budget:
+            parts[parts.index(description)] = _trim_on_word_boundary(
+                description, budget
+            )
+            assembled = "\n\n".join(parts)
+        return assembled
 
     # Clamped for the destination, on the composed caption. Without this the
     # cap the other publish paths get from `PublishMetadata` was not applied

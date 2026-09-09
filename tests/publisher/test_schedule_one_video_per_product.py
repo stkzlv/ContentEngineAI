@@ -320,10 +320,13 @@ class TestTheScannerReadsTheConfig:
 
 @pytest.mark.unit
 class TestTheScheduleTitleIsClamped:
-    """The schedule path builds its payload from raw JSON, never a
-    `PublishMetadata`, so it gets no clamp from `clamp_to_limits`. A scraped
-    Amazon title routinely runs past YouTube's 100-character cap, and the
-    platform rejects an over-cap title.
+    """The schedule path trims its title separately from the caption clamp.
+
+    `caption_from_metadata` builds a `PublishMetadata` and clamps it for the
+    platforms the post reaches, but the title it carries is discarded: this
+    branch passes the title alongside the caption, so it is trimmed here. A
+    scraped Amazon title routinely runs past YouTube's 100-character cap, and
+    the platform rejects an over-cap title.
     """
 
     def test_a_long_data_json_title_is_trimmed(self):
