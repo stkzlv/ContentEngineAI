@@ -1262,6 +1262,14 @@ async def step_generate_subtitles(ctx: PipelineContext):
         subtitle_enabled = subtitle_enabled_value
         if not subtitle_enabled:
             logger.info("Subtitle generation is disabled in config. Skipping.")
+            # Marked, so a resume can tell this from a step that produced
+            # nothing by accident: both record no artifacts (#396). Set at the
+            # top level and copied into the entry by
+            # `_update_state_after_step`, like `script_template` and
+            # `tts_metadata`: that function replaces the step entry wholesale,
+            # so a key written into it here is discarded before the state is
+            # saved.
+            ctx.state["captions"] = "disabled"
             return
 
         voiceover_path = ctx.run_paths["voiceover_file"]
@@ -1334,6 +1342,10 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # and no subtitle file whatever branch the caller took.
         resolved = resolve_subtitle_engine(subtitle_settings)
         if resolved is None:
+            # `warn_and_skip` with pycaps absent: no captions, by policy.
+            # Recorded for the same reason as the disabled case, or a resume
+            # cannot tell it from a step that produced nothing by accident.
+            ctx.state["captions"] = "engine_unavailable"
             return
         subtitle_engine = resolved
         ctx.state["subtitle_engine_resolved"] = subtitle_engine
@@ -1423,6 +1435,39 @@ async def step_generate_subtitles(ctx: PipelineContext):
             if not srt_path or not srt_path.exists():
                 raise PipelineError("Subtitle generation process failed.")
             logger.info("Subtitles file created: %s", srt_path.name)
+
+        # Whichever branch ran, this step exists to produce a caption source,
+        # and it must not report success without one (#396). The branches each
+        # check their own path, but neither covers every way of arriving here
+        # with nothing written -- a two-part run whose lower line is disabled
+        # is the shape in the tree today -- and the state recorder registers
+        # both subtitle artifacts *conditionally*, so a step that produced
+        # neither is marked done with no artifacts at all. Verification then
+        # has nothing to check and the run continues to an assembler with no
+        # captions to burn.
+        _require_subtitle_artifact(ctx)
+
+
+def _require_subtitle_artifact(ctx: PipelineContext) -> None:
+    """Fail unless the subtitle step left something for the assembler.
+
+    Named per candidate rather than reporting a bare failure, because the
+    symptom this replaces was a silent one: the only sign was the absence of
+    a file nothing mentioned.
+    """
+    candidates = {
+        key: ctx.run_paths.get(key)
+        for key in ("subtitle_file", "whisper_transcript_file", "subtitle_upper_file")
+    }
+    if any(path is not None and Path(path).exists() for path in candidates.values()):
+        return
+
+    missing = ", ".join(
+        f"{key}={path}" for key, path in candidates.items() if path is not None
+    )
+    raise PipelineError(
+        f"Subtitle step produced no caption source; none of these exist: {missing}"
+    )
 
 
 async def step_download_music(ctx: PipelineContext):

@@ -181,6 +181,8 @@ High-level requirements for ContentEngineAI.
 - Match final duration to voiceover (±1 second tolerance)
 
 ### Subtitles
+- The subtitle step fails unless it left a caption source, naming each path it looked for. Which artifact exists depends on the engine and on two-part mode, so each is recorded conditionally; producing none of them is a failure rather than a step recorded complete with an empty artifact set, which verification would satisfy vacuously. The pycaps arm additionally requires the transcript to be the one this run wrote: the path is stable across runs and the temp directory survives a failed one, so accepting whatever is there burns captions written for a script that may no longer be the one being narrated.
+- Where a run legitimately produces no captions, because they are disabled in config or the engine was unavailable and the policy is to skip, the step records why. A resume can then tell that from a step that produced nothing by accident.
 
 **Two rendering engines** selectable per-profile or per-run. Bundled
 `config/subtitles.yaml` selects the pycaps engine by default with
