@@ -42,6 +42,7 @@ from src.pipeline.config import (
 from src.pipeline.webhooks import WebhookConfig, WebhookNotifier
 from src.scraper.amazon.models import ProductData
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
+from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
 
 if TYPE_CHECKING:
@@ -1892,6 +1893,9 @@ class GlobalPipelineOrchestrator:
                     cli_overrides = self._build_cli_overrides()
 
                     # Call video producer with timeout
+                    # See the producer CLI: an inner limit must not exceed
+                    # the budget this `wait_for` enforces (#398).
+                    set_pipeline_deadline(config.pipeline_timeout_sec)
                     result_path = await asyncio.wait_for(
                         create_video_for_product(
                             config=config,

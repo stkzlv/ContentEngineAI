@@ -706,7 +706,7 @@ Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without m
 
 The file is read through the project's own topic loader, so validation, the slug and the product id have one implementation. Deriving the output directory in the shell instead diverged on accented titles, on titles past the slug length cap and on titles that normalise to nothing — and matching directories by prefix silently rendered one topic's steps into another's when one title's slug was a prefix of another's.
 
-Assembly has a *second*, independent limit — `ffmpeg_settings.final_assembly_timeout_sec` in `config/performance.yaml`, 600s by default. This target does not raise it. On slower hardware a run can clear Whisper, reach assembly and still time out inside FFmpeg; if that is what fails, raise that value rather than the pipeline one.
+Assembly has a *second*, independent limit — `ffmpeg_settings.final_assembly_timeout_sec` in `config/performance.yaml`, 1800s by default. This target does not raise it. On slower hardware a run can clear Whisper, reach assembly and still time out inside FFmpeg; if that is what fails, raise that value rather than the pipeline one.
 
 Topics are isolated: one failing does not abort the rest, and the closing summary names the step each failure stopped at. Each result is checked with `ffprobe`, not by exit code, because a timeout leaves a truncated `.mp4` under the finished render's name that passes an existence check.
 

@@ -20,6 +20,7 @@ import psutil
 from src.config_manager import get_config_value
 from src.utils import ensure_dirs_exist, format_timestamp
 from src.utils.circuit_breaker import google_stt_circuit_breaker
+from src.utils.pipeline_deadline import remaining_pipeline_seconds
 from src.video.config import (
     DEFAULT_WHISPER_MODEL_DIR,
     GoogleCloudSTTSettings,
@@ -466,6 +467,28 @@ def _get_audio_duration(audio_path: Path) -> float:
         return 60.0
 
 
+def _stt_ceiling(whisper_settings: WhisperSettings) -> float:
+    """The most this transcription may be allowed, outer budget included.
+
+    `max_timeout_sec` alone is an inner limit derived from audio length, and
+    with the shipped settings it can exceed the whole render's budget: a
+    59-second voiceover earned 1007s inside a 900s pipeline (#398). Whisper
+    then finished inside its own limit having spent most of the run's, the
+    pipeline timeout fired during assembly, and the log blamed the pipeline
+    rather than the step that spent the time.
+
+    Bounded by whatever remains of the render's budget, so a timeout here is
+    reported by the step that ran out and the retry schedule cannot widen a
+    limit past what exists. No deadline set means no outer bound, which is
+    the case for a caller that applies no pipeline timeout at all.
+    """
+    ceiling = float(whisper_settings.max_timeout_sec)
+    remaining = remaining_pipeline_seconds()
+    if remaining is None:
+        return ceiling
+    return min(ceiling, remaining)
+
+
 def _calculate_timeout(
     audio_duration: float, whisper_settings: WhisperSettings
 ) -> float:
@@ -473,7 +496,7 @@ def _calculate_timeout(
     timeout = whisper_settings.base_timeout_sec + (
         audio_duration * whisper_settings.duration_multiplier
     )
-    return min(timeout, whisper_settings.max_timeout_sec)
+    return min(timeout, _stt_ceiling(whisper_settings))
 
 
 def _timeout_schedule(
@@ -482,12 +505,15 @@ def _timeout_schedule(
     """Limits to try, widening after each timeout.
 
     A retry that gets the same limit cannot do better than the attempt that
-    just failed, so the schedule stops as soon as widening is capped by
-    `max_timeout_sec`. That also makes the empty-retry case explicit rather
-    than a loop that silently repeats itself.
+    just failed, so the schedule stops as soon as widening is capped. That
+    also makes the empty-retry case explicit rather than a loop that silently
+    repeats itself.
+
+    The cap is the outer budget when one is set, so a retry is never promised
+    time the render does not have.
     """
     limits = [first_limit]
-    ceiling = float(whisper_settings.max_timeout_sec)
+    ceiling = _stt_ceiling(whisper_settings)
     multiplier = whisper_settings.timeout_retry_multiplier
 
     for _ in range(max(0, whisper_settings.timeout_retry_attempts)):

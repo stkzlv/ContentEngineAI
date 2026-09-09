@@ -22,6 +22,7 @@ from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
 from src.utils.performance import PerformanceHistoryManager
+from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config import VideoConfig
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import (
@@ -1066,6 +1067,11 @@ async def main():
         product_start_time = datetime.now(UTC)
         product_error = None
         try:
+            # Steps that derive their own limits read this, so an inner limit
+            # cannot exceed the budget this `wait_for` enforces (#398). Set
+            # before the call, because `wait_for` copies the context into the
+            # task it creates.
+            set_pipeline_deadline(config.pipeline_timeout_sec)
             result_path = await asyncio.wait_for(
                 create_video_for_product(
                     config,

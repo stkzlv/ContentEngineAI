@@ -131,7 +131,12 @@ class FFmpegSettings(BaseModel):
     executable_path: str | None = Field(None)
     temp_ffmpeg_dir: str = Field("ffmpeg_work")
     intermediate_segment_preset: str = Field("ultrafast")
-    final_assembly_timeout_sec: int = Field(600)
+    final_assembly_timeout_sec: int = Field(
+        1800,
+        description="Seconds allowed for the final FFmpeg assembly. Sits "
+        "inside pipeline_timeout_sec, so raising either alone leaves the "
+        "other binding. See config/performance.yaml for the measurements.",
+    )
     rw_timeout_microseconds: int = Field(30000000)  # 30 seconds for I/O operations
     verification_timeout_sec: int = Field(
         30,
@@ -579,7 +584,11 @@ class VideoConfig(BaseModel):
         default_factory=lambda: CleanupSettings()  # type: ignore[call-arg]
     )
     pipeline_timeout_sec: int = Field(
-        900, description="Total pipeline timeout in seconds (15 minutes default)"
+        2700,
+        description="Total pipeline timeout in seconds. Sized against "
+        "measured renders under contention rather than as a round number; "
+        "see config/core.yaml. Steps that derive their own limits are "
+        "bounded by whatever remains of it.",
     )
     outro_duration_sec: float = Field(
         1.0,

@@ -11,8 +11,21 @@ global_output_directory: "outputs"
 # Global debug mode - can be overridden by CLI flags
 debug_mode: false
 
-# Total pipeline execution timeout in seconds (applies to both video and scraper)
-pipeline_timeout_sec: 900
+# Total pipeline execution timeout in seconds (applies to both video and scraper).
+#
+# What makes it binding is machine contention and script length, not the
+# hardware class. Measured on one 16-core box, idle, for a 33.4s voiceover:
+# assembly 152s, subtitles 67s, visuals 52s, caption burn 27s, voiceover 18s,
+# script 10s, 327s end to end. The same steps on a loaded machine with a 59s
+# voiceover measured 671s for subtitles and 543s for assembly, so contention
+# alone accounts for roughly 5.6x on transcription and 3.6x on assembly, and
+# Whisper's cost scales with audio length against a budget that does not.
+# The worst run observed came to about 1725s, which the shipped 900 lost
+# twice in one day. 2700 is roughly 1.6x that.
+#
+# Raising this alone is not enough: `final_assembly_timeout_sec` sits inside
+# it, so whichever is smaller binds first.
+pipeline_timeout_sec: 2700
 
 # Duration after voiceover ends for music fade-out (seconds)
 # Creates a smooth ending where background music fades out gracefully
