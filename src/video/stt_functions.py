@@ -114,8 +114,15 @@ async def generate_subtitles_with_whisper(
         # Get audio file info for timeout calculation
         audio_duration = _get_audio_duration(audio_path)
         # Calculate timeout using configurable settings
-        transcription_timeout = _calculate_timeout(audio_duration, whisper_settings)
-        _, capped_by_run = _stt_ceiling(whisper_settings)
+        # Both the number and its reason from the one helper the loop uses.
+        # Asking `_stt_ceiling` separately answers "is the budget binding
+        # now", not "did the budget set this limit", so a formula-derived
+        # limit was reported as budget-capped whenever the budget merely
+        # happened to be below `max_timeout_sec` -- and the error path, three
+        # lines down the same run, said the opposite of the same number.
+        transcription_timeout, capped_by_run = _attempt_limit(
+            _calculate_timeout(audio_duration, whisper_settings), whisper_settings
+        )
         logger.info(
             f"Audio duration: {audio_duration:.1f}s, "
             f"timeout: {transcription_timeout:.1f}s"

@@ -129,6 +129,30 @@ class TestTheSttLimitIsBounded:
         _, capped_later = _attempt_limit(schedule[1], _Whisper())
         assert capped_later is True, "the retry really is capped by the budget"
 
+    def test_a_formula_limit_is_not_blamed_on_the_budget(self):
+        """The distinguishing case: budget below max_timeout_sec, not binding.
+
+        `_stt_ceiling` alone answers "is the budget binding now", which is a
+        different question from "did the budget set this limit". With 1700s
+        left of the render and a 33.4s voiceover, the limit is the formula's
+        621s and the budget is merely below `max_timeout_sec`. Reporting that
+        as budget-capped sends the operator to `pipeline_timeout_sec`, which
+        changes nothing.
+        """
+        set_pipeline_deadline(1700)
+        derived = _calculate_timeout(33.4, _Whisper())
+        assert derived == pytest.approx(621.0)
+
+        limit, capped = _attempt_limit(derived, _Whisper())
+        assert limit == pytest.approx(621.0)
+        assert capped is False
+
+        # ...and the budget really binding is still reported as such.
+        set_pipeline_deadline(400)
+        limit, capped = _attempt_limit(derived, _Whisper())
+        assert limit <= 400
+        assert capped is True
+
     def test_an_exhausted_budget_yields_no_time_rather_than_a_negative(self):
         set_pipeline_deadline(1)
         import time as _time
@@ -178,6 +202,39 @@ class TestTheDeadlineIsSetWhereTheTimeoutIsApplied:
         assert (
             arg.attr == "pipeline_timeout_sec"
         ), "the deadline must carry the same budget the wait_for enforces"
+
+
+class TestTheReportedReasonComesFromOneHelper:
+    """Both log lines must agree about what set the limit.
+
+    The error path took its flag from `_attempt_limit` while the info line
+    recomputed it from `_stt_ceiling`, so one run's log gave two
+    contradictory causes for one number.
+    """
+
+    def test_the_info_line_uses_the_attempt_helper(self):
+        source = Path("src/video/stt_functions.py").read_text()
+        assert "transcription_timeout, capped_by_run = _attempt_limit(" in source, (
+            "the info line must take the limit and its reason from the same "
+            "helper the loop uses, not recompute the flag"
+        )
+
+    def test_the_flag_is_never_recomputed_from_the_ceiling(self):
+        tree = ast.parse(Path("src/video/stt_functions.py").read_text())
+
+        bare_ceiling_reads = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_stt_ceiling"
+        ]
+        # Only `_calculate_timeout`, `_timeout_schedule` and `_attempt_limit`
+        # may read it; a fourth caller is a second opinion about the reason.
+        assert len(bare_ceiling_reads) == 3, (
+            f"{len(bare_ceiling_reads)} callers of _stt_ceiling; the reason "
+            "must come from _attempt_limit alone"
+        )
 
 
 class TestTheAssemblyLimitIsBoundedToo:
