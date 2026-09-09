@@ -257,6 +257,27 @@ class TestThePycapsTranscriptMustBeThisRunsE:
         assert transcript.exists(), "the fixture must leave the stale file in place"
         assert result is None, "a transcript this run did not write was accepted"
 
+    def test_a_swallowed_save_failure_does_not_accept_the_stale_file(self, tmp_path):
+        """Transcription can succeed while the write fails.
+
+        `save_whisper_transcript` is wrapped in a bare `except` upstream, so a
+        full or read-only filesystem leaves the previous run's transcript in
+        place while Whisper reports success. Asking whether a path was
+        *requested* accepts it; asking the file does not.
+        """
+
+        def _succeeds_without_writing(*_args, **_kwargs):
+            return [{"word": "NEW", "start_time": 0.0, "end_time": 1.0}]
+
+        result, transcript = self._call(
+            tmp_path, _succeeds_without_writing, prewrite=True
+        )
+        assert transcript.exists(), "the fixture must leave the stale file"
+        assert result is None, (
+            "a transcript this run did not write was accepted because the "
+            "transcription itself succeeded"
+        )
+
     def test_this_runs_transcript_is_accepted(self, tmp_path):
         import json
 
@@ -267,3 +288,49 @@ class TestThePycapsTranscriptMustBeThisRunsE:
 
         result, transcript = self._call(tmp_path, _writes, prewrite=False)
         assert result == transcript
+
+
+class TestBothNoOpPathsRecordAReason:
+    """Legitimate no-ops must be distinguishable from an accidental one.
+
+    Both return before generating anything and both record no artifact, so
+    without a reason a resume truncates at this step every time and re-runs
+    the music provider chain and a full assembly, for good.
+    """
+
+    def test_the_two_early_returns_set_a_reason(self):
+        import ast
+
+        tree = ast.parse(Path("src/video/producer/steps.py").read_text())
+        step = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name == "step_generate_subtitles"
+        )
+
+        # `ctx.state["captions"] = ...` at the top level, which is what
+        # `_update_state_after_step` copies through; a key written into the
+        # step's own entry is replaced wholesale before the state is saved.
+        markers = [
+            node
+            for node in ast.walk(step)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(t, ast.Subscript)
+                and isinstance(t.value, ast.Attribute)
+                and t.value.attr == "state"
+                and isinstance(t.slice, ast.Constant)
+                and t.slice.value == "captions"
+                for t in node.targets
+            )
+        ]
+        assert len(markers) == 2, (
+            f"{len(markers)} caption-reason marker(s); both the "
+            "subtitles-disabled and engine-unavailable returns must set one"
+        )
+
+    def test_the_reasons_are_distinct(self):
+        source = Path("src/video/producer/steps.py").read_text()
+        assert 'ctx.state["captions"] = "disabled"' in source
+        assert 'ctx.state["captions"] = "engine_unavailable"' in source

@@ -602,6 +602,22 @@ def create_static_upper_subtitle(
         return None
 
 
+def _transcript_is_fresh(target: Path | None, mtime_before: int | None) -> bool:
+    """Whether this run wrote the transcript at ``target``.
+
+    Asked of the file, not of the request. `save_whisper_transcript` is
+    wrapped in a bare `except` upstream, so a transcription can succeed while
+    the write fails -- on a full or read-only filesystem, say -- leaving an
+    earlier run's transcript in place for the burn step to draw captions from
+    (#396).
+    """
+    if target is None:
+        return False
+    if not target.exists():
+        return False
+    return mtime_before is None or target.stat().st_mtime_ns != mtime_before
+
+
 async def create_unified_subtitles(
     audio_path: Path,
     output_srt_path: Path,
@@ -716,6 +732,17 @@ async def create_unified_subtitles(
             whisper_transcript_target = (
                 output_path if subtitle_engine == "pycaps" else None
             )
+            # Read before the call, so "did this run write it" is answered by
+            # the file rather than by having asked for it. Saving the
+            # transcript is wrapped in a bare `except` upstream, so a
+            # transcription can succeed while the write fails -- and then a
+            # previous run's transcript is still sitting at that path.
+            transcript_mtime_before = (
+                whisper_transcript_target.stat().st_mtime_ns
+                if whisper_transcript_target is not None
+                and whisper_transcript_target.exists()
+                else None
+            )
             stt_timings = await generate_subtitles_with_whisper(
                 audio_path,
                 temp_dir or output_path.parent,
@@ -726,10 +753,9 @@ async def create_unified_subtitles(
                 timing_smoothing_config=subtitle_settings.get("timing_smoothing"),
             )
             if stt_timings:
-                # Whisper writes the transcript only after a successful
-                # transcription, so this is also the record that the file at
-                # `whisper_transcript_target` is *this* run's.
-                whisper_wrote_transcript = bool(whisper_transcript_target)
+                whisper_wrote_transcript = _transcript_is_fresh(
+                    whisper_transcript_target, transcript_mtime_before
+                )
                 logger.info(
                     f"Whisper STT successful, got {len(stt_timings)} word timings."
                 )

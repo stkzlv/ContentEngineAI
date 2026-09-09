@@ -534,6 +534,12 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # the loss is permanent for that product.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("cta"):
         step_state["cta"] = ctx.state["cta"]
+    # Why a subtitle step legitimately produced nothing: subtitles switched
+    # off in config, or the engine was unavailable and the policy is to skip.
+    # Without it, verification cannot tell either from a step that produced
+    # nothing by accident, and truncates on every resume.
+    if step_name == STEP_GENERATE_SUBTITLES and ctx.state.get("captions"):
+        step_state["captions"] = ctx.state["captions"]
     # Include TTS metadata if available (saved by step_create_voiceover)
     if step_name == STEP_CREATE_VOICEOVER and ctx.state.get("tts_metadata"):
         step_state["tts_metadata"] = ctx.state["tts_metadata"]

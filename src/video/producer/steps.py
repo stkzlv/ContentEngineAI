@@ -1263,8 +1263,13 @@ async def step_generate_subtitles(ctx: PipelineContext):
         if not subtitle_enabled:
             logger.info("Subtitle generation is disabled in config. Skipping.")
             # Marked, so a resume can tell this from a step that produced
-            # nothing by accident: both record no artifacts (#396).
-            ctx.state.setdefault("generate_subtitles", {})["captions"] = "disabled"
+            # nothing by accident: both record no artifacts (#396). Set at the
+            # top level and copied into the entry by
+            # `_update_state_after_step`, like `script_template` and
+            # `tts_metadata`: that function replaces the step entry wholesale,
+            # so a key written into it here is discarded before the state is
+            # saved.
+            ctx.state["captions"] = "disabled"
             return
 
         voiceover_path = ctx.run_paths["voiceover_file"]
@@ -1337,6 +1342,10 @@ async def step_generate_subtitles(ctx: PipelineContext):
         # and no subtitle file whatever branch the caller took.
         resolved = resolve_subtitle_engine(subtitle_settings)
         if resolved is None:
+            # `warn_and_skip` with pycaps absent: no captions, by policy.
+            # Recorded for the same reason as the disabled case, or a resume
+            # cannot tell it from a step that produced nothing by accident.
+            ctx.state["captions"] = "engine_unavailable"
             return
         subtitle_engine = resolved
         ctx.state["subtitle_engine_resolved"] = subtitle_engine
