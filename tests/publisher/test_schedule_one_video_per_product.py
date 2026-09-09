@@ -337,6 +337,7 @@ class TestTheScheduleTitleIsClamped:
         assert len(_trim_on_word_boundary(raw, 100)) <= 100
 
     def test_the_schedule_path_applies_it(self):
+        import ast
         import inspect
 
         from src.publisher import schedule
@@ -345,4 +346,19 @@ class TestTheScheduleTitleIsClamped:
         # Every title the payload carries goes through the trim. A raw
         # `fb.get("title")` or `meta.get("title")` reaching platform_contents
         # is the defect.
-        assert source.count("_trim_on_word_boundary(") >= 3
+        #
+        # Counted by the cap rather than by name. The module also trims a
+        # description, against a computed budget, so a bare count of the
+        # calls went from three to four and a deleted title trim would have
+        # left the guard satisfied.
+        title_trims = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_trim_on_word_boundary"
+            and len(node.args) == 2
+            and isinstance(node.args[1], ast.Constant)
+            and node.args[1].value == 100
+        ]
+        assert len(title_trims) >= 3
