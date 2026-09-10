@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The producer's `--clean` removes the two-part upper subtitle file in both formats. The cleanup lists named `subtitle_upper.ass` literally while the file's suffix follows the merged per-profile subtitle format, so an install whose merged format is SRT kept `subtitle_upper.srt` through every clean; stale copies of exactly this file are what the assembler's voucher checks exist to keep out of a render. Closes #421.
+
 ## [0.108.7] - 2026-09-10
 
 ### Fixed
