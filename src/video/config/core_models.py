@@ -912,6 +912,14 @@ class VideoConfig(BaseModel):
             "save_srt_with_video": ss.get("save_srt_with_video", True),
             "subtitle_format": ss.get("subtitle_format", "srt"),
             "script_paths": ss.get("script_paths", []),
+            # The smoother's kwargs. This builder enumerates keys explicitly,
+            # so a block absent from it never reaches the merged settings
+            # however completely the YAML defines it: the model's
+            # `default_factory=dict` wins and the smoother ran entirely on its
+            # own function defaults (#397). `lead_sec` happened to match its
+            # default, which is why nothing looked wrong; `hook_lead_sec` and
+            # `hook_lead_word_count` did not, so that feature had never run.
+            "timing_smoothing": ss.get("timing_smoothing", {}),
             # Two-part subtitles nested block (passed through as YAML dict;
             # Pydantic validates the shape when building TwoPartSubtitleSettings).
             "two_part_subtitles": ss.get("two_part_subtitles", {}),
