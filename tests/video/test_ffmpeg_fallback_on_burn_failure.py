@@ -82,7 +82,7 @@ def _video(path: Path, seconds: float = 2.0) -> Path:
     return path
 
 
-def _ctx(video_config, temp_dir=None):
+def _ctx(video_config, temp_dir):
     """The real config, not a mock of it.
 
     The subtitle generator resolves style presets off `video_config`, so a
@@ -97,7 +97,9 @@ def _ctx(video_config, temp_dir=None):
     ctx.voiceover_duration = 2.0
     # A real mapping: the fallback derives its intermediate output from
     # run_paths (#411), and a MagicMock item would break Path arithmetic.
-    ctx.run_paths = {"intermediate_base": temp_dir if temp_dir else Path(".")}
+    # temp_dir is required so a future call site cannot silently write the
+    # burn intermediate into the pytest cwd.
+    ctx.run_paths = {"intermediate_base": temp_dir}
     return ctx
 
 

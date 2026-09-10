@@ -10,6 +10,7 @@ moved into `temp/` for (#398); this covers the burn.
 """
 
 import ast
+import re
 import tempfile
 from pathlib import Path
 
@@ -24,34 +25,49 @@ class TestTheBurnOutputsLiveInTemp:
     `tests/video/test_partial_render_not_kept.py` does for the assembler.
     """
 
-    def test_both_burn_outputs_derive_from_intermediate_base(self):
+    def test_every_burn_output_derives_from_intermediate_base(self):
+        """Every occurrence, not the first: a second burn site added later
+        with a sibling placement must fail this, and `source.index` only
+        ever examined occurrence one."""
         source = Path("src/video/producer/steps.py").read_text()
         for marker in ("_pycaps.mp4", "_ffmpeg_burn.mp4"):
-            idx = source.index(marker)
-            window = source[max(0, idx - 400) : idx]
-            assert 'run_paths["intermediate_base"]' in window, (
-                f"the {marker} intermediate must be derived from the temp "
-                "run path, not placed beside the final render"
-            )
+            hits = [m.start() for m in re.finditer(re.escape(marker), source)]
+            assert hits, f"{marker} no longer appears; update this test"
+            for idx in hits:
+                window = source[max(0, idx - 400) : idx]
+                assert 'run_paths["intermediate_base"]' in window, (
+                    f"a {marker} intermediate near offset {idx} is not "
+                    "derived from the temp run path"
+                )
 
-    def test_no_burn_output_is_built_with_with_name(self):
-        """`with_name` on the final path is the sibling-placement spelling."""
+    def test_no_burn_output_is_a_sibling_of_the_final_render(self):
+        """The two sibling-placement spellings: `with_name` on the final
+        path, and `final.parent / f"...suffix"`."""
         tree = ast.parse(Path("src/video/producer/steps.py").read_text())
+
+        def _carries_suffix(node: ast.AST) -> bool:
+            dump = ast.dump(node)
+            return "_pycaps" in dump or "_ffmpeg_burn" in dump
+
         offenders = [
             node.lineno
             for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "with_name"
-            and any(
-                isinstance(arg, ast.JoinedStr | ast.BinOp | ast.Constant)
-                and ("_pycaps" in ast.dump(arg) or "_ffmpeg_burn" in ast.dump(arg))
-                for arg in node.args
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "with_name"
+                and any(_carries_suffix(arg) for arg in node.args)
+            )
+            or (
+                isinstance(node, ast.BinOp)
+                and isinstance(node.op, ast.Div)
+                and _carries_suffix(node.right)
+                and ".parent" in ast.dump(node.left)
             )
         ]
         assert not offenders, (
-            f"burn intermediates built with with_name at lines {offenders}; "
-            "they belong in the temp directory"
+            f"burn intermediates placed beside the render at lines "
+            f"{offenders}; they belong in the temp directory"
         )
 
 
