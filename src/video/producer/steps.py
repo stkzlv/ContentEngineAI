@@ -1591,7 +1591,7 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
     recorded artifacts vouch instead -- the loader has already verified the
     recorded path against this run's.
     """
-    written = getattr(ctx, "subtitle_upper_written", None)
+    written = ctx.subtitle_upper_written
     if written is not None:
         return written
     entry = ctx.state.get("generate_subtitles")

@@ -144,7 +144,11 @@ class TestAStaleUpperFileCannotSpeakForThisRun:
         upper = tmp_path / "subtitle_upper.ass"
         upper.write_text("[Script Info]")
 
-        ctx = SimpleNamespace(run_paths={"subtitle_upper_file": upper}, state={})
+        ctx = SimpleNamespace(
+            run_paths={"subtitle_upper_file": upper},
+            state={},
+            subtitle_upper_written=None,
+        )
         assert _recorded_upper_subtitle(ctx) is None, "no state entry, no path"
 
         ctx.state = {"generate_subtitles": {"artifacts": {}}}
