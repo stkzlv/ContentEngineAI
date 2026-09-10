@@ -159,6 +159,10 @@ def smooth_word_timings(
 
     # Rule 2: merge short inter-word gaps into the preceding word.
     # Walk forward so each adjustment only affects the immediate pair.
+    # `0 <= gap` is deliberate (#395): rule 4 has already run, so most pairs
+    # overlap, and that overlap is the lead working -- on screen before it is
+    # spoken. Consumers clamp where overlap must not ship: `_create_segments`
+    # for ASS segment ends; pycaps reads it as highlight lead by design.
     for i in range(1, len(out)):
         gap = out[i]["start_time"] - out[i - 1]["end_time"]
         if 0 <= gap < gap_merge_sec:
@@ -238,6 +242,9 @@ def smooth_whisper_result_dict(
                     hook_lead_remaining -= 1
 
         # Rule 2: merge short gaps
+        # `0 <= gap` is deliberate (#395): overlap here is rule 4's lead at
+        # work, and pycaps consumes it as highlight lead. See the flat-list
+        # copy of this rule for the full note.
         for i in range(1, len(words)):
             if "start" in words[i] and "end" in words[i - 1]:
                 gap = words[i]["start"] - words[i - 1]["end"]
