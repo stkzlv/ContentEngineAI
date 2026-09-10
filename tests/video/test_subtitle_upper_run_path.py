@@ -104,3 +104,78 @@ class TestTheHandlerPrefersTheRegisteredPath:
             "the upper-line writer must prefer the registered run path; the "
             "inline derivation is only the fallback for contexts without one"
         )
+
+
+class TestAStaleUpperFileCannotSpeakForThisRun:
+    """The registration's own hazard, closed (#413 review).
+
+    The path is product-level and temp/ survives failed and --debug runs,
+    so a stale subtitle_upper file would satisfy every existence-gated
+    reader: the assembler would draw it, the #396 guard would accept it,
+    and the recorder would file it as this step's artifact.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_step_unlinks_it_even_on_the_disabled_return(self, tmp_path):
+        """A run without subtitles must not leave an upper line to draw."""
+        from unittest.mock import MagicMock
+
+        from src.video.producer.steps import step_generate_subtitles
+
+        stale = tmp_path / "subtitle_upper.ass"
+        stale.write_text("[Script Info]")
+
+        ctx = MagicMock()
+        ctx.config.subtitle_settings.enabled = False
+        ctx.voiceover_duration = 2.0
+        ctx.run_paths = {"subtitle_upper_file": stale}
+        ctx.state = {}
+
+        await step_generate_subtitles(ctx)
+
+        assert ctx.state.get("captions") == "disabled"
+        assert (
+            not stale.exists()
+        ), "the disabled return left a previous run's upper file in place"
+
+    def test_the_reader_requires_the_recorded_artifact(self, tmp_path):
+        from src.video.producer.steps import _recorded_upper_subtitle
+
+        upper = tmp_path / "subtitle_upper.ass"
+        upper.write_text("[Script Info]")
+
+        ctx = SimpleNamespace(run_paths={"subtitle_upper_file": upper}, state={})
+        assert _recorded_upper_subtitle(ctx) is None, "no state entry, no path"
+
+        ctx.state = {"generate_subtitles": {"artifacts": {}}}
+        assert (
+            _recorded_upper_subtitle(ctx) is None
+        ), "an entry without the artifact must not resolve the path"
+
+        ctx.state = {
+            "generate_subtitles": {"artifacts": {"subtitle_upper_file": str(upper)}}
+        }
+        assert _recorded_upper_subtitle(ctx) == upper
+
+    def test_the_assembler_site_reads_through_the_gate(self):
+        """The bare run-path read is exactly the stale-file hazard."""
+        import ast
+
+        tree = ast.parse(Path("src/video/producer/steps.py").read_text())
+        step = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name == "step_assemble_video"
+        )
+        for node in ast.walk(step):
+            if isinstance(node, ast.keyword) and node.arg == "subtitle_upper_path":
+                call = node.value
+                assert (
+                    isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id == "_recorded_upper_subtitle"
+                ), "subtitle_upper_path must come from _recorded_upper_subtitle"
+                break
+        else:
+            pytest.fail("assemble_video call passes no subtitle_upper_path")
