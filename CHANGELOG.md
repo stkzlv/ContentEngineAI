@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The `timing_smoothing` block in the subtitle config reaches the smoother. It carries six documented keys and none of them arrived: the builder that assembles the base subtitle settings enumerates keys explicitly, so a block it does not name never survives the profile merge however completely the YAML defines it, and the smoother ran entirely on its function defaults. Nothing looked wrong because the configured lead happens to equal the code default, so the rendered output matched what the config asked for by coincidence rather than by wiring. The hook lead does not match its default, so that feature had never run at all. It runs now, verified from the rendered frames rather than from the config: the opening line is on screen and readable before the audio cue, and the first three words highlight as they are spoken. Turning it on widens the largest word-level overlap on the flat list from 40ms to 240ms, which is measured and recorded rather than discovered later; the caption engines draw one caption at a time either way, and the rendered frames show no doubled or offset text. Closes #397.
+
 ## [0.108.3] - 2026-09-09
 
 ### Fixed
