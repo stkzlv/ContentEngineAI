@@ -444,6 +444,37 @@ _EMOJI_CATEGORIES = frozenset({"So", "Sk", "Cf", "Mn", "Me"})
 # "a super wide 155\u00b0" is truncated rather than finished.
 _EMOJI_MIN_ORDINAL = 0x2000
 
+# Single-asterisk emphasis, the residual the bold pattern above does not
+# cover (#409). The prompt forbids markdown and the model disobeys
+# mid-sentence ("getting *too* hot"), and a rejection here would cost a
+# retry -- and the render, if every model in the chain writes emphasis --
+# for text whose repaired form is known exactly. So this one is stripped
+# rather than refused: the span's text is what the caption wants.
+#
+# The guards are what keep a bare asterisk alive: multiplication sits
+# against a word character on at least one side ("2*3", "1080*1920"), a
+# footnote marker trails its word, and a spaced asterisk ("a * b") opens
+# onto whitespace, so none of them match. `**bold**` is excluded on both
+# edges and stays for the validator to reject.
+_SINGLE_EMPHASIS_RE = re.compile(r"(?<![\w*])\*(?!\s|\*)([^*\n]+?)(?<!\s)\*(?![\w*])")
+
+
+def strip_single_asterisk_emphasis(text: str) -> str:
+    """Drop the asterisks of ``*emphasis*`` spans, keeping their text."""
+    return _SINGLE_EMPHASIS_RE.sub(r"\1", text)
+
+
+def _clean_description(raw: str) -> str:
+    """The one cleaning step between the model's text and validation.
+
+    Four attempt paths receive a raw completion; a cleanup applied at one
+    of them and not the others is this module's documented failure shape,
+    so they all call this.
+    """
+    text = re.sub(r"```[\w\s]*", "", raw)
+    return strip_single_asterisk_emphasis(text).strip()
+
+
 _MARKDOWN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\*\*.+?\*\*", re.S), "bold markup"),
     (re.compile(r"^\s{0,3}#{1,6}\s", re.M), "a heading"),
@@ -665,7 +696,7 @@ async def generate_description(
                 )
 
                 # Clean the description (remove code blocks, etc.)
-                clean_description = re.sub(r"```[\w\s]*", "", description_text).strip()
+                clean_description = _clean_description(description_text)
 
                 # Validate description completeness
                 is_complete, validation_reason = validate_description_completeness(
@@ -740,7 +771,7 @@ async def generate_description(
                 description_text = await _call_llm_api_with_retry(
                     prompt, model, settings, api_key, session, api_settings
                 )
-                clean_description = re.sub(r"```[\w\s]*", "", description_text).strip()
+                clean_description = _clean_description(description_text)
                 is_complete, validation_reason = validate_description_completeness(
                     clean_description, settings.description_validation
                 )
@@ -778,9 +809,7 @@ async def generate_description(
                     description_text = await _call_llm_api_with_retry(
                         prompt, model, fb, fb_api_key, session, api_settings
                     )
-                    clean_description = re.sub(
-                        r"```[\w\s]*", "", description_text
-                    ).strip()
+                    clean_description = _clean_description(description_text)
                     is_complete, reason = validate_description_completeness(
                         clean_description, settings.description_validation
                     )
@@ -804,9 +833,7 @@ async def generate_description(
                         description_text = await _call_llm_api_with_retry(
                             prompt, model, fb, fb_api_key, session, api_settings
                         )
-                        clean_description = re.sub(
-                            r"```[\w\s]*", "", description_text
-                        ).strip()
+                        clean_description = _clean_description(description_text)
                         is_complete, reason = validate_description_completeness(
                             clean_description, settings.description_validation
                         )
