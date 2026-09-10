@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.5] - 2026-09-10
+
 ### Fixed
 - Single-asterisk emphasis no longer publishes into the caption. The description prompt forbids markdown and the model disobeys mid-sentence, and the markdown checks target the shapes a reasoning monologue produces, so a well-formed description carrying emphasis passed validation with the asterisks intact. The emphasis span's asterisks are now stripped while its text is kept, because a rejection would cost a retry, and the render if every model in the chain writes emphasis, for text whose repaired form is known exactly. An asterisk that is not emphasis survives: multiplication sits against a word character, a footnote marker trails its word, and a spaced asterisk opens onto whitespace, so none of them match; bold markup stays for the validator to reject. The cleanup between the model's text and validation is one shared function called by all four attempt paths, since a cleanup applied at one site and not the others is this module's documented failure shape. Closes #409.
 
