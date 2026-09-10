@@ -83,7 +83,10 @@ def _clean_producer_files(
         temp_dir / files.subtitles,  # subtitles.srt
         temp_dir / "subtitles.ass",  # ASS subtitle file
         temp_dir / "subtitles_content_aware.ass",  # content-aware subtitle file
-        temp_dir / "subtitle_upper.ass",  # Upper subtitle (two-part system)
+        # Both formats: the upper file's suffix follows the merged
+        # per-profile subtitle format (#421).
+        temp_dir / "subtitle_upper.ass",
+        temp_dir / "subtitle_upper.srt",
         temp_dir / files.attribution,  # attributions file
         # Legacy paths (product_root) for backwards compatibility cleanup
         product_root / files.script,
@@ -93,6 +96,7 @@ def _clean_producer_files(
         product_root / "subtitles.ass",
         product_root / "subtitles_content_aware.ass",
         product_root / "subtitle_upper.ass",
+        product_root / "subtitle_upper.srt",
         product_root / files.attribution,
         # Final video (stays in product_root)
         product_root

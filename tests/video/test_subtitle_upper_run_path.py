@@ -238,3 +238,24 @@ class TestTheStepSetsTheInSessionSignal:
             "in step_generate_subtitles; the two-part branch must set it when "
             "it writes the file"
         )
+
+
+class TestCleanupCoversBothFormats:
+    """`--clean` must remove the upper file whichever format the merge
+    produced (#421); a literal `.ass` missed `subtitle_upper.srt`.
+    """
+
+    def test_clean_removes_both_suffixes(self, cfg, tmp_path):
+        from src.video.producer.state import _clean_producer_files
+
+        root = tmp_path / "B0TEST"
+        temp = root / cfg.path_config.temp_dir
+        temp.mkdir(parents=True)
+        for name in ("subtitle_upper.ass", "subtitle_upper.srt"):
+            (root / name).write_text("x")
+            (temp / name).write_text("x")
+
+        _clean_producer_files({"run_root": root}, cfg, "B0TEST", "slideshow_images1")
+
+        leftovers = [q.name for q in root.rglob("subtitle_upper.*")]
+        assert not leftovers, f"cleanup left {leftovers}"
