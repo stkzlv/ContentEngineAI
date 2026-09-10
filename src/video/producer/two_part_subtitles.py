@@ -475,8 +475,13 @@ class TwoPartSubtitleHandler:
         subtitle_dict["randomize_effects"] = upper.randomize_effects
         subtitle_dict["_upper_use_full_duration"] = upper.use_full_duration
 
+        # The registered run path, so the step, the resume and verification
+        # all name one file (#413); the derivation is the fallback for a
+        # handler built on a context without registered paths.
         subtitle_format = subtitle_dict.get("subtitle_format", "srt")
-        upper_output_path = self.ctx.run_paths["subtitle_file"].with_name(
+        upper_output_path = self.ctx.run_paths.get(
+            "subtitle_upper_file"
+        ) or self.ctx.run_paths["subtitle_file"].with_name(
             f"subtitle_upper.{subtitle_format}"
         )
 

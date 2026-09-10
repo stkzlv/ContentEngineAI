@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.7] - 2026-09-10
+
+### Fixed
+- The two-part upper subtitle survives a resume. Its file was recorded as a step artifact but never registered as a run path, only inserted into the running context by the subtitle step itself, so a resume that skipped that step read nothing in assembly and silently dropped the upper line while the recorded artifact said the file existed. Verification also could not compare the recorded path against this run's, falling back to existence-only checking, which is the gap the profile-scoped comparison exists to close. The path is registered now with its suffix riding on the merged per-profile subtitle format, and the writer prefers the registered path so the step, the resume and verification all name one file. Registering it alone would have opened the inverse hole: the path is product-level and the temp directory survives failed and debug runs, so a stale upper file from a previous run would satisfy every existence-gated reader and be drawn into a render that wanted none. The subtitle step therefore removes the file whenever this run does not produce one, including when subtitles are disabled outright, and the assembler takes the path only when this run vouches for it: from the step's own in-session signal on a fresh render, since on the parallel path state entries are recorded only after the whole pipeline runs, or from the verified recorded artifacts on a resume that skipped the step. Latent on the bundled profiles, which all leave the lower line enabled. Closes #413.
+
 ## [0.108.6] - 2026-09-10
 
 ### Fixed

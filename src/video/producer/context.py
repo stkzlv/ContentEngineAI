@@ -58,6 +58,13 @@ class PipelineContext:
         # later `--step assemble_video` after a config edit would draw the
         # previous run's text with nothing to detect it (#88).
         self.upper_line_text: str | None = None
+        # The upper subtitle file this run's subtitle step wrote, or None.
+        # An attribute, not a `state` key, for the same reason as above --
+        # and not the run path either, which always resolves now (#413): on
+        # the parallel path state entries are recorded only after the whole
+        # pipeline runs, so assembly needs an in-session signal that the
+        # file on disk is this run's product.
+        self.subtitle_upper_written: Path | None = None
 
         # Background processing support
         self.background_processor: Any | None = None

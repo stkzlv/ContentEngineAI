@@ -176,6 +176,12 @@ def get_video_run_paths(
         / config.path_config.gathered_visuals,
         "music_info_file": paths["text_dir"] / "music_choice.json",
         "subtitle_file": paths["subtitles"],
+        # Registered, not only inserted by the subtitle step (#413), or a
+        # resume that skips that step reads None here and drops the upper
+        # line. The suffix rides on the merged per-profile format.
+        "subtitle_upper_file": paths["subtitles"].with_name(
+            f"subtitle_upper{paths['subtitles'].suffix}"
+        ),
         "final_video_output": paths["final_video"],
         "attribution_file": paths["attribution"],
         "state_file": paths["pipeline_state"],
