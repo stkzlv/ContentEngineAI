@@ -202,3 +202,39 @@ class TestAStaleUpperFileCannotSpeakForThisRun:
                 break
         else:
             pytest.fail("assemble_video call passes no subtitle_upper_path")
+
+
+class TestTheStepSetsTheInSessionSignal:
+    """The production flag-set is what the fresh-run voucher rests on.
+
+    The helper tests hand-set the flag, so they cannot see whether the
+    step ever sets it; deleting the assignment reintroduces the dropped
+    upper line with every helper test green. Read structurally, like the
+    assembler-site test above.
+    """
+
+    def test_the_two_part_branch_sets_the_flag_beside_the_insertion(self):
+        import ast
+
+        tree = ast.parse(Path("src/video/producer/steps.py").read_text())
+        step = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name == "step_generate_subtitles"
+        )
+        sets_flag = [
+            node
+            for node in ast.walk(step)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(t, ast.Attribute) and t.attr == "subtitle_upper_written"
+                for t in node.targets
+            )
+            and not (isinstance(node.value, ast.Constant) and node.value.value is None)
+        ]
+        assert len(sets_flag) == 1, (
+            f"{len(sets_flag)} non-None assignment(s) to subtitle_upper_written "
+            "in step_generate_subtitles; the two-part branch must set it when "
+            "it writes the file"
+        )
