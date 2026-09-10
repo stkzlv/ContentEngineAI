@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Platform-specific captions no longer publish LLM markdown. The three platform parsers extracted title, description and caption with a bare whitespace strip, so code fences, bold and single-asterisk emphasis published verbatim on the platform-specific and optimized-metadata paths while the unified description path was already cleaning its text. One shared cleaner now runs on every extracted field, keeping the text and dropping the markup: bold is stripped rather than rejected because the labelled extraction has already filtered out monologue-shaped output and a parse failure falls back to standard content, so keeping the text is strictly better than losing the caption. The same guards as the unified path keep multiplication, footnote markers and spaced asterisks intact, and the fence pattern consumes only the marker and its language tag rather than swallowing fenced content. Closes #417.
+
 ## [0.108.8] - 2026-09-10
 
 ### Fixed

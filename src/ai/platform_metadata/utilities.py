@@ -7,6 +7,7 @@ to reduce code duplication and provides high-level helpers for common patterns.
 
 import json
 import logging
+import re
 from pathlib import Path
 
 import aiohttp
@@ -16,12 +17,36 @@ from src.ai.description_generator import (
     _fetch_and_select_model,
     format_prompt,
     load_prompt_template,
+    strip_single_asterisk_emphasis,
 )
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
+
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*", re.S)
+# Only the marker and its language tag -- the unified path's `[\w\s]*`
+# also swallows fenced *content* up to the first non-word character.
+_CODE_FENCE_RE = re.compile(r"```[\w-]*")
+
+
+def strip_inline_markdown(text: str) -> str:
+    """Drop markdown markup an LLM slips into publish-bound caption text.
+
+    The unified description path cleans and validates its text; the
+    platform parsers extracted theirs with a bare `.strip()`, so fences,
+    `**bold**` and `*emphasis*` published verbatim (#417). Bold is
+    *stripped* here rather than rejected the way the unified validator
+    does: there, bold marks a reasoning monologue and rejection feeds a
+    retry; here the labelled extraction has already filtered the shape,
+    and a parse failure falls back to standard content, so keeping the
+    text is strictly better than losing the caption.
+    """
+    text = _CODE_FENCE_RE.sub("", text)
+    text = _BOLD_RE.sub(r"\1", text)
+    return strip_single_asterisk_emphasis(text).strip()
+
 
 # Re-export these functions for convenience
 __all__ = [

@@ -16,6 +16,7 @@ from src.ai.platform_metadata.utilities import (
     format_prompt,
     generate_with_llm,
     load_prompt_template,
+    strip_inline_markdown,
 )
 from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
@@ -414,7 +415,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 return None
 
             # Extract and clean caption
-            caption = caption_match.group(1).strip()
+            caption = strip_inline_markdown(caption_match.group(1))
 
             # Extract hashtags
             hashtags = []
