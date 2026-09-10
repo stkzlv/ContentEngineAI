@@ -1267,6 +1267,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         _upper = ctx.run_paths.get("subtitle_upper_file")
         if _upper is not None:
             Path(_upper).unlink(missing_ok=True)
+        ctx.subtitle_upper_written = None
 
         # Use the same value for early exit check
         subtitle_enabled = subtitle_enabled_value
@@ -1421,6 +1422,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
 
             if upper_path:
                 ctx.run_paths["subtitle_upper_file"] = upper_path
+                ctx.subtitle_upper_written = upper_path
 
         else:
             # Standard single-line subtitle generation
@@ -1577,14 +1579,21 @@ def _build_audio_providers(config: Any, secrets: dict[str, str]) -> list:
 
 
 def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
-    """The upper subtitle path, only when this run's state vouches for it.
+    """The upper subtitle path, only when this run vouches for it.
 
     The registered run path always resolves and temp/ survives failed and
     --debug runs, so handing the assembler the bare path would let a stale
-    file from a previous run satisfy its existence check (#413). The
-    subtitle step unlinks the file when it does not produce one, and this
-    reads the step's recorded artifacts rather than the filesystem.
+    file from a previous run satisfy its existence check (#413). Two
+    vouchers, one per execution shape. When the subtitle step ran this
+    session it sets `ctx.subtitle_upper_written`; the recorded state entry
+    cannot serve here, because on the parallel path state is recorded only
+    after the whole pipeline runs. On a resume that skipped the step, the
+    recorded artifacts vouch instead -- the loader has already verified the
+    recorded path against this run's.
     """
+    written = getattr(ctx, "subtitle_upper_written", None)
+    if written is not None:
+        return written
     entry = ctx.state.get("generate_subtitles")
     if not isinstance(entry, dict):
         return None

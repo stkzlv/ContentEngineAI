@@ -157,6 +157,25 @@ class TestAStaleUpperFileCannotSpeakForThisRun:
         }
         assert _recorded_upper_subtitle(ctx) == upper
 
+    def test_a_fresh_run_is_vouched_by_the_step_not_the_state(self, tmp_path):
+        """On the parallel path, state entries are recorded only after the
+        whole pipeline runs, so at assembly time a fresh render has NO
+        generate_subtitles entry. The step's in-session signal carries the
+        path -- gating on state alone dropped the upper line from every
+        fresh two-part render.
+        """
+        from src.video.producer.steps import _recorded_upper_subtitle
+
+        upper = tmp_path / "subtitle_upper.ass"
+        upper.write_text("[Script Info]")
+
+        ctx = SimpleNamespace(
+            run_paths={"subtitle_upper_file": upper},
+            state={},  # what the parallel path shows at assembly time
+            subtitle_upper_written=upper,
+        )
+        assert _recorded_upper_subtitle(ctx) == upper
+
     def test_the_assembler_site_reads_through_the_gate(self):
         """The bare run-path read is exactly the stale-file hazard."""
         import ast
