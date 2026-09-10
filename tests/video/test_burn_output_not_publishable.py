@@ -28,7 +28,8 @@ class TestTheBurnOutputsLiveInTemp:
     def test_every_burn_output_derives_from_intermediate_base(self):
         """Every occurrence, not the first: a second burn site added later
         with a sibling placement must fail this, and `source.index` only
-        ever examined occurrence one."""
+        ever examined occurrence one.
+        """
         source = Path("src/video/producer/steps.py").read_text()
         for marker in ("_pycaps.mp4", "_ffmpeg_burn.mp4"):
             hits = [m.start() for m in re.finditer(re.escape(marker), source)]
@@ -42,7 +43,8 @@ class TestTheBurnOutputsLiveInTemp:
 
     def test_no_burn_output_is_a_sibling_of_the_final_render(self):
         """The two sibling-placement spellings: `with_name` on the final
-        path, and `final.parent / f"...suffix"`."""
+        path, and `final.parent / f"...suffix"`.
+        """
         tree = ast.parse(Path("src/video/producer/steps.py").read_text())
 
         def _carries_suffix(node: ast.AST) -> bool:
