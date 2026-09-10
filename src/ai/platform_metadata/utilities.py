@@ -25,7 +25,10 @@ from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 
-_BOLD_RE = re.compile(r"\*\*(.+?)\*\*", re.S)
+# Guarded like the single-star pattern: two unrelated `**` runs in one
+# field must not pair up ("2**3" is not bold, and stripping would merge
+# the digits into a wrong number).
+_BOLD_RE = re.compile(r"(?<!\w)\*\*(?!\s|\*)(.+?)(?<!\s)\*\*(?!\w)", re.S)
 # Only the marker and its language tag -- the unified path's `[\w\s]*`
 # also swallows fenced *content* up to the first non-word character.
 _CODE_FENCE_RE = re.compile(r"```[\w-]*")

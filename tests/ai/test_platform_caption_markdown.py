@@ -74,3 +74,25 @@ class TestEveryParserCleans:
         assert parsed is not None
         for i, want in enumerate(expected):
             assert parsed[i] == want, f"field {i}: {parsed[i]!r}"
+
+
+class TestUnrelatedDoubleStarsDoNotPair:
+    """Two non-bold `**` runs in one field must not pair up (#417 review).
+
+    Stripping would merge "2**3" into "23" and mangle censored words --
+    corrupted published text with no log line, worse than the markdown it
+    replaces.
+    """
+
+    def test_the_corruption_cases_survive(self):
+        for text in (
+            "2**3 and 4**5",
+            "f*** and s*** happen #real",
+            "Fast charge** and waterproof** ok",
+            "2**8 bytes",
+        ):
+            assert strip_inline_markdown(text) == text
+
+    def test_real_bold_still_strips(self):
+        assert strip_inline_markdown("**bold** stays text") == "bold stays text"
+        assert strip_inline_markdown("***word*** nested") == "word nested"
