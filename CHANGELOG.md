@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.6] - 2026-09-10
+
+### Fixed
+- Both caption-burn intermediates are written into the run's temp directory instead of beside the finished render. They rename onto the final name only after a successful burn, which was already right; what it did not cover is a kill that never reaches the rename, where a half-written file was left under a name the publisher's render-discovery glob matches and can sort ahead of a second profile's finished video. Same filesystem, so the rename stays atomic, and the existing temp cleanup collects anything stranded. This closes the remaining half of the hazard the assembler's partial file was moved for. Closes #411.
+
 ## [0.108.5] - 2026-09-10
 
 ### Fixed

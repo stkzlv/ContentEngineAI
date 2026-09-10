@@ -82,7 +82,7 @@ def _video(path: Path, seconds: float = 2.0) -> Path:
     return path
 
 
-def _ctx(video_config):
+def _ctx(video_config, temp_dir):
     """The real config, not a mock of it.
 
     The subtitle generator resolves style presets off `video_config`, so a
@@ -95,6 +95,11 @@ def _ctx(video_config):
     # A real float: the generator holds the last cue to this, and an unset
     # MagicMock attribute makes it emit no lines at all.
     ctx.voiceover_duration = 2.0
+    # A real mapping: the fallback derives its intermediate output from
+    # run_paths (#411), and a MagicMock item would break Path arithmetic.
+    # temp_dir is required so a future call site cannot silently write the
+    # burn intermediate into the pytest cwd.
+    ctx.run_paths = {"intermediate_base": temp_dir}
     return ctx
 
 
@@ -123,7 +128,7 @@ class TestTheFallbackProducesACaptionedVideo:
         before = video.stat().st_size
 
         burned = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, video, settings
+            _ctx(video_config, tmp_path), transcript, video, settings
         )
 
         assert burned is True
@@ -139,7 +144,7 @@ class TestTheFallbackProducesACaptionedVideo:
         video = _video(tmp_path / "video.mp4")
 
         await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, video, settings
+            _ctx(video_config, tmp_path), transcript, video, settings
         )
 
         probe = subprocess.run(
@@ -168,7 +173,7 @@ class TestTheFallbackProducesACaptionedVideo:
         video = _video(tmp_path / "video.mp4")
 
         await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, video, settings
+            _ctx(video_config, tmp_path), transcript, video, settings
         )
 
         probe = subprocess.run(
@@ -213,7 +218,7 @@ class TestTheFallbackProducesACaptionedVideo:
         shutil.copy(video, original)
 
         await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, video, settings
+            _ctx(video_config, tmp_path), transcript, video, settings
         )
 
         def frame(path: Path, out: Path) -> Path:
@@ -276,7 +281,7 @@ class TestACaptionFreeSubtitleFileIsRefused:
         monkeypatch.setattr(UnifiedSubtitleGenerator, "generate_from_timings", _empty)
 
         result = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, video, settings
+            _ctx(video_config, tmp_path), transcript, video, settings
         )
 
         assert result is False, (
@@ -294,7 +299,10 @@ class TestItRefusesRatherThanShippingSilently:
         self, tmp_path, settings, video_config
     ):
         result = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), tmp_path / "absent.json", tmp_path / "v.mp4", settings
+            _ctx(video_config, tmp_path),
+            tmp_path / "absent.json",
+            tmp_path / "v.mp4",
+            settings,
         )
 
         assert result is False
@@ -307,7 +315,7 @@ class TestItRefusesRatherThanShippingSilently:
         bad.write_text("{not json", encoding="utf-8")
 
         result = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), bad, tmp_path / "v.mp4", settings
+            _ctx(video_config, tmp_path), bad, tmp_path / "v.mp4", settings
         )
 
         assert result is False
@@ -320,7 +328,7 @@ class TestItRefusesRatherThanShippingSilently:
         transcript = _transcript(tmp_path / "transcript.json", words=False)
 
         result = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, tmp_path / "v.mp4", settings
+            _ctx(video_config, tmp_path), transcript, tmp_path / "v.mp4", settings
         )
 
         assert result is False
@@ -334,7 +342,7 @@ class TestItRefusesRatherThanShippingSilently:
         transcript = _transcript(tmp_path / "transcript.json")
 
         result = await _burn_with_ffmpeg_fallback(
-            _ctx(video_config), transcript, tmp_path / "absent.mp4", settings
+            _ctx(video_config, tmp_path), transcript, tmp_path / "absent.mp4", settings
         )
 
         assert result is False
@@ -351,7 +359,7 @@ class TestItRefusesRatherThanShippingSilently:
 
         assert (
             await _burn_with_ffmpeg_fallback(
-                _ctx(video_config), transcript, video, settings
+                _ctx(video_config, tmp_path), transcript, video, settings
             )
             is False
         )
@@ -411,6 +419,7 @@ class TestTheStepReachesTheFallback:
             "pycaps_metadata_file": tmp_path / "pycaps_metadata.json",
             "run_root": tmp_path,
             "temp_dir": tmp_path,
+            "intermediate_base": tmp_path,
         }
         return ctx, video
 

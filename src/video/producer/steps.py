@@ -1893,7 +1893,12 @@ async def _burn_with_ffmpeg_fallback(
         logger.warning("FFmpeg fallback: the generated subtitle file has no lines.")
         return False
 
-    burned = final_video_path.with_name(f"{final_video_path.stem}_ffmpeg_burn.mp4")
+    # In temp/, not beside the output (#411): a kill that never reaches the
+    # rename would leave a sibling the publisher's video_{asin}_*.mp4
+    # discovery glob matches, same hazard as the assembler's partial file.
+    burned = ctx.run_paths["intermediate_base"] / (
+        f"{final_video_path.stem}_ffmpeg_burn.mp4"
+    )
     escaped = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
     # The configured binary, not the name: an install that sets
     # `ffmpeg_settings.executable_path` (documented in troubleshooting for a
@@ -2114,7 +2119,10 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
         from src.utils import sanitize_filename
 
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
-        burned_output = final_video_path.with_name(
+        # In temp/, not beside the output (#411): a kill that never reaches
+        # the rename would leave a sibling the publisher's discovery glob
+        # matches. Same filesystem as the output, so the rename stays atomic.
+        burned_output = ctx.run_paths["intermediate_base"] / (
             final_video_path.stem + "_pycaps.mp4"
         )
 
