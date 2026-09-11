@@ -22,6 +22,13 @@ from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import DEFAULT_DISCLOSURE, Platform, PublishMetadata
 
 
+def _caption(meta, product_id, platform):
+    """The caption the builder's metadata composes, unclamped."""
+    from src.publisher.schedule import metadata_from_file
+
+    return metadata_from_file(meta, product_id, platform).format_content()
+
+
 def _written(tmp_path, product_id, **fields):
     """A metadata file as the producer writes it, loaded as publish does."""
     directory = tmp_path / product_id
@@ -208,9 +215,7 @@ class TestTheScheduleAutoPathStripsItToo:
         branch, which is how this path came to be unguarded in the first
         place.
         """
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "Fix your wifi. Which fix worked? #ad",
                 "hashtags": ["WifiFix", "ad"],
@@ -231,9 +236,7 @@ class TestTheScheduleAutoPathStripsItToo:
         exists to clear. That is how this path went without a leading
         disclosure unnoticed.
         """
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "Great earbuds under $50.",
                 "hashtags": ["Earbuds"],
@@ -267,7 +270,7 @@ class TestTheScheduleAutoPathStripsItToo:
             for node in ast.walk(auto)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "caption_from_metadata"
+            and node.func.id == "metadata_from_file"
         ]
 
         # Two branches build a caption: from a metadata file, and from
@@ -277,15 +280,13 @@ class TestTheScheduleAutoPathStripsItToo:
         # routed through the builder, and pinning the count would fail on the
         # improvement rather than on a regression.
         assert len(calls) >= 2, (
-            f"auto_schedule has {len(calls)} caption_from_metadata call(s); "
-            "both the metadata branch and the data.json fallback need one"
+            f"auto_schedule has {len(calls)} metadata_from_file call(s); "
+            "the metadata, data.json and bare-literal branches need it"
         )
 
     def test_an_absent_flag_still_leads_with_it(self):
         """Same default as everywhere else: disclose unless told otherwise."""
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {"description": "Great earbuds.", "hashtags": ["Earbuds"]},
             "B0ABCDEFGH",
             Platform.TIKTOK,
@@ -295,9 +296,7 @@ class TestTheScheduleAutoPathStripsItToo:
 
     def test_the_model_token_is_not_doubled(self):
         """The leading line and a trailing token would disclose twice."""
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "Great earbuds under $50.",
                 "hashtags": ["Earbuds", "ad"],
@@ -345,19 +344,17 @@ class TestACaptionWithNoTokenIsReturnedUntouched:
 
 
 class TestTheFallbackPathIsCompliantToo:
-    """A malformed metadata file must not publish a non-compliant caption.
+    """The repair path applies the same rules as the normal one.
 
-    `caption_from_metadata` falls back when `PublishMetadata` refuses the
-    input -- an empty description, or a YouTube entry with no title. Losing
-    the whole scheduling run to one bad file would be worse, but the fallback
-    has to apply the same two rules, or it ships exactly the pair of defects
-    the function exists to close.
+    `metadata_from_file` repairs a record `PublishMetadata` refuses -- an
+    empty description, a YouTube entry with no title -- and re-constructs,
+    rather than hand-assembling a caption that bypasses the model's rules,
+    which is what the old fallback did and how it once skipped the clamp
+    and the leading disclosure.
     """
 
     def test_an_affiliate_youtube_entry_with_no_title_still_leads_with_it(self):
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "Great earbuds under $50.",
                 "carries_affiliate_content": True,
@@ -374,9 +371,7 @@ class TestTheFallbackPathIsCompliantToo:
         The other fallback cases here pass no hashtags, so emptying the list
         changes nothing in them -- this is the case that binds.
         """
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "A comfy tilted bowl.",
                 "hashtags": ["Andoll", "Cat"],
@@ -389,9 +384,7 @@ class TestTheFallbackPathIsCompliantToo:
         assert caption == ("#ad\n\nA comfy tilted bowl.\n\n#Andoll #Cat #B0DF7H6SGZ")
 
     def test_a_topic_youtube_entry_with_no_title_still_loses_the_token(self):
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "description": "Fix your wifi #ad by changing the channel.",
                 "carries_affiliate_content": False,
@@ -418,9 +411,7 @@ class TestTheTokenTheModelWroteIsNotDoubled:
     """
 
     def test_an_affiliate_body_token_is_replaced_by_the_leading_line(self):
-        from src.publisher.schedule import caption_from_metadata
-
-        caption = caption_from_metadata(
+        caption = _caption(
             {
                 "title": "Earbuds",
                 "description": "Great earbuds - which do you reach for? #ad",

@@ -322,7 +322,7 @@ class TestTheScannerReadsTheConfig:
 class TestTheScheduleTitleIsClamped:
     """The schedule path trims its title separately from the caption clamp.
 
-    `caption_from_metadata` builds a `PublishMetadata` and clamps it for the
+    `metadata_from_file` builds a `PublishMetadata`; each branch clamps for the
     platforms the post reaches, but the title it carries is discarded: this
     branch passes the title alongside the caption, so it is trimmed here. A
     scraped Amazon title routinely runs past YouTube's 100-character cap, and
@@ -348,9 +348,12 @@ class TestTheScheduleTitleIsClamped:
         # is the defect.
         #
         # Counted by the cap rather than by name. The module also trims a
-        # description, against a computed budget, so a bare count of the
-        # calls went from three to four and a deleted title trim would have
-        # left the guard satisfied.
+        # description, against a computed budget, so a bare count would let
+        # a deleted title trim pass. Two sites remain after the caption
+        # collapse merged a duplicated youtube/else pair (#408): the
+        # metadata branch and the data.json branch, the two places a raw
+        # title enters; the bare-literal branch's title is short by
+        # construction.
         title_trims = [
             node
             for node in ast.walk(ast.parse(source))
@@ -361,4 +364,4 @@ class TestTheScheduleTitleIsClamped:
             and isinstance(node.args[1], ast.Constant)
             and node.args[1].value == 100
         ]
-        assert len(title_trims) >= 3
+        assert len(title_trims) >= 2

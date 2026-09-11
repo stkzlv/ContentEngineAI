@@ -60,8 +60,9 @@ def description_budget(platforms: Iterable[Platform], wrapper_chars: int) -> int
     -- comes off the top. Returns None when no target declares a description
     limit, and never returns less than zero.
 
-    Shared with `caption_from_metadata`'s fallback path, which assembles its
-    caption by hand and so cannot use `clamp_for_platforms`.
+    The one caller is `clamp_for_platforms`; the hand-assembled scheduling
+    fallback that also used it was replaced by the repair in
+    `metadata_from_file` (#408).
     """
     limits = [
         limit
@@ -430,6 +431,21 @@ class PublishMetadata:
         to several (#403).
         """
         return self.clamp_for_platforms([self.platform])
+
+    def clamped_for(self, platforms: Iterable[Platform]) -> "PublishMetadata":
+        """A clamped copy; the original keeps its full text and counts.
+
+        The scheduling path clamps at each point of use, and a mutating
+        clamp would hand the second use the first one's narrower budget --
+        a mutation invariant that fails quietly (#408). `replace` passes
+        `character_counts` by reference and the clamp writes into it, so
+        the copy gets its own dict first; `keywords` stays shared (nothing
+        mutates it) and `__post_init__` rebinds `hashtags` on the copy.
+        """
+        copy = replace(self)
+        copy.character_counts = dict(self.character_counts)
+        copy.clamp_for_platforms(platforms)
+        return copy
 
     def clamp_for_platforms(self, platforms: Iterable[Platform]) -> tuple[str, ...]:
         """Trim so the composed caption fits every platform it is sent to.
