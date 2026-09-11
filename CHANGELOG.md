@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The scheduling path's caption construction is collapsed to one invariant. The builder returns the metadata object rather than a caption string, and each posting branch clamps a pure copy at its own point of use with its own target list in scope, so the caption-for-one-platform-reaching-another defect class that took four review rounds across this code's paths has no surface left: the targets parameter, the side record of source metadata and the two source-reading tests that pinned them are gone, replaced by behavioural tests and one structural rule that captions are composed only from clamped copies. A record the metadata model refuses is repaired rather than bypassed, because the old hand-assembled bypass was one of the four rounds.
+
+### Fixed
+- Scheduled unified posts carry their first comments again. The unified branch's per-platform payload copied only content and title, so comments built for the run were silently dropped on the default scheduling mode.
+- The scheduling fallback for a product with nothing on disk is routed through the caption builder, so its caption is recorded, clamped and leads with the disclosure like every other branch instead of being a bare literal that skipped all three.
+
 ## [0.108.13] - 2026-09-11
 
 ### Fixed

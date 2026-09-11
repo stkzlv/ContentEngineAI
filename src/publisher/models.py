@@ -431,6 +431,19 @@ class PublishMetadata:
         """
         return self.clamp_for_platforms([self.platform])
 
+    def clamped_for(self, platforms: Iterable[Platform]) -> "PublishMetadata":
+        """A clamped copy; the original keeps its full text.
+
+        The scheduling path clamps at each point of use, and a mutating
+        clamp would hand the second use the first one's narrower budget --
+        a mutation invariant that fails quietly (#408). The copy shares its
+        list fields with the original; the clamp touches only the title and
+        description strings, which rebind on the copy.
+        """
+        copy = replace(self)
+        copy.clamp_for_platforms(platforms)
+        return copy
+
     def clamp_for_platforms(self, platforms: Iterable[Platform]) -> tuple[str, ...]:
         """Trim so the composed caption fits every platform it is sent to.
 
