@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Product scripts are fact-checked against their own scraped listing. The grounded topic check was deliberately off for product renders, because a web search resolves a product claim to a different SKU, a review or a successor model; the ground truth for a spec claim is the listing already in hand. The new arm rules numeric and spec claims against the listing text, ungrounded, with the same answer format, so the parser, the reviser and the acceptance guard are shared unchanged, and every failure path ships the original script. Price claims are excluded because price moves after scraping. Measured over fifteen real product scripts: two flags, both correct on hand review -- a two-port claim on a five-port charger, and case battery life presented as single-charge life -- and no false positives. The `products` key switches the arm on and replaces `topics_only`, which had become a no-op once the routing moved into the code: the two arms are different instruments chosen by the record's kind, not a knob.
+
 ## [0.109.2] - 2026-09-11
 
 ### Changed

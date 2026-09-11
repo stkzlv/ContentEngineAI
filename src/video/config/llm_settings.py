@@ -217,7 +217,13 @@ class ScriptFactCheckConfig(BaseModel):
 
     enabled: bool = False
     model: str = Field("gemini-2.5-flash")
-    topics_only: bool = True
+    # The product arm rules spec claims against the scraped listing,
+    # ungrounded (#383): a web search is the wrong instrument there, so
+    # there is no knob that grounds product checks -- the two arms are
+    # different instruments, chosen by the record's kind, and this only
+    # switches the product one on. Replaces `topics_only`, which had
+    # become a no-op once the routing moved into the code.
+    products: bool = False
     max_flags_to_revise: int = Field(3, ge=1, le=10)
     max_length_drift: float = Field(0.25, ge=0.0, le=1.0)
     timeout_seconds: int = Field(45, ge=1)

@@ -539,6 +539,92 @@ async def check_script(
     return parse_check_answer(answer.text)
 
 
+def listing_evidence(product: Any) -> str:
+    """The listing text the product checker rules against.
+
+    Title and description are what the scraper persisted; price is excluded
+    deliberately (it moves after scraping, so ruling on it flags correct
+    copy). Kept as one function so the prompt and any test agree on what
+    the evidence is.
+    """
+    parts = []
+    title = getattr(product, "title", "") or ""
+    if title:
+        parts.append(f"TITLE: {title}")
+    description = getattr(product, "description", "") or ""
+    if description:
+        parts.append(f"DESCRIPTION: {description}")
+    return "\n".join(parts)
+
+
+async def check_product_script(
+    script: str,
+    product: Any,
+    *,
+    api_key: str,
+    settings: ScriptFactCheckConfig,
+) -> FactCheckResult:
+    """Rule the script's spec claims against the scraped listing, ungrounded.
+
+    A web search is the wrong instrument for a product claim: its ground
+    truth is the listing already in hand, and a search resolves to a
+    different SKU, a review or a successor model (#383). Same never-raise
+    contract and answer format as the grounded topic checker, so the parser,
+    the reviser and the acceptance guard are shared unchanged.
+    """
+    import asyncio
+    from pathlib import Path
+
+    unavailable = FactCheckResult(ran=False)
+    evidence = listing_evidence(product)
+    if not evidence:
+        logger.debug("Product fact check skipped: no listing text on the record")
+        return unavailable
+
+    try:
+        from google import genai
+        from google.genai import errors as genai_errors
+
+        client = genai.Client(api_key=api_key)
+        config = genai.types.GenerateContentConfig(temperature=0.0)
+    except (ImportError, ValueError, OSError, RuntimeError) as e:
+        logger.warning("Product fact check unavailable: %s", e)
+        return unavailable
+
+    template = Path(__file__).parent / "prompts" / "product_fact_check.md"
+    try:
+        prompt = template.read_text(encoding="utf-8").format(
+            LISTING=evidence, SCRIPT=script
+        )
+    except (OSError, KeyError, IndexError) as e:
+        logger.warning("Product fact check prompt unusable: %s", e)
+        return unavailable
+
+    try:
+        async with asyncio.timeout(settings.timeout_seconds):
+            answer = await client.aio.models.generate_content(
+                model=settings.model, contents=prompt, config=config
+            )
+    except (
+        TimeoutError,
+        OSError,
+        ValueError,
+        RuntimeError,
+        genai_errors.APIError,
+    ) as e:
+        logger.warning("Product fact check call failed: %s", e)
+        return unavailable
+    finally:
+        aclose = getattr(client.aio, "aclose", None)
+        if aclose is not None:
+            try:
+                await aclose()
+            except (OSError, RuntimeError) as e:  # closing is best effort
+                logger.debug("Closing the fact-check client failed: %s", e)
+
+    return parse_check_answer(answer.text)
+
+
 async def revise_script(
     script: str,
     flagged: list[FactCheckClaim],
@@ -614,15 +700,20 @@ async def fact_check_and_revise(
     happens -- and a check that can lose one is the worse trade.
     """
     cfg = settings.script_fact_check
+    is_topic = bool(getattr(product, "topic", None))
     record: dict[str, Any] = {
         "ran": False,
         "model": cfg.model,
         "subject": subject,
+        "arm": "topic" if is_topic else "product",
         "flagged": [],
         "revision": {"attempted": False, "accepted": False, "reason": "not reached"},
     }
     if not cfg.enabled:
         record["revision"]["reason"] = "disabled"
+        return FactCheckOutcome(script=script, record=record)
+    if not is_topic and not cfg.products:
+        record["revision"]["reason"] = "product arm disabled"
         return FactCheckOutcome(script=script, record=record)
 
     api_key = secrets.get(settings.api_key_env_var) if secrets else None
@@ -632,7 +723,12 @@ async def fact_check_and_revise(
         return FactCheckOutcome(script=script, record=record)
 
     try:
-        result = await check_script(script, subject, api_key=api_key, settings=cfg)
+        if is_topic:
+            result = await check_script(script, subject, api_key=api_key, settings=cfg)
+        else:
+            result = await check_product_script(
+                script, product, api_key=api_key, settings=cfg
+            )
     except Exception as e:  # noqa: BLE001 -- the render must survive anything
         logger.warning("Fact check raised unexpectedly: %s", e)
         record["revision"]["reason"] = f"checker raised: {e}"

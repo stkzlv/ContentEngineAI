@@ -613,8 +613,8 @@ async def _ensure_fact_checked(ctx: PipelineContext, pillar: str | None) -> None
         return
 
     is_topic = bool(getattr(ctx.product, "topic", None))
-    if cfg.topics_only and not is_topic:
-        logger.debug("Fact check skipped: product render, topics_only is set")
+    if not is_topic and not cfg.products:
+        logger.debug("Fact check skipped: product render, product arm disabled")
         return
 
     script_cfg = ctx.config.llm_settings.script_templates

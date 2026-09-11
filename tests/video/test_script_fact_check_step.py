@@ -192,15 +192,52 @@ class TestTheStep:
         assert "battery icon as often as a bolt" in record_of(ctx)["raw_answer"]
 
     @pytest.mark.asyncio
-    async def test_a_product_render_is_not_checked(self, ctx) -> None:
+    async def test_a_product_render_uses_the_listing_arm(self, ctx) -> None:
         """A web search resolves a product claim against a different SKU, a
-        review or a successor model, so it would both flag correct copy and
-        bless wrong copy. `topics_only` is that, not caution.
+        review or a successor model, so the product arm rules against the
+        scraped listing instead, ungrounded (#383). The routing is by the
+        record's kind, not a knob.
         """
+        from src.ai.script_fact_check import FactCheckResult
         from src.video.producer.steps import _ensure_fact_checked
 
         ctx.product.topic = None
-        with patch("google.genai.Client") as client:
+        ctx.product.title = "USB-C Charger 65W"
+        ctx.product.description = "65W output, two ports."
+        with (
+            patch(
+                "src.ai.script_fact_check.check_product_script",
+                AsyncMock(return_value=FactCheckResult(ran=True, flagged=[])),
+            ) as listing_check,
+            patch(
+                "src.ai.script_fact_check.check_script",
+                AsyncMock(return_value=FactCheckResult(ran=True, flagged=[])),
+            ) as grounded_check,
+        ):
+            await _ensure_fact_checked(ctx, None)
+
+        assert listing_check.await_count == 1
+        assert grounded_check.await_count == 0
+        assert record_of(ctx)["arm"] == "product"
+
+    @pytest.mark.asyncio
+    async def test_the_product_arm_can_be_switched_off(self, ctx) -> None:
+        from src.video.producer.steps import _ensure_fact_checked
+
+        ctx.product.topic = None
+        off = config.llm_settings.model_copy(
+            update={
+                "script_fact_check": (
+                    config.llm_settings.script_fact_check.model_copy(
+                        update={"products": False}
+                    )
+                )
+            }
+        )
+        with (
+            patch.object(ctx.config, "llm_settings", off),
+            patch("google.genai.Client") as client,
+        ):
             await _ensure_fact_checked(ctx, None)
 
         assert client.call_count == 0
