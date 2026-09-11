@@ -1384,29 +1384,36 @@ so a mismatched shot can be traced to the judge or to the phrase. The judge
 runs only where a script exists when the visuals are gathered, which is the
 script-first order the stock profiles use.
 
-#### Fact-checking a topic script
+#### Fact-checking a script
 
 A topic script tells the viewer how to do something, and a wrong menu path or
-a wrong number is followable right up to the point where it fails. After the
-script is written, one grounded query asks a search-backed model which of its
-falsifiable claims are wrong and what the correct fact is; the named sentences
-are then rewritten by a second, ungrounded call.
+a wrong number is followable right up to the point where it fails; a product
+script can invent a spec the product does not have. The two get different
+instruments, chosen by the record's kind. A topic script gets one grounded
+query asking a search-backed model which of its falsifiable claims are wrong.
+A product script is ruled against its own scraped listing, ungrounded: a
+search resolves a product claim to a different item, a review or a successor
+model, while the listing is the page the viewer will buy from. Either way the
+named sentences are then rewritten by a second, ungrounded call.
 
 ```yaml
 llm_settings:
   script_fact_check:
     enabled: true
-    model: "gemini-2.5-flash"
-    topics_only: true         # a product claim needs the listing, not a search
+    model: "gemini-3.7-flash"
+    products: true            # switch the listing arm on for product scripts
     max_flags_to_revise: 3
     max_length_drift: 0.25
     timeout_seconds: 45
 ```
 
-Measured over seventeen real pipeline scripts: eighty-three falsifiable
-claims, sixteen flagged, fourteen of the sixteen right on review. So about one
-flag in eight is a false positive, and the revision is confined for exactly
-that reason. A rewrite is accepted only if the sentences it changed are the
+The listing evidence is the record's title and description; price is excluded
+because it moves after scraping, and general category knowledge the listing
+cannot settle is not ruled on. Measured over fifteen real product scripts:
+two flags, both right on review, no false positives. The topic arm was
+measured over seventeen real pipeline scripts on each model tier; on the
+configured tier, eight flags with seven right, including two fabrications
+the older tier missed. The revision is confined for exactly that reason. A rewrite is accepted only if the sentences it changed are the
 ones a flagged claim names and the sentence following each claim, since a
 correction often has to carry into the step that referenced the wrong thing;
 every other sentence must come back unchanged and in the same order, and at
@@ -1426,10 +1433,10 @@ Nothing here can lose a render. A missing key, an unreachable search backend,
 an unparseable answer, a reviser that returns nothing and a rewrite that fails
 any guard all ship the script that was generated.
 
-`topics_only` is not caution about unmeasured precision. A web search is the
-wrong instrument for a product claim, whose ground truth is the scraped
-listing already in hand: a search resolves to a different item, a review or a
-successor model, so it would both flag correct copy and bless wrong copy.
+`products` only switches the listing arm on; there is no knob that grounds a
+product check, because the two arms are different instruments rather than
+settings of one. (The former `topics_only` key is gone and is ignored if an
+override file still carries it.)
 
 The model is a flash tier rather than the lite tier the neighbouring blocks
 use, and `thinking_budget` is deliberately not applied to it. `timeout_seconds`

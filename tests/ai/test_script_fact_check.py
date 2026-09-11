@@ -1071,3 +1071,81 @@ class TestConfigAndPrompts:
         """
         text = (PROMPTS / "script_revise.md").read_text(encoding="utf-8")
         assert "final sentence" in text.lower()
+
+
+class TestTheProductArm:
+    """The listing check (#383): same contract, different instrument.
+
+    Ungrounded, because the ground truth for a spec claim is the scraped
+    listing in hand -- a search resolves to a different SKU, a review or a
+    successor model. Same answer format, so the parser, the reviser and the
+    acceptance guard are shared unchanged.
+    """
+
+    def _product(self, **kw):
+        from types import SimpleNamespace
+
+        base = {
+            "title": "USB-C Charger 65W",
+            "description": "65W output, two USB-C ports, foldable plug.",
+            "topic": None,
+        }
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def test_listing_evidence_excludes_price(self):
+        from src.ai.script_fact_check import listing_evidence
+
+        product = self._product(price="$29.99")
+        evidence = listing_evidence(product)
+        assert "65W output" in evidence
+        assert "29.99" not in evidence, "price moves after scraping"
+
+    def test_no_listing_text_skips_without_a_call(self):
+        """A record with nothing to rule against cannot run the check."""
+        import asyncio
+        from unittest.mock import patch
+
+        from src.ai.script_fact_check import check_product_script
+
+        product = self._product(title="", description="")
+        with patch("google.genai.Client") as client:
+            result = asyncio.run(
+                check_product_script(
+                    "Some script.",
+                    product,
+                    api_key="k",
+                    settings=checker_settings(),
+                )
+            )
+        assert result.ran is False
+        assert client.call_count == 0
+
+    def test_a_failed_call_never_raises(self):
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.ai.script_fact_check import check_product_script
+
+        broken = MagicMock()
+        broken.aio.models.generate_content = AsyncMock(side_effect=RuntimeError("boom"))
+        broken.aio.aclose = AsyncMock()
+        with patch("google.genai.Client", return_value=broken):
+            result = asyncio.run(
+                check_product_script(
+                    "Some script.",
+                    self._product(),
+                    api_key="k",
+                    settings=checker_settings(),
+                )
+            )
+        assert result.ran is False
+
+    def test_the_prompt_carries_listing_and_script(self):
+        """The template must format with exactly the placeholders the code
+        supplies; a drifted placeholder raises KeyError at render time.
+        """
+        template = (PROMPTS / "product_fact_check.md").read_text()
+        rendered = template.format(LISTING="THE-LISTING", SCRIPT="THE-SCRIPT")
+        assert "THE-LISTING" in rendered
+        assert "THE-SCRIPT" in rendered

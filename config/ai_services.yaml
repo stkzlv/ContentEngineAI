@@ -135,15 +135,17 @@ llm_settings:
   # search round trip inside it, which no generation timeout on this repo
   # accounts for. Do not tighten it to match the observed number.
   #
-  # topics_only is not a caution about unmeasured precision. A web search is
-  # the wrong instrument for a product claim: its ground truth is the scraped
-  # listing already in hand, and a search resolves to a different SKU, a
-  # review or a successor model, so it would both flag correct copy and bless
-  # wrong copy. The product-side check is a separate, ungrounded comparison.
+  # The two arms are different instruments, chosen by the record's kind: a
+  # topic script gets one grounded query, a product script is ruled against
+  # the scraped listing already in hand, ungrounded -- a web search resolves
+  # a product claim to a different SKU, a review or a successor model, so it
+  # would both flag correct copy and bless wrong copy. `products` switches
+  # the listing arm on; price claims are excluded there because price moves
+  # after scraping.
   script_fact_check:
     enabled: true
     model: "gemini-3.7-flash"
-    topics_only: true
+    products: true
     max_flags_to_revise: 3
     max_length_drift: 0.25
     timeout_seconds: 45
