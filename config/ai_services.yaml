@@ -111,21 +111,29 @@ llm_settings:
     timeout_seconds: 20
 
   # One grounded query per topic script, asking which falsifiable claims are
-  # wrong and how. Measured on 17 real pipeline scripts: 83 falsifiable
-  # claims, 16 flagged, 14 of the 16 right on hand review -- so roughly one
-  # flag in eight is a false positive, and the revision is confined to the
-  # flagged sentence and its successor for exactly that reason. A rejected
-  # revision ships the original; nothing here can lose a render.
+  # wrong and how. Re-measured head to head over one 17-script pool corpus:
+  # the 3.x flash tier flagged 8 claims with 7 right on hand review, against
+  # the 2.5 tier's 14 with roughly 9 right -- fewer, better flags -- and it
+  # caught two real fabrications the 2.5 tier missed outright, an invented
+  # settings path and an outdated interface claim, which is the class the
+  # check exists for. It also ran a 4.5s median against 10.5s and spent
+  # fewer thinking tokens (median 652 against 1773; that budget is not a
+  # knob on this tier, so the spend is measured, not configured). A
+  # rejected revision ships the original; nothing here can lose a render.
   #
   # A flash model rather than the lite tier the other blocks use, and
   # `thinking_budget: 0` is deliberately NOT applied. This is the one
-  # reasoning-shaped call the pipeline makes, the lite tier does no
-  # grounding, and the budget is not honoured on the 3.x flash tier anyway.
-  # Do not "align" it with llm_settings.thinking_budget.
+  # reasoning-shaped call the pipeline makes, and the lite tier does no
+  # grounding. Do not "align" it with llm_settings.thinking_budget.
   #
-  # 45s against a measured 10.6s median because a grounded call has a search
-  # round trip inside it, which no generation timeout on this repo accounts
-  # for. Do not tighten it to match the observed number.
+  # Grounding plus response_schema does combine on this tier (it refused
+  # with 400 on 2.5), but the prompt still asks for labelled lines and the
+  # parser keeps its labelled fallback: the JSON-first parse costs nothing
+  # and a model swap back must not become a code change.
+  #
+  # 45s against a 4.5s median (17.5s max) because a grounded call has a
+  # search round trip inside it, which no generation timeout on this repo
+  # accounts for. Do not tighten it to match the observed number.
   #
   # topics_only is not a caution about unmeasured precision. A web search is
   # the wrong instrument for a product claim: its ground truth is the scraped
@@ -134,7 +142,7 @@ llm_settings:
   # wrong copy. The product-side check is a separate, ungrounded comparison.
   script_fact_check:
     enabled: true
-    model: "gemini-2.5-flash"
+    model: "gemini-3.7-flash"
     topics_only: true
     max_flags_to_revise: 3
     max_length_drift: 0.25
