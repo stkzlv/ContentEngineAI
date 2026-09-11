@@ -1148,7 +1148,7 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 | **Whisper Word List** | `outputs/{product_id}/temp/<audio-stem>_whisper_word_list.json` | Word-level timing data | `create_whisper_debug_files` |
 | **Gathered Visuals** | `outputs/{product_id}/temp/gathered_visuals.json` | Visual asset selection metadata | always written |
 | **Music Choice** | `outputs/{product_id}/temp/music_choice.json` | Audio selection metadata | always written, when a provider returned a track |
-| **Script Fact Check** | `outputs/{product_id}/temp/script_fact_check.json` | Flagged claims, their fixes, and the revision verdict | always written, on a topic render with `script_fact_check` enabled |
+| **Script Fact Check** | `outputs/{product_id}/temp/script_fact_check.json` | Flagged claims, their fixes, and the revision verdict | always written, on any render whose fact-check arm ran (`script_fact_check` enabled; the product arm additionally needs `products: true`) |
 
 ### Debug Settings Configuration
 

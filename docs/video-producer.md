@@ -249,7 +249,7 @@ item in `temp/gathered_visuals.json` as `relevance_score`, so reading that
 file after a render says both which phrase each shot came from and how well
 the judge thought it fit. A failed judgement keeps the random sample.
 
-A topic script is fact-checked inside the script step, before the visuals above are searched for and before anything else consumes it
+A script is fact-checked inside the script step -- a topic script against grounded search, a product script against its own scraped listing, before the visuals above are searched for and before anything else consumes it
 (`llm_settings.script_fact_check`). One grounded query asks which of its
 falsifiable claims are wrong; an ungrounded second call rewrites only the
 sentences that were named, and the rewrite is kept only if it confines itself

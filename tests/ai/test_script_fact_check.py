@@ -1145,9 +1145,7 @@ class TestTheProductArm:
         """The template must format with exactly the placeholders the code
         supplies; a drifted placeholder raises KeyError at render time.
         """
-        from pathlib import Path
-
-        template = Path("src/ai/prompts/product_fact_check.md").read_text()
+        template = (PROMPTS / "product_fact_check.md").read_text()
         rendered = template.format(LISTING="THE-LISTING", SCRIPT="THE-SCRIPT")
         assert "THE-LISTING" in rendered
         assert "THE-SCRIPT" in rendered
