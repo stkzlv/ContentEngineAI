@@ -90,6 +90,10 @@ class TestUnrelatedDoubleStarsDoNotPair:
             "f*** and s*** happen #real",
             "Fast charge** and waterproof** ok",
             "2**8 bytes",
+            # The narrower pass-2 shape: a censor run's tail pairing with
+            # the next run's head needs the star in the CLOSING class too.
+            "s***t and f***k",
+            "f***ing awesome and s***ty cables",
         ):
             assert strip_inline_markdown(text) == text
 
