@@ -90,8 +90,9 @@ class TestUnrelatedDoubleStarsDoNotPair:
             "f*** and s*** happen #real",
             "Fast charge** and waterproof** ok",
             "2**8 bytes",
-            # The narrower pass-2 shape: a censor run's tail pairing with
-            # the next run's head needs the star in the CLOSING class too.
+            # A censor run's tail pairing with the next run's head, or
+            # with a real bold span's closing pair: both terminal classes
+            # must exclude the star.
             "s***t and f***k",
             "f***ing awesome and s***ty cables",
         ):
@@ -100,3 +101,17 @@ class TestUnrelatedDoubleStarsDoNotPair:
     def test_real_bold_still_strips(self):
         assert strip_inline_markdown("**bold** stays text") == "bold stays text"
         assert strip_inline_markdown("***word*** nested") == "word nested"
+
+    def test_a_censor_run_survives_beside_real_bold(self):
+        """The mixed shape: the censor word must survive while the bold
+        in the same field strips -- a censor tail opening a match that a
+        real bold span closes was the last cell of the pairing matrix.
+        """
+        assert (
+            strip_inline_markdown("This s***t is **amazing**")
+            == "This s***t is amazing"
+        )
+        assert (
+            strip_inline_markdown("f***k yes, **50% off** today")
+            == "f***k yes, 50% off today"
+        )

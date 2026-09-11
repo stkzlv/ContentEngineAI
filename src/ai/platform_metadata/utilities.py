@@ -25,13 +25,13 @@ from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 
-# Guarded like the single-star pattern: two unrelated `**` runs in one
-# field must not pair up ("2**3" is not bold, and stripping would merge
-# the digits into a wrong number).
-# The closing class includes the star, like the single-star pattern's:
-# without it, the tail of one censor run ("s***t") pairs with the head of
-# the next ("f***k") and the sub merges everything between.
-_BOLD_RE = re.compile(r"(?<!\w)\*\*(?!\s|\*)(.+?)(?<!\s)\*\*(?![\w*])", re.S)
+# Both terminal classes exclude word chars AND the star, like the
+# single-star pattern's -- an asymmetric class lets the tail of a censor
+# run ("s***t") pair with another run or a real bold span and merge the
+# text between. Triples are handled first, or "***word***" would need a
+# star-adjacent opening, which is exactly the hole.
+_TRIPLE_RE = re.compile(r"(?<![\w*])\*\*\*(?!\s|\*)(.+?)(?<!\s)\*\*\*(?![\w*])", re.S)
+_BOLD_RE = re.compile(r"(?<![\w*])\*\*(?!\s|\*)(.+?)(?<!\s)\*\*(?![\w*])", re.S)
 # Only the marker and its language tag -- the unified path's `[\w\s]*`
 # also swallows fenced *content* up to the first non-word character.
 _CODE_FENCE_RE = re.compile(r"```[\w-]*")
@@ -50,6 +50,7 @@ def strip_inline_markdown(text: str) -> str:
     text is strictly better than losing the caption.
     """
     text = _CODE_FENCE_RE.sub("", text)
+    text = _TRIPLE_RE.sub(r"\1", text)
     text = _BOLD_RE.sub(r"\1", text)
     return strip_single_asterisk_emphasis(text).strip()
 
