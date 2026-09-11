@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.109.2] - 2026-09-11
+
+### Changed
+- The script fact check runs on the 3.x flash tier. Re-measured head to head over one seventeen-script pool corpus: the newer tier flagged eight claims with seven right on hand review against the older tier's fourteen with roughly nine right, and it caught two real fabrications the older tier missed outright, an invented settings path and an outdated interface claim, which is the class the check exists for. It also halved the median grounded round trip and spent fewer thinking tokens. Grounding with a response schema works on this tier, but the prompt still asks for labelled lines and the parser keeps its labelled fallback, so a model swap back stays a config edit rather than a code change.
+
 ## [0.109.1] - 2026-09-11
 
 ### Fixed
