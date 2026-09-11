@@ -31,8 +31,13 @@ class OverlayFontError(ValueError):
 
 def _covering_files(codepoints: set[int]) -> list[Path]:
     charset = " ".join(f"{cp:x}" for cp in sorted(codepoints))
+    # outline=true, color=false: a color or bitmap face (Noto Color Emoji)
+    # cannot be sized by drawtext -- filter-graph init fails with exit 234
+    # and the render is lost, which is worse than the boxes. fontconfig
+    # reports the color font scalable=true, so that property cannot filter
+    # it; such coverage counts as no coverage.
     proc = subprocess.run(
-        ["fc-list", f":charset={charset}", "file"],
+        ["fc-list", f":charset={charset}:outline=true:color=false", "file"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -56,9 +61,15 @@ def fontfile_for_text(text: str, *, strict: bool) -> Path | None:
     beats losing the render. ``strict`` is for config validation, where an
     operator string nothing installed can draw must refuse with the glyphs
     named instead of shipping boxes.
+
+    The query carries EVERY non-whitespace codepoint, not just the
+    non-ASCII ones: the whole string is drawn with the one chosen face, and
+    a face picked for its Devanagari alone rendered the Latin half of a
+    mixed caption as the very boxes this module exists to remove. Pure
+    ASCII still short-circuits before any subprocess.
     """
-    codepoints = {ord(c) for c in text if not c.isspace() and ord(c) > _ASCII_CEILING}
-    if not codepoints:
+    codepoints = {ord(c) for c in text if not c.isspace()}
+    if all(cp <= _ASCII_CEILING for cp in codepoints) or not codepoints:
         return None
 
     try:
@@ -71,12 +82,12 @@ def fontfile_for_text(text: str, *, strict: bool) -> Path | None:
         return None
 
     if not files:
-        glyphs = "".join(sorted(chr(cp) for cp in codepoints))
+        glyphs = "".join(sorted(chr(cp) for cp in codepoints if cp > _ASCII_CEILING))
         message = (
-            f"No installed font covers the overlay text {text!r} "
-            f"(uncovered glyphs: {glyphs!r}); drawtext would render empty "
-            "boxes. Install a face carrying the script (e.g. Noto CJK) or "
-            "change the configured text."
+            f"No installed scalable font covers the overlay text {text!r} "
+            f"together (non-ASCII glyphs: {glyphs!r}); drawtext takes one "
+            "face and would render empty boxes. Install a face carrying "
+            "every script in the string, or change the configured text."
         )
         if strict:
             raise OverlayFontError(message)

@@ -70,33 +70,41 @@ class VideoConfigValidator:
         return errors
 
     def _validate_overlay_glyph_coverage(self, config: VideoConfig) -> list[str]:
-        """Refuse configured overlay text no installed font can draw."""
+        """Refuse configured overlay text no installed font can draw.
+
+        Validated on the MERGED per-profile settings, not the flat config: a
+        profile can enable an upper line the base leaves off, and the check
+        applies only when the effective `source` is `custom`, since that is
+        the only source whose drawn text is this field (#392).
+        """
         from src.video.assembler.font_resolver import (
             OverlayFontError,
             fontfile_for_text,
         )
 
         errors: list[str] = []
-        vs = config.video_settings
+        candidates: dict[str, str] = {}
 
-        candidates: list[tuple[str, str]] = []
-        disclosure = getattr(vs, "disclosure_overlay", None)
+        disclosure = getattr(config.video_settings, "disclosure_overlay", None)
         if disclosure is not None and getattr(disclosure, "enabled", False):
-            candidates.append(("disclosure_overlay.text", disclosure.text))
-        upper = getattr(vs, "upper_line", None)
-        if upper is not None and getattr(upper, "enabled", False):
+            candidates["disclosure_overlay.text"] = disclosure.text
+
+        for profile_name in config.video_profiles or {}:
+            try:
+                merged = config.get_profile_merged_settings(profile_name, {})
+            except Exception as e:  # noqa: BLE001 - other validators own these
+                logger.debug("Skipping glyph check for %s: %s", profile_name, e)
+                continue
+            upper = getattr(merged.video_settings, "upper_line", None)
+            if upper is None or not getattr(upper, "enabled", False):
+                continue
+            if getattr(upper, "source", "") != "custom":
+                continue
             custom = getattr(upper, "custom_text", "") or ""
             if custom:
-                candidates.append(("upper_line.custom_text", custom))
-        for profile in (config.video_profiles or {}).values():
-            p_upper = getattr(profile, "upper_line", None)
-            if p_upper is None:
-                continue
-            p_custom = getattr(p_upper, "custom_text", None) or ""
-            if p_custom:
-                candidates.append(("profile upper_line.custom_text", p_custom))
+                candidates[f"profile {profile_name} upper_line.custom_text"] = custom
 
-        for name, text in candidates:
+        for name, text in candidates.items():
             try:
                 fontfile_for_text(text, strict=True)
             except OverlayFontError as e:

@@ -65,7 +65,7 @@ class TestTheResolver:
 
         with caplog.at_level(logging.WARNING):
             assert fontfile_for_text(f"deal {UNCOVERABLE}", strict=False) is None
-        assert any("No installed font" in r.message for r in caplog.records)
+        assert any("No installed scalable font" in r.message for r in caplog.records)
 
 
 @pytest.mark.skipif(not _cjk_covered(), reason="no CJK font installed")
@@ -124,13 +124,24 @@ class TestTheBuildersCarryTheFace:
 
 
 class TestConfigValidationRefusesTheUndrawable:
-    def _config(self, disclosure_text: str) -> SimpleNamespace:
+    def _config(
+        self,
+        disclosure_text: str,
+        *,
+        upper: SimpleNamespace | None = None,
+    ) -> SimpleNamespace:
+        merged = SimpleNamespace(
+            video_settings=SimpleNamespace(
+                upper_line=upper
+                or SimpleNamespace(enabled=False, source="custom", custom_text="")
+            )
+        )
         return SimpleNamespace(
             video_settings=SimpleNamespace(
                 disclosure_overlay=SimpleNamespace(enabled=True, text=disclosure_text),
-                upper_line=SimpleNamespace(enabled=False, custom_text=""),
             ),
-            video_profiles={},
+            video_profiles={"p1": object()},
+            get_profile_merged_settings=lambda name, overrides: merged,
         )
 
     @pytest.mark.skipif(not _fc_available(), reason="fontconfig not installed")
@@ -150,3 +161,73 @@ class TestConfigValidationRefusesTheUndrawable:
             self._config("#publi")
         )
         assert errors == []
+
+    @pytest.mark.skipif(not _fc_available(), reason="fontconfig not installed")
+    def test_the_merged_profile_shape_is_what_counts(self):
+        """A profile can enable an upper line the base leaves off, so the
+        validator reads the MERGED settings -- the flat base said disabled
+        and the old check silently passed the undrawable text (#392 review).
+        """
+        from src.video.config_validator import VideoConfigValidator
+
+        upper = SimpleNamespace(
+            enabled=True, source="custom", custom_text=f"deal {UNCOVERABLE}"
+        )
+        errors = VideoConfigValidator()._validate_overlay_glyph_coverage(
+            self._config("#ad", upper=upper)
+        )
+        assert errors and "p1" in errors[0]
+
+    @pytest.mark.skipif(not _fc_available(), reason="fontconfig not installed")
+    def test_custom_text_is_ignored_when_the_source_is_not_custom(self):
+        """`custom_text` never renders under another source, so undrawable
+        text there must not refuse a config whose drawn text is fine.
+        """
+        from src.video.config_validator import VideoConfigValidator
+
+        upper = SimpleNamespace(
+            enabled=True,
+            source="affiliate_link",
+            custom_text=f"deal {UNCOVERABLE}",
+        )
+        errors = VideoConfigValidator()._validate_overlay_glyph_coverage(
+            self._config("#ad", upper=upper)
+        )
+        assert errors == []
+
+
+class TestTheReviewCases:
+    """The two shapes pass 1 demonstrated failing (#392 review)."""
+
+    @pytest.mark.skipif(not _fc_available(), reason="fontconfig not installed")
+    def test_a_bitmap_only_face_is_never_chosen(self):
+        """Noto Color Emoji cannot be sized by drawtext -- choosing it
+        aborts the whole render. Bitmap coverage counts as no coverage, so
+        this either resolves a scalable face or degrades to the default.
+        """
+        # Pure emoji: with any ASCII beside it the joint query already
+        # fails on this box, so only the emoji-alone shape can reach a
+        # bitmap face and prove the scalable filter.
+        result = fontfile_for_text("🔥🔥", strict=False)
+        if result is not None:
+            out = subprocess.run(
+                ["fc-list", ":charset=1f525:outline=true:color=false", "file"],
+                capture_output=True,
+                text=True,
+            ).stdout
+            assert str(result) in out, "a non-scalable face was chosen"
+
+    @pytest.mark.skipif(not _fc_available(), reason="fontconfig not installed")
+    def test_a_mixed_script_face_covers_the_latin_half_too(self):
+        """The whole string draws with one face, so a face chosen for its
+        Devanagari alone turned the Latin half into boxes -- the query
+        carries every codepoint now.
+        """
+        result = fontfile_for_text("ऑफ़र deals link in bio", strict=False)
+        if result is not None:
+            out = subprocess.run(
+                ["fc-list", ":charset=61 911:outline=true:color=false", "file"],
+                capture_output=True,
+                text=True,
+            ).stdout
+            assert str(result) in out, "the chosen face does not cover Latin"
