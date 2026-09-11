@@ -642,6 +642,7 @@ class VideoAssembler:
                 total_video_duration,
                 is_relative_mode,
                 video_settings_dict,
+                temp_dir=temp_dir,
             )
 
             if subtitle_upper_path and subtitle_upper_path.exists():

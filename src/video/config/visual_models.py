@@ -382,6 +382,20 @@ class VideoSettings(BaseModel):
             "is enabled. Settles to 1.0 over the segment duration."
         ),
     )
+    max_image_input_edge: int = Field(
+        2560,
+        ge=0,
+        description=(
+            "Longest edge an image may enter the assembly filtergraph at; "
+            "larger sources are downscaled to a temp copy first. FFmpeg "
+            "buffers decoded frames at source resolution per input stream, "
+            "and one 24 MP-photo assembly exceeded a 6 GB memory cap on "
+            "the decoder side alone (#414). 2560 is comfortable headroom "
+            "over the 1920 output edge; the zoom never sees source "
+            "resolution, since it runs after placement scaling. "
+            "0 disables the bound."
+        ),
+    )
     # Phase 1.2e: cold-open variant rotation. Three named opening styles are
     # tracked per render so downstream analytics can segment retention by
     # variant. v1 ships the framework — variant name is persisted to
