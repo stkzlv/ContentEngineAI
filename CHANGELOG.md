@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.10] - 2026-09-11
+
+### Fixed
+- The unified description's code-fence strip removes the markers, not the words after them. Its language-tag tail greedily crossed newlines, so a fenced description silently lost its leading words up to the first non-word character; a truncated result usually failed validation and cost a retry, but one that lost only its first clause could pass and publish corrupted. The pattern now consumes only the marker and its language tag, matching the platform caption cleaner. Closes #423.
+
 ## [0.108.9] - 2026-09-11
 
 ### Fixed
