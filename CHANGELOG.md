@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Oversized videos are bounded during format normalization, closing the other half of the unbounded-decode hazard the image bound fixed. A stock clip already compliant on codec, frame rate and pixel format used to skip the transcode entirely, so a 4K clip entered the filtergraph at source resolution however the images were bounded; the size check now joins the skip condition, the transcode gains an aspect-preserving no-upscale scale when the source exceeds the configured edge bound, and the normalization cache is keyed on the source's timestamp and size so a re-downloaded clip under a stable name misses it. Closes #429.
+- Oversized videos are bounded during format normalization, closing the other half of the unbounded-decode hazard the image bound fixed. A stock clip already compliant on codec, frame rate and pixel format used to skip the transcode entirely, so a 4K clip entered the filtergraph at source resolution however the images were bounded; the size check now joins the skip condition, the transcode gains an aspect-preserving no-upscale scale when the source exceeds the configured edge bound, and the normalization cache is keyed on the source's timestamp and size so a re-downloaded clip under a stable name misses it. The cache entry reaches its name only through an atomic rename, so a kill mid-transcode cannot leave a truncated file the reuse check would serve forever, and superseded entries -- which the stat-keyed name can never match again -- are swept instead of becoming permanent orphans in the global cache. Closes #429.
 
 ## [0.108.12] - 2026-09-11
 

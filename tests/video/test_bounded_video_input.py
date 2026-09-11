@@ -120,3 +120,38 @@ class TestTheCacheKeyCarriesTheSource:
 
         assert second != first, "the previous source's normalization was reused"
         assert _dims(second) == (2560, 2560)
+
+
+class TestTheCacheSurvivesKillsAndSweeps:
+    """Review findings: atomic entry creation, and no permanent orphans."""
+
+    def test_the_entry_is_created_by_a_rename(self):
+        """A kill mid-transcode must not leave a truncated entry the
+        exists() reuse would serve forever.
+        """
+        source = Path("src/video/assembler/core.py").read_text()
+        idx = source.index('f"{cache_path.stem}.part{cache_path.suffix}"')
+        window = source[idx : idx + 2600]
+        assert (
+            "os.replace(partial_path, cache_path)" in window
+        ), "the cache entry must reach its name only via os.replace"
+
+    @pytest.mark.asyncio
+    async def test_superseded_entries_are_swept(self, tmp_path):
+        """The stat-keyed name can never match again after a re-download,
+        so the old entry must not become a permanent multi-MB orphan.
+        """
+        import time
+
+        src = _clip(tmp_path / "clip.mp4", 3840, 2160)
+        assembler = VideoAssembler(video_config)
+        first = await assembler._normalize_video_format(src, cache_dir=tmp_path)
+        assert first.exists()
+
+        time.sleep(0.01)
+        _clip(src, 2880, 2880)
+        second = await assembler._normalize_video_format(src, cache_dir=tmp_path)
+
+        assert not first.exists(), "the superseded entry was left behind"
+        entries = list(tmp_path.glob("clip_normalized*"))
+        assert entries == [second]

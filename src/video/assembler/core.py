@@ -441,6 +441,10 @@ class VideoAssembler:
                 f"{st.st_size}{bound_tag}.mp4"
             )
             cache_path = cache_dir / cache_filename
+            # Suffix preserved so ffmpeg still infers the mp4 muxer.
+            partial_path = cache_path.with_name(
+                f"{cache_path.stem}.part{cache_path.suffix}"
+            )
 
             if cache_path.exists():
                 if self.debug_mode:
@@ -482,7 +486,7 @@ class VideoAssembler:
                 "-c:a",
                 "copy",
                 "-y",
-                str(cache_path),
+                str(partial_path),
             ]
 
             transcode_proc = await asyncio.create_subprocess_exec(
@@ -497,7 +501,21 @@ class VideoAssembler:
                     f"Transcode failed for {video_path.name}: "
                     f"{transcode_stderr.decode()}, using original"
                 )
+                partial_path.unlink(missing_ok=True)
                 return video_path
+
+            # The cache name exists only after a zero exit, or a kill
+            # mid-transcode leaves a truncated entry the bare exists()
+            # reuse would serve forever -- the bounded images' rule.
+            os.replace(partial_path, cache_path)
+
+            # The stat-keyed name means a re-downloaded source can never
+            # match its predecessor's entry again; sweep the superseded
+            # ones (the pre-rename `_normalized.mp4` entries included) or
+            # the global cache grows one multi-MB orphan per re-download.
+            for stale in cache_dir.glob(f"{video_path.stem}_normalized*"):
+                if stale != cache_path:
+                    stale.unlink(missing_ok=True)
 
             if self.debug_mode:
                 logger.debug(f"Transcode complete: {cache_path.name}")
