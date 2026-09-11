@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Oversized images are downscaled before they enter the assembly filtergraph. FFmpeg buffers decoded frames at source resolution per input stream, so an image-profile assembly over full-resolution stock photos exceeded a six-gigabyte memory cap on the decoder side alone and the kernel killed the encode. Images only ever render inside the output frame, so nothing above the new configurable edge bound ever reached the screen; sources over it get an aspect-preserving temp copy, reused across attempts and swept with the temp directory, while smaller sources, a disabled bound, or a source the resizer cannot read pass through unchanged, because a render that might exceed a cap still beats no render. Closes #414.
+
 ## [0.108.11] - 2026-09-11
 
 ### Fixed

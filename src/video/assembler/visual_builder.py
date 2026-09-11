@@ -148,6 +148,50 @@ def _build_ken_burns_filter(
     )
 
 
+def bounded_image_input(
+    path: Path, orig_w: int, orig_h: int, max_edge: int, temp_dir: Path | None
+) -> Path:
+    """The path an image should enter the filtergraph at, bounded (#414).
+
+    FFmpeg buffers decoded frames at source resolution per input stream, so
+    several full-resolution photos in one assembly can exceed the render's
+    memory cap on the decoder side alone. Oversized sources get an
+    aspect-preserving downscaled copy in the run's temp directory; anything
+    else -- small enough, bound disabled, nowhere to write, or a source PIL
+    cannot read -- returns the original, because a full-resolution render
+    that might exceed a memory cap still beats no render.
+    """
+    if max_edge <= 0 or temp_dir is None:
+        return path
+    if max(orig_w, orig_h) <= max_edge or orig_w <= 0 or orig_h <= 0:
+        return path
+    try:
+        from PIL import Image
+
+        out_dir = temp_dir / "scaled_inputs"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / f"{path.stem}_max{max_edge}{path.suffix}"
+        if out.exists():
+            return out
+        with Image.open(path) as img:
+            img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+            if out.suffix.lower() in (".jpg", ".jpeg"):
+                img.convert("RGB").save(out, quality=92)
+            else:
+                img.save(out)
+        logger.debug(
+            "Bounded image input %s: %dx%d -> long edge %d",
+            path.name,
+            orig_w,
+            orig_h,
+            max_edge,
+        )
+        return out
+    except Exception as e:
+        logger.warning("Could not bound image input %s: %s", path.name, e)
+        return path
+
+
 @dataclass
 class VisualGeometry:
     """Position and dimensions of visual element in video.
@@ -506,6 +550,7 @@ class VisualFilterBuilder:
         total_video_duration: float,
         is_relative_mode: bool,
         video_settings_dict: dict,
+        temp_dir: Path | None = None,
     ) -> tuple[
         list[str],
         list[str],
@@ -522,6 +567,8 @@ class VisualFilterBuilder:
             total_video_duration: Target video duration in seconds
             is_relative_mode: Whether to use relative positioning
             video_settings_dict: Video settings from profile
+            temp_dir: Run temp directory for bounded image copies (#414);
+                None keeps every image at its source resolution
 
         Returns:
         -------
@@ -665,6 +712,15 @@ class VisualFilterBuilder:
             if is_video_item:
                 input_cmd_parts.extend(["-i", str(path)])
             else:
+                orig_w, orig_h = all_visuals_dims[i]
+                input_path = await asyncio.to_thread(
+                    bounded_image_input,
+                    path,
+                    orig_w,
+                    orig_h,
+                    video_settings.max_image_input_edge,
+                    temp_dir,
+                )
                 input_cmd_parts.extend(
                     [
                         "-loop",
@@ -674,7 +730,7 @@ class VisualFilterBuilder:
                         "-t",
                         str(duration),
                         "-i",
-                        str(path),
+                        str(input_path),
                     ]
                 )
 
