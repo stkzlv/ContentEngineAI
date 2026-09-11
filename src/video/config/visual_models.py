@@ -386,8 +386,9 @@ class VideoSettings(BaseModel):
         2560,
         ge=0,
         description=(
-            "Longest edge an image may enter the assembly filtergraph at; "
-            "larger sources are downscaled to a temp copy first. FFmpeg "
+            "Longest edge an image or video may enter the assembly filtergraph at; "
+            "larger images get a downscaled temp copy and larger videos are "
+            "bounded during format normalization. FFmpeg "
             "buffers decoded frames at source resolution per input stream, "
             "and one 24 MP-photo assembly exceeded a 6 GB memory cap on "
             "the decoder side alone (#414). 2560 is comfortable headroom "

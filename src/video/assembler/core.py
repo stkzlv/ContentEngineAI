@@ -357,7 +357,7 @@ class VideoAssembler:
                 "-select_streams",
                 "v:0",
                 "-show_entries",
-                "stream=codec_name,r_frame_rate,pix_fmt",
+                "stream=codec_name,r_frame_rate,pix_fmt,width,height",
                 "-of",
                 "json",
                 str(video_path),
@@ -413,7 +413,16 @@ class VideoAssembler:
             is_30fps = abs(fps - target_fps) < fps_tolerance
             is_yuv420p = pix_fmt == target_pixel_format
 
-            if is_h264 and is_30fps and is_yuv420p:
+            # The image-input bound applies to videos too (#429): FFmpeg
+            # buffers decoded frames at source resolution per input stream,
+            # and a compliant 4K stock clip skipping the transcode would
+            # enter the filtergraph unbounded.
+            width = int(stream.get("width") or 0)
+            height = int(stream.get("height") or 0)
+            max_edge = self.config.video_settings.max_image_input_edge
+            oversized = max_edge > 0 and max(width, height) > max_edge
+
+            if is_h264 and is_30fps and is_yuv420p and not oversized:
                 if self.debug_mode:
                     logger.debug(
                         f"Video {video_path.name} already H.264/30fps/yuv420p, "
@@ -421,8 +430,21 @@ class VideoAssembler:
                     )
                 return video_path
 
-            cache_filename = f"{video_path.stem}_normalized.mp4"
+            # Source stat in the name, like the bounded image copies: the
+            # cache survives runs while sources can be re-downloaded under
+            # stable names, and a bare existence check would serve the
+            # predecessor.
+            st = video_path.stat()
+            bound_tag = f"_max{max_edge}" if oversized else ""
+            cache_filename = (
+                f"{video_path.stem}_normalized_{st.st_mtime_ns}_"
+                f"{st.st_size}{bound_tag}.mp4"
+            )
             cache_path = cache_dir / cache_filename
+            # Suffix preserved so ffmpeg still infers the mp4 muxer.
+            partial_path = cache_path.with_name(
+                f"{cache_path.stem}.part{cache_path.suffix}"
+            )
 
             if cache_path.exists():
                 if self.debug_mode:
@@ -436,10 +458,23 @@ class VideoAssembler:
                     f"(current: {codec}/{fps:.1f}fps/{pix_fmt})"
                 )
 
+            scale_args = (
+                [
+                    "-vf",
+                    (
+                        f"scale=w='min(iw,{max_edge})':h='min(ih,{max_edge})':"
+                        "force_original_aspect_ratio=decrease:"
+                        "force_divisible_by=2"
+                    ),
+                ]
+                if oversized
+                else []
+            )
             transcode_cmd = [
                 self.ffmpeg_path,
                 "-i",
                 str(video_path),
+                *scale_args,
                 "-c:v",
                 "libx264",
                 "-preset",
@@ -451,7 +486,7 @@ class VideoAssembler:
                 "-c:a",
                 "copy",
                 "-y",
-                str(cache_path),
+                str(partial_path),
             ]
 
             transcode_proc = await asyncio.create_subprocess_exec(
@@ -466,7 +501,21 @@ class VideoAssembler:
                     f"Transcode failed for {video_path.name}: "
                     f"{transcode_stderr.decode()}, using original"
                 )
+                partial_path.unlink(missing_ok=True)
                 return video_path
+
+            # The cache name exists only after a zero exit, or a kill
+            # mid-transcode leaves a truncated entry the bare exists()
+            # reuse would serve forever -- the bounded images' rule.
+            os.replace(partial_path, cache_path)
+
+            # The stat-keyed name means a re-downloaded source can never
+            # match its predecessor's entry again; sweep the superseded
+            # ones (the pre-rename `_normalized.mp4` entries included) or
+            # the global cache grows one multi-MB orphan per re-download.
+            for stale in cache_dir.glob(f"{video_path.stem}_normalized*"):
+                if stale != cache_path:
+                    stale.unlink(missing_ok=True)
 
             if self.debug_mode:
                 logger.debug(f"Transcode complete: {cache_path.name}")

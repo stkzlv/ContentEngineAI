@@ -151,8 +151,9 @@ video_settings:
                                       # Used by: visual_builder.py to estimate subtitle vertical space
   image_loop: 1                       # Number of times to loop images (1=no loop)
 
-  # Longest edge an image may enter the assembly filtergraph at; larger
-  # sources get a downscaled temp copy first. FFmpeg buffers decoded frames
+  # Longest edge an image or video may enter the assembly filtergraph at;
+  # larger images get a downscaled temp copy and larger videos are bounded
+  # during format normalization. FFmpeg buffers decoded frames
   # at source resolution per input stream, and one full-resolution-photo
   # assembly exceeded a 6 GB memory cap on the decoder side alone. 2560 is
   # comfortable headroom over the 1920 output edge (the zoom runs after
