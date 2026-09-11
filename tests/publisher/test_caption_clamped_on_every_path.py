@@ -80,6 +80,23 @@ class TestSchedulePathClamps:
             "must not mutate the original"
         )
 
+    def test_the_clamp_does_not_rewrite_the_originals_counts(self):
+        """`replace` passes `character_counts` by reference, and the clamp
+        writes into it -- the copy must own its dict, or the original's
+        counts describe the clamped copy while its text is unclamped.
+        """
+        from src.publisher.schedule import metadata_from_file
+
+        m = metadata_from_file(self._meta(3000), "B0TEST001", Platform.YOUTUBE)
+        before = dict(m.character_counts)
+
+        clamped = m.clamped_for([Platform.INSTAGRAM])
+
+        assert clamped.character_counts is not m.character_counts
+        assert (
+            m.character_counts == before
+        ), "clamping the copy rewrote the original's character_counts"
+
     def test_a_refused_record_is_repaired_not_bypassed(self):
         """The builder must yield a metadata object even for a record
         `PublishMetadata` refuses, or the exception path can skip a clamp

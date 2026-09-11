@@ -1041,17 +1041,21 @@ class ScheduleManager:
                                 else:
                                     # Nothing on disk at all. Routed through
                                     # the builder like every other branch, so
-                                    # this caption is recorded, clamped and
-                                    # disclosed the same way (#408); it used
-                                    # to be a bare literal that skipped all
-                                    # three.
+                                    # this caption is recorded and clamped
+                                    # the same way (#408); it used to be a
+                                    # bare literal that skipped both. It
+                                    # neither discloses nor votes in
+                                    # `carries_affiliate`: with no record,
+                                    # asserting a material connection would
+                                    # stamp a false `brand_organic` on a
+                                    # unified topic post whose siblings all
+                                    # say there is nothing to disclose.
                                     literal = f"Product video for {product_id}"
-                                    carries_affiliate[p.value] = True
                                     platform_metas[p.value] = metadata_from_file(
                                         {
                                             "title": literal,
                                             "description": literal,
-                                            "carries_affiliate_content": True,
+                                            "carries_affiliate_content": False,
                                         },
                                         product_id,
                                         p,

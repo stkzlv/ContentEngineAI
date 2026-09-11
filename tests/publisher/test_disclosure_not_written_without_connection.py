@@ -344,13 +344,13 @@ class TestACaptionWithNoTokenIsReturnedUntouched:
 
 
 class TestTheFallbackPathIsCompliantToo:
-    """A malformed metadata file must not publish a non-compliant caption.
+    """The repair path applies the same rules as the normal one.
 
-    `caption_from_metadata` falls back when `PublishMetadata` refuses the
-    input -- an empty description, or a YouTube entry with no title. Losing
-    the whole scheduling run to one bad file would be worse, but the fallback
-    has to apply the same two rules, or it ships exactly the pair of defects
-    the function exists to close.
+    `metadata_from_file` repairs a record `PublishMetadata` refuses -- an
+    empty description, a YouTube entry with no title -- and re-constructs,
+    rather than hand-assembling a caption that bypasses the model's rules,
+    which is what the old fallback did and how it once skipped the clamp
+    and the leading disclosure.
     """
 
     def test_an_affiliate_youtube_entry_with_no_title_still_leads_with_it(self):

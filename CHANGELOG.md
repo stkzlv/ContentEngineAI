@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Scheduled unified posts carry their first comments again. The unified branch's per-platform payload copied only content and title, so comments built for the run were silently dropped on the default scheduling mode.
-- The scheduling fallback for a product with nothing on disk is routed through the caption builder, so its caption is recorded, clamped and leads with the disclosure like every other branch instead of being a bare literal that skipped all three.
+- The scheduling fallback for a product with nothing on disk is routed through the caption builder, so its caption is recorded and clamped like every other branch instead of being a bare literal that skipped both. It deliberately does not disclose or vote in the post's commercial-content decision: with no record, asserting a material connection would stamp a false brand-organic declaration on a unified topic post whose sibling platforms all say there is nothing to disclose.
 
 ## [0.108.13] - 2026-09-11
 
