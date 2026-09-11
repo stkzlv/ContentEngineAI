@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.109.1] - 2026-09-11
+
+### Fixed
+- Overlay text in a script the default font does not carry renders with a covering face instead of empty boxes. Drawtext takes one face and has no fallback chain, so a CJK disclosure override rendered as fourteen notdef rectangles, silently, with FFmpeg exiting 0. All three overlays -- the disclosure, the hook and the upper line -- now resolve a font file through fontconfig that covers every glyph of their text, preferring a sans face; ASCII text keeps the default face with no lookup. Operator-typed text nothing installed can draw is refused with the missing glyphs named when the producer validates its configuration at startup, rather than shipping boxes; the batch path and render time degrade with a warning instead, because losing an unattended render over a decorative overlay would be worse. The query carries every codepoint of the string, not only the non-Latin ones, because the whole string draws with the one chosen face and a face picked for its Devanagari alone would render the Latin half as the very boxes this closes; and it excludes color and bitmap faces, which FFmpeg cannot size at all -- choosing Noto Color Emoji aborts the render outright. Validation reads the merged per-profile settings and checks the custom text only when the effective source is custom. On systems without fontconfig, coverage is unknowable and behavior is unchanged. Closes #392.
+
 ## [0.109.0] - 2026-09-11
 
 ### Changed

@@ -62,6 +62,53 @@ class VideoConfigValidator:
         # File path validation
         errors.extend(self._validate_file_paths(config))
 
+        # Overlay glyph coverage: drawtext has no font fallback chain, so
+        # operator text nothing installed can draw must refuse here rather
+        # than render empty boxes (#392).
+        errors.extend(self._validate_overlay_glyph_coverage(config))
+
+        return errors
+
+    def _validate_overlay_glyph_coverage(self, config: VideoConfig) -> list[str]:
+        """Refuse configured overlay text no installed font can draw.
+
+        Validated on the MERGED per-profile settings, not the flat config: a
+        profile can enable an upper line the base leaves off, and the check
+        applies only when the effective `source` is `custom`, since that is
+        the only source whose drawn text is this field (#392).
+        """
+        from src.video.assembler.font_resolver import (
+            OverlayFontError,
+            fontfile_for_text,
+        )
+
+        errors: list[str] = []
+        candidates: dict[str, str] = {}
+
+        disclosure = getattr(config.video_settings, "disclosure_overlay", None)
+        if disclosure is not None and getattr(disclosure, "enabled", False):
+            candidates["disclosure_overlay.text"] = disclosure.text
+
+        for profile_name in config.video_profiles or {}:
+            try:
+                merged = config.get_profile_merged_settings(profile_name, {})
+            except Exception as e:  # noqa: BLE001 - other validators own these
+                logger.debug("Skipping glyph check for %s: %s", profile_name, e)
+                continue
+            upper = getattr(merged.video_settings, "upper_line", None)
+            if upper is None or not getattr(upper, "enabled", False):
+                continue
+            if getattr(upper, "source", "") != "custom":
+                continue
+            custom = getattr(upper, "custom_text", "") or ""
+            if custom:
+                candidates[f"profile {profile_name} upper_line.custom_text"] = custom
+
+        for name, text in candidates.items():
+            try:
+                fontfile_for_text(text, strict=True)
+            except OverlayFontError as e:
+                errors.append(f"{name}: {e}")
         return errors
 
     def _validate_ffmpeg(self, config: VideoConfig) -> list[str]:
