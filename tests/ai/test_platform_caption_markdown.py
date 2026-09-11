@@ -115,3 +115,53 @@ class TestUnrelatedDoubleStarsDoNotPair:
             strip_inline_markdown("f***k yes, **50% off** today")
             == "f***k yes, 50% off today"
         )
+
+
+class TestHashtagLinesAreCleaned:
+    """A hashtags line carrying markdown published mangled tags (#425).
+
+    The space-split ran before any cleaning, and the hash-prepend wrapped
+    the stray markers into the tag itself: `**#Tech #Gadgets**` became
+    `['#**#Tech', '#Gadgets**']`.
+    """
+
+    @pytest.mark.parametrize(
+        "generator_cls,response,expected_tags",
+        [
+            (
+                "youtube",
+                "TITLE: Picks\n\nDESCRIPTION: Top picks\n\n"
+                "HASHTAGS: **#Tech #Gadgets**",
+                ["#Tech", "#Gadgets"],
+            ),
+            (
+                "tiktok",
+                "CAPTION: Picks #fyp\n\nHASHTAGS: **#fyp #tech**",
+                ["#fyp", "#tech"],
+            ),
+            (
+                "instagram",
+                "CAPTION: Picks\n\nHASHTAGS: **#finds #deals**",
+                ["#finds", "#deals"],
+            ),
+        ],
+    )
+    def test_bold_wrapped_tags_come_back_clean(
+        self, generator_cls, response, expected_tags
+    ):
+        from unittest.mock import MagicMock
+
+        from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
+        from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
+        from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
+
+        classes: dict[str, type] = {
+            "youtube": YouTubeMetadataGenerator,
+            "tiktok": TikTokMetadataGenerator,
+            "instagram": InstagramMetadataGenerator,
+        }
+        cls = classes[generator_cls]
+        parsed = cls(MagicMock())._parse_llm_response(response)
+        assert parsed is not None
+        hashtags = parsed[2] if generator_cls == "youtube" else parsed[1]
+        assert hashtags == expected_tags

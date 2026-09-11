@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Hashtag lines are cleaned before they are split. The platform parsers ran the whitespace split on the raw hashtags text, and the hash-prepend then wrapped stray markdown into the tag itself, so a bold-wrapped hashtags line published mangled, non-functional tags. The shared caption cleaner now runs on the hashtags text first in all three parsers. Closes #425.
+
 ## [0.108.10] - 2026-09-11
 
 ### Fixed
