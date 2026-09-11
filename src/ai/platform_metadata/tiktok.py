@@ -316,7 +316,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             # Extract hashtags
             hashtags = []
             if hashtags_match:
-                hashtags_text = hashtags_match.group(1).strip()
+                hashtags_text = strip_inline_markdown(hashtags_match.group(1))
                 # Split by spaces and filter out empty strings
                 hashtags = [tag.strip() for tag in hashtags_text.split() if tag.strip()]
                 # Ensure hashtags start with #
