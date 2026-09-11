@@ -12,7 +12,7 @@ import aiohttp
 
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
 from src.ai.platform_metadata.models import PlatformMetadata
-from src.ai.platform_metadata.utilities import generate_with_llm
+from src.ai.platform_metadata.utilities import generate_with_llm, strip_inline_markdown
 from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
@@ -343,10 +343,10 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 return None
 
             # Extract and clean title
-            title = title_match.group(1).strip()
+            title = strip_inline_markdown(title_match.group(1))
 
             # Extract and clean description
-            description = desc_match.group(1).strip()
+            description = strip_inline_markdown(desc_match.group(1))
 
             # Extract hashtags
             hashtags = []
