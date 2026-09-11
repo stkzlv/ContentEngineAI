@@ -144,3 +144,25 @@ class TestTheCleanerIsTheOnePathToValidation:
             cleaned, DescriptionValidationConfig()
         )
         assert ok
+
+
+class TestFenceStripKeepsContent:
+    """The fence strip removes markers, not words (#423).
+
+    The old word-and-whitespace tail was meant for a language tag but greedily
+    crossed newlines, so a fenced description lost its leading words up to
+    the first non-word character -- silently, and a long description that
+    loses only its first clause can pass validation and publish corrupted.
+    """
+
+    def test_leading_words_survive(self):
+        from src.ai.description_generator import _clean_description
+
+        raw = "```\nAmazing sound quality, great battery life```"
+        assert _clean_description(raw) == "Amazing sound quality, great battery life"
+
+    def test_language_tags_are_still_consumed(self):
+        from src.ai.description_generator import _clean_description
+
+        raw = "```text\nGreat gadget for travel.\n```"
+        assert _clean_description(raw) == "Great gadget for travel."

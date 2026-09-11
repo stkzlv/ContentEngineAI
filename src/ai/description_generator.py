@@ -471,7 +471,10 @@ def _clean_description(raw: str) -> str:
     of them and not the others is this module's documented failure shape,
     so they all call this.
     """
-    text = re.sub(r"```[\w\s]*", "", raw)
+    # Marker and language tag only (#423): a `[\w\s]*` tail also swallows
+    # fenced *content* up to the first non-word character, so a fenced
+    # description lost its leading words silently.
+    text = re.sub(r"```[\w-]*", "", raw)
     return strip_single_asterisk_emphasis(text).strip()
 
 
