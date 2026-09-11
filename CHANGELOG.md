@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.109.0] - 2026-09-11
+
 ### Changed
 - The scheduling path's caption construction is collapsed to one invariant. The builder returns the metadata object rather than a caption string, and each posting branch clamps a pure copy at its own point of use with its own target list in scope, so the caption-for-one-platform-reaching-another defect class that took four review rounds across this code's paths has no surface left: the targets parameter, the side record of source metadata and the two source-reading tests that pinned them are gone, replaced by behavioural tests and one structural rule that captions are composed only from clamped copies. A record the metadata model refuses is repaired rather than bypassed, because the old hand-assembled bypass was one of the four rounds.
 
