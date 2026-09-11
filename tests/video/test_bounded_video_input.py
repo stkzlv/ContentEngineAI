@@ -131,7 +131,10 @@ class TestTheCacheSurvivesKillsAndSweeps:
         """
         source = Path("src/video/assembler/core.py").read_text()
         idx = source.index('f"{cache_path.stem}.part{cache_path.suffix}"')
-        window = source[idx : idx + 2600]
+        # To the end of the enclosing method, not a fixed offset: the code
+        # between the anchors grows and a fixed window goes red on growth.
+        end = source.index("async def", idx)
+        window = source[idx:end]
         assert (
             "os.replace(partial_path, cache_path)" in window
         ), "the cache entry must reach its name only via os.replace"
