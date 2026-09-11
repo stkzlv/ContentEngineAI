@@ -166,19 +166,39 @@ def bounded_image_input(
     if max(orig_w, orig_h) <= max_edge or orig_w <= 0 or orig_h <= 0:
         return path
     try:
+        import os
+
         from PIL import Image
 
         out_dir = temp_dir / "scaled_inputs"
         out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / f"{path.stem}_max{max_edge}{path.suffix}"
+        # The source's mtime and size are part of the name: temp/ survives
+        # failed and --debug runs while the scraper overwrites images under
+        # stable names, so a bare existence check would reuse the previous
+        # listing's picture. A changed source misses this cache by name.
+        st = path.stat()
+        out = out_dir / (
+            f"{path.stem}_max{max_edge}_{st.st_mtime_ns}_{st.st_size}{path.suffix}"
+        )
         if out.exists():
             return out
         with Image.open(path) as img:
+            fmt = img.format
+            # EXIF rides along or a phone-orientation photo renders
+            # sideways: ffmpeg applies the tag to JPEG stills, and a copy
+            # saved without it enters the filtergraph unrotated.
+            exif = img.info.get("exif", b"")
             img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+            # Written beside the final name and renamed only after a full
+            # save, or a kill mid-write leaves a truncated copy the reuse
+            # check would hand to ffmpeg forever -- the assembler's own
+            # partial-file rule, one directory up.
+            tmp = out.with_name(out.name + ".part")
             if out.suffix.lower() in (".jpg", ".jpeg"):
-                img.convert("RGB").save(out, quality=92)
+                img.convert("RGB").save(tmp, format="JPEG", quality=92, exif=exif)
             else:
-                img.save(out)
+                img.save(tmp, format=fmt)
+            os.replace(tmp, out)
         logger.debug(
             "Bounded image input %s: %dx%d -> long edge %d",
             path.name,

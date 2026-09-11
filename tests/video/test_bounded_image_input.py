@@ -150,3 +150,52 @@ class TestTheAssemblerPassesItsTempDir:
                 )
                 return
         pytest.fail("no build_visual_chain call found in core.py")
+
+
+class TestReviewFindings:
+    """The three silent-wrong-output paths the review attached failures to."""
+
+    def test_exif_orientation_rides_along(self, tmp_path):
+        """FFmpeg applies EXIF orientation to JPEG stills, so a copy saved
+        without the tag renders a phone photo sideways.
+        """
+        src = tmp_path / "portrait.jpg"
+        img = Image.new("RGB", (4000, 3000), (10, 120, 10))
+        exif = Image.Exif()
+        exif[274] = 6  # orientation: rotate 90 CW
+        img.save(src, quality=90, exif=exif)
+
+        out = bounded_image_input(src, 4000, 3000, 2560, tmp_path)
+        assert out != src
+        with Image.open(out) as scaled:
+            assert scaled.getexif().get(274) == 6, "orientation tag was dropped"
+
+    def test_a_changed_source_misses_the_cache(self, tmp_path):
+        """The temp dir survives failed runs and the scraper overwrites images
+        under stable names, so a bare existence check served the previous
+        listing's picture.
+        """
+        import time
+
+        src = _jpeg(tmp_path / "photo.jpg", 4000, 3000)
+        first = bounded_image_input(src, 4000, 3000, 2560, tmp_path)
+
+        time.sleep(0.01)
+        Image.new("RGB", (3200, 3200), (0, 0, 250)).save(src, quality=90)
+        second = bounded_image_input(src, 3200, 3200, 2560, tmp_path)
+
+        assert second != first, "the previous source's copy was reused"
+        with Image.open(second) as img:
+            assert img.size == (2560, 2560)
+            pixel = img.getpixel((10, 10))
+            assert isinstance(pixel, tuple)
+            assert pixel[2] > 200, "old content served"
+
+    def test_the_write_is_atomic(self):
+        """A kill mid-save must not leave a copy the reuse check trusts."""
+        source = Path("src/video/assembler/visual_builder.py").read_text()
+        idx = source.index('out.with_name(out.name + ".part")')
+        window = source[idx : idx + 400]
+        assert (
+            "os.replace(tmp, out)" in window
+        ), "the bounded copy must reach its final name only via os.replace"

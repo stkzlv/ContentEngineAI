@@ -390,8 +390,10 @@ class VideoSettings(BaseModel):
             "larger sources are downscaled to a temp copy first. FFmpeg "
             "buffers decoded frames at source resolution per input stream, "
             "and one 24 MP-photo assembly exceeded a 6 GB memory cap on "
-            "the decoder side alone (#414). 2560 covers the 1920 output "
-            "edge at the 1.5 zoom ceiling. 0 disables the bound."
+            "the decoder side alone (#414). 2560 is comfortable headroom "
+            "over the 1920 output edge; the zoom never sees source "
+            "resolution, since it runs after placement scaling. "
+            "0 disables the bound."
         ),
     )
     # Phase 1.2e: cold-open variant rotation. Three named opening styles are
