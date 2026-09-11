@@ -62,6 +62,45 @@ class VideoConfigValidator:
         # File path validation
         errors.extend(self._validate_file_paths(config))
 
+        # Overlay glyph coverage: drawtext has no font fallback chain, so
+        # operator text nothing installed can draw must refuse here rather
+        # than render empty boxes (#392).
+        errors.extend(self._validate_overlay_glyph_coverage(config))
+
+        return errors
+
+    def _validate_overlay_glyph_coverage(self, config: VideoConfig) -> list[str]:
+        """Refuse configured overlay text no installed font can draw."""
+        from src.video.assembler.font_resolver import (
+            OverlayFontError,
+            fontfile_for_text,
+        )
+
+        errors: list[str] = []
+        vs = config.video_settings
+
+        candidates: list[tuple[str, str]] = []
+        disclosure = getattr(vs, "disclosure_overlay", None)
+        if disclosure is not None and getattr(disclosure, "enabled", False):
+            candidates.append(("disclosure_overlay.text", disclosure.text))
+        upper = getattr(vs, "upper_line", None)
+        if upper is not None and getattr(upper, "enabled", False):
+            custom = getattr(upper, "custom_text", "") or ""
+            if custom:
+                candidates.append(("upper_line.custom_text", custom))
+        for profile in (config.video_profiles or {}).values():
+            p_upper = getattr(profile, "upper_line", None)
+            if p_upper is None:
+                continue
+            p_custom = getattr(p_upper, "custom_text", None) or ""
+            if p_custom:
+                candidates.append(("profile upper_line.custom_text", p_custom))
+
+        for name, text in candidates:
+            try:
+                fontfile_for_text(text, strict=True)
+            except OverlayFontError as e:
+                errors.append(f"{name}: {e}")
         return errors
 
     def _validate_ffmpeg(self, config: VideoConfig) -> list[str]:

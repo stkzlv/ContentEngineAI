@@ -163,6 +163,7 @@ def build_disclosure_drawtext(
     parts = [
         f"{input_stream}drawtext=",
         f"textfile='{text_path}':",
+        _fontfile_part(settings.text),
         f"fontsize={font_size}:",
         f"fontcolor={settings.font_color}:",
         f"borderw={settings.outline_thickness}:",
@@ -173,6 +174,21 @@ def build_disclosure_drawtext(
     parts.append(f"x={x_expr}:y={y_expr}{output_stream}")
 
     return "".join(parts)
+
+
+def _fontfile_part(text: str) -> str:
+    """A drawtext fontfile clause for text the default face cannot draw.
+
+    Empty for ASCII and for anything coverage cannot improve (#392):
+    drawtext has no fallback chain, so a non-Latin overlay needs one face
+    that carries every glyph or it renders empty boxes.
+    """
+    from src.video.assembler.font_resolver import fontfile_for_text
+
+    path = fontfile_for_text(text, strict=False)
+    if path is None:
+        return ""
+    return "fontfile='" + path.as_posix().replace(":", r"\:") + "':"
 
 
 _OVERLAY_TAIL_LABEL = "[v_pre_overlay]"
@@ -444,6 +460,7 @@ def build_hook_drawtext(
         parts = [
             f"{stream_in}drawtext=",
             f"textfile='{text_path}':",
+            _fontfile_part(line),
             f"fontsize={font_size}:",
             f"fontcolor={settings.font_color}:",
             f"borderw={settings.outline_thickness}:",
@@ -685,6 +702,7 @@ def build_upper_line_drawtext(
     parts = [
         f"{input_stream}drawtext=",
         f"textfile='{text_path}':",
+        _fontfile_part(text),
         f"fontsize={font_size}:",
         f"fontcolor={settings.font_color}:",
         f"borderw={settings.outline_thickness}:",

@@ -168,7 +168,12 @@ class UpperLineSettings(BaseModel):
     )
     custom_text: str = Field(
         "",
-        description="Text for `source: custom`. A URL or not; rendered verbatim.",
+        description=(
+            "Text for `source: custom`. A URL or not; rendered verbatim "
+            "when an installed font covers every glyph -- config validation "
+            "refuses text nothing installed can draw, since drawtext has no "
+            "font fallback chain (#392)."
+        ),
     )
     link_in_bio_url_env_var: str = Field(
         "LINK_IN_BIO_URL",
