@@ -90,6 +90,16 @@ fractions for these bounds (`SAFE_ZONE_MIN_X/MAX_X/MIN_Y/MAX_Y`) and now match
 this 2026 union. `config/subtitles.yaml::safe_zone` mirrors them. Keep all three
 in sync. A single cross-platform render clamps to this union, not one platform.
 
+The horizontal margins are scoped to the button column's vertical range, not
+the full frame. Settled by observation rather than arithmetic (#391): a
+static upper line at `vertical_position: 0.16` whose ends sit about 60px from
+each edge -- the widest the overlay's 0.95 width gate accepts -- was posted
+to all three platforms and viewed in the apps. Nothing clipped or covered
+either end: every platform's top chrome sits above roughly 14%, and the
+engagement columns begin near 45% of the height. So text above the button
+column may use the overlay's full width budget; the 60px/180px side margins
+bind only for elements placed beside the column, roughly y 45-65%.
+
 ## Subtitle and text placement
 
 The reading zone for captions, above all platform bottom UI and below the top
