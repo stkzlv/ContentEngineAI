@@ -362,9 +362,11 @@ global_batch:
   topics_per_run: 1
 ```
 
-A run with no input flags then produces both formats: the configured keywords
-are scraped and rendered as before, and `topics_per_run` topics are rendered
-alongside them. `topics_per_run: 0` returns to products only.
+With `alternate_formats: false`, a run with no input flags produces both
+formats in one run: the configured keywords are scraped and rendered, and
+`topics_per_run` topics are rendered alongside them. `topics_per_run: 0`
+returns to products only. The bundled config ships `alternate_formats: true`,
+so a no-flag run draws one format per day instead -- see below.
 
 Which topics a run takes rotates with the date, so a daily run works through
 the list instead of re-rendering the first entry every morning. Interleaving

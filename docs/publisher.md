@@ -498,7 +498,7 @@ Cron works too, but has no equivalent of `Persistent=true`:
 
 | Option | Required | Description |
 |---|---|---|
-| `--limit N` | No | How many recent published posts to measure. Defaults to `analytics.limit` in `config/publisher.yaml`, shipped as 70, sized against the bundled two-slot-a-day schedule. The other subcommands' `--limit` flags are not config-backed |
+| `--limit N` | No | How many recent published posts to measure. Defaults to `analytics.limit` in `config/publisher.yaml`, shipped as 50, sized against the bundled one-slot-a-day schedule. The other subcommands' `--limit` flags are not config-backed |
 | `--rank-only` | No | Rank stored metrics without fetching. Makes no network call, but publisher config still loads first, so an API key must be configured |
 | `--outputs-dir PATH` | No | Where `post_metrics.json` lives (default: `outputs`) |
 | `--debug` | No | Enable debug logging |
@@ -709,11 +709,11 @@ stagger_delay_max: 60              # Max delay between batch uploads (seconds)
 
 # === Analytics Capture ===
 analytics:
-  limit: 70                        # Posts measured per sweep; must exceed the
+  limit: 50                        # Posts measured per sweep; must exceed the
                                    # number published inside the ~5-week
                                    # retention horizon or the oldest expire.
-                                   # 70 is that horizon at the bundled
-                                   # two-slot-a-day schedule; raise it with
+                                   # 50 covers the bundled one-slot-a-day
+                                   # schedule with headroom; raise it with
                                    # the cadence
 
 # === Affiliate Disclosure ===
