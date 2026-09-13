@@ -365,7 +365,7 @@ A three-product matrix covers the surface: (1) `single --immediate` unified live
 
 ### Verification surfaces
 
-Local state lives at the outputs root and survives product-dir cleanup: `outputs/state/publish_history.json` (one row per `<ASIN>:<platform>`), `outputs/state/published_products.json`, `outputs/state/schedule.json`. Diff their counts before and after.
+Local state lives under `outputs/state/` and survives product-dir cleanup: `outputs/state/publish_history.json` (one row per `<ASIN>:<platform>`), `outputs/state/published_products.json`, `outputs/state/schedule.json`. Diff their counts before and after.
 
 The two files are not interchangeable. `publish_history.json` is `{"posts": {"<ASIN>:<platform>": {...}}}` and is the only one the duplicate guard reads, so a lookup must use the compound key — probing it with a bare ASIN always returns nothing and reads as "never published". `published_products.json` is a flat list of product rows with no publish fields, written during production, so it gains a row even on a `--skip-publish` run and a row there proves nothing about whether anything went live.
 

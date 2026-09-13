@@ -57,6 +57,23 @@ class TestTheResolver:
 
         assert (tmp_path / STATE_DIR_NAME).is_dir()
 
+    def test_a_read_only_tree_still_serves_the_legacy_copy(self, tmp_path):
+        """Migration is an optimization for writers, not a precondition for
+        reading: a backup snapshot mounted read-only must stay readable.
+        """
+        import stat
+
+        legacy = tmp_path / "publish_history.json"
+        legacy.write_text('{"posts": {}}', encoding="utf-8")
+        tmp_path.chmod(stat.S_IRUSR | stat.S_IXUSR)
+        try:
+            resolved = durable_state_path(tmp_path, "publish_history.json")
+        finally:
+            tmp_path.chmod(stat.S_IRWXU)
+
+        assert resolved == legacy, "a failed migration must fall back to the data"
+        assert legacy.read_text(encoding="utf-8") == '{"posts": {}}'
+
 
 class TestTheModulesResolveUnderState:
     """Each durable-state module funnels through one path function; all of

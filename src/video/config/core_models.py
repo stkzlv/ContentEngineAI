@@ -1364,6 +1364,10 @@ class VideoConfig(BaseModel):
             self.global_output_root_path / self.output_structure.global_dirs.logs,
             self.global_output_root_path / self.output_structure.global_dirs.temp,
             self.global_output_root_path / self.output_structure.global_dirs.cache,
+            # The durable-state directory: the resolver plants it eagerly, so
+            # an empty one is normal, and the empty-dirs pass must not take
+            # what the preserve-list names.
+            self.global_output_root_path / "state",
         }
         return path in expected_bases
 

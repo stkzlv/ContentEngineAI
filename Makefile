@@ -610,10 +610,10 @@ analytics-timer-status: ## Show when the sweep last ran and when it runs next
 	else \
 		echo "$(GREEN)No recorded sweep failures.$(NC)"; \
 	fi; \
-	if [ -f "$$REPO_DIR/outputs/post_metrics.json" ]; then \
-		echo "$(BLUE)Figures last written: $$(date -r "$$REPO_DIR/outputs/post_metrics.json" '+%F %T')$(NC)"; \
+	if [ -f "$$REPO_DIR/outputs/state/post_metrics.json" ]; then \
+		echo "$(BLUE)Figures last written: $$(date -r "$$REPO_DIR/outputs/state/post_metrics.json" '+%F %T')$(NC)"; \
 	else \
-		echo "$(YELLOW)$$REPO_DIR/outputs/post_metrics.json does not exist yet.$(NC)"; \
+		echo "$(YELLOW)$$REPO_DIR/outputs/state/post_metrics.json does not exist yet.$(NC)"; \
 	fi
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority

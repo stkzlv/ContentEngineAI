@@ -215,8 +215,10 @@ async def cmd_list_accounts(
 
 def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     """Map Zernio post_id to product_id from publish_history.json (best effort)."""
+    from src.publisher.tracking import get_tracking_path
+
     try:
-        posts = json.loads((outputs_dir / "publish_history.json").read_text())["posts"]
+        posts = json.loads(get_tracking_path(outputs_dir).read_text())["posts"]
     except (OSError, KeyError, ValueError):
         return {}
     out: dict[str, str] = {}
@@ -1637,7 +1639,10 @@ Examples:
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
-        help="Where post_metrics.json lives (default: outputs)",
+        help=(
+            "Outputs root; post_metrics.json lives under its state/ "
+            "subdirectory (default: outputs)"
+        ),
     )
     analytics_parser.add_argument(
         "--debug",

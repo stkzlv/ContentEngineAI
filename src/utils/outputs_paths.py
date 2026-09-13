@@ -38,12 +38,30 @@ def durable_state_path(outputs_dir: Path, filename: str) -> Path:
     state_dir = outputs_dir / STATE_DIR_NAME
     target = state_dir / filename
     legacy = outputs_dir / filename
-    if legacy.is_file() and not target.exists():
-        state_dir.mkdir(parents=True, exist_ok=True)
-        os.replace(legacy, target)
-        logger.info("Migrated %s to %s", legacy, target)
-    elif outputs_dir.exists():
-        state_dir.mkdir(exist_ok=True)
+    try:
+        if legacy.is_file() and not target.exists():
+            state_dir.mkdir(parents=True, exist_ok=True)
+            os.replace(legacy, target)
+            logger.info("Migrated %s to %s", legacy, target)
+        elif outputs_dir.exists():
+            state_dir.mkdir(exist_ok=True)
+    except OSError as exc:
+        # Two bounded causes, neither of which may break a READ path:
+        # a concurrent first touch (the analytics timer firing during a
+        # batch publish) lost the os.replace race -- the winner moved the
+        # file, so the target is the answer; or the tree is read-only (a
+        # mounted backup snapshot inspected in place) -- migration is an
+        # optimization for writers, not a precondition for reading, so
+        # the legacy copy keeps serving reads unmigrated.
+        if legacy.is_file() and not target.exists():
+            logger.warning(
+                "Could not migrate %s to %s (%s); reading the legacy copy",
+                legacy,
+                target,
+                exc,
+            )
+            return legacy
+        logger.debug("State-dir setup raced or was refused: %s", exc)
     return target
 
 
