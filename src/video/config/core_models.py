@@ -439,7 +439,17 @@ class CleanupSettings(BaseModel):
             "published_products.json",
             "published_products.csv",
             "publish_history.json",
+            "schedule.json",
+            "post_metrics.json",
             "cleanup_audit.json",
+            # The durable-state directory. These files are the ones a
+            # cleanup must never take: the publish history backs the
+            # duplicate guard, registry rows for cleaned product dirs are
+            # unrecoverable, and day-N metrics age out of the provider's
+            # retention permanently. The bare names above stay for trees
+            # that predate the state/ migration.
+            "state",
+            "state/**",
         ]
     )
     force_cleanup_patterns: list[str] = Field(
@@ -1354,6 +1364,10 @@ class VideoConfig(BaseModel):
             self.global_output_root_path / self.output_structure.global_dirs.logs,
             self.global_output_root_path / self.output_structure.global_dirs.temp,
             self.global_output_root_path / self.output_structure.global_dirs.cache,
+            # The durable-state directory: the resolver plants it eagerly, so
+            # an empty one is normal, and the empty-dirs pass must not take
+            # what the preserve-list names.
+            self.global_output_root_path / "state",
         }
         return path in expected_bases
 

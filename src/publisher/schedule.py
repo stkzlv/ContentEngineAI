@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from src.publisher.base import PublishError
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.first_comment import build_first_comment
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import (
@@ -32,6 +33,7 @@ from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
 from src.publisher.tracking import is_already_published, record_publish
 from src.scraper.base.models import carries_affiliate_content
+from src.utils.outputs_paths import durable_state_path
 from src.video.config.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
@@ -127,20 +129,25 @@ class ScheduleManager:
 
     def __init__(
         self,
-        schedule_path: Path | str = Path("outputs/schedule.json"),
+        schedule_path: Path | str | None = None,
         config: ScheduleConfig | None = None,
     ):
         """Initialize schedule manager.
 
         Args:
         ----
-            schedule_path: Path to schedule.json file
+            schedule_path: Path to schedule.json file. None resolves the
+                durable default under outputs/state/ (migrating a legacy
+                root copy).
             config: Schedule configuration (uses defaults if None)
 
         """
-        self.schedule_path = (
-            Path(schedule_path) if isinstance(schedule_path, str) else schedule_path
-        )
+        if schedule_path is None:
+            self.schedule_path = durable_state_path(
+                DEFAULT_OUTPUTS_DIR, "schedule.json"
+            )
+        else:
+            self.schedule_path = Path(schedule_path)
         self.config = config or ScheduleConfig()
         self.entries: list[ScheduleEntry] = []
         self._load_schedule()

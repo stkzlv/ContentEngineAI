@@ -205,7 +205,9 @@ if [ -n "$NO_RUN" ]; then
     exit 0
 fi
 
-METRICS="$REPO_DIR/outputs/post_metrics.json"
+# The sweep writes under the durable-state directory; a legacy root copy is
+# migrated there on the sweep's first touch, so the root path never advances.
+METRICS="$REPO_DIR/outputs/state/post_metrics.json"
 before=0
 if [ -f "$METRICS" ]; then before="$(stat -c %Y "$METRICS")"; fi
 

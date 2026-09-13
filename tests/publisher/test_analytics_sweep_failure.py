@@ -86,7 +86,9 @@ class TestASweepThatCapturesNothing:
         with pytest.raises(SystemExit):
             await _run(tmp_path, POSTS, RuntimeError("endpoint gone"))
 
-        assert not (tmp_path / "post_metrics.json").exists()
+        from src.publisher.analytics import metrics_path
+
+        assert not metrics_path(tmp_path).exists()
 
     @pytest.mark.asyncio
     async def test_posts_with_no_usable_id_exit_non_zero(self, tmp_path):
@@ -130,7 +132,9 @@ class TestASweepThatCapturesNothing:
             [RuntimeError("one bad post"), MEASURABLE_TIMELINE],
         )
 
-        stored = json.loads((tmp_path / "post_metrics.json").read_text())
+        from src.publisher.analytics import metrics_path
+
+        stored = json.loads(metrics_path(tmp_path).read_text())
         assert [r["post_id"] for r in stored] == ["b"]
         assert stored[0]["views_total"] == 400
 

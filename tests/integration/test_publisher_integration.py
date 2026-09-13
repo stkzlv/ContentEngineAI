@@ -1082,7 +1082,9 @@ class TestStatusTracking:
         product_id = "B0TEST001"
         record_publish(product_id, "youtube", "post_123", outputs_dir)
 
-        tracking_path = outputs_dir / "publish_history.json"
+        from src.publisher.tracking import get_tracking_path
+
+        tracking_path = get_tracking_path(outputs_dir)
         assert tracking_path.exists()
 
         data = json.loads(tracking_path.read_text())

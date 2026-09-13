@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
+from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ TRACKING_FILE = "publish_history.json"
 
 
 def get_tracking_path(outputs_dir: Path = DEFAULT_OUTPUTS_DIR) -> Path:
-    """Get path to tracking file."""
-    return outputs_dir / TRACKING_FILE
+    """Get path to tracking file (under outputs/state/, migrating legacy copies)."""
+    return durable_state_path(outputs_dir, TRACKING_FILE)
 
 
 def load_tracking(

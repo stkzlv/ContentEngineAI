@@ -9,6 +9,7 @@ import pytest
 from src.publisher.product_registry import (
     RegistryEntry,
     add_to_registry,
+    get_registry_path,
     load_registry,
     rebuild_registry,
     save_registry,
@@ -59,8 +60,8 @@ class TestLoadSaveRegistry:
     ):
         save_registry([sample_entry], outputs_dir)
 
-        json_path = outputs_dir / "published_products.json"
-        csv_path = outputs_dir / "published_products.csv"
+        json_path = get_registry_path(outputs_dir, "json")
+        csv_path = get_registry_path(outputs_dir, "csv")
         assert json_path.exists()
         assert csv_path.exists()
 
@@ -76,7 +77,7 @@ class TestLoadSaveRegistry:
     ):
         deep_dir = tmp_path / "a" / "b" / "c"
         save_registry([sample_entry], deep_dir)
-        assert (deep_dir / "published_products.json").exists()
+        assert get_registry_path(deep_dir, "json").exists()
 
     def test_load_corrupt_json(self, outputs_dir: Path):
         outputs_dir.mkdir(parents=True)
@@ -214,8 +215,8 @@ class TestRebuildRegistry:
 
         count = rebuild_registry(save_dir, scan_dir=scan_dir)
         assert count == 1
-        assert (save_dir / "published_products.json").exists()
-        assert not (scan_dir / "published_products.json").exists()
+        assert get_registry_path(save_dir, "json").exists()
+        assert not get_registry_path(scan_dir, "json").exists()
 
     def test_rebuild_empty_dir(self, outputs_dir: Path):
         outputs_dir.mkdir(parents=True)
@@ -298,7 +299,7 @@ class TestRepublishRefresh:
             },
         )
         add_to_registry("B0REPUB0004", outputs_dir)
-        json_path = outputs_dir / "published_products.json"
+        json_path = get_registry_path(outputs_dir, "json")
         mtime_before = json_path.stat().st_mtime_ns
 
         # Repeated identical call should NOT touch the file.
@@ -313,7 +314,7 @@ class TestSaveRegistryBackup:
         self, outputs_dir: Path, sample_entry: RegistryEntry
     ) -> None:
         save_registry([sample_entry], outputs_dir)
-        json_path = outputs_dir / "published_products.json"
+        json_path = get_registry_path(outputs_dir, "json")
         original = json_path.read_text(encoding="utf-8")
 
         # Save a different set of entries; original must be preserved as .bak.
@@ -333,7 +334,7 @@ class TestSaveRegistryBackup:
         self, outputs_dir: Path, sample_entry: RegistryEntry
     ) -> None:
         save_registry([sample_entry], outputs_dir)
-        csv_path = outputs_dir / "published_products.csv"
+        csv_path = get_registry_path(outputs_dir, "csv")
         original = csv_path.read_text(encoding="utf-8")
 
         save_registry([], outputs_dir)
@@ -551,7 +552,7 @@ class TestARemovedColumnDoesNotDestroyHistory:
         save_registry(load_registry(tmp_path), tmp_path)
 
         written = json.loads(
-            (tmp_path / "published_products.json").read_text(encoding="utf-8")
+            get_registry_path(tmp_path, "json").read_text(encoding="utf-8")
         )
         assert "pillar" not in written[0]
         assert written[0]["product_id"] == "B0OLD00001"
@@ -601,7 +602,7 @@ class TestRebuildRefusesToEmptyAFullRegistry:
             result = rebuild_registry(tmp_path)
 
         assert result < 0, "the refusal was not signalled to the caller"
-        after = (tmp_path / "published_products.json").read_text(encoding="utf-8")
+        after = get_registry_path(tmp_path, "json").read_text(encoding="utf-8")
         assert json.loads(after) == json.loads(before)
 
     def test_a_rebuild_that_finds_products_still_saves(self, tmp_path):
@@ -653,4 +654,4 @@ class TestRebuildRefusesToEmptyAFullRegistry:
         # everything and parses as nothing must not read as "no rows" --
         # that is the shape a truncated write leaves behind.
         assert result < 0
-        assert (tmp_path / "published_products.json").read_bytes() == raw
+        assert get_registry_path(tmp_path, "json").read_bytes() == raw

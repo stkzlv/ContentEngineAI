@@ -25,6 +25,7 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
 )
+from src.publisher.product_registry import get_registry_path
 from src.publisher.schedule import ScheduleManager
 
 # ============================================================================
@@ -417,13 +418,13 @@ class TestScheduleWorkflowIntegration:
         # Tracking ran before cleanup: the dir is gone but the records persist.
         assert not product_directory["product_dir"].exists()
 
-        history = json.loads((temp_outputs_dir / "publish_history.json").read_text())
+        from src.publisher.tracking import get_tracking_path
+
+        history = json.loads(get_tracking_path(temp_outputs_dir).read_text())
         leg = history["posts"][f"{product_id}:youtube"]
         assert leg["post_id"] == "post_123"
 
-        registry = json.loads(
-            (temp_outputs_dir / "published_products.json").read_text()
-        )
+        registry = json.loads(get_registry_path(temp_outputs_dir, "json").read_text())
         assert product_id in [entry["product_id"] for entry in registry]
 
     @pytest.mark.asyncio
@@ -447,8 +448,10 @@ class TestScheduleWorkflowIntegration:
             outputs_dir=temp_outputs_dir,
         )
 
-        assert not (temp_outputs_dir / "publish_history.json").exists()
-        assert not (temp_outputs_dir / "published_products.json").exists()
+        from src.publisher.tracking import get_tracking_path
+
+        assert not get_tracking_path(temp_outputs_dir).exists()
+        assert not get_registry_path(temp_outputs_dir, "json").exists()
 
 
 # ============================================================================

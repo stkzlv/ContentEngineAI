@@ -357,7 +357,7 @@ than its target sample to end up with that many usable ones.
 Three causes produce a blank, and `timeline_end` alone does not separate them:
 a post that aged past the retention horizon before its first sweep looks the
 same as one with a silent leg. Read `lagged_cutoff_days` in
-`outputs/post_metrics.json` first — it names the cutoffs a leg was silent for.
+`outputs/state/post_metrics.json` first — it names the cutoffs a leg was silent for.
 Failing that, `timeline_end` earlier than the cutoff means the window had not
 closed when the sweep ran, and at or past it with no marker means the retained
 rows begin after the cutoff.
@@ -392,7 +392,7 @@ make install-analytics-timer
 ```
 
 That renders a systemd user timer, installs it, enables it, runs one sweep, and
-checks that `outputs/post_metrics.json` actually changed. It needs no root, and
+checks that `outputs/state/post_metrics.json` actually changed. It needs no root, and
 with lingering enabled it runs whether or not you are logged in. Check on it
 later with `make analytics-timer-status`, and remove it with
 `make uninstall-analytics-timer`.
@@ -981,7 +981,7 @@ Failed batch items are automatically added to a retry queue, allowing you to res
 <summary><strong>How It Works</strong></summary>
 
 When a batch publish fails for some products:
-1. Failed product IDs are stored in `outputs/publish_history.json`
+1. Failed product IDs are stored in `outputs/state/publish_history.json`
 2. Original scheduled times are preserved
 3. Retry count is tracked per product
 4. Successful items are removed from the queue

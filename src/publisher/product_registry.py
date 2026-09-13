@@ -7,6 +7,8 @@ import re
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
+from src.utils.outputs_paths import durable_state_path
+
 logger = logging.getLogger(__name__)
 
 REGISTRY_JSON = "published_products.json"
@@ -30,9 +32,9 @@ class RegistryEntry:
 
 
 def get_registry_path(outputs_dir: Path, fmt: str = "json") -> Path:
-    """Return path to the registry file."""
+    """Return path to the registry file (under outputs/state/, migrating)."""
     filename = REGISTRY_JSON if fmt == "json" else REGISTRY_CSV
-    return outputs_dir / filename
+    return durable_state_path(outputs_dir, filename)
 
 
 def load_registry(outputs_dir: Path) -> list[RegistryEntry]:

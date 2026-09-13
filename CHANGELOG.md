@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.113.0] - 2026-09-13
+
+### Fixed
+- The cleanup's preserve-list covers the schedule and the day-N metrics store, which a real (non-dry) cleanup would have deleted once they aged past the cutoff -- and those figures cannot be re-fetched past the provider's retention. A test now drives an actual non-dry cleanup and asserts every durable file survives.
+
+### Changed
+- Durable tracking state (publish history, registry JSON/CSV, schedule, day-N metrics) lives under `outputs/state/`, so the boundary between deletable run artifacts and irreplaceable state is a directory rather than a pattern list. Legacy copies at the outputs root migrate automatically on first touch, atomically, and every reader and writer resolves the same location through one helper.
+- `make clean-outputs` performs the real cleanup with `CONFIRM=1`; without it the dry run remains the default. The previous target hardcoded the dry run, so the shipped cleaner had never actually run.
+
 ## [0.112.0] - 2026-09-13
 
 ### Changed

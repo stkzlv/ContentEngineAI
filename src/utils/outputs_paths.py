@@ -5,10 +5,64 @@ ensuring consistency between scraper and producer modules.
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Durable tracking state lives in its own directory under the outputs root,
+# so the deletable/durable boundary is structural rather than maintained by
+# a pattern list: everything else under outputs/ is a run artifact, a cache
+# or a diagnostic, and can be rebuilt or re-scraped. These files cannot --
+# the publish history backs the duplicate guard, the registry's rows for
+# cleaned product dirs exist nowhere else, and day-N metrics age out of the
+# provider's retention and are then unrecoverable at any price.
+STATE_DIR_NAME = "state"
+
+
+def durable_state_path(outputs_dir: Path, filename: str) -> Path:
+    """The path of a durable tracking file, under ``outputs/state/``.
+
+    Migrates eagerly: a legacy copy at the outputs root is moved into
+    ``state/`` the first time the path is resolved, so every reader and
+    writer converges on one location after the first touch -- a lazy
+    migration would leave a writer on the new path while an unmigrated
+    reader still read the stale root copy. ``os.replace`` keeps the move
+    atomic; both paths share a filesystem by construction.
+
+    The state directory is created only when something exists to migrate or
+    the outputs root already exists, so resolving a path on a fresh clone
+    (a dry run, a test collecting defaults) does not plant directories.
+    """
+    state_dir = outputs_dir / STATE_DIR_NAME
+    target = state_dir / filename
+    legacy = outputs_dir / filename
+    try:
+        if legacy.is_file() and not target.exists():
+            state_dir.mkdir(parents=True, exist_ok=True)
+            os.replace(legacy, target)
+            logger.info("Migrated %s to %s", legacy, target)
+        elif outputs_dir.exists():
+            state_dir.mkdir(exist_ok=True)
+    except OSError as exc:
+        # Two bounded causes, neither of which may break a READ path:
+        # a concurrent first touch (the analytics timer firing during a
+        # batch publish) lost the os.replace race -- the winner moved the
+        # file, so the target is the answer; or the tree is read-only (a
+        # mounted backup snapshot inspected in place) -- migration is an
+        # optimization for writers, not a precondition for reading, so
+        # the legacy copy keeps serving reads unmigrated.
+        if legacy.is_file() and not target.exists():
+            logger.warning(
+                "Could not migrate %s to %s (%s); reading the legacy copy",
+                legacy,
+                target,
+                exc,
+            )
+            return legacy
+        logger.debug("State-dir setup raced or was refused: %s", exc)
+    return target
 
 
 def get_project_root() -> Path:

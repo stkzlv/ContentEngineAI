@@ -42,6 +42,7 @@ from src.pipeline.config import (
 from src.pipeline.webhooks import WebhookConfig, WebhookNotifier
 from src.scraper.amazon.models import ProductData
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
+from src.utils.outputs_paths import durable_state_path
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
 
@@ -2123,7 +2124,9 @@ class GlobalPipelineOrchestrator:
 
                         # Initialize schedule manager
                         schedule_manager = ScheduleManager(
-                            schedule_path=self.config.outputs_dir / "schedule.json"
+                            schedule_path=durable_state_path(
+                                self.config.outputs_dir, "schedule.json"
+                            )
                         )
 
                         from datetime import UTC

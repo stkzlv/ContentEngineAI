@@ -257,10 +257,14 @@ clean-all: clean
 clean-outputs:
 	@echo "$(BLUE)Cleaning up outputs directory...$(NC)"
 	@test -f tools/cleanup_outputs.py || { echo "$(RED)Error: tools/cleanup_outputs.py not found$(NC)"; exit 1; }
+ifeq ($(CONFIRM),1)
+	@poetry run python tools/cleanup_outputs.py
+	@echo "$(GREEN)Outputs cleanup completed!$(NC)"
+else
 	@poetry run python tools/cleanup_outputs.py --dry-run
-	@echo "$(YELLOW)This was a dry run. To perform actual cleanup, run:$(NC)"
-	@echo "$(YELLOW)  poetry run python tools/cleanup_outputs.py$(NC)"
-	@echo "$(GREEN)Outputs cleanup preview completed!$(NC)"
+	@echo "$(YELLOW)This was a dry run. To perform the actual cleanup, run:$(NC)"
+	@echo "$(YELLOW)  make clean-outputs CONFIRM=1$(NC)"
+endif
 
 perf-report:
 	@echo "$(BLUE)Generating performance monitoring report...$(NC)"
@@ -606,10 +610,10 @@ analytics-timer-status: ## Show when the sweep last ran and when it runs next
 	else \
 		echo "$(GREEN)No recorded sweep failures.$(NC)"; \
 	fi; \
-	if [ -f "$$REPO_DIR/outputs/post_metrics.json" ]; then \
-		echo "$(BLUE)Figures last written: $$(date -r "$$REPO_DIR/outputs/post_metrics.json" '+%F %T')$(NC)"; \
+	if [ -f "$$REPO_DIR/outputs/state/post_metrics.json" ]; then \
+		echo "$(BLUE)Figures last written: $$(date -r "$$REPO_DIR/outputs/state/post_metrics.json" '+%F %T')$(NC)"; \
 	else \
-		echo "$(YELLOW)$$REPO_DIR/outputs/post_metrics.json does not exist yet.$(NC)"; \
+		echo "$(YELLOW)$$REPO_DIR/outputs/state/post_metrics.json does not exist yet.$(NC)"; \
 	fi
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
