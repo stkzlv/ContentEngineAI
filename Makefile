@@ -78,7 +78,6 @@ help:
 	@echo "  vulture       - Run dead code detector"
 	@echo "  safety        - Check dependency vulnerabilities"
 	@echo ""
-	@echo ""
 	@echo "$(GREEN)Batch Pipeline:$(NC)"
 	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
 	@echo "  batch-lowpri  - Same but with reduced CPU/IO/memory priority"
