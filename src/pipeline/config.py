@@ -38,6 +38,7 @@ import yaml
 
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pillars
+from src.utils.outputs_paths import get_project_root
 from src.video.config import VideoConfig
 from src.video.producer.topic_input import (
     TopicSpec,
@@ -928,9 +929,7 @@ def _scraper_keyword_pool(
     return read_keyword_pillars((raw.get("batch") or {}).get("keywords", []) or [])
 
 
-DEFAULT_PIPELINE_CONFIG_PATH = (
-    Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml"
-)
+DEFAULT_PIPELINE_CONFIG_PATH = get_project_root() / "config" / "pipeline.yaml"
 
 
 def _configured_topics(
@@ -1241,6 +1240,13 @@ def load_global_batch_config(
         "outputs_dir", "outputs"
     )
     outputs_dir = Path(outputs_dir_str)
+    # A relative outputs dir is repo-relative, not cwd-relative: a foreign-cwd
+    # batch run otherwise writes its whole tree (state, renders, registry)
+    # beside wherever the command ran, while the anchored log points at the
+    # repo -- the log and the data disagreeing about where the run happened.
+    # An absolute path from the operator is taken as given.
+    if not outputs_dir.is_absolute():
+        outputs_dir = get_project_root() / outputs_dir
 
     debug = getattr(cli_args, "debug", False) or yaml_config.get("debug", False)
 

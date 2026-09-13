@@ -91,7 +91,9 @@ class TestBatchPublisherInit:
         batch = BatchPublisher(publisher=mock_publisher)
 
         assert batch.publisher == mock_publisher
-        assert batch.outputs_dir == Path("outputs")
+        from src.publisher.constants import DEFAULT_OUTPUTS_DIR
+
+        assert batch.outputs_dir == DEFAULT_OUTPUTS_DIR
         assert batch.platforms == [
             Platform.YOUTUBE,
             Platform.TIKTOK,

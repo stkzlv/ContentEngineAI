@@ -31,7 +31,9 @@ def update_env_file(key_to_update: str, new_value: str):
     Only overwrites if the key already exists — never adds new lines.
     """
     try:
-        project_root = Path(__file__).resolve().parent.parent.parent
+        from src.utils.outputs_paths import get_project_root
+
+        project_root = get_project_root()
         env_path = project_root / ".env"
         if not env_path.is_file():
             logger.warning(

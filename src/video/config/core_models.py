@@ -54,6 +54,17 @@ from src.video.config.visual_models import (
 logger = logging.getLogger(__name__)
 
 
+def _project_root_factory() -> Path:
+    """One source for the repo root, shared with outputs_paths.
+
+    Hand-counted ``.parent`` chains have already broken once during a file
+    move (the stray ``src/outputs`` tree); a structural test bans them now.
+    """
+    from src.utils.outputs_paths import get_project_root
+
+    return get_project_root()
+
+
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge ``override`` onto a copy of ``base``.
 
@@ -689,7 +700,7 @@ class VideoConfig(BaseModel):
     cta_detection: CTADetectionSettings | None = Field(None)
 
     project_root: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent.parent.parent,
+        default_factory=_project_root_factory,
         init=False,
     )
     global_output_root_path: Path = Field(default_factory=Path, init=False)

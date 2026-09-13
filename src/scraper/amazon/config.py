@@ -147,10 +147,12 @@ def get_output_path(path_type: str, **kwargs) -> str:
             return fallback_path
 
         except Exception as fallback_error:
-            # Ultimate fallback - use current directory with subdirectories
-            import os
+            # Ultimate fallback -- anchored on the repo root, not the working
+            # directory: a cwd-relative fallback rerouted every write into a
+            # stray outputs tree wherever the command happened to run from.
+            from src.utils.outputs_paths import get_project_root
 
-            current_dir = os.getcwd()
+            current_dir = str(get_project_root())
             ultimate_fallback = {
                 "base": f"{current_dir}/outputs",
                 "platform": f"{current_dir}/outputs/temp",
@@ -374,9 +376,15 @@ def get_batch_logging_config() -> dict[str, str | int]:
     }
 
 
-def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
+def load_browser_config_from_yaml(
+    config_path: str = "config/scraper.yaml", config_root: str | None = None
+):
     """Load and apply YAML configuration to global browser settings using config
-    adapter
+    adapter.
+
+    ``config_root`` overrides the adapter's repo-anchored default; tests use
+    it to point the loader at a crafted config directory, since the loader no
+    longer reads relative to the working directory.
     """
     global CONFIG, _BROWSER_CONFIG, SETTINGS
 
@@ -384,7 +392,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         # Use the new config adapter for backward compatibility
         from ..config_adapter import ScraperConfigAdapter
 
-        adapter = ScraperConfigAdapter()
+        adapter = ScraperConfigAdapter(config_root)
         config_data = adapter.get_merged_config_dict()
         SETTINGS = adapter.get_settings()
         CONFIG.update(config_data)

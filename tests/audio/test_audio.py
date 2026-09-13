@@ -554,12 +554,8 @@ class TestFreesoundOAuth2:
 
         with (
             patch("src.audio.freesound_client.set_key") as mock_set_key,
-            patch("src.audio.freesound_client.Path") as mock_path_class,
+            patch("src.utils.outputs_paths.get_project_root", return_value=tmp_path),
         ):
-            mock_path_instance = MagicMock()
-            mock_path_instance.resolve.return_value.parent.parent.parent = tmp_path
-            mock_path_class.return_value = mock_path_instance
-
             update_env_file("FREESOUND_REFRESH_TOKEN", "new_token_value")
 
             mock_set_key.assert_called_once_with(

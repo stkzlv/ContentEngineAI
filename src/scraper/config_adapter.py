@@ -21,8 +21,17 @@ logger = logging.getLogger(__name__)
 class ScraperConfigAdapter:
     """Adapter that merges modular scraper configs for backward compatibility."""
 
-    def __init__(self, config_root: str = "config"):
-        """Initialize the adapter with config root directory."""
+    def __init__(self, config_root: str | None = None):
+        """Initialize the adapter with config root directory.
+
+        The default anchors on the repo: a cwd-relative "config" missed the
+        operator's files from any other directory and silently substituted
+        model defaults.
+        """
+        if config_root is None:
+            from src.utils.outputs_paths import get_project_root
+
+            config_root = str(get_project_root() / "config")
         self.config_root = Path(config_root)
         self._merged_config: dict[str, Any] | None = None
         self._settings: ScraperConfig | None = None
