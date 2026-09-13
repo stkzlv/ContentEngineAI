@@ -33,6 +33,10 @@ from src.video.producer.orchestration import (
     create_video_for_product,
     failed_step_from_result,
 )
+from src.video.producer.shared_cli import (
+    add_shared_render_args,
+    subtitle_render_overrides,
+)
 from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
@@ -41,6 +45,7 @@ from src.video.producer.topic_input import (
 )
 from src.video.producer.utils import (
     ProfileUsageTracker,
+    collect_producer_secrets,
     load_profile_pool,
     select_profile_for_product,
     setup_logging,
@@ -188,9 +193,7 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     """
     overrides: dict[str, Any] = {}
 
-    # Subtitle format and effects (legacy args)
-    if args.subtitle_format:
-        overrides["subtitle_settings.subtitle_format"] = args.subtitle_format
+    # Subtitle effects (legacy args)
     if args.ass_karaoke:
         overrides["subtitle_settings.ass_enable_karaoke"] = True
     if args.ass_fade:
@@ -198,21 +201,9 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     if args.preset:
         overrides["subtitle_settings.style_preset"] = args.preset
 
-    # Pycaps subtitle engine overrides (highest precedence)
-    if getattr(args, "subtitle_engine", None):
-        overrides["subtitle_settings.subtitle_engine"] = args.subtitle_engine
-    if getattr(args, "pycaps_template", None):
-        overrides["subtitle_settings.pycaps.template_name"] = args.pycaps_template
-        # Clear the pool so the deterministic selector falls through to
-        # template_name. Without this, a multi-entry pool would still win
-        # via md5 hash and silently ignore --pycaps-template.
-        overrides["subtitle_settings.pycaps.template_pool"] = []
-    if getattr(args, "pycaps_template_pool", None):
-        # Explicit --pycaps-template-pool wins over the implicit clear above
-        # when both flags are passed.
-        overrides["subtitle_settings.pycaps.template_pool"] = args.pycaps_template_pool
-    if getattr(args, "pycaps_renderer", None):
-        overrides["subtitle_settings.pycaps.renderer"] = args.pycaps_renderer
+    # Shared subtitle-engine overrides (declare-and-apply lives together in
+    # shared_cli; the batch reads the same helper)
+    overrides.update(subtitle_render_overrides(args))
 
     # Positioning
     if args.subtitle_anchor:
@@ -469,54 +460,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--subtitle-format",
-        choices=["srt", "ass"],
-        help=(
-            "Subtitle format: srt or ass (with animations). The pycaps engine "
-            "ignores it, and the bundled YAML selects pycaps, so pair this "
-            "with --subtitle-engine ffmpeg to have it apply."
-        ),
-    )
-    parser.add_argument(
-        "--subtitle-engine",
-        choices=["ffmpeg", "pycaps"],
-        help=(
-            "Subtitle rendering engine. The bundled YAML selects pycaps. "
-            "'ffmpeg' uses SRT/ASS "
-            "burned via libass. 'pycaps' runs the pycaps library as a "
-            "post-assembly step for animated TikTok-style captions. See "
-            "docs/pycaps-subtitles.md for install."
-        ),
-    )
-    parser.add_argument(
-        "--pycaps-template",
-        type=str,
-        help=(
-            "Pycaps template name (e.g. word-focus, hype, minimalist). "
-            "Forces this template for every product by clearing the template "
-            "pool. To use a custom multi-entry pool, pass "
-            "--pycaps-template-pool instead."
-        ),
-    )
-    parser.add_argument(
-        "--pycaps-template-pool",
-        nargs="+",
-        type=str,
-        help=(
-            "Pool of pycaps templates for deterministic per-product selection. "
-            "Example: --pycaps-template-pool word-focus hype vibrant"
-        ),
-    )
-    parser.add_argument(
-        "--pycaps-renderer",
-        choices=["css", "pictex"],
-        help=(
-            "Pycaps renderer backend. 'css' = Playwright+Chromium (default, "
-            "the only production-safe option). 'pictex' = browserless Skia "
-            "path; PREVIEW ONLY, it renders words with no gaps between them."
-        ),
-    )
-    parser.add_argument(
         "--ass-karaoke",
         action="store_true",
         help="Enable karaoke word highlighting (ASS format only).",
@@ -531,6 +474,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
         choices=["minimal", "modern", "bold", "animated", "random"],
         help="Override subtitle style preset: minimal, modern, bold, animated, random.",
     )
+
+    add_shared_render_args(parser)
 
     # Subtitle positioning arguments
     parser.add_argument(
@@ -673,37 +618,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "Metadata generation mode. "
             "unified: Single title/description/hashtags for all platforms (default). "
             "optimized: Platform-specific SEO-tailored metadata."
-        ),
-    )
-    parser.add_argument(
-        "--voice-profile",
-        type=str,
-        help="Override voice profile selection.",
-    )
-    parser.add_argument(
-        "--script-template",
-        type=str,
-        help="Override script template (name without .md).",
-    )
-    parser.add_argument(
-        "--cta",
-        type=str,
-        help=(
-            "Override the closing call to action (must be one of the "
-            "configured options; otherwise selection proceeds normally)."
-        ),
-    )
-    parser.add_argument(
-        "--pillar",
-        type=str,
-        help=(
-            "Content pillar for this run (e.g. value, novelty, utility). "
-            "Prepends the pillar preamble to the LLM prompt and picks the "
-            "pillar audience. On a product render it also narrows the script "
-            "template pool to the templates listed under that pillar; a topic "
-            "render uses the topic family instead, so only the preamble and "
-            "audience apply. Without this flag, every template in the "
-            "render's own family is eligible."
         ),
     )
     parser.add_argument(
@@ -854,26 +768,7 @@ async def main():
             logger.info(f"  {key} = {value}")
 
     try:
-        secret_names = [
-            config.llm_settings.api_key_env_var,
-            config.stock_media_settings.pexels_api_key_env_var,
-            config.audio_settings.freesound_api_key_env_var,
-            "GOOGLE_APPLICATION_CREDENTIALS",
-            config.audio_settings.freesound_client_id_env_var,
-            config.audio_settings.freesound_client_secret_env_var,
-            config.audio_settings.freesound_refresh_token_env_var,
-        ]
-        # Add env vars from audio provider configs
-        for ap in config.audio_settings.audio_providers:
-            for key in ("client_id_env_var", "api_key_env_var"):
-                env_var = ap.settings.get(key)
-                if env_var and env_var not in secret_names:
-                    secret_names.append(env_var)
-        if config.llm_settings.fallback_provider:
-            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
-        secrets = {
-            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
-        }
+        secrets = collect_producer_secrets(config)
     except Exception as e:
         logger.critical(f"Config/Secrets Error: {e}", exc_info=True)
         logger.critical(f"Complete log saved to: {log_file}")
