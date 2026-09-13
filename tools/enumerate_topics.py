@@ -21,9 +21,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Invoked as a script by scripts/render-topics-batch.sh, so the repo root must
-# be on sys.path for the `src` imports below (the project is not installed --
-# package-mode = false).
+# Invoked as `-m tools.enumerate_topics` from the repo root by
+# scripts/render-topics-batch.sh, where the cwd already supplies `src`. This
+# insert is defensive for a direct `python tools/enumerate_topics.py`
+# invocation, which the no-install layout (package-mode = false) would
+# otherwise leave unable to import `src`.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
