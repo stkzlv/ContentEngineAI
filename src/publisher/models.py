@@ -205,14 +205,14 @@ class AnalyticsConfig:
     oldest still-reachable figures are skipped on every sweep and then expire
     unrecorded, which is silent: a short sweep looks exactly like a complete
     one. At one post a day the horizon holds about 35 posts; the bundled
-    schedule publishes twice a day, which is 70, and that is what this
-    default is sized for. **Raise it with the cadence.** The default is not
+    schedule publishes once a day, and 50 covers that with headroom for
+    missed sweeps. **Raise it with the cadence.** The default is not
     decorative: a config carrying no ``analytics:`` section at all falls back
     to it without logging anything, so an installation whose file predates
     that section gets this number and no warning.
     """
 
-    limit: int = 70
+    limit: int = 50
 
     def __post_init__(self):
         """Reject a limit that would measure nothing, or break the slice.

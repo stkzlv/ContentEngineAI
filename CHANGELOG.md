@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.112.0] - 2026-09-13
+
+### Changed
+- The bundled schedule runs one daily slot again, with `alternate_formats` on by default, so a no-flag scheduled batch posts one video per day alternating between the two content formats at the same posting time. The second daily slot existed to carry both formats every day, which pinned each format to its own time of day; alternation removes the need for it. `analytics.limit` returns to 50 with the halved cadence, in the bundled config and in the code default, still asserted against the schedule size by the existing test.
+
 ## [0.111.0] - 2026-09-13
 
 ### Added

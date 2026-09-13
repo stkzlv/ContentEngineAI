@@ -103,7 +103,12 @@ class TestTheBatchDrawsTheScraperPool:
         assert pillars
 
     def test_a_no_flag_run_reaches_the_wide_pool(self):
-        config = load_global_batch_config(argparse.Namespace())
+        # The bundled config alternates formats; the keyword pool under test
+        # only loads on a product day, so pin that side.
+        from unittest.mock import patch
+
+        with patch("src.pipeline.config.format_for_run", return_value="product"):
+            config = load_global_batch_config(argparse.Namespace())
 
         assert config.keywords
         assert len(config.keyword_pillar_map) > 20

@@ -114,6 +114,7 @@ class TestEveryLoaderAndLookupAgrees:
         """The global batch has its own loader and its own lookup site."""
         import argparse
         import pathlib
+        from unittest.mock import patch
 
         import yaml
 
@@ -121,7 +122,12 @@ class TestEveryLoaderAndLookupAgrees:
         from src.scraper.base.keyword_pillars import pillar_for as lookup
 
         ns = argparse.Namespace()
-        config = load_global_batch_config(ns, "config/pipeline.yaml")
+        # The bundled config alternates formats by date parity, so a topic
+        # day would empty the keyword side and fail this on every even
+        # ordinal. Pin the product side: the lookup under test is
+        # format-independent.
+        with patch("src.pipeline.config.format_for_run", return_value="product"):
+            config = load_global_batch_config(ns, "config/pipeline.yaml")
 
         assert config.keywords, "no keywords loaded"
         for keyword in config.keywords:
@@ -177,8 +183,14 @@ class TestEveryLoaderAndLookupAgrees:
             k for k in pool if k != k.casefold()
         ], "the config ships no mixed-case keyword, so this proves nothing"
 
-        with patch(
-            "src.pipeline.config.keywords_for_run", side_effect=lambda ks, _n: ks
+        # The product side is pinned for the same reason as above; the
+        # rotation stub accepts the alternated path's day_ordinal keyword.
+        with (
+            patch("src.pipeline.config.format_for_run", return_value="product"),
+            patch(
+                "src.pipeline.config.keywords_for_run",
+                side_effect=lambda ks, _n, **_kw: ks,
+            ),
         ):
             config = load_global_batch_config(
                 argparse.Namespace(), "config/pipeline.yaml"
