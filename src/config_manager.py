@@ -358,7 +358,9 @@ class UnifiedConfigManager:
             base_config = self.video_adapter.get_merged_config_dict()
             return self.apply_precedence_rules(base_config, cli_overrides)
         except Exception as e:
-            print(f"⚠️  Warning: Failed to load video config, using fallback: {e}")
+            logger.warning(
+                "Failed to load video config, using fallback: %s", e, exc_info=True
+            )
             return self._get_video_fallback_config(cli_overrides)
 
     def get_scraper_config(
@@ -373,7 +375,9 @@ class UnifiedConfigManager:
             # the fallback would read every value as a default, silently.
             raise
         except Exception as e:
-            print(f"⚠️  Warning: Failed to load scraper config, using fallback: {e}")
+            logger.warning(
+                "Failed to load scraper config, using fallback: %s", e, exc_info=True
+            )
             return self._get_scraper_fallback_config(cli_overrides)
 
     def validate_config_structure(self) -> dict[str, bool]:

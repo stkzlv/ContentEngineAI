@@ -79,14 +79,14 @@ def scrape_amazon_products_browser_impl(
     """Unified function to scrape Amazon products in a single browser session"""
     DEBUG_MODE = data.get("debug_mode", False)
 
-    logger.info(
-        "[DEBUG] scrape_amazon_products_browser called with keyword: %s",
+    logger.debug(
+        "scrape_amazon_products_browser called with keyword: %s",
         data.get("keyword"),
     )
     keyword = data["keyword"]
     is_asin = data.get("is_asin", False)
     is_url = data.get("is_url", False)
-    logger.info("[DEBUG] is_asin: %s, is_url: %s", is_asin, is_url)
+    logger.debug("is_asin: %s, is_url: %s", is_asin, is_url)
     products: list[dict[str, Any]] = []
 
     # Get Amazon base URL from config (used by both ASIN and search paths)
@@ -136,7 +136,7 @@ def scrape_amazon_products_browser_impl(
     elif is_asin:
         # Direct product page scraping for ASIN
         product_url = f"{base_url}/dp/{keyword}"
-        logger.info("[DEBUG] Calling scrape_single_product for ASIN: %s", keyword)
+        logger.debug("Calling scrape_single_product for ASIN: %s", keyword)
 
         # Initialize variables needed by debug verification
         global_settings = CONFIG.get("global_settings", {})
@@ -170,12 +170,12 @@ def scrape_amazon_products_browser_impl(
 
                 driver.run_js(f"window.resizeTo({width}, {height});")
                 logger.debug(
-                    "[DEBUG] Set browser window size to %sx%s via JavaScript",
+                    "Set browser window size to %sx%s via JavaScript",
                     width,
                     height,
                 )
             except Exception as e:
-                logger.warning("[DEBUG] Could not set window size: %s", e)
+                logger.debug("Could not set window size: %s", e)
 
         driver.short_random_sleep()
 
@@ -225,16 +225,16 @@ def scrape_amazon_products_browser_impl(
                     driver.save_screenshot()  # Debug screenshot
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.warning("[DEBUG] Screenshot failed: %s", e)
+                    logger.debug("Screenshot failed: %s", e)
 
         # Use google_get for organic navigation pattern
         if DEBUG_MODE:
-            logger.debug("[DEBUG] Navigating to search URL...")
+            logger.debug("Navigating to search URL...")
 
         nav_start = time.monotonic()
         try:
             if DEBUG_MODE:
-                logger.debug("[DEBUG] Starting navigation to search page...")
+                logger.debug("Starting navigation to search page...")
 
             logger.info("Navigating to search URL: %s", search_url)
 
@@ -268,7 +268,7 @@ def scrape_amazon_products_browser_impl(
                 logger.debug("Current URL: %s", current_url)
 
             if DEBUG_MODE:
-                logger.info("[DEBUG] Navigation completed successfully")
+                logger.debug("Navigation completed successfully")
 
         except Exception as e:
             import traceback
@@ -280,8 +280,11 @@ def scrape_amazon_products_browser_impl(
             ready_state = "<unreachable>"
             with contextlib.suppress(Exception):
                 ready_state = driver.run_js("return document.readyState")
+            # ERROR, ungated: this swallow costs the whole scrape (the
+            # handler returns an empty list the caller records), so on a
+            # normal run it must still leave a cause line in the log.
             logger.error(
-                "[DEBUG] Navigation failed after %.1fs: %s: %s "
+                "Navigation failed after %.1fs: %s: %s "
                 "(readyState=%s) — 'Response not received' indicates a CDP timeout, "
                 "not a page-load timeout",
                 time.monotonic() - nav_start,
@@ -289,7 +292,7 @@ def scrape_amazon_products_browser_impl(
                 e,
                 ready_state,
             )
-            logger.debug("[DEBUG] Traceback: %s", traceback.format_exc())
+            logger.debug("Traceback: %s", traceback.format_exc())
             return []
 
         # Outside the handler above, which swallows everything and returns an
@@ -309,35 +312,34 @@ def scrape_amazon_products_browser_impl(
 
                 driver.run_js(f"window.resizeTo({width}, {height});")
                 logger.debug(
-                    "[DEBUG] Set browser window size to %sx%s via JavaScript",
+                    "Set browser window size to %sx%s via JavaScript",
                     width,
                     height,
                 )
             except Exception as e:
-                logger.warning("[DEBUG] Could not set window size: %s", e)
+                logger.debug("Could not set window size: %s", e)
 
         if DEBUG_MODE:
-            logger.debug("[DEBUG] Short sleep before continuing...")
+            logger.debug("Short sleep before continuing...")
         driver.short_random_sleep()
 
         if DEBUG_MODE:
             nav_time = time.time() - nav_start
-            logger.debug("[DEBUG] Navigation completed in %.2f seconds", nav_time)
+            logger.debug("Navigation completed in %.2f seconds", nav_time)
 
             # Add page info for debugging and error detection
             try:
                 current_url = driver.current_url
                 page_title = driver.title[:50] if driver.title else "No title"
-                logger.debug("[DEBUG] Current URL: %s", current_url)
-                logger.debug("[DEBUG] Page title: %s", page_title)
+                logger.debug("Current URL: %s", current_url)
+                logger.debug("Page title: %s", page_title)
 
             except Exception as e:
-                logger.warning("[DEBUG] Could not get page info: %s", e)
+                logger.debug("Could not get page info: %s", e)
 
         # Check for CAPTCHA or bot detection
         if driver.is_bot_detected():
-            logger.error("Bot detection triggered!")
-            logger.error("[DEBUG] Bot detection triggered - returning 0 products")
+            logger.error("Bot detection triggered - returning 0 products")
             if DEBUG_MODE:
                 # Take error screenshot if enabled in config (default: enabled)
                 try:
@@ -348,27 +350,21 @@ def scrape_amazon_products_browser_impl(
                     )
                     if save_error_screenshots:
                         driver.save_screenshot()
-                        logger.warning(
-                            "[DEBUG] Bot detection triggered" " - screenshot saved"
-                        )
+                        logger.debug("Bot detection triggered" " - screenshot saved")
                     else:
-                        logger.warning(
-                            "[DEBUG] Bot detection triggered" " - screenshot disabled"
-                        )
+                        logger.debug("Bot detection triggered" " - screenshot disabled")
                 except Exception:
                     driver.save_screenshot()  # Fallback to always save
-                    logger.warning(
-                        "[DEBUG] Bot detection triggered" " - screenshot saved"
-                    )
+                    logger.debug("Bot detection triggered" " - screenshot saved")
                 logger.debug(
-                    "[DEBUG] Continuing without manual intervention for browser "
+                    "Continuing without manual intervention for browser "
                     "visibility testing"
                 )
             return []
 
         # Get product cards from search results (with timeout to prevent long waits)
         if DEBUG_MODE:
-            logger.info("[DEBUG] Searching for product cards...")
+            logger.debug("Searching for product cards...")
 
         try:
             # Get search result selector from config - try more specific selectors first
@@ -403,7 +399,7 @@ def scrape_amazon_products_browser_impl(
 
             for selector in product_selectors:
                 if DEBUG_MODE:
-                    logger.info("[DEBUG] Trying selector: %s", selector)
+                    logger.debug("Trying selector: %s", selector)
                 try:
                     # Now try to select without wait since we already waited
                     cards = driver.select_all(selector)
@@ -435,16 +431,16 @@ def scrape_amazon_products_browser_impl(
 
                         search_selector = selector
                         if DEBUG_MODE:
-                            logger.info("[DEBUG] Using selector: %s", selector)
-                            logger.info(
-                                "[DEBUG] Found %d product cards",
+                            logger.debug("Using selector: %s", selector)
+                            logger.debug(
+                                "Found %d product cards",
                                 len(product_cards),
                             )
                         break
                 except Exception as e:
                     if DEBUG_MODE:
-                        logger.error(
-                            "[DEBUG] Selector '%s' failed: %s",
+                        logger.debug(
+                            "Selector '%s' failed: %s",
                             selector,
                             str(e)[:100],
                         )
@@ -453,8 +449,8 @@ def scrape_amazon_products_browser_impl(
             # If no cards found, try one final wait for basic content
             if not product_cards:
                 if DEBUG_MODE:
-                    logger.warning(
-                        "[DEBUG] No product cards found with immediate selectors, "
+                    logger.debug(
+                        "No product cards found with immediate selectors, "
                         "trying with wait..."
                     )
                 try:
@@ -474,36 +470,36 @@ def scrape_amazon_products_browser_impl(
                                 search_selector = selector
                                 if DEBUG_MODE:
                                     logger.debug(
-                                        "[DEBUG] Found %d cards with wait: %s",
+                                        "Found %d cards with wait: %s",
                                         len(product_cards),
                                         selector,
                                     )
                                 break
                         except Exception as e:
                             if DEBUG_MODE:
-                                logger.warning(
-                                    "[DEBUG] Wait failed for selector %s: %s",
+                                logger.debug(
+                                    "Wait failed for selector %s: %s",
                                     selector,
                                     e,
                                 )
                             continue
                 except Exception:
                     if DEBUG_MODE:
-                        logger.error("[DEBUG] Even basic wait failed")
+                        logger.debug("Even basic wait failed")
 
             if DEBUG_MODE:
-                logger.info(
-                    "[DEBUG] Final result: %d product cards",
+                logger.debug(
+                    "Final result: %d product cards",
                     len(product_cards),
                 )
         except Exception as e:
             if DEBUG_MODE:
-                logger.warning("[DEBUG] Exception in product card search: %s", e)
+                logger.debug("Exception in product card search: %s", e)
             product_cards = []
 
         if not product_cards:
             if DEBUG_MODE:
-                logger.error("[DEBUG] No product cards found")
+                logger.debug("No product cards found")
                 # Take error screenshot if enabled in config (default: enabled)
                 try:
                     save_error_screenshots = (
@@ -541,8 +537,8 @@ def scrape_amazon_products_browser_impl(
                 # Extract product info from card
                 serp_info = extract_serp_product_info(card, keyword)
                 if DEBUG_MODE:
-                    logger.info(
-                        "[DEBUG] Processing card %d/%d: serp_info=%s, url=%s",
+                    logger.debug(
+                        "Processing card %d/%d: serp_info=%s, url=%s",
                         i + 1,
                         len(product_cards),
                         "" if serp_info else "",
@@ -553,8 +549,8 @@ def scrape_amazon_products_browser_impl(
                     # Check for duplicate ASIN before processing
                     if serp_info.asin in processed_asins:
                         if DEBUG_MODE:
-                            logger.warning(
-                                "[DEBUG] Skipping duplicate ASIN: %s",
+                            logger.debug(
+                                "Skipping duplicate ASIN: %s",
                                 serp_info.asin,
                             )
                         i += 1
@@ -584,8 +580,8 @@ def scrape_amazon_products_browser_impl(
                     )
                     if DEBUG_MODE:
                         result_status = "" if product_data else ""
-                        logger.info(
-                            "[DEBUG] Product extraction result: %s",
+                        logger.debug(
+                            "Product extraction result: %s",
                             result_status,
                         )
 
@@ -607,8 +603,8 @@ def scrape_amazon_products_browser_impl(
                                 if DEBUG_MODE:
                                     img_count = len(product_data.get("images", []))
                                     vid_count = len(product_data.get("videos", []))
-                                    logger.info(
-                                        "[DEBUG] Product %d/%d with media "
+                                    logger.debug(
+                                        "Product %d/%d with media "
                                         "(ASIN: %s, %d images, %d videos)",
                                         products_with_media_count,
                                         max_products,
@@ -620,17 +616,16 @@ def scrape_amazon_products_browser_impl(
                                 # Stop when we have enough products with media
                                 if products_with_media_count >= max_products:
                                     if DEBUG_MODE:
-                                        logger.info(
-                                            "[DEBUG] Reached target: "
+                                        logger.debug(
+                                            "Reached target: "
                                             "%d products with media files!",
                                             max_products,
                                         )
                                     break
                             else:
                                 if DEBUG_MODE:
-                                    logger.warning(
-                                        "[DEBUG] Product %d "
-                                        "(ASIN: %s) has no media URLs",
+                                    logger.debug(
+                                        "Product %d " "(ASIN: %s) has no media URLs",
                                         i + 1,
                                         serp_info.asin,
                                     )
@@ -639,8 +634,8 @@ def scrape_amazon_products_browser_impl(
                             products.append(product_data)
                             if len(products) >= max_products:
                                 if DEBUG_MODE:
-                                    logger.info(
-                                        "[DEBUG] Reached target: " "%d products total",
+                                    logger.debug(
+                                        "Reached target: " "%d products total",
                                         max_products,
                                     )
                                 break
@@ -653,7 +648,7 @@ def scrape_amazon_products_browser_impl(
                     )
                     if current_count < max_products and i < len(product_cards) - 1:
                         if DEBUG_MODE:
-                            logger.debug("[DEBUG] Navigating back to search results...")
+                            logger.debug("Navigating back to search results...")
                         back_nav_start = time.monotonic()
                         try:
                             driver.google_get(search_url, bypass_cloudflare=True)
@@ -664,22 +659,23 @@ def scrape_amazon_products_browser_impl(
                             if new_product_cards and len(new_product_cards) > i:
                                 product_cards = new_product_cards
                                 if DEBUG_MODE:
-                                    logger.info(
-                                        "[DEBUG] Found %d cards",
+                                    logger.debug(
+                                        "Found %d cards",
                                         len(product_cards),
                                     )
                             else:
                                 if DEBUG_MODE:
-                                    logger.warning(
-                                        "[DEBUG] No product cards" " after navigation"
-                                    )
+                                    logger.debug("No product cards" " after navigation")
                                 break
                         except Exception as e:
                             # Back-navigation between products: same CDP-timeout class
                             # as the initial nav. Log elapsed + type so a stalled CDP
                             # endpoint is distinguishable from a missing element.
+                            # WARNING, ungated: the break silently truncates
+                            # the page's collection, so the cause must be
+                            # visible on a normal run.
                             logger.warning(
-                                "[DEBUG] Back-navigation failed after %.1fs: %s: %s",
+                                "Back-navigation failed after %.1fs: %s: %s",
                                 time.monotonic() - back_nav_start,
                                 type(e).__name__,
                                 e,
@@ -687,8 +683,8 @@ def scrape_amazon_products_browser_impl(
                             break  # Break if navigation fails
                 else:
                     if DEBUG_MODE:
-                        logger.warning(
-                            "[DEBUG] Skipping card %d - no valid product info",
+                        logger.debug(
+                            "Skipping card %d - no valid product info",
                             i + 1,
                         )
 
@@ -697,13 +693,13 @@ def scrape_amazon_products_browser_impl(
 
             except Exception as e:
                 if DEBUG_MODE:
-                    logger.error("[DEBUG] Error processing card %d: %s", i + 1, e)
+                    logger.debug("Error processing card %d: %s", i + 1, e)
                 i += 1  # Continue to next card instead of breaking
                 continue
 
     # Final verification
     if DEBUG_MODE:
-        logger.info("[DEBUG] Extracted %d products total", len(products))
+        logger.debug("Extracted %d products total", len(products))
 
         # Verify we have the expected number of products
         if count_products_with_media:
@@ -1007,7 +1003,7 @@ def create_dynamic_browser_function(debug_mode=False):
                 # evidence that the connection works.
                 raise
             if DEBUG_MODE:
-                logger.error("[DEBUG] Browser function error: %s", e)
+                logger.debug("Browser function error: %s", e)
                 import traceback
 
                 logger.debug(traceback.format_exc())
@@ -1164,29 +1160,29 @@ def scrape_single_product(
         """)
 
     if DEBUG_MODE:
-        logger.info("[DEBUG] Browser should be visible now - Amazon page loaded!")
-        logger.info("[DEBUG] Current URL: %s", driver.current_url)
+        logger.debug("Browser should be visible now - Amazon page loaded!")
+        logger.debug("Current URL: %s", driver.current_url)
         try:
             page_title = driver.title
-            logger.info("[DEBUG] Page title: %s", page_title)
+            logger.debug("Page title: %s", page_title)
 
         except Exception as e:
-            logger.info("[DEBUG] Page title: Unable to get (%s)", e)
+            logger.debug("Page title: Unable to get (%s)", e)
 
         # Additional browser visibility information
-        logger.info("[DEBUG] Browser window info:")
+        logger.debug("Browser window info:")
         try:
             current_url = driver.current_url
-            logger.info("   Current URL: %s", current_url)
+            logger.debug("   Current URL: %s", current_url)
         except Exception as e:
-            logger.info("   Current URL: Unable to get (%s)", e)
+            logger.debug("   Current URL: Unable to get (%s)", e)
 
         try:
             # Check window size using JavaScript (Botasaurus-compatible)
             window_size = driver.run_js(
                 "return {width: window.outerWidth, height: window.outerHeight};"
             )
-            logger.info(
+            logger.debug(
                 "   • Window size: %sx%s",
                 window_size.get("width", "Unknown"),
                 window_size.get("height", "Unknown"),
@@ -1196,26 +1192,26 @@ def scrape_single_product(
             window_position = driver.run_js(
                 "return {x: window.screenX, y: window.screenY};"
             )
-            logger.info(
+            logger.debug(
                 "   • Window position: %s,%s",
                 window_position.get("x", "Unknown"),
                 window_position.get("y", "Unknown"),
             )
         except Exception as e:
-            logger.info("   Window info: Unable to get (%s)", e)
+            logger.debug("   Window info: Unable to get (%s)", e)
 
         try:
             # Use driver properties instead of methods
-            logger.info("   Browser session active: Yes")
+            logger.debug("   Browser session active: Yes")
         except Exception as e:
-            logger.info("   Browser session: Error (%s)", e)
+            logger.debug("   Browser session: Error (%s)", e)
 
-        logger.info("   Driver type: %s", type(driver).__name__)
-        logger.info("   Browser name: %s", getattr(driver, "name", "Unknown"))
+        logger.debug("   Driver type: %s", type(driver).__name__)
+        logger.debug("   Browser name: %s", getattr(driver, "name", "Unknown"))
 
         debug_pause = get_settings().global_settings.rate_limiting.debug_pause_duration
         logger.debug(
-            "[DEBUG] Pausing for %s seconds so you can see the browser...",
+            "Pausing for %s seconds so you can see the browser...",
             debug_pause,
         )
         time.sleep(debug_pause)

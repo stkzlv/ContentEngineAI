@@ -513,7 +513,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             # Use the dynamic Botasaurus browser function with current debug settings
             if self.debug_mode:
                 self.logger.debug(
-                    "[DEBUG] Creating dynamic browser function with " "DEBUG_MODE=%s",
+                    "Creating dynamic browser function with " "DEBUG_MODE=%s",
                     self.debug_mode,
                 )
 
@@ -521,25 +521,25 @@ class BotasaurusAmazonScraper(BaseScraper):
                 browser_func = create_dynamic_browser_function(self.debug_mode)
                 if self.debug_mode:
                     self.logger.debug(
-                        "[DEBUG] browser_func type: %s",
+                        "browser_func type: %s",
                         type(browser_func),
                     )
-                    self.logger.debug("[DEBUG] browser_func: %s", browser_func)
+                    self.logger.debug("browser_func: %s", browser_func)
                     self.logger.debug(
-                        "[DEBUG] Calling browser_func with data: %s",
+                        "Calling browser_func with data: %s",
                         data,
                     )
                 results = self._scrape_with_retry(browser_func, data)
                 self.logger.debug(
-                    "[DEBUG] browser_func returned %d products",
+                    "browser_func returned %d products",
                     len(results) if results else 0,
                 )
             except Exception as e:
                 if self.debug_mode:
-                    self.logger.error("[DEBUG] Error in browser function: %s", e)
+                    self.logger.debug("Error in browser function: %s", e)
                     import traceback
 
-                    self.logger.error("[DEBUG] Traceback: %s", traceback.format_exc())
+                    self.logger.debug("Traceback: %s", traceback.format_exc())
                 raise
 
             # Download media for scraped products
@@ -692,7 +692,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     else "N/A"
                 )
                 self.logger.debug(
-                    "[DEBUG] Processing download_results: " "type=%s, length=%s",
+                    "Processing download_results: " "type=%s, length=%s",
                     type(download_results),
                     length_str,
                 )
@@ -700,7 +700,7 @@ class BotasaurusAmazonScraper(BaseScraper):
             for i, dl_result in enumerate(download_results):
                 if self.debug_mode:
                     self.logger.debug(
-                        "[DEBUG] Processing result %d: type=%s",
+                        "Processing result %d: type=%s",
                         i,
                         type(dl_result),
                     )
@@ -712,7 +712,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                         img_count = len(dl_result.get("downloaded_images", []))
                         vid_count = len(dl_result.get("downloaded_videos", []))
                         self.logger.debug(
-                            "[DEBUG] Mapped download result for ASIN: "
+                            "Mapped download result for ASIN: "
                             "%s (images: %d, videos: %d)",
                             asin,
                             img_count,
@@ -727,7 +727,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     )
                     result_preview = str(dl_result)[:result_preview_length]
                     self.logger.debug(
-                        "[DEBUG] Skipping invalid result %d: " "%s, preview: %s...",
+                        "Skipping invalid result %d: " "%s, preview: %s...",
                         i,
                         type(dl_result),
                         result_preview,
@@ -1159,7 +1159,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         while True:
             try:
                 if self.debug_mode:
-                    self.logger.debug("[DEBUG] Attempting scrape with retry logic")
+                    self.logger.debug("Attempting scrape with retry logic")
                 result = browser_func(data)
             except RuntimeError as e:
                 if not is_error_page_failure(e):

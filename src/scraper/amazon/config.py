@@ -140,9 +140,11 @@ def get_output_path(path_type: str, **kwargs) -> str:
             }
 
             fallback_path = fallback_paths.get(path_type, outputs_base)
-            print(
-                f" Config fallback: Using path '{fallback_path}' "
-                f"for type '{path_type}' (error: {e})"
+            logger.warning(
+                "Config fallback: using path '%s' for type '%s' (error: %s)",
+                fallback_path,
+                path_type,
+                e,
             )
             return fallback_path
 
@@ -163,9 +165,12 @@ def get_output_path(path_type: str, **kwargs) -> str:
             }
 
             ultimate_path = ultimate_fallback.get(path_type, f"{current_dir}/outputs")
-            print(
-                f" Ultimate fallback: Using path '{ultimate_path}' "
-                f"for type '{path_type}' (errors: {e}, {fallback_error})"
+            logger.warning(
+                "Ultimate fallback: using path '%s' for type '%s' " "(errors: %s, %s)",
+                ultimate_path,
+                path_type,
+                e,
+                fallback_error,
             )
             return ultimate_path
 
@@ -207,9 +212,12 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             }
             pattern = fallback_patterns.get(file_type, "{keyword}_{file_type}.{ext}")
             formatted_pattern = str(pattern).format(**kwargs)
-            print(
-                f" Config fallback: Using filename pattern "
-                f"'{formatted_pattern}' for type '{file_type}' (error: {e})"
+            logger.warning(
+                "Config fallback: using filename pattern '%s' for type '%s' "
+                "(error: %s)",
+                formatted_pattern,
+                file_type,
+                e,
             )
             return formatted_pattern
 
@@ -230,9 +238,13 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             else:
                 safe_filename += ".txt"
 
-            print(
-                f" Ultimate fallback: Using safe filename '{safe_filename}' "
-                f"for type '{file_type}' (errors: {e}, {fallback_error})"
+            logger.warning(
+                "Ultimate fallback: using safe filename '%s' for type '%s' "
+                "(errors: %s, %s)",
+                safe_filename,
+                file_type,
+                e,
+                fallback_error,
             )
             return safe_filename
 
