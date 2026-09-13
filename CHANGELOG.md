@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.117.0] - 2026-09-13
+
 ### Changed
 - The three smallest batch/standalone duplications live once each: the render pipeline's secrets collection (previously the "add the env var in BOTH files" rule), the random-profile eligibility rule (previously restated at four sites, only one of which governed the batch), and the nine shared render-override flags with their subtitle-override application (previously two parser copies whose declare-and-apply split is how a flag shipped inert on the batch).
 

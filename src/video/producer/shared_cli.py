@@ -5,6 +5,12 @@ when each parser carried its own copy: a flag declared in both parsers but
 applied in only one path is how `--cta` shipped inert on the batch, with
 tests that grepped for the symbols and passed. One definition makes
 declare-and-apply one unit.
+
+A NEW flag still needs two batch-side hops beside this module: a
+`GlobalBatchConfig` field and its copy in `src/pipeline/config.py`'s
+loader. `subtitle_render_overrides`'s `getattr(..., None)` masks a
+missing config attribute -- the flag would parse on both CLIs, work on
+the producer, and be silently inert on the batch.
 """
 
 from __future__ import annotations
