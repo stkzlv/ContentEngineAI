@@ -93,7 +93,7 @@ global_batch:
   # Each side rotates through its own pool on its own days (consecutive
   # topic days take consecutive pool entries), and the choice is stateless:
   # the date decides, nothing is written.
-  alternate_formats: false
+  alternate_formats: true
 
   # Maximum total products to collect across all keywords (global cap)
   # Processing stops when this limit is reached, even if keywords remain

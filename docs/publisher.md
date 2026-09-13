@@ -1273,7 +1273,7 @@ recurring_schedule:
       time: "10:00:00"
     - day_of_week: wednesday
       time: "10:00:00"
-    # ... daily slots at 10:00 and 22:00 CET
+    # ... one daily slot at 10:00 CET
 ```
 
 **CLI Usage:**
