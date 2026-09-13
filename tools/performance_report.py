@@ -18,11 +18,20 @@ import csv
 import io
 import json
 import math
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.utils.performance import PerformanceHistoryManager, PipelineRunMetrics
+# Invoked as `python tools/performance_report.py`, so the repo root is not on
+# sys.path (sys.path[0] is tools/). The project is not an installed package
+# (package-mode = false), so `src` is importable only once the root is added.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.utils.performance import (  # noqa: E402
+    PerformanceHistoryManager,
+    PipelineRunMetrics,
+)
 
 
 def _percentile(sorted_values: list[float], pct: float) -> float:
