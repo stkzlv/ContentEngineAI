@@ -216,20 +216,34 @@ class TestCliInputsStillWin:
 
 
 class TestTheBundledConfigCarriesBoth:
-    """The shipped file is what a fresh install's no-flag run reads."""
+    """The shipped file is what a fresh install's no-flag run reads.
 
-    def test_a_no_flag_run_produces_both_formats(self):
-        config = load_global_batch_config(argparse.Namespace())
+    The bundled config alternates formats by date parity, so each side is
+    asserted under a pinned draw: the point is that BOTH sides are
+    configured and reachable, which a single unpinned load can no longer
+    show on any one day.
+    """
 
-        assert config.keywords, "no configured keywords"
-        assert config.topics, (
-            "a run with no input flags still produces product renders only, "
+    def test_a_no_flag_run_can_produce_both_formats(self):
+        from unittest.mock import patch
+
+        with patch("src.pipeline.config.format_for_run", return_value="product"):
+            product_day = load_global_batch_config(argparse.Namespace())
+        with patch("src.pipeline.config.format_for_run", return_value="topic"):
+            topic_day = load_global_batch_config(argparse.Namespace())
+
+        assert product_day.keywords, "no configured keywords on a product day"
+        assert topic_day.topics, (
+            "a run with no input flags cannot draw the topic side, "
             "so the tutorial arm cannot be part of the cadence"
         )
 
     def test_the_configured_topics_are_renderable(self, real_video_config):
         """A topic whose profile pool is empty fails at gather_visuals."""
-        config = load_global_batch_config(argparse.Namespace())
+        from unittest.mock import patch
+
+        with patch("src.pipeline.config.format_for_run", return_value="topic"):
+            config = load_global_batch_config(argparse.Namespace())
         config.skip_publish = True
 
         validate_global_batch_config(config, real_video_config)

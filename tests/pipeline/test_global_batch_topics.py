@@ -72,9 +72,13 @@ class TestTopicsAreAnInputSource:
 
         The no-flag run now also carries the configured topics -- see
         `test_configured_topics.py` -- so this asserts the keyword half is
-        still there, not that the topic half is absent.
+        still there, not that the topic half is absent. The bundled config
+        alternates formats, so the product side is pinned.
         """
-        config = load_global_batch_config(_args())
+        from unittest.mock import patch
+
+        with patch("src.pipeline.config.format_for_run", return_value="product"):
+            config = load_global_batch_config(_args())
 
         assert config.keywords, "the no-flag run lost its YAML keyword list"
 

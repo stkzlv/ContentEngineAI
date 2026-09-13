@@ -409,8 +409,8 @@ ratio for it at all.
 Repeat runs are safe. Readings merge per field, and a later, better figure
 replaces an earlier partial one. They are not free, though: a sweep costs one
 timeline call per measured post plus the paging to list them, so the shipped
-size is roughly 73 requests. That is most of one hour on the standard tier's
-100, so a daily sweep fits but should not share its hour with a publish run;
+size is roughly 52 requests -- about half of one hour on the standard tier's
+100. A daily sweep fits but should not share its hour with a publish run;
 several times an hour does not fit at all. A rate-limited timeline call is not
 retried, and the sweep walks newest-first, so what a 429 costs is the oldest
 posts measured -- the ones whose ratio window is about to close.

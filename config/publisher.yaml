@@ -434,7 +434,7 @@ synthetic_media_disclosure: false
 # taken. A test asserts the two shipped values against each other.
 #
 # Cost scales with it. A sweep is one timeline call per measured post plus the
-# paging to list them, so 70 is roughly 73 requests -- most of the standard
+# paging to list them, so 50 is roughly 52 requests -- about half the standard
 # tier's hundred an hour. A daily sweep fits, but should not share its hour
 # with a publish run; several times an hour does not fit at all. A
 # rate-limited timeline call is not retried, and the sweep walks
