@@ -434,7 +434,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--outputs-dir",
         type=Path,
         default=Path("outputs"),
-        help="Directory to scan for products (default: outputs).",
+        help="Directory to scan for products (default: the repo outputs/).",
     )
     parser.add_argument(
         "--fail-fast",

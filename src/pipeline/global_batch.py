@@ -362,7 +362,10 @@ Examples:
         type=str,
         default="outputs",
         metavar="PATH",
-        help="Directory for scraper output and producer input (default: outputs)",
+        help=(
+            "Directory for scraper output and producer input "
+            "(default: the repo outputs/)"
+        ),
     )
     common_group.add_argument(
         "--debug",

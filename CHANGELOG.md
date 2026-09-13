@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.1] - 2026-09-13
+
 ### Fixed
 - Output and config paths anchor on the repository instead of the working directory. Cwd-relative defaults had planted stray `outputs/` trees wherever a command ran from -- inside `src/` once, twice under `tests/` -- and the unanchored gitignore hid every one of them. All hand-counted parent-directory chains, in both spellings, are replaced by the one shared project-root helper; the batch's outputs directory and the config adapters' default root anchor the same way, so a foreign-cwd run neither scatters its tree nor silently loads model defaults in place of the operator's config. A structural test bans the chain pattern from returning, the gitignore is anchored so a future stray tree shows in `git status`, and the existing stray trees are deleted.
 

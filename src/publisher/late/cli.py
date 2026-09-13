@@ -1483,7 +1483,7 @@ Examples:
         "--outputs-dir",
         type=Path,
         default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to scan for videos (default: outputs/)",
+        help="Directory to scan for videos (default: the repo outputs/)",
     )
     schedule_parser.add_argument(
         "--immediate",
@@ -1553,7 +1553,7 @@ Examples:
         "--outputs-dir",
         type=Path,
         default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to scan for products (default: outputs/)",
+        help="Directory to scan for products (default: the repo outputs/)",
     )
     cleanup_parser.add_argument(
         "--dry-run",

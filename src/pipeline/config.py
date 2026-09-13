@@ -1246,8 +1246,6 @@ def load_global_batch_config(
     # repo -- the log and the data disagreeing about where the run happened.
     # An absolute path from the operator is taken as given.
     if not outputs_dir.is_absolute():
-        from src.utils.outputs_paths import get_project_root
-
         outputs_dir = get_project_root() / outputs_dir
 
     debug = getattr(cli_args, "debug", False) or yaml_config.get("debug", False)
