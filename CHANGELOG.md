@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.3] - 2026-09-13
+
+### Fixed
+- The remaining silent-truncation branches in the scraper's card loop log unconditionally: back-navigation succeeding onto a cardless page (which stops the page's collection) and a failed card (which loses that product) both warn on a normal run now -- as does the extractor's own swallow one call down, where a product page that was reached but failed extraction lost its product with no line at all -- and the level test pins all five sites against re-gating or demotion.
+
 ## [0.116.2] - 2026-09-13
 
 ### Fixed

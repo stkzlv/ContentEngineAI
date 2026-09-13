@@ -306,8 +306,10 @@ def extract_product_data_from_page(
         return product_data
 
     except Exception as e:
-        if DEBUG_MODE:
-            logger.error(f"Error extracting product data for {asin}: {e}")
+        # WARNING, ungated: the product page was reached and its product is
+        # lost to the run here; under the debug gate a normal run recorded
+        # nothing at all for the loss (#466's class, one call down).
+        logger.warning("Error extracting product data for %s: %s", asin, e)
         return None
 
 
