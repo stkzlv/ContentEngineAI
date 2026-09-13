@@ -23,7 +23,6 @@ a batch running when the primary provider is rate-limited.
 
 from __future__ import annotations
 
-import json
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -37,7 +36,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["model_reject_reason"]
+__all__ = [
+    "discover_any_free_model",
+    "fetch_and_select_model",
+    "model_reject_reason",
+]
 
 
 def _output_modality_reason(model: dict[str, Any]) -> str | None:

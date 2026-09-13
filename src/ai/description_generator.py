@@ -15,7 +15,6 @@ The generated descriptions include relevant hashtags and are optimized for socia
 
 import asyncio
 import logging
-import random
 import re
 import unicodedata
 from pathlib import Path
