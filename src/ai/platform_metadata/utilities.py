@@ -14,11 +14,11 @@ import aiohttp
 
 from src.ai.description_generator import (
     _call_llm_api_with_retry,
-    _fetch_and_select_model,
     format_prompt,
     load_prompt_template,
     strip_single_asterisk_emphasis,
 )
+from src.ai.model_pool import fetch_and_select_model
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.scraper.amazon.scraper import ProductData
 from src.video.config.llm_settings import LLMSettings
@@ -64,32 +64,6 @@ __all__ = [
     "generate_with_llm",
     "save_metadata_to_file",
 ]
-
-
-async def fetch_and_select_model(
-    settings: LLMSettings,
-    api_key: str,
-    session: aiohttp.ClientSession,
-    api_settings=None,
-) -> list[str]:
-    """Fetch available models from OpenRouter and return free models to try.
-
-    This is a thin wrapper around description_generator._fetch_and_select_model()
-    that provides a cleaner public interface.
-
-    Args:
-    ----
-        settings: LLM configuration settings
-        api_key: API key for authentication
-        session: Aiohttp session for API calls
-        api_settings: Optional API-specific settings override
-
-    Returns:
-    -------
-        List of free model IDs to try (ordered or shuffled based on settings)
-
-    """
-    return await _fetch_and_select_model(settings, api_key, session, api_settings)
 
 
 async def call_llm_api_with_retry(

@@ -559,7 +559,7 @@ class TestGenerateScript:
         secrets = {"OPENROUTER_API_KEY": "test_key"}
         intermediate_paths = {"formatted_prompt": temp_dir / "prompt.txt"}
 
-        # Mock response for session.get (for _fetch_and_select_model)
+        # Mock response for session.get (for fetch_and_select_model)
         mock_get_response = AsyncMock()
         mock_get_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
             None,

@@ -37,7 +37,7 @@ class BasePlatformMetadataGenerator(ABC):
     Shared utilities from description_generator.py:
     - load_prompt_template(): Load prompt templates from files
     - format_prompt(): Inject product data into templates
-    - _fetch_and_select_model(): Auto-select free LLM models
+    - fetch_and_select_model(): Auto-select free LLM models (model_pool)
     - _call_llm_api_with_retry(): Call LLM API with retry logic
     """
 

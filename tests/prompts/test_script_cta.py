@@ -318,7 +318,7 @@ class TestBothEntryPointsCarryTheOverride:
 
         monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", capture)
         monkeypatch.setattr(
-            script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
+            script_generator, "fetch_and_select_model", AsyncMock(return_value=[])
         )
         try:
             returned = await script_generator.generate_script(
@@ -540,7 +540,7 @@ class TestTheGeneratorAppliesItEverywhere:
         calls = AsyncMock(side_effect=responses)
         monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", calls)
         monkeypatch.setattr(
-            script_generator, "_fetch_and_select_model", AsyncMock(return_value=[])
+            script_generator, "fetch_and_select_model", AsyncMock(return_value=[])
         )
         script, _, _ = await script_generator.generate_script(
             _product(),

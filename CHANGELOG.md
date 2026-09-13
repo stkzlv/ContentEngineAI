@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.114.0] - 2026-09-13
+
+### Changed
+- The free-model discovery loops live once, in the shared model-pool module, instead of as byte-identical 211-line copies in the script and description generators. A filter added to one copy used to be silently absent from the other, which is how the unvetted-model class of defect had to be fixed twice; the wiring test now asserts both generators import the shared functions, so a private copy cannot quietly come back.
+
 ## [0.113.0] - 2026-09-13
 
 ### Fixed
