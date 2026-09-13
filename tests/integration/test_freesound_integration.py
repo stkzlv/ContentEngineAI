@@ -15,7 +15,10 @@ import pytest
 from src.audio.freesound_client import FreesoundClient
 
 # Integration test markers
-pytestmark = pytest.mark.integration
+# `external`: these hit the real Freesound API whenever credentials happen
+# to be exported, so the default run excludes them (addopts `-m "not
+# external"`). Run explicitly with `pytest -m external`.
+pytestmark = [pytest.mark.integration, pytest.mark.external]
 
 # Credential availability checks
 HAS_API_KEY = os.getenv("FREESOUND_API_KEY") is not None

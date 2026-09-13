@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The global HTTP connection pool survives event-loop turnover: a cached session is bound to the loop that created it, and `session.closed` stays False when that loop dies, so the cache handed a dead-loop session to the next loop and requests failed with "Event loop is closed" -- as did shutdown, cancelling a cleanup task that belonged to the previous loop. Leftovers from a dead loop are dropped and recreated now.
+
+### Changed
+- The default `pytest` run carries no coverage instrumentation: every targeted test invocation used to pay about 45 seconds of it, write html/xml litter relative to the working directory, and print a false coverage failure. Coverage runs where it is asked for (`make test-cov`, CI) and the 50% floor moved to the coverage config, so it still binds every coverage run.
+- Live-API integration tests carry the `external` marker and the default run excludes them, so a shell with credentials exported no longer hits real services from `make test`.
+- The test tree mirrors the source tree: the test files that sat loose at the tests root moved into their subject directories, two of them renamed where a mirrored file already held the name, and one zero-test report script that only read live outputs was removed.
+
 ## [0.115.0] - 2026-09-13
 
 ### Removed
