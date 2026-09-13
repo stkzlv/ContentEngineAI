@@ -15,7 +15,7 @@ NC := \033[0m # No Color
 
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
-	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
+	docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
@@ -51,8 +51,6 @@ help:
 	@echo "  test-lowpri   - Run tests under a memory cap and low priority"
 	@echo ""
 	@echo "$(GREEN)Build and Package:$(NC)"
-	@echo "  build         - Build the package"
-	@echo "  package       - Create distribution packages"
 	@echo "  docs          - Generate documentation"
 	@echo ""
 	@echo "$(GREEN)Development Workflow:$(NC)"
@@ -208,16 +206,6 @@ test-parallel:
 	poetry run pytest -n $(PYTEST_WORKERS)
 	@echo "$(GREEN)Parallel tests completed!$(NC)"
 
-# Build and package
-build: validate-env
-	@echo "$(BLUE)Building package...$(NC)"
-	@poetry build || { echo "$(RED)Package build failed$(NC)"; exit 1; }
-	@echo "$(GREEN)Package built successfully!$(NC)"
-
-package: build
-	@echo "$(BLUE)Creating distribution packages...$(NC)"
-	@echo "$(GREEN)Distribution packages created in dist/$(NC)"
-
 docs:
 	@echo "$(BLUE)Generating documentation...$(NC)"
 	@echo "$(YELLOW)Documentation generation not yet implemented$(NC)"
@@ -335,7 +323,7 @@ update-deps:
 	@echo "$(GREEN)Dependencies updated!$(NC)"
 
 # Release preparation
-release-prep: clean-all install-dev lint security test-cov build
+release-prep: clean-all install-dev lint security test-cov
 	@echo "$(GREEN)Release preparation completed!$(NC)"
 	@echo "$(BLUE)Ready for release!$(NC)"
 
