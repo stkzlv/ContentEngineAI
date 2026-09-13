@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.111.0] - 2026-09-13
+
+### Added
+- `global_batch.alternate_formats`: a no-flag daily run can draw one content format per day by date parity instead of rendering both, so the two formats interleave day by day at the same posting time -- the shape a fair format-vs-format reach comparison needs. Explicit CLI inputs are unaffected; a drawn side with nothing configured falls back to the other side with a warning rather than losing the scheduled run; each side rotates through its own pool on its own days (the rotation reads a compressed day ordinal, because same-parity ordinals over an even-length pool would visit only half its entries); the dry-run plan names which side the day draws.
+
 ## [0.110.0] - 2026-09-11
 
 ### Added

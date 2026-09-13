@@ -373,6 +373,16 @@ mixed through the week rather than run in blocks, since a block comparison
 cannot separate the format from whatever else changed that week. `registry
 --summary` segments by `content_format` for the same reason.
 
+`alternate_formats: true` goes one step further: instead of both formats in
+one run, date parity picks one side per day, so a daily schedule posts the
+two formats on alternating days at the same time of day. That is the shape a
+fair format comparison needs -- with both formats in one run, publish order
+decides which slot each post takes, and the formats end up pinned to
+different times of day. Explicit CLI inputs are unaffected, a drawn side
+with nothing configured falls back to the other side with a warning, each
+side rotates through its own pool on its own days, and the dry-run plan
+names which side the day draws.
+
 Each record draws from its own profile pool on a mixed run -- topics from the
 stock-sourced profiles, products from the rest -- so no profile has to serve
 both. A fixed `--profile` cannot: one that draws no stock media is refused

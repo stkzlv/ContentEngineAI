@@ -83,6 +83,18 @@ global_batch:
   # 0 = products only.
   topics_per_run: 1
 
+  # One content format per day instead of both. A run with no input flags
+  # normally renders the topic side AND the keyword side together; with this
+  # on, date parity picks one side per day, so the two formats interleave
+  # day by day with posting time held constant -- the shape a fair
+  # format-vs-format reach comparison needs (one post per day, alternating).
+  # Explicit CLI inputs are unaffected. A drawn side with nothing configured
+  # falls back to the other side with a warning rather than losing the run.
+  # Each side rotates through its own pool on its own days (consecutive
+  # topic days take consecutive pool entries), and the choice is stateless:
+  # the date decides, nothing is written.
+  alternate_formats: false
+
   # Maximum total products to collect across all keywords (global cap)
   # Processing stops when this limit is reached, even if keywords remain
   # Default: 10
