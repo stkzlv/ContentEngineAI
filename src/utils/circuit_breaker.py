@@ -255,13 +255,11 @@ class CircuitBreaker:
 def _load_circuit_breaker_config() -> dict[str, Any]:
     """Load circuit breaker settings from config/performance.yaml."""
     try:
-        from pathlib import Path
-
         import yaml
 
-        config_path = (
-            Path(__file__).parent.parent.parent / "config" / "performance.yaml"
-        )
+        from src.utils.outputs_paths import get_project_root
+
+        config_path = get_project_root() / "config" / "performance.yaml"
         if config_path.exists():
             with open(config_path) as f:
                 config = yaml.safe_load(f)

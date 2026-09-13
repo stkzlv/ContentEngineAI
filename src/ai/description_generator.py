@@ -460,7 +460,9 @@ async def generate_description(
 
     # Load and format the description prompt template
     # Use absolute path to ensure it works regardless of working directory
-    project_root = Path(__file__).parent.parent.parent
+    from src.utils.outputs_paths import get_project_root
+
+    project_root = get_project_root()
     template_path = project_root / prompt_path_for(
         product, "src/ai/prompts/video_description.md"
     )

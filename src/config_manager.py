@@ -125,8 +125,17 @@ class SecretsValidationResult:
 class UnifiedConfigManager:
     """Unified configuration manager supporting both video and scraper systems."""
 
-    def __init__(self, config_root: str = "config"):
-        """Initialize the unified config manager."""
+    def __init__(self, config_root: str | None = None):
+        """Initialize the unified config manager.
+
+        The default config root is anchored on the repo, not the working
+        directory: a cwd-relative "config" resolved to nothing (and fell
+        back to defaults, silently) whenever a caller ran from elsewhere.
+        """
+        if config_root is None:
+            from src.utils.outputs_paths import get_project_root
+
+            config_root = str(get_project_root() / "config")
         self.config_root = Path(config_root)
         self.video_adapter = ModularConfigAdapter(config_root)
         self.scraper_adapter = ScraperConfigAdapter(config_root)

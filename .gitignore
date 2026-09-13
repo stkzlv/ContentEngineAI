@@ -65,7 +65,10 @@ samples/
 
 # Debug and output
 debug/
-outputs/
+# Anchored: only the repo-root outputs tree is expected. A stray outputs/
+# planted elsewhere by a cwd-relative path is a bug and must show in git
+# status rather than being silently hidden at any depth.
+/outputs/
 
 # Subtitle files
 *.srt

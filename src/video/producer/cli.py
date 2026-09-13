@@ -787,7 +787,9 @@ async def main():
                 "--profile-pool can only be used with --batch and --random-profile"
             )
 
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    from src.utils.outputs_paths import get_project_root
+
+    project_root = get_project_root()
     load_dotenv(project_root / ".env")
 
     # Build CLI overrides dict from parsed arguments

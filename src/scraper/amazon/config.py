@@ -147,10 +147,12 @@ def get_output_path(path_type: str, **kwargs) -> str:
             return fallback_path
 
         except Exception as fallback_error:
-            # Ultimate fallback - use current directory with subdirectories
-            import os
+            # Ultimate fallback -- anchored on the repo root, not the working
+            # directory: a cwd-relative fallback rerouted every write into a
+            # stray outputs tree wherever the command happened to run from.
+            from src.utils.outputs_paths import get_project_root
 
-            current_dir = os.getcwd()
+            current_dir = str(get_project_root())
             ultimate_fallback = {
                 "base": f"{current_dir}/outputs",
                 "platform": f"{current_dir}/outputs/temp",

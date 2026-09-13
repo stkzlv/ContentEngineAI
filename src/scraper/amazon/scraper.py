@@ -21,6 +21,7 @@ from src.scraper.base.keyword_pillars import (
     rotate_keyword_pool,
 )
 from src.scraper.config_models import ScraperConfig
+from src.utils.outputs_paths import get_project_root
 
 from ...utils.logging_setup import setup_debug_logging
 from ...utils.outputs_paths import get_logs_directory
@@ -256,7 +257,7 @@ class BotasaurusAmazonScraper(BaseScraper):
 
     def _load_config(self, path: str) -> dict[str, Any]:
         """Load YAML configuration file"""
-        project_root = Path(__file__).parent.parent.parent.parent
+        project_root = get_project_root()
         config_path = project_root / path
 
         if not config_path.exists():
@@ -1657,7 +1658,7 @@ def main():
     if args.input_file:
         input_path = Path(args.input_file)
         if not input_path.is_absolute():
-            input_path = Path(__file__).parent.parent.parent.parent / input_path
+            input_path = get_project_root() / input_path
         if input_path.exists():
             with open(input_path, encoding="utf-8") as f:
                 file_ids = [line.strip() for line in f if line.strip()]
@@ -1683,7 +1684,7 @@ def main():
     if not args.keywords and not args.product_ids:
         try:
             # Handle working directory changes from Botasaurus
-            project_root = Path(__file__).parent.parent.parent.parent
+            project_root = get_project_root()
             config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
@@ -1783,7 +1784,7 @@ def main():
     config_debug_mode = False
     if not args.debug and not args.verbose:
         try:
-            project_root = Path(__file__).parent.parent.parent.parent
+            project_root = get_project_root()
             config_path = project_root / "config/scraper.yaml"
             if config_path.exists():
                 with open(config_path, encoding="utf-8") as f:
@@ -1855,7 +1856,7 @@ def main():
 
         # Clean all scraper outputs - comprehensive cleanup
         # Use absolute path to handle Botasaurus working directory changes
-        project_root = Path(__file__).parent.parent.parent.parent
+        project_root = get_project_root()
         base_output_path = project_root / get_output_path("base")
         if base_output_path.exists():
             logger.info("Cleaning all scraper outputs in: %s", base_output_path)

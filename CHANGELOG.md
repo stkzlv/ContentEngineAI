@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Output and config paths anchor on the repository instead of the working directory. Cwd-relative defaults had planted stray `outputs/` trees wherever a command ran from -- inside `src/` once, twice under `tests/` -- and the unanchored gitignore hid every one of them. All hand-counted parent-directory chains are replaced by the one shared project-root helper, a structural test bans the pattern from returning, the gitignore is anchored so a future stray tree shows in `git status`, and the existing stray trees are deleted.
+
 ## [0.116.0] - 2026-09-13
 
 ### Fixed

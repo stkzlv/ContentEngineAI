@@ -40,6 +40,7 @@ from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
 from src.publisher.partial_post_sweep import (
@@ -56,6 +57,7 @@ from src.publisher.schedule import ScheduleManager
 from src.publisher.tracking import is_already_published, record_publish
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
+from src.utils.outputs_paths import get_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -495,7 +497,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
     """
     product_id = args.product_id
-    outputs_dir = Path("outputs").resolve()
+    outputs_dir = DEFAULT_OUTPUTS_DIR.resolve()
     product_dir = outputs_dir / product_id
 
     if not product_dir.exists():
@@ -1480,7 +1482,7 @@ Examples:
     schedule_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help="Directory to scan for videos (default: outputs/)",
     )
     schedule_parser.add_argument(
@@ -1550,7 +1552,7 @@ Examples:
     cleanup_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help="Directory to scan for products (default: outputs/)",
     )
     cleanup_parser.add_argument(
@@ -1602,7 +1604,7 @@ Examples:
     registry_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help="Directory to save registry files (default: outputs)",
     )
     registry_parser.add_argument(
@@ -1638,7 +1640,7 @@ Examples:
     analytics_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help=(
             "Outputs root; post_metrics.json lives under its state/ "
             "subdirectory (default: outputs)"
@@ -1663,7 +1665,7 @@ Examples:
     verify_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help="Directory holding publish_history.json for product names",
     )
     verify_parser.add_argument(
@@ -1685,7 +1687,7 @@ Examples:
     verify_delivery_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
+        default=DEFAULT_OUTPUTS_DIR,
         help="Directory holding publish_history.json for product names",
     )
     verify_delivery_parser.add_argument(
@@ -1730,7 +1732,7 @@ Examples:
             args.force = False
 
     # Load .env
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    project_root = get_project_root()
     load_dotenv(project_root / ".env")
 
     # Setup logging

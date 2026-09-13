@@ -36,8 +36,9 @@ class PlatformConfigManager:
     def _load_config(self) -> dict[str, Any]:
         """Load configuration from YAML file."""
         # Find config file relative to project root
-        current_dir = Path(__file__).parent
-        project_root = current_dir.parent.parent.parent
+        from src.utils.outputs_paths import get_project_root
+
+        project_root = get_project_root()
         config_file = project_root / self.config_path
 
         if not config_file.exists():
