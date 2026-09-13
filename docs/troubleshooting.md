@@ -1143,9 +1143,9 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 | **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports`, in `config/scraper.yaml` |
 | **Pipeline State** | `outputs/{product_id}/temp/pipeline_state.json` | Step completion and recorded artifacts | `create_pipeline_metadata` |
 | **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `create_performance_metrics` |
-| **Whisper Raw Output** | `outputs/{product_id}/temp/<audio-stem>_whisper_result_raw.json` | Raw STT transcription output | `create_whisper_debug_files` |
-| **Whisper vs Script** | `outputs/{product_id}/temp/<audio-stem>_whisper_vs_script.txt` | Transcription vs script comparison | `create_whisper_debug_files` |
-| **Whisper Word List** | `outputs/{product_id}/temp/<audio-stem>_whisper_word_list.json` | Word-level timing data | `create_whisper_debug_files` |
+| **Whisper Raw Output** | `outputs/{product_id}/temp/<audio-stem>_whisper_result_raw.json` | Raw STT transcription output | written when `--debug`/`debug_mode` is on |
+| **Whisper vs Script** | `outputs/{product_id}/temp/<audio-stem>_whisper_vs_script.txt` | Transcription vs script comparison | written when `--debug`/`debug_mode` is on |
+| **Whisper Word List** | `outputs/{product_id}/temp/<audio-stem>_whisper_word_list.json` | Word-level timing data | written when `--debug`/`debug_mode` is on |
 | **Gathered Visuals** | `outputs/{product_id}/temp/gathered_visuals.json` | Visual asset selection metadata | always written |
 | **Music Choice** | `outputs/{product_id}/temp/music_choice.json` | Audio selection metadata | always written, when a provider returned a track |
 | **Script Fact Check** | `outputs/{product_id}/temp/script_fact_check.json` | Flagged claims, their fixes, and the revision verdict | always written, on any render whose fact-check arm ran (`script_fact_check` enabled; the product arm additionally needs `products: true`) |
@@ -1157,8 +1157,10 @@ Edit `config/performance.yaml` to control debug file generation.
 **These switches do not currently work.** `DebugSettings` declares none of
 the `create_*` names, and the model ignores unknown keys, so each consumer
 falls back to its `getattr(..., True)` default and the files are written
-whatever the file says. `create_media_validation_reports` is the exception:
-it is read, from `config/scraper.yaml` rather than from here.
+whatever the file says. Two exceptions: `create_media_validation_reports` is
+read, from `config/scraper.yaml` rather than from here; and the Whisper debug
+files have no key at all any more (the dead `create_whisper_debug_files`
+lookup was removed) -- they are written whenever `debug_mode` is on.
 
 ```yaml
 debug_settings:
@@ -1177,7 +1179,6 @@ debug_settings:
   create_ffmpeg_command_logs: true
   create_pipeline_metadata: true
   create_performance_metrics: true
-  create_whisper_debug_files: true
 ```
 
 **Important:** CLI `--debug` flag overrides these settings and retains all debug files for troubleshooting.
