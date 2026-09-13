@@ -130,7 +130,9 @@ class TestASweepThatCapturesNothing:
             [RuntimeError("one bad post"), MEASURABLE_TIMELINE],
         )
 
-        stored = json.loads((tmp_path / "post_metrics.json").read_text())
+        from src.publisher.analytics import metrics_path
+
+        stored = json.loads(metrics_path(tmp_path).read_text())
         assert [r["post_id"] for r in stored] == ["b"]
         assert stored[0]["views_total"] == 400
 

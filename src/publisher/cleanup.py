@@ -17,6 +17,7 @@ from typing import Any
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR, MAX_CONCURRENT_CLEANUPS
 from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
+from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def get_schedule_entry(
         Schedule entry dict if found, None otherwise
 
     """
-    schedule_path = outputs_dir / "schedule.json"
+    schedule_path = durable_state_path(outputs_dir, "schedule.json")
     if not schedule_path.exists():
         return None
 

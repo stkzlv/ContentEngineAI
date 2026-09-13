@@ -257,10 +257,14 @@ clean-all: clean
 clean-outputs:
 	@echo "$(BLUE)Cleaning up outputs directory...$(NC)"
 	@test -f tools/cleanup_outputs.py || { echo "$(RED)Error: tools/cleanup_outputs.py not found$(NC)"; exit 1; }
+ifeq ($(CONFIRM),1)
+	@poetry run python tools/cleanup_outputs.py
+	@echo "$(GREEN)Outputs cleanup completed!$(NC)"
+else
 	@poetry run python tools/cleanup_outputs.py --dry-run
-	@echo "$(YELLOW)This was a dry run. To perform actual cleanup, run:$(NC)"
-	@echo "$(YELLOW)  poetry run python tools/cleanup_outputs.py$(NC)"
-	@echo "$(GREEN)Outputs cleanup preview completed!$(NC)"
+	@echo "$(YELLOW)This was a dry run. To perform the actual cleanup, run:$(NC)"
+	@echo "$(YELLOW)  make clean-outputs CONFIRM=1$(NC)"
+endif
 
 perf-report:
 	@echo "$(BLUE)Generating performance monitoring report...$(NC)"

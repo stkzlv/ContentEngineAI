@@ -28,6 +28,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from src.utils.outputs_paths import durable_state_path
+
 logger = logging.getLogger(__name__)
 
 # Views after this many days count as durable rather than launch traffic.
@@ -402,7 +404,7 @@ METRICS_FILENAME = "post_metrics.json"
 
 def metrics_path(outputs_dir: Path) -> Path:
     """Where the per-post figures live, beside the other tracking files."""
-    return outputs_dir / METRICS_FILENAME
+    return durable_state_path(outputs_dir, METRICS_FILENAME)
 
 
 def load_metrics(outputs_dir: Path) -> list[PostMetrics]:

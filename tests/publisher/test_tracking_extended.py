@@ -32,16 +32,18 @@ class TestAtomicSaveTracking:
         deep_dir = tmp_path / "a" / "b" / "c"
         save_tracking({"posts": {}}, deep_dir)
 
-        tracking_path = deep_dir / "publish_history.json"
-        assert tracking_path.exists()
+        from src.publisher.tracking import get_tracking_path
+
+        assert get_tracking_path(deep_dir).exists()
 
     def test_writes_valid_json(self, outputs_dir):
         """Saved data is valid JSON."""
         data = {"posts": {"key": {"value": "test"}}}
         save_tracking(data, outputs_dir)
 
-        path = outputs_dir / "publish_history.json"
-        loaded = json.loads(path.read_text())
+        from src.publisher.tracking import get_tracking_path
+
+        loaded = json.loads(get_tracking_path(outputs_dir).read_text())
         assert loaded == data
 
     def test_no_temp_file_after_success(self, outputs_dir):
