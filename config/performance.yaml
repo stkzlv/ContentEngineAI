@@ -120,7 +120,6 @@ debug_settings:
   create_ffmpeg_command_logs: true
   create_pipeline_metadata: true
   create_performance_metrics: true
-  create_whisper_debug_files: true
 
   # Performance thresholds (Whisper STT runs 60-120s; peak RSS ~2.3GB)
   operation_timing_threshold_sec: 180.0

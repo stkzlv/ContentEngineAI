@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.118.1] - 2026-09-13
+
+### Fixed
+- Removed a dead import of the deleted `src.video.video_config` module in the Whisper STT path. It lived in the `debug_mode` branch under a bare `except` that always fell back to writing debug files, and the flag it tried to read was never a declared config field, so it was dead in both directions; the referenced module being gone surfaced as a fresh-environment mypy failure once the project stopped installing itself editable (0.118.0). Debug files are still written whenever `debug_mode` is on. The orphaned `create_whisper_debug_files` config key is removed with it.
+
 ## [0.118.0] - 2026-09-13
 
 ### Changed
