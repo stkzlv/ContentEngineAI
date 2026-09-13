@@ -6,9 +6,14 @@ the Botasaurus framework with built-in anti-detection and performance optimizati
 """
 
 import argparse
+import asyncio
+import concurrent.futures
 import logging
+import os
+import re
 import shutil
 import time
+import traceback
 import warnings
 from pathlib import Path
 from typing import Any
@@ -50,6 +55,12 @@ from .constants import (
 )
 from .downloader import download_media_files
 from .models import ProductData, SearchParameters
+
+# `src.video.config_adapter` is imported function-locally on purpose: it
+# resolves the video config, which the scraper package must not load at
+# import. The botasaurus_output/config/batch_controller relatives defer
+# nothing -- the botasaurus stack is already resident via this package's
+# __init__ -- and are kept local only to keep this header small.
 from .utils import validate_asin_format
 
 # Initialize logging BEFORE Botasaurus imports to capture early errors
@@ -537,7 +548,6 @@ class BotasaurusAmazonScraper(BaseScraper):
             except Exception as e:
                 if self.debug_mode:
                     self.logger.debug("Error in browser function: %s", e)
-                    import traceback
 
                     self.logger.debug("Traceback: %s", traceback.format_exc())
                 raise
@@ -1205,7 +1215,6 @@ class BotasaurusAmazonScraper(BaseScraper):
                 return
 
             # Get API key from environment (load .env if available)
-            import os
 
             from dotenv import load_dotenv
 
@@ -1279,7 +1288,6 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             # Shorten affiliate links
-            import asyncio
 
             async def shorten_all():
                 for product in products:
@@ -1307,7 +1315,6 @@ class BotasaurusAmazonScraper(BaseScraper):
                 # Check if we're already in an event loop
                 asyncio.get_running_loop()
                 # We're in an async context, create and await task
-                import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(asyncio.run, shorten_all())
@@ -1851,9 +1858,6 @@ def main():
             )
 
     if args.clean:
-        import re
-        import shutil
-
         # Clean all scraper outputs - comprehensive cleanup
         # Use absolute path to handle Botasaurus working directory changes
         project_root = get_project_root()
@@ -2194,8 +2198,6 @@ def main():
     except Exception as e:
         logger.error("Scraper failed: %s", e)
         if args.debug:
-            import traceback
-
             logger.debug(traceback.format_exc())
         raise
 

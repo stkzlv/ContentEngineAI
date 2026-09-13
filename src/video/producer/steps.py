@@ -5,7 +5,9 @@ import asyncio
 import json
 import logging
 import random
+import re
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -37,6 +39,13 @@ from src.video.producer.context import (
     PipelineContext,
     PipelineError,
 )
+
+# The pycaps engine and its `pycaps.ai` tagger are the survivors that a
+# function-local import genuinely defers: they are the optional group, absent
+# on a default install, so importing them at module scope would break that
+# install. The STT/render modules (`stt_functions`, `unified_subtitle_generator`)
+# are ALREADY resident via the producer package __init__, so their local
+# imports defer nothing and are kept local only to keep this header small.
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
     STEP_CREATE_VOICEOVER,
@@ -969,9 +978,6 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         PipelineError: If description generation fails.
 
     """
-    import re
-    from datetime import UTC, datetime
-
     logger.info("Using unified description generation mode")
 
     try:
@@ -1120,8 +1126,6 @@ async def step_create_voiceover(ctx: PipelineContext):
             trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
 
             try:
-                import subprocess
-
                 # Build silenceremove filter with config settings
                 threshold_db = audio_proc.silence_threshold_db
                 min_duration = audio_proc.silence_min_duration_sec
@@ -1873,8 +1877,6 @@ async def _burn_with_ffmpeg_fallback(
     the caller to fail loudly rather than ship a caption-less video: this is
     a best-effort improvement on aborting, not a second thing that can hide.
     """
-    import json
-
     from src.utils.async_io import async_run_ffmpeg, ffmpeg_semaphore
     from src.video.stt_functions import _extract_word_timings
     from src.video.unified_subtitle_generator import UnifiedSubtitleGenerator

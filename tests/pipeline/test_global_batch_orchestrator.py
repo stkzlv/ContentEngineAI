@@ -588,9 +588,9 @@ async def test_production_phase_random_profile_mode(orchestrator, mock_video_con
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
         patch(
-            "src.video.producer.utils.select_profile_for_product"
+            "src.pipeline.global_batch.select_profile_for_product"
         ) as mock_select_profile,
-        patch("src.video.producer.utils.ProfileUsageTracker") as mock_tracker_class,
+        patch("src.pipeline.global_batch.ProfileUsageTracker") as mock_tracker_class,
     ):
         mock_load_config.return_value = mock_video_config
         mock_session = AsyncMock()
