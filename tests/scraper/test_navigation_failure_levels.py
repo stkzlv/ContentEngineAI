@@ -15,24 +15,36 @@ from pathlib import Path
 SOURCE = Path("src/scraper/amazon/browser_functions.py").read_text(encoding="utf-8")
 
 
-def _level_of(message_fragment: str) -> str:
-    """The logger method invoked for the call carrying the fragment."""
+def _handler_slice(message_fragment: str) -> tuple[str, str]:
+    """(level, source between the enclosing except and the call).
+
+    The slice is what makes "ungated" assertable: a DEBUG_MODE gate wedged
+    between the handler and the call would keep the level intact while
+    silencing the record on every normal run -- the exact regression the
+    pass that created this file caught.
+    """
     idx = SOURCE.index(message_fragment)
     call = SOURCE.rindex("logger.", 0, idx)
+    handler = SOURCE.rindex("except ", 0, call)
     match = re.match(r"logger\.(\w+)", SOURCE[call:])
     assert match is not None
-    return match.group(1)
+    return match.group(1), SOURCE[handler:call]
 
 
-def test_the_initial_navigation_failure_logs_at_error():
-    assert _level_of("Navigation failed after") == "error"
+def test_the_initial_navigation_failure_logs_at_error_ungated():
+    level, between = _handler_slice("Navigation failed after")
+    assert level == "error"
+    assert "DEBUG_MODE" not in between, "the failure record was re-gated"
 
 
-def test_the_back_navigation_failure_logs_at_warning():
-    assert _level_of("Back-navigation failed after") == "warning"
+def test_the_back_navigation_failure_logs_at_warning_ungated():
+    level, between = _handler_slice("Back-navigation failed after")
+    assert level == "warning"
+    assert "DEBUG_MODE" not in between, "the failure record was re-gated"
 
 
 def test_both_levels_survive_a_normal_run_threshold():
-    """The handlers are ungated, so their records must clear INFO."""
-    for name in ("ERROR", "WARNING"):
-        assert logging.getLevelName(name) >= logging.INFO
+    """Derived from the source, so a demotion fails here too."""
+    for fragment in ("Navigation failed after", "Back-navigation failed after"):
+        level, _ = _handler_slice(fragment)
+        assert logging.getLevelName(level.upper()) >= logging.INFO

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.2] - 2026-09-13
+
 ### Fixed
 - Library code stops reporting errors with `print()`: a failed `data.json` write -- the scrape's primary artifact -- was printed to stdout and never reached any log file, and the config loaders' fallback warnings (including the silent whole-config substitution) went the same way. All of them log now, with tracebacks where the error decides something: the failed pipeline-state save that corrupts the next resume, and the status read that decides whether a product directory is deleted.
 - The scraper's `[DEBUG]`-prefixed log lines are re-leveled: diagnostics logged at ERROR/INFO/WARNING (including an expected empty-search outcome at ERROR and one event logged twice in a row) are DEBUG now, without the redundant prefix.
