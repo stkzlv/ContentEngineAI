@@ -527,3 +527,21 @@ def mock_env_vars(monkeypatch):
         monkeypatch.setenv(key, value)
 
     return env_vars
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip `external` live-API tests unless explicitly asked for.
+
+    Deliberately a hook rather than `-m "not external"` in addopts: a CLI
+    `-m` REPLACES the addopts expression, so the documented `-m integration`
+    run re-selected the live-API tests for any shell with credentials
+    exported. The hook composes with every `-m`; opting in is naming
+    `external` in the expression (`pytest -m external`).
+    """
+    markexpr = config.getoption("-m") or ""
+    if "external" in markexpr:
+        return
+    skip = pytest.mark.skip(reason="external service test; run with -m external")
+    for item in items:
+        if "external" in item.keywords:
+            item.add_marker(skip)

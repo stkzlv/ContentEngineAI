@@ -73,7 +73,11 @@ class GlobalConnectionPool:
         return self._session
 
     async def _create_session(self) -> None:
-        """Create a new HTTP session with optimized settings."""
+        """Create a new HTTP session with optimized settings.
+
+        Must stay await-free: get_session's lock swap on loop change relies
+        on the swap-check-create sequence running without suspension.
+        """
         # Configure connection pooling
         connector = aiohttp.TCPConnector(  # type: ignore[attr-defined]
             limit=self.pool_limit,  # Total connection pool size

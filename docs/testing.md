@@ -17,6 +17,9 @@ poetry run pytest tests/video/test_video_config.py -v
 # Run by category
 poetry run pytest -m unit          # Unit tests only
 poetry run pytest -m integration   # Integration tests only
+poetry run pytest -m external      # Live-API tests (skipped everywhere else;
+                                   # a conftest hook composes with any -m, so
+                                   # no expression re-selects them by accident)
 ```
 
 ## Test Categories

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.0] - 2026-09-13
+
 ### Fixed
 - The global HTTP connection pool survives event-loop turnover: a cached session is bound to the loop that created it, and `session.closed` stays False when that loop dies, so the cache handed a dead-loop session to the next loop and requests failed with "Event loop is closed" -- as did shutdown, cancelling a cleanup task that belonged to the previous loop. Leftovers from a dead loop are dropped and recreated now.
 

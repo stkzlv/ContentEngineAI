@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.115.0"
+version = "0.116.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -253,13 +253,14 @@ python_functions = ["test_*"]
 # and printed a false coverage FAILURE on every single-file run. Coverage
 # runs where it is asked for: `make test-cov` and the CI job, which pass
 # --cov explicitly; the floor lives in [tool.coverage.report] fail_under.
+# The `external` live-API tests are excluded by a conftest collection hook
+# rather than an addopts `-m`: a CLI `-m` REPLACES the addopts one, so the
+# documented `-m integration` run would have re-selected them.
 addopts = [
     "--strict-markers",
     "--strict-config",
     "--timeout=300",
     "--timeout-method=thread",
-    "-m",
-    "not external",
 ]
 markers = [
     "unit: Unit tests",
