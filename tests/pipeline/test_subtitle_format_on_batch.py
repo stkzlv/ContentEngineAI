@@ -82,21 +82,23 @@ class TestItReachesTheProducer:
         assert load(tmp_path).subtitle_format is None
 
     def test_it_becomes_the_dotted_override_the_producer_reads(self):
-        """The last hop, and the one a partial wiring would drop silently."""
-        import ast
+        """The last hop, and the one a partial wiring would drop silently.
+
+        Driven through the shared helper both entry points now call rather
+        than an AST walk of the batch: the keys live once in
+        `shared_cli.subtitle_render_overrides`, and the batch's config
+        object carries the same attribute names it reads.
+        """
+        from types import SimpleNamespace
+
+        from src.video.producer.shared_cli import subtitle_render_overrides
+
+        overrides = subtitle_render_overrides(SimpleNamespace(subtitle_format="srt"))
+        assert overrides["subtitle_settings.subtitle_format"] == "srt"
+
+        # And the batch genuinely routes through the helper -- the wiring a
+        # partial refactor would drop.
         from pathlib import Path
 
         source = Path("src/pipeline/global_batch.py").read_text(encoding="utf-8")
-        keys = {
-            node.slice.value
-            for node in ast.walk(ast.parse(source))
-            if isinstance(node, ast.Subscript)
-            and isinstance(node.slice, ast.Constant)
-            and isinstance(node.slice.value, str)
-            and node.slice.value.startswith("subtitle_settings.")
-        }
-
-        assert "subtitle_settings.subtitle_format" in keys, (
-            "the flag is parsed and stored but never handed to the producer, "
-            "so it does nothing"
-        )
+        assert "subtitle_render_overrides(self.config)" in source

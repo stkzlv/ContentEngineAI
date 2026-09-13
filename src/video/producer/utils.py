@@ -21,6 +21,49 @@ logger = logging.getLogger(__name__)
 EXCLUDED_RANDOM_PROFILES = frozenset({"base", "slideshow_stock"})
 
 
+def eligible_random_profiles(config: "VideoConfig") -> list[str]:
+    """The profiles a random draw may take: everything but the non-render
+    and stock-only templates.
+
+    The single definition. This rule used to be restated at four sites
+    across the producer and the batch, and a change to random-selectability
+    had to land in all of them or the batch silently kept the old set.
+    """
+    return [p for p in config.video_profiles if p not in EXCLUDED_RANDOM_PROFILES]
+
+
+def collect_producer_secrets(config: "VideoConfig") -> dict[str, str]:
+    """The env-var secrets the render pipeline needs, resolved from the
+    environment.
+
+    The single definition for both entry points (producer CLI and global
+    batch). The old duplicated blocks are why the project rule said "add
+    the env var in BOTH files or the feature silently falls back in
+    production" -- with one definition, adding the env var to the config
+    model is the whole change.
+    """
+    import os
+
+    secret_names = [
+        config.llm_settings.api_key_env_var,
+        config.stock_media_settings.pexels_api_key_env_var,
+        config.audio_settings.freesound_api_key_env_var,
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        config.audio_settings.freesound_client_id_env_var,
+        config.audio_settings.freesound_client_secret_env_var,
+        config.audio_settings.freesound_refresh_token_env_var,
+    ]
+    # Env vars from audio provider configs are read dynamically.
+    for ap in config.audio_settings.audio_providers:
+        for key in ("client_id_env_var", "api_key_env_var"):
+            env_var = ap.settings.get(key)
+            if env_var and env_var not in secret_names:
+                secret_names.append(env_var)
+    if config.llm_settings.fallback_provider:
+        secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
+    return {name: value for name in secret_names if name and (value := os.getenv(name))}
+
+
 def profile_needs_stock_media(profile: Any) -> bool:
     """Whether this profile will ask the stock provider for anything.
 
@@ -383,7 +426,7 @@ def load_profile_pool(
         pool = yaml_pool
     else:
         # Default to all available profiles, minus non-render templates.
-        pool = [p for p in config.video_profiles if p not in EXCLUDED_RANDOM_PROFILES]
+        pool = eligible_random_profiles(config)
 
     # Validate all profiles exist
     validate_profiles(pool, config)

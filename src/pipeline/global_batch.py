@@ -45,6 +45,10 @@ from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
 from src.utils.outputs_paths import durable_state_path
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
+from src.video.producer.shared_cli import (
+    add_shared_render_args,
+    subtitle_render_overrides,
+)
 
 if TYPE_CHECKING:
     from src.publisher.models import PublisherConfig
@@ -251,87 +255,7 @@ Examples:
             "Example: --profile-pool slideshow_images1 video_sequential"
         ),
     )
-    producer_group.add_argument(
-        "--voice-profile",
-        type=str,
-        metavar="NAME",
-        help="Override voice profile selection for all products.",
-    )
-    producer_group.add_argument(
-        "--script-template",
-        type=str,
-        metavar="NAME",
-        help="Override script template for all products (name without .md).",
-    )
-    producer_group.add_argument(
-        "--cta",
-        type=str,
-        metavar="LINE",
-        help=(
-            "Override the closing call to action for all products (must be "
-            "one of the configured options)."
-        ),
-    )
-    producer_group.add_argument(
-        "--pillar",
-        type=str,
-        metavar="NAME",
-        help=(
-            "Content pillar for the run (e.g. value, novelty, utility). "
-            "Filters template pool and prepends the pillar preamble to the "
-            "LLM prompt. Without this flag, all templates are eligible."
-        ),
-    )
-    producer_group.add_argument(
-        "--subtitle-format",
-        choices=["srt", "ass"],
-        help=(
-            "Subtitle format: srt or ass (with animations). The pycaps engine "
-            "ignores it, and the bundled YAML default is pycaps, so pair this "
-            "with --subtitle-engine ffmpeg to have it apply."
-        ),
-    )
-    producer_group.add_argument(
-        "--subtitle-engine",
-        choices=["ffmpeg", "pycaps"],
-        help=(
-            "Subtitle rendering engine. The bundled YAML selects pycaps. "
-            "'ffmpeg' = SRT/ASS via "
-            "libass. 'pycaps' = animated captions burned post-assembly. "
-            "Install the optional group first: "
-            "`poetry install --with pycaps`."
-        ),
-    )
-    producer_group.add_argument(
-        "--pycaps-template",
-        type=str,
-        metavar="NAME",
-        help=(
-            "Pycaps template name (e.g. word-focus, hype, minimalist). "
-            "Forces this template for every product by clearing the template "
-            "pool. To use a custom multi-entry pool, pass "
-            "--pycaps-template-pool instead."
-        ),
-    )
-    producer_group.add_argument(
-        "--pycaps-template-pool",
-        nargs="+",
-        type=str,
-        metavar="NAME",
-        help=(
-            "Pool of pycaps templates for deterministic per-product selection. "
-            "Example: --pycaps-template-pool word-focus hype vibrant"
-        ),
-    )
-    producer_group.add_argument(
-        "--pycaps-renderer",
-        choices=["css", "pictex"],
-        help=(
-            "Pycaps renderer backend. 'css' = Playwright+Chromium (default, "
-            "the only production-safe option). 'pictex' = browserless Skia "
-            "path; PREVIEW ONLY, it renders words with no gaps between them."
-        ),
-    )
+    add_shared_render_args(producer_group)
 
     # Common arguments
     common_group = parser.add_argument_group("Common Options")
@@ -662,26 +586,10 @@ class GlobalPipelineOrchestrator:
             overrides["cta"] = self.config.cta
         if self.config.pillar:
             overrides["pillar"] = self.config.pillar
-        if self.config.subtitle_format:
-            overrides["subtitle_settings.subtitle_format"] = self.config.subtitle_format
-        if self.config.subtitle_engine:
-            overrides["subtitle_settings.subtitle_engine"] = self.config.subtitle_engine
-        if self.config.pycaps_template:
-            overrides["subtitle_settings.pycaps.template_name"] = (
-                self.config.pycaps_template
-            )
-            # Clear the pool so the deterministic selector falls through to
-            # template_name. Without this, a multi-entry pool would still win
-            # via md5 hash and silently ignore --pycaps-template.
-            overrides["subtitle_settings.pycaps.template_pool"] = []
-        if self.config.pycaps_template_pool:
-            # Explicit --pycaps-template-pool wins over the implicit clear
-            # above when both flags are passed.
-            overrides["subtitle_settings.pycaps.template_pool"] = (
-                self.config.pycaps_template_pool
-            )
-        if self.config.pycaps_renderer:
-            overrides["subtitle_settings.pycaps.renderer"] = self.config.pycaps_renderer
+        # Shared subtitle-engine overrides: the batch config carries the same
+        # attribute names the producer's argparse namespace does, so one
+        # helper serves both (declare-and-apply lives in shared_cli).
+        overrides.update(subtitle_render_overrides(self.config))
         return overrides or None
 
     def _resolve_profile_uses_videos(self) -> bool | None:
@@ -701,13 +609,11 @@ class GlobalPipelineOrchestrator:
             return None
 
         if self.config.random_profile:
-            from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
+            from src.video.producer.utils import eligible_random_profiles
 
-            pool = self.config.profile_pool or [
-                p
-                for p in self.video_config.video_profiles
-                if p not in EXCLUDED_RANDOM_PROFILES
-            ]
+            pool = self.config.profile_pool or eligible_random_profiles(
+                self.video_config
+            )
             for name in pool:
                 profile = self.video_config.video_profiles.get(name)
                 if profile and not profile.use_scraped_videos:
@@ -913,14 +819,10 @@ class GlobalPipelineOrchestrator:
                     sources.append(f"{profile.stock_video_count} stock videos")
                 print(f"    - Visuals: {', '.join(sources) or 'none configured'}")
         elif self.config.random_profile:
-            from src.video.producer.utils import EXCLUDED_RANDOM_PROFILES
+            from src.video.producer.utils import eligible_random_profiles
 
             print("  Profile mode: Random selection")
-            pool = self.config.profile_pool or [
-                p
-                for p in video_config.video_profiles
-                if p not in EXCLUDED_RANDOM_PROFILES
-            ]
+            pool = self.config.profile_pool or eligible_random_profiles(video_config)
             print(f"  Profile pool ({len(pool)} profiles):")
             for p in pool[:5]:
                 print(f"    - {p}")
@@ -1804,6 +1706,7 @@ class GlobalPipelineOrchestrator:
         )
         from src.video.producer.utils import (
             ProfileUsageTracker,
+            collect_producer_secrets,
             select_profile_for_product,
         )
 
@@ -1812,27 +1715,8 @@ class GlobalPipelineOrchestrator:
         # Load video configuration
         config = load_video_config_modular()
 
-        # Build secrets dict from environment variables
-        secret_names = [
-            config.llm_settings.api_key_env_var,
-            config.stock_media_settings.pexels_api_key_env_var,
-            config.audio_settings.freesound_api_key_env_var,
-            "GOOGLE_APPLICATION_CREDENTIALS",
-            config.audio_settings.freesound_client_id_env_var,
-            config.audio_settings.freesound_client_secret_env_var,
-            config.audio_settings.freesound_refresh_token_env_var,
-        ]
-        # Add env vars from audio provider configs
-        for ap in config.audio_settings.audio_providers:
-            for key in ("client_id_env_var", "api_key_env_var"):
-                env_var = ap.settings.get(key)
-                if env_var and env_var not in secret_names:
-                    secret_names.append(env_var)
-        if config.llm_settings.fallback_provider:
-            secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
-        secrets = {
-            name: os.getenv(name) for name in secret_names if name and os.getenv(name)
-        }
+        # Build secrets dict from environment variables (shared definition)
+        secrets = collect_producer_secrets(config)
 
         # Initialize profile tracking if random mode
         profile_tracker: ProfileUsageTracker | None = None
