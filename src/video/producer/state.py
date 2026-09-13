@@ -238,7 +238,9 @@ async def _save_pipeline_state(ctx: PipelineContext):
         )
         logger.debug(f"Saved pipeline state to {state_file.name}")
     except Exception as e:
-        logger.error(f"Failed to save pipeline state: {e}")
+        # The state file is load-bearing for resume; a silent save failure
+        # corrupts the next resume, so the traceback is worth keeping.
+        logger.error("Failed to save pipeline state: %s", e, exc_info=True)
 
 
 # Artifacts whose presence makes a step short-circuit and skip its work. Only

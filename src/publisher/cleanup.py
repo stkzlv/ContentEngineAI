@@ -294,11 +294,14 @@ class CleanupManager:
                     post_id,
                 )
             except Exception as e:  # Network/SDK errors
+                # This error decides whether a directory is deleted, so the
+                # traceback matters.
                 logger.error(
                     "Failed to get status for %s (post_id: %s): %s",
                     platform.value,
                     post_id,
                     e,
+                    exc_info=True,
                 )
                 platform_statuses[platform.value] = "api_error"
 

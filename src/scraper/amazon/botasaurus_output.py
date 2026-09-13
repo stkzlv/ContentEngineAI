@@ -66,12 +66,12 @@ def write_scraped_data_output(
         output_dir: Custom output directory (overrides config base_directory)
 
     """
-    print(
-        f"[DEBUG] write_scraped_data_output called with "
-        f"{len(result) if result else 0} products"
+    logger.debug(
+        "write_scraped_data_output called with %d products",
+        len(result) if result else 0,
     )
     if not result:
-        print("[DEBUG] No result data to save")
+        logger.debug("No result data to save")
         return
 
     # Process each product individually to create separate data.json files
@@ -99,9 +99,13 @@ def write_scraped_data_output(
                 output_file = product_dir / "data.json"
                 with open(output_file, "w", encoding="utf-8") as f:
                     json.dump([product], f, indent=4, ensure_ascii=False)
-                print(f"Saved scraped data: {output_file}")
-            except Exception as e:
-                print(f"Failed to save product data for {product_id}: {e}")
+                logger.info("Saved scraped data: %s", output_file)
+            except Exception:
+                # The product's primary artifact failed to write; a print
+                # never reached any log file, so the loss was invisible.
+                logger.error(
+                    "Failed to save product data for %s", product_id, exc_info=True
+                )
     else:
         logger.warning("Scraper returned non-list result, skipping save")
 
@@ -144,7 +148,7 @@ def write_download_cache_output(data: Any, result: dict[str, Any]) -> None:
     try:
         os.chdir(cache_dir)
         json_filename = bt.write_json(result, f"{product_id}_downloads")
-        print(f"Saved download cache: {cache_dir / json_filename}")
+        logger.debug("Saved download cache: %s", cache_dir / json_filename)
     finally:
         os.chdir(original_cwd)
 
@@ -157,10 +161,10 @@ def configure_botasaurus_outputs() -> None:
         # Use centralized outputs structure setup
         ensure_outputs_structure()
         outputs_root = get_outputs_root()
-        print(f"Configured outputs directory: {outputs_root}")
+        logger.debug("Configured outputs directory: %s", outputs_root)
 
-    except Exception as e:
-        print(f"Warning: Could not create output directories: {e}")
+    except Exception:
+        logger.warning("Could not create output directories", exc_info=True)
 
 
 def get_browser_config_for_outputs() -> dict[str, Any]:
