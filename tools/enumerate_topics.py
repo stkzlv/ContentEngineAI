@@ -21,6 +21,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+# Invoked as a script by scripts/render-topics-batch.sh, so the repo root must
+# be on sys.path for the `src` imports below (the project is not installed --
+# package-mode = false).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 def enumerate_records(topics_file: Path) -> list[str]:
     """Return the output root followed by four fields per topic."""
