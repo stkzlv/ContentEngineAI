@@ -645,9 +645,9 @@ async def test_pipeline_with_random_profile_selection(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
         patch(
-            "src.video.producer.utils.select_profile_for_product"
+            "src.pipeline.global_batch.select_profile_for_product"
         ) as mock_select_profile,
-        patch("src.video.producer.utils.ProfileUsageTracker") as mock_tracker_class,
+        patch("src.pipeline.global_batch.ProfileUsageTracker") as mock_tracker_class,
     ):
         # Mock scraper (two-phase approach)
         _setup_scraper_mock(

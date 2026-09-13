@@ -20,9 +20,17 @@ Usage:
     summary = await orchestrator.run_pipeline()
 """
 
+import argparse
+import asyncio
 import logging
+import os
+import random
 import re
+import shutil
+import sys
 import time
+from dataclasses import asdict
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -49,6 +57,23 @@ from src.video.producer.shared_cli import (
     add_shared_render_args,
     subtitle_render_overrides,
 )
+from src.video.producer.topic_input import (
+    TOPIC_ID_PREFIX,
+    materialise_topics,
+    topic_product_id,
+)
+from src.video.producer.utils import (
+    ProfileUsageTracker,
+    collect_producer_secrets,
+    eligible_random_profiles,
+    select_profile_for_product,
+)
+
+# Imports of the publisher (the Zernio SDK), the scraper (Chromium stack plus
+# its import-time logging) and the producer's cli/orchestration (which pull
+# both) stay function-local on purpose: the argparse/--help/dry-run path must
+# not pay for them, and the scraper import is the documented heavy one. Every
+# other survivor below is either one of these or a documented cycle-breaker.
 
 if TYPE_CHECKING:
     from src.publisher.models import PublisherConfig
@@ -107,8 +132,6 @@ def create_argument_parser():
         argparse.ArgumentParser configured with all pipeline arguments
 
     """
-    import argparse
-
     parser = argparse.ArgumentParser(
         description=(
             "Global Batch Pipeline - "
@@ -407,7 +430,6 @@ def resumed_record_kinds(config: "GlobalBatchConfig") -> tuple[bool, bool]:
     """
     if not config.resume or config.topics:
         return (False, False)
-    from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
     saved = load_pipeline_state(config.outputs_dir)
     if saved is None:
@@ -457,8 +479,6 @@ def _named_run_ids(config: "GlobalBatchConfig") -> list[str]:
     named only the topic, and `--clean` silently spared every product
     directory the operator asked it to remove.
     """
-    from src.video.producer.topic_input import topic_product_id
-
     if config.keywords:
         return []
 
@@ -609,8 +629,6 @@ class GlobalPipelineOrchestrator:
             return None
 
         if self.config.random_profile:
-            from src.video.producer.utils import eligible_random_profiles
-
             pool = self.config.profile_pool or eligible_random_profiles(
                 self.video_config
             )
@@ -650,7 +668,6 @@ class GlobalPipelineOrchestrator:
         """
         if not self.config.topics_resume:
             return []
-        from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
         saved = load_pipeline_state(self.config.outputs_dir)
         if saved is None:
@@ -671,8 +688,6 @@ class GlobalPipelineOrchestrator:
             video_config: Video configuration for profile information
 
         """
-        import os
-
         separator = "=" * 80
         section = "-" * 40
 
@@ -819,8 +834,6 @@ class GlobalPipelineOrchestrator:
                     sources.append(f"{profile.stock_video_count} stock videos")
                 print(f"    - Visuals: {', '.join(sources) or 'none configured'}")
         elif self.config.random_profile:
-            from src.video.producer.utils import eligible_random_profiles
-
             print("  Profile mode: Random selection")
             pool = self.config.profile_pool or eligible_random_profiles(video_config)
             print(f"  Profile pool ({len(pool)} profiles):")
@@ -909,8 +922,6 @@ class GlobalPipelineOrchestrator:
             PipelineSummary with aggregated statistics from all phases
 
         """
-        from dataclasses import asdict
-
         pipeline_start = time.time()
 
         # Log resume status
@@ -1459,8 +1470,6 @@ class GlobalPipelineOrchestrator:
         and the only way this fails is an unwritable outputs directory, which
         is not a reason to discard the topics that did write.
         """
-        from src.video.producer.topic_input import materialise_topics
-
         phase_start = time.time()
         logger.info("Preparing %s topic(s) (no scraping)", len(self.config.topics))
 
@@ -1525,7 +1534,6 @@ class GlobalPipelineOrchestrator:
         # `--resume` carries no input flags, so `config.topics` is empty while
         # the saved state's ids are topics. Reading the config there returned
         # nothing and the resumed run reported PIPELINE FAILED.
-        from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
         # `topics_resume` is set in `main` before validation, which is what
         # narrows the profile pool. The id check stays as the fallback for a
@@ -1610,7 +1618,6 @@ class GlobalPipelineOrchestrator:
         that this goes silent rather than half-firing.
         """
         from src.publisher.tracking import is_already_published
-        from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
         if (
             getattr(self.config, "force", False)
@@ -1694,20 +1701,12 @@ class GlobalPipelineOrchestrator:
             Tuple of (ProductionPhaseSummary, list of (video_path, product_id) tuples)
 
         """
-        import asyncio
-        import os
-
         import aiohttp
 
         from src.video.config import load_video_config
         from src.video.producer.orchestration import (
             create_video_for_product,
             failed_step_from_result,
-        )
-        from src.video.producer.utils import (
-            ProfileUsageTracker,
-            collect_producer_secrets,
-            select_profile_for_product,
         )
 
         phase_start = time.time()
@@ -1938,11 +1937,6 @@ class GlobalPipelineOrchestrator:
             PublishingPhaseSummary with per-platform publishing statistics
 
         """
-        import asyncio
-        import os
-        import random
-        from datetime import datetime
-
         from src.publisher import PublisherProvider, create_publisher
         from src.publisher.models import AffiliateDisclosureConfig, Platform
 
@@ -2015,8 +2009,6 @@ class GlobalPipelineOrchestrator:
                                 self.config.outputs_dir, "schedule.json"
                             )
                         )
-
-                        from datetime import UTC
 
                         # Fetch existing posts to check occupied slots
                         logger.debug("Checking occupied slots via API...")
@@ -2208,8 +2200,6 @@ class GlobalPipelineOrchestrator:
                 # Find per-product schedule slot if auto-scheduling
                 product_schedule_time = schedule_time
                 if auto_schedule_ctx is not None:
-                    from datetime import UTC
-
                     ctx_slots = auto_schedule_ctx["slots"]
                     ctx_mgr = auto_schedule_ctx["schedule_manager"]
                     ctx_occupied = auto_schedule_ctx["occupied_slot_times"]
@@ -2366,8 +2356,6 @@ class GlobalPipelineOrchestrator:
 
                             if product_dir.exists():
                                 try:
-                                    import shutil
-
                                     logger.info(
                                         "Cleaning up product directory: %s", product_dir
                                     )
@@ -2526,9 +2514,6 @@ async def main():
     Parses arguments, loads configuration, validates settings,
     executes pipeline, and handles errors gracefully.
     """
-    import asyncio
-    import sys
-
     from dotenv import load_dotenv
 
     from src.pipeline.config import (
@@ -2649,8 +2634,6 @@ async def main():
 
         # Handle clean mode
         if config.clean:
-            import shutil
-
             for target in _clean_targets(config.outputs_dir, _named_run_ids(config)):
                 shutil.rmtree(target)
                 logger.info("Cleaned product directory: %s", target)
@@ -2670,7 +2653,6 @@ async def main():
                 logger.warning("No state file found - starting fresh pipeline")
 
         # Track start time for JSON output
-        from datetime import UTC, datetime
 
         pipeline_started_at = datetime.now(UTC).isoformat()
 
@@ -2777,6 +2759,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-
     asyncio.run(main())

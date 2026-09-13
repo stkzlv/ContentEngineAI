@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Function-local imports in the three heaviest modules are hoisted where they were habit and kept where they are load-bearing: stdlib imports move to module scope, cycle-free first-party imports too, and the survivors (the publisher SDK, the Chromium scraper stack, the optional pycaps engine, and the STT/render stack a step loads only when it runs) carry a comment saying what breaks if they are hoisted. The producer/batch shared names are now module-level, so tests patch them on the consuming module.
+
 ## [0.117.0] - 2026-09-13
 
 ### Changed
