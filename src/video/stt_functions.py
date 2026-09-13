@@ -255,21 +255,14 @@ async def generate_subtitles_with_whisper(
             )
             result_w = smooth_whisper_result_dict(result_w, **smoother_kwargs)
 
-        # Check if Whisper debug files should be created
-        create_whisper_debug = debug_mode
+        # Whisper debug files are written whenever debug_mode is on. This
+        # used to read a `create_whisper_debug_files` flag from the old
+        # `src.video.video_config` module, but that module was removed in the
+        # config modularization: the import raised, the except always set
+        # True, and the flag was never a declared field on DebugSettings, so
+        # it had been dead in both directions. Reinstate the flag as a typed
+        # DebugSettings field if the knob is ever wanted again.
         if debug_mode:
-            try:
-                from .video_config import CONFIG
-
-                create_whisper_debug = (
-                    CONFIG.get("video_producer", {})
-                    .get("debug_settings", {})
-                    .get("create_whisper_debug_files", True)
-                )
-            except Exception:
-                create_whisper_debug = True
-
-        if create_whisper_debug:
             _save_whisper_debug_files(
                 debug_file_dir, audio_path, result_w, word_list_whisper, script
             )
