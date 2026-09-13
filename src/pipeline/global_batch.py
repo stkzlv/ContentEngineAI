@@ -798,6 +798,14 @@ class GlobalPipelineOrchestrator:
         print("PHASE 1: SCRAPING")
         print(f"{section}")
 
+        # An alternating run holds one pool empty by design; naming the drawn
+        # side keeps that from reading as a misconfigured run.
+        if self.config.alternated_format:
+            print(
+                f"  Alternating formats: today draws the "
+                f"{self.config.alternated_format} side"
+            )
+
         # A resumed topics run scrapes nothing either, and its topics are not
         # on the config -- reading only `topics` printed a full keyword plan
         # for a run that would render the saved topic and search for nothing.

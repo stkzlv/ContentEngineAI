@@ -346,6 +346,10 @@ class GlobalBatchConfig:
     # alongside the configured keywords. Topics named on the command line are
     # taken in full and ignore this.
     topics_per_run: int = 1
+    # Which side today's alternating run drew ("topic" or "product"), None on
+    # a run that is not alternating. Recorded so the dry-run plan can say
+    # which format the day draws instead of showing one pool silently empty.
+    alternated_format: str | None = None
     max_products: int = 10
     products_per_keyword: int = 1
     scraper_filters: SearchParameters = field(default_factory=SearchParameters)
@@ -879,6 +883,20 @@ def topics_for_run(
     return [configured[(start + i) % len(configured)] for i in range(count)]
 
 
+def format_for_run(day_ordinal: int | None = None) -> str:
+    """Which side an alternating run draws: "topic" or "product".
+
+    Date parity, stateless like the rotation helpers above and for the same
+    reason: a cursor file would have to survive `--clean` and be reconciled
+    after a failed batch, while the date advances on its own. Even ordinals
+    draw the topic side; there is nothing to configure about which parity is
+    which, since the assignment only has to be stable, not chosen.
+    """
+    if day_ordinal is None:
+        day_ordinal = date.today().toordinal()
+    return "topic" if day_ordinal % 2 == 0 else "product"
+
+
 def _scraper_keyword_pool(
     scraper_config_path: str | Path = "config/scraper.yaml",
 ) -> tuple[list[str], dict[str, str]]:
@@ -1039,6 +1057,16 @@ def load_global_batch_config(
             f"{topics_per_run!r}"
         )
 
+    # Whether a no-flag run draws one content format per day instead of both.
+    # Validated unconditionally, like `keywords_per_run` below: a bad value
+    # must be refused on every run, not only on the branch that reads it.
+    alternate_formats = yaml_config.get("alternate_formats", False)
+    if not isinstance(alternate_formats, bool):
+        raise ValueError(
+            f"global_batch.alternate_formats must be a boolean, got "
+            f"{alternate_formats!r}"
+        )
+
     # Only the configured pool rotates. Keywords typed on the command line
     # were asked for by name, so a run must search exactly those.
     rotate_keywords = False
@@ -1061,7 +1089,11 @@ def load_global_batch_config(
                 f"{configured_per_run!r}"
             )
 
+    alternated_format: str | None = None
+    alternated_day_ordinal: int | None = None
     if cli_has_inputs:
+        # Alternation never touches explicit inputs: a topic or keyword named
+        # on the command line was asked for today, whatever the parity says.
         product_ids = cli_product_ids or []
         keywords = cli_keywords or []
         topics = cli_topics
@@ -1073,7 +1105,48 @@ def load_global_batch_config(
         # on that day's command line, so the repeatable path -- the one a
         # scheduled run uses -- produced product renders and nothing else.
         configured_topics = _configured_topics(yaml_config, yaml_path)
-        topics = topics_for_run(configured_topics, topics_per_run)
+        if alternate_formats:
+            # One format per day, by date parity. The rotation helpers get the
+            # ordinal FLOOR-DIVIDED BY TWO, not the raw ordinal: a side only
+            # runs every second day, so its ordinals share a parity, and
+            # `topics_for_run`'s `ordinal % len(pool)` over same-parity
+            # ordinals visits only half the indices of an even-length pool --
+            # topics 2, 4 and 6 of a six-topic pool would never render.
+            # Compressing the ordinal makes consecutive topic days
+            # consecutive rotation steps again. Same for the keyword slice.
+            ordinal = date.today().toordinal()
+            alternated_format = format_for_run(ordinal)
+            topic_pool_empty = not configured_topics or topics_per_run <= 0
+            keyword_pool_empty = not keywords and not product_ids
+            # A drawn side with nothing configured falls back to the other
+            # side with a warning rather than refusing: this is the path a
+            # scheduled run takes, and losing every second day to a config
+            # gap is worse than an uneven alternation.
+            if alternated_format == "topic" and topic_pool_empty:
+                logger.warning(
+                    "alternate_formats drew the topic side but no topics are "
+                    "configured; running the product side instead"
+                )
+                alternated_format = "product"
+            elif alternated_format == "product" and keyword_pool_empty:
+                logger.warning(
+                    "alternate_formats drew the product side but no keywords "
+                    "or product ids are configured; running the topic side "
+                    "instead"
+                )
+                alternated_format = "topic"
+            if alternated_format == "topic":
+                topics = topics_for_run(
+                    configured_topics, topics_per_run, day_ordinal=ordinal // 2
+                )
+                keywords = []
+                product_ids = []
+                rotate_keywords = False
+            else:
+                topics = []
+                alternated_day_ordinal = ordinal // 2
+        else:
+            topics = topics_for_run(configured_topics, topics_per_run)
 
     # Max products (global cap across all keywords)
     max_products = (
@@ -1103,7 +1176,15 @@ def load_global_batch_config(
             if configured_per_run is None
             else configured_per_run
         )
-        keywords = keywords_for_run(keywords, per_run)
+        # On an alternated product day the compressed ordinal keeps
+        # consecutive product days on consecutive slices (see above); on an
+        # ordinary mixed run the helper reads today's ordinal itself.
+        if alternated_format == "product":
+            keywords = keywords_for_run(
+                keywords, per_run, day_ordinal=alternated_day_ordinal
+            )
+        else:
+            keywords = keywords_for_run(keywords, per_run)
 
     # Scraper filters (SearchParameters)
     yaml_filters = yaml_config.get("scraper_filters", {})
@@ -1214,6 +1295,7 @@ def load_global_batch_config(
         keyword_pillar_map=keyword_pillar_map,
         topics=topics,
         topics_per_run=topics_per_run,
+        alternated_format=alternated_format,
         max_products=max_products,
         products_per_keyword=products_per_keyword,
         scraper_filters=scraper_filters,
