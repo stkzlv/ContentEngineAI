@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.115.0"
+version = "0.116.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -228,6 +228,7 @@ omit = [
 ]
 
 [tool.coverage.report]
+fail_under = 50
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -247,14 +248,17 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# Coverage deliberately does NOT ride in addopts: it made every targeted
+# test run pay ~45s of instrumentation, wrote cwd-relative html/xml litter,
+# and printed a false coverage FAILURE on every single-file run. Coverage
+# runs where it is asked for: `make test-cov` and the CI job, which pass
+# --cov explicitly; the floor lives in [tool.coverage.report] fail_under.
+# The `external` live-API tests are excluded by a conftest collection hook
+# rather than an addopts `-m`: a CLI `-m` REPLACES the addopts one, so the
+# documented `-m integration` run would have re-selected them.
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src",
-    "--cov-report=term-missing",
-    "--cov-report=html:outputs/coverage",
-    "--cov-report=xml",
-    "--cov-fail-under=50",
     "--timeout=300",
     "--timeout-method=thread",
 ]

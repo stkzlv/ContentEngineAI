@@ -35,21 +35,49 @@ class GlobalConnectionPool:
 
         self._session: aiohttp.ClientSession | None = None
         self._session_lock = asyncio.Lock()
+        self._session_loop: asyncio.AbstractEventLoop | None = None
         self._cleanup_task: asyncio.Task | None = None
+
+    def _session_unusable(self) -> bool:
+        """A cached session that cannot serve the CURRENT loop.
+
+        ``session.closed`` only reports an explicit close. A session created
+        under a previous ``asyncio.run`` is not closed -- its event loop is,
+        and using it raises ``RuntimeError: Event loop is closed`` from deep
+        inside aiohttp. The module-level pool outlives loops by design, so
+        the cache has to be validated against the running loop, not just
+        against ``closed``.
+        """
+        if self._session is None or self._session.closed:  # type: ignore[attr-defined]
+            return True
+        return self._session_loop is not asyncio.get_running_loop()
 
     async def get_session(self) -> aiohttp.ClientSession:
         """Get or create the global HTTP session with connection pooling."""
-        if self._session is None or self._session.closed:  # type: ignore[attr-defined]
+        if self._session_unusable():
+            if self._session_loop is not asyncio.get_running_loop():
+                # The lock (and any cleanup task) belong to the dead loop
+                # too; a lock awaited on a different loop raises. The old
+                # session cannot be closed on a loop that no longer runs --
+                # its connections died with the loop, so it is dropped.
+                self._session_lock = asyncio.Lock()
+                self._cleanup_task = None
+                self._session = None
             async with self._session_lock:
-                if self._session is None or self._session.closed:  # type: ignore[attr-defined]
+                if self._session_unusable():
                     await self._create_session()
+                    self._session_loop = asyncio.get_running_loop()
 
         if self._session is None:
             raise RuntimeError("Failed to create session")
         return self._session
 
     async def _create_session(self) -> None:
-        """Create a new HTTP session with optimized settings."""
+        """Create a new HTTP session with optimized settings.
+
+        Must stay await-free: get_session's lock swap on loop change relies
+        on the swap-check-create sequence running without suspension.
+        """
         # Configure connection pooling
         connector = aiohttp.TCPConnector(  # type: ignore[attr-defined]
             limit=self.pool_limit,  # Total connection pool size
@@ -95,19 +123,38 @@ class GlobalConnectionPool:
                 logger.warning(f"Error during connection cleanup: {e}")
 
     async def close(self) -> None:
-        """Close the connection pool and cleanup resources."""
-        if self._cleanup_task and not self._cleanup_task.done():
-            self._cleanup_task.cancel()
-            from contextlib import suppress
+        """Close the connection pool and cleanup resources.
 
-            with suppress(asyncio.CancelledError):
-                await self._cleanup_task
-            self._cleanup_task = None
+        Leftovers from a PREVIOUS event loop (a prior ``asyncio.run`` in the
+        same process) cannot be cancelled or closed on this one -- touching
+        them raises ``RuntimeError: Event loop is closed``. Their connections
+        died with their loop, so they are dropped rather than closed.
+        """
+        current_loop = asyncio.get_running_loop()
+        stale = (
+            self._session_loop is not None and self._session_loop is not current_loop
+        )
+
+        if self._cleanup_task and not self._cleanup_task.done():
+            if stale:
+                self._cleanup_task = None
+            else:
+                self._cleanup_task.cancel()
+                from contextlib import suppress
+
+                with suppress(asyncio.CancelledError):
+                    await self._cleanup_task
+                self._cleanup_task = None
 
         if self._session:
-            await self._session.close()
-            self._session = None
-            logger.debug("Closed HTTP connection pool")
+            if stale:
+                self._session = None
+                logger.debug("Dropped HTTP pool left over from a previous loop")
+            else:
+                await self._session.close()
+                self._session = None
+                logger.debug("Closed HTTP connection pool")
+        self._session_loop = None
 
 
 # Global connection pool instance

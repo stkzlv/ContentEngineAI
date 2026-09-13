@@ -1,7 +1,7 @@
 """Integration tests for Freesound client end-to-end workflows.
 
 These tests use real API calls and require valid credentials in environment variables.
-Run with: pytest tests/integration/ -v -m integration
+Run with: pytest -m external tests/integration/test_freesound_integration.py
 Skip with: pytest tests/ -v -m "not integration"
 """
 
@@ -15,7 +15,12 @@ import pytest
 from src.audio.freesound_client import FreesoundClient
 
 # Integration test markers
-pytestmark = pytest.mark.integration
+# `external`: these hit the real Freesound API whenever credentials happen
+# to be exported, so a collection hook in tests/conftest.py skips them
+# unless the `-m` expression names `external` -- a hook, not an addopts
+# `-m`, because a CLI `-m` replaces the addopts one. Run explicitly with
+# `pytest -m external`.
+pytestmark = [pytest.mark.integration, pytest.mark.external]
 
 # Credential availability checks
 HAS_API_KEY = os.getenv("FREESOUND_API_KEY") is not None

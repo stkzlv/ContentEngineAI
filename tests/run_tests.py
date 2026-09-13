@@ -68,11 +68,13 @@ def main():
     if args.markers:
         base_cmd.extend(["-m", args.markers])
 
-    # Add output format options
+    # Add output format options. --cov is required alongside the report
+    # flag: pytest-cov activates only on --cov, and coverage no longer rides
+    # in addopts, so a bare --cov-report writes nothing.
     if args.output == "html":
-        base_cmd.extend(["--cov-report=html:outputs/coverage"])
+        base_cmd.extend(["--cov=src", "--cov-report=html:outputs/coverage"])
     elif args.output == "xml":
-        base_cmd.extend(["--cov-report=xml"])
+        base_cmd.extend(["--cov=src", "--cov-report=xml"])
 
     success = True
 

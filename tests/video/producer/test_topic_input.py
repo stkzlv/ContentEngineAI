@@ -1,6 +1,6 @@
 """Tests for rendering from a topic instead of a scraped product.
 
-Split the same way as the stock-keyword tests in `tests/test_video_config.py`:
+Split the same way as the stock-keyword tests in `tests/video/test_video_config.py`:
 one group proves the record is built correctly, a separate group proves the
 values actually reach the search. A field that is set but never read looks
 identical to a working one.

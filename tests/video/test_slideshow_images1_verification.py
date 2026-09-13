@@ -444,9 +444,11 @@ class TestSlideshowImagesVerification:
     @pytest.fixture
     def real_video_data(self) -> dict[str, Any]:
         """Get real pipeline-generated video data for testing."""
-        # Use the existing B0BTYCRJSS slideshow_images1 video
-        # Get project root and construct relative path
-        project_root = Path(__file__).parent.parent
+        # Use the existing B0BTYCRJSS slideshow_images1 video.
+        # Repo root is two levels above tests/video/ -- parents[2], not
+        # parent.parent, which after the move into the subdir pointed at
+        # tests/ and grew a stray tests/outputs tree.
+        project_root = Path(__file__).parents[2]
         base_path = (
             project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images1"
         )
@@ -470,9 +472,12 @@ class TestSlideshowImagesVerification:
         verification_dir: Path = real_video_data["verification_dir"]
         screenshots_dir = verification_dir / "screenshots"
 
-        # Create directories if they don't exist
-        verification_dir.mkdir(parents=True, exist_ok=True)
-        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        # Only when the staged render actually exists: without the gate the
+        # fixture planted the tree on every run of a suite whose tests then
+        # skipped for the missing video.
+        if real_video_data["video_path"].exists():
+            verification_dir.mkdir(parents=True, exist_ok=True)
+            screenshots_dir.mkdir(parents=True, exist_ok=True)
 
         return verification_dir
 

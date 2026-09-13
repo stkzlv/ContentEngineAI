@@ -12,11 +12,14 @@ make test
 make test-cov
 
 # Run specific test file
-poetry run pytest tests/test_video_config.py -v
+poetry run pytest tests/video/test_video_config.py -v
 
 # Run by category
 poetry run pytest -m unit          # Unit tests only
 poetry run pytest -m integration   # Integration tests only
+poetry run pytest -m external      # Live-API tests (skipped everywhere else;
+                                   # a conftest hook composes with any -m, so
+                                   # no expression re-selects them by accident)
 ```
 
 ## Test Categories
@@ -47,10 +50,10 @@ poetry run pytest -m integration   # Integration tests only
 
 ```bash
 # Run all verification tests
-poetry run pytest tests/test_slideshow_images1_verification.py -v
+poetry run pytest tests/video/test_slideshow_images1_verification.py -v
 
 # Run specific verification
-poetry run pytest tests/test_slideshow_images1_verification.py::TestSlideshowImagesVerification::test_slideshow_images1_background_music_verification -v
+poetry run pytest tests/video/test_slideshow_images1_verification.py::TestSlideshowImagesVerification::test_slideshow_images1_background_music_verification -v
 ```
 
 **Verification artifacts** stored in: `outputs/<ASIN>/temp/verification/`
@@ -184,7 +187,7 @@ class TestYourComponent:
 
 - **Unit tests**: >90% coverage target
 - **Integration tests**: >80% coverage target
-- **Overall minimum**: enforced by `--cov-fail-under=50` in `pyproject.toml`'s pytest `addopts`; run `make test-cov` for the current number
+- **Overall minimum**: enforced by `fail_under = 50` in `[tool.coverage.report]`, applied whenever coverage runs (`make test-cov`, CI); the default `pytest` run carries no coverage instrumentation
 
 **Generate coverage report:**
 ```bash
@@ -427,7 +430,7 @@ poetry run pytest -n auto
 
 **Current Statistics:**
 - **Total Tests**: run `poetry run pytest --collect-only -q | tail -1` for the current count
-- **Coverage**: enforced by `--cov-fail-under=50` in `pyproject.toml`'s pytest `addopts`, not by a CI flag
+- **Coverage**: enforced by `fail_under = 50` in `[tool.coverage.report]`; CI passes `--cov` explicitly, the default local run does not
 
 ## Quick Reference
 
