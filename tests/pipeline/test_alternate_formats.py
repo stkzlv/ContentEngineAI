@@ -163,7 +163,7 @@ class TestTheEmptySideFallback:
 
         assert config.alternated_format == "product"
         assert config.keywords
-        assert any("no topics are configured" in r.message for r in caplog.records)
+        assert any("topic side" in r.message for r in caplog.records)
 
     def test_a_product_day_with_no_keywords_runs_topics(self, tmp_path, caplog):
         cfg = {k: v for k, v in CONFIG.items() if k != "keywords"}
@@ -178,7 +178,9 @@ class TestTheEmptySideFallback:
 
         assert config.alternated_format == "topic"
         assert config.topics
-        assert any("no keywords" in r.message for r in caplog.records)
+        assert any(
+            "product side but that side is empty" in r.message for r in caplog.records
+        )
 
     def test_the_fallback_state_rotates_daily_not_half_speed(self, tmp_path):
         """In the fallback state the surviving side runs EVERY day, so the

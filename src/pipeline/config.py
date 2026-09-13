@@ -1131,15 +1131,16 @@ def load_global_batch_config(
             # gap is worse than an uneven alternation.
             if alternated_format == "topic" and topic_pool_empty:
                 logger.warning(
-                    "alternate_formats drew the topic side but no topics are "
-                    "configured; running the product side instead"
+                    "alternate_formats drew the topic side but that side is "
+                    "empty (no topics configured, or topics_per_run is 0); "
+                    "running the product side instead"
                 )
                 alternated_format = "product"
             elif alternated_format == "product" and keyword_pool_empty:
                 logger.warning(
-                    "alternate_formats drew the product side but no keywords "
-                    "or product ids are configured; running the topic side "
-                    "instead"
+                    "alternate_formats drew the product side but that side is "
+                    "empty (no keywords or product ids configured, or "
+                    "keywords_per_run is 0); running the topic side instead"
                 )
                 alternated_format = "topic"
             # The compression's premise is that a side runs every SECOND
