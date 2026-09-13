@@ -280,7 +280,9 @@ class StockMediaFetcher:
     def _relevance(self) -> tuple[Any, str] | None:
         """The judge's settings and API key when it is on and reachable."""
         settings = self.llm_settings
-        cfg = getattr(settings, "stock_relevance", None) if settings else None
+        if settings is None:
+            return None
+        cfg = getattr(settings, "stock_relevance", None)
         if cfg is None or not cfg.enabled:
             return None
         api_key = self.secrets.get(settings.api_key_env_var) if self.secrets else None

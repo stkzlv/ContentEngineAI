@@ -39,7 +39,6 @@ outro_duration_sec: 1.0
 # These are conservative defaults; increase if on slow hardware.
 system_timeouts:
   ffprobe_timeout: 10        # Video metadata extraction
-  xrandr_timeout: 5          # Display detection (Linux)
   system_profiler_timeout: 10  # System info (macOS)
   head_request_timeout: 10   # URL validation requests
 
@@ -95,9 +94,6 @@ path_config:
     videos: "videos"
     temp: "temp"
     audio: "audio"
-  
-  # File extensions for cleanup
-  temp_extensions: [".tmp", ".temp", ".processing", ".log"]
   
   # Image formats for media processing  
   image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".gif"]

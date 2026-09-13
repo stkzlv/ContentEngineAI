@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- The Botasaurus-migration-era Makefile targets, one of which offered a hard reset to a commit that is not in the repository; the dead mypy override for a module that no longer exists; four config keys nothing reads; and an unreferenced ASS-effect scratch tool.
+
+### Changed
+- `tools/` carries a README naming what each utility is wired from; `.gitignore` covers the machine-local `poetry.toml` and timestamped `.env` backups; the stock-media module is type-checked again instead of excluded.
+
 ## [0.114.0] - 2026-09-13
 
 ### Changed

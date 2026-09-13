@@ -43,7 +43,6 @@ google-genai = "^2.0"
 late-sdk = "^1.1.1"
 vercel = "^0.3.6"
 
-
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
 pytest-asyncio = "^0.24.0"
@@ -183,14 +182,6 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "src.audio.freesound_client"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "src.video.subtitle_generator"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "src.video.stock_media"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
