@@ -1178,7 +1178,6 @@ debug_settings:
   create_pipeline_metadata: true
   create_performance_metrics: true
   create_whisper_debug_files: true
-  create_temp_files: true
 ```
 
 **Important:** CLI `--debug` flag overrides these settings and retains all debug files for troubleshooting.

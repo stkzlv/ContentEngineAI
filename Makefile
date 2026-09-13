@@ -16,7 +16,6 @@ NC := \033[0m # No Color
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
-	install-botasaurus \
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
@@ -79,8 +78,6 @@ help:
 	@echo "  vulture       - Run dead code detector"
 	@echo "  safety        - Check dependency vulnerabilities"
 	@echo ""
-	@echo "$(YELLOW)Botasaurus Migration:$(NC)"
-	@echo "  install-botasaurus - Install Botasaurus dependencies"
 	@echo ""
 	@echo "$(GREEN)Batch Pipeline:$(NC)"
 	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
@@ -381,15 +378,6 @@ check: quick-check
 
 all: full-check
 	@echo "$(GREEN)All checks completed!$(NC)"
-
-# Botasaurus Migration Commands
-
-install-botasaurus: ## Install Botasaurus dependencies for migration
-	@echo "$(YELLOW)Installing Botasaurus dependencies...$(NC)"
-	poetry add botasaurus botasaurus-requests
-	@echo "$(YELLOW)Removing old dependencies...$(NC)"
-	poetry remove playwright playwright-stealth tenacity || true
-	@echo "$(GREEN)Botasaurus dependencies installed and old dependencies removed$(NC)"
 
 # Scraper-specific commands
 scrape-test: ## Run scraper with test ASIN (Botasaurus)

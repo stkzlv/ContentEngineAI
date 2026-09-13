@@ -167,7 +167,6 @@ pipeline_timeout_sec: 2700
 # System-wide timeouts for command execution and media analysis
 system_timeouts:
   ffprobe_timeout: 10
-  xrandr_timeout: 5
   system_profiler_timeout: 10
   head_request_timeout: 10
 
@@ -1972,7 +1971,6 @@ Global timeouts for external command execution and basic connectivity checks.
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `system_timeouts.ffprobe_timeout` | int | 10 | Timeout for media analysis (seconds) |
-| `system_timeouts.xrandr_timeout` | int | 5 | Timeout for monitor detection on Linux (seconds) |
 | `system_timeouts.system_profiler_timeout` | int | 10 | Timeout for monitor detection on macOS (seconds) |
 | `system_timeouts.head_request_timeout` | int | 10 | Default timeout for HTTP HEAD requests (seconds) |
 
@@ -2183,7 +2181,6 @@ optimization_settings:
     gc_threshold: 0.8
     max_memory_mb: 2048
     max_image_size_mb: 50
-    mmap_threshold_bytes: 1048576  # 1MB
 ```
 
 ### Download Settings
