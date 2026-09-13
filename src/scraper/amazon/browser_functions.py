@@ -664,8 +664,17 @@ def scrape_amazon_products_browser_impl(
                                         len(product_cards),
                                     )
                             else:
-                                if DEBUG_MODE:
-                                    logger.debug("No product cards" " after navigation")
+                                # WARNING, ungated: this break truncates the
+                                # page's collection just like a failed
+                                # navigation, and was as invisible on a
+                                # normal run.
+                                logger.warning(
+                                    "No product cards after back-navigation "
+                                    "(found %d, needed more than %d); "
+                                    "stopping this page's collection early",
+                                    len(new_product_cards or []),
+                                    i,
+                                )
                                 break
                         except Exception as e:
                             # Back-navigation between products: same CDP-timeout class
@@ -692,8 +701,9 @@ def scrape_amazon_products_browser_impl(
                 i += 1
 
             except Exception as e:
-                if DEBUG_MODE:
-                    logger.debug("Error processing card %d: %s", i + 1, e)
+                # WARNING, ungated: the product on this card is lost to the
+                # run; a normal-mode operator needs to see how many and why.
+                logger.warning("Error processing card %d: %s", i + 1, e)
                 i += 1  # Continue to next card instead of breaking
                 continue
 
