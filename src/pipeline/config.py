@@ -1117,7 +1117,14 @@ def load_global_batch_config(
             ordinal = date.today().toordinal()
             alternated_format = format_for_run(ordinal)
             topic_pool_empty = not configured_topics or topics_per_run <= 0
-            keyword_pool_empty = not keywords and not product_ids
+            # The effective count folds in, mirroring the topic side:
+            # `keywords_per_run: 0` means "search no keywords", so a
+            # non-empty pool sliced to nothing is an empty side -- without
+            # this the product day built a no-input config and the scheduled
+            # run was refused instead of falling back.
+            keyword_pool_empty = (
+                not keywords or configured_per_run == 0
+            ) and not product_ids
             # A drawn side with nothing configured falls back to the other
             # side with a warning rather than refusing: this is the path a
             # scheduled run takes, and losing every second day to a config
@@ -1135,16 +1142,25 @@ def load_global_batch_config(
                     "instead"
                 )
                 alternated_format = "topic"
+            # The compression's premise is that a side runs every SECOND
+            # day. In the fallback state the surviving side runs every day,
+            # so consecutive days share a compressed ordinal and the
+            # rotation advances at half speed -- the same keyword slice
+            # searched two days running produces nothing at handoff, and
+            # the same topic publishes twice. The raw ordinal is the
+            # consecutive-step one there.
+            genuine_alternation = not topic_pool_empty and not keyword_pool_empty
+            side_ordinal = ordinal // 2 if genuine_alternation else ordinal
             if alternated_format == "topic":
                 topics = topics_for_run(
-                    configured_topics, topics_per_run, day_ordinal=ordinal // 2
+                    configured_topics, topics_per_run, day_ordinal=side_ordinal
                 )
                 keywords = []
                 product_ids = []
                 rotate_keywords = False
             else:
                 topics = []
-                alternated_day_ordinal = ordinal // 2
+                alternated_day_ordinal = side_ordinal
         else:
             topics = topics_for_run(configured_topics, topics_per_run)
 
