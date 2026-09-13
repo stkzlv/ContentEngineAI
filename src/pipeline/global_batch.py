@@ -69,11 +69,14 @@ from src.video.producer.utils import (
     select_profile_for_product,
 )
 
-# Imports of the publisher (the Zernio SDK), the scraper (Chromium stack plus
-# its import-time logging) and the producer's cli/orchestration (which pull
-# both) stay function-local on purpose: the argparse/--help/dry-run path must
-# not pay for them, and the scraper import is the documented heavy one. Every
-# other survivor below is either one of these or a documented cycle-breaker.
+# The publisher (the Zernio SDK) is the one survivor below that a
+# function-local import genuinely keeps out of the import closure -- it is
+# not otherwise reached at module load. The scraper and producer
+# orchestration are ALREADY resident at import of this module (their package
+# __init__ re-export chains pull botasaurus/torch/whisper regardless), so
+# their function-local imports here defer nothing; they are kept local only
+# to keep this module's header small. The eager-load lever is those __init__
+# chains, tracked separately.
 
 if TYPE_CHECKING:
     from src.publisher.models import PublisherConfig

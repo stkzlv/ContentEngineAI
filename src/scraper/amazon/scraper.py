@@ -56,11 +56,11 @@ from .constants import (
 from .downloader import download_media_files
 from .models import ProductData, SearchParameters
 
-# Function-local first-party imports below are deliberate: `BotasaurusAmazonScraper`
-# and the botasaurus_output/config/batch_controller relatives defer the
-# Chromium automation stack, and `src.video.config_adapter` is imported lazily
-# so the scraper package does not resolve the video config at import. Do not
-# hoist them.
+# `src.video.config_adapter` is imported function-locally on purpose: it
+# resolves the video config, which the scraper package must not load at
+# import. The botasaurus_output/config/batch_controller relatives defer
+# nothing -- the botasaurus stack is already resident via this package's
+# __init__ -- and are kept local only to keep this header small.
 from .utils import validate_asin_format
 
 # Initialize logging BEFORE Botasaurus imports to capture early errors

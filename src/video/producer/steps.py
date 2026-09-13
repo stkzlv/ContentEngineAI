@@ -40,11 +40,12 @@ from src.video.producer.context import (
     PipelineError,
 )
 
-# Function-local first-party imports below are deliberate: the pycaps engine
-# and its `pycaps.ai` tagger are the optional group (absent on a default
-# install), and `src.video.stt_functions` / `unified_subtitle_generator` pull
-# the heavy STT/render stack that a step should load only when it runs. Do
-# not hoist them.
+# The pycaps engine and its `pycaps.ai` tagger are the survivors that a
+# function-local import genuinely defers: they are the optional group, absent
+# on a default install, so importing them at module scope would break that
+# install. The STT/render modules (`stt_functions`, `unified_subtitle_generator`)
+# are ALREADY resident via the producer package __init__, so their local
+# imports defer nothing and are kept local only to keep this header small.
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
     STEP_CREATE_VOICEOVER,
