@@ -61,6 +61,22 @@ def test_the_card_processing_swallow_logs_at_warning_ungated():
     assert "DEBUG_MODE" not in between
 
 
+def test_the_extractor_swallow_logs_at_warning_ungated():
+    """One call down from the card loop: extraction raising after a
+    successful product-page navigation loses the product with no line at
+    all on a normal run under the old debug gate.
+    """
+    extractor = Path("src/scraper/amazon/product_extractor.py").read_text(
+        encoding="utf-8"
+    )
+    idx = extractor.index("Error extracting product data for")
+    call = extractor.rindex("logger.", 0, idx)
+    match = re.match(r"logger\.(\w+)", extractor[call:])
+    assert match is not None and match.group(1) == "warning"
+    handler = extractor.rindex("except ", 0, call)
+    assert "DEBUG_MODE" not in extractor[handler:call]
+
+
 def test_all_levels_survive_a_normal_run_threshold():
     """Derived from the source, so a demotion fails here too."""
     for fragment in (
