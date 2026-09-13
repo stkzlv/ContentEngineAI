@@ -167,7 +167,6 @@ pipeline_timeout_sec: 2700
 # System-wide timeouts for command execution and media analysis
 system_timeouts:
   ffprobe_timeout: 10
-  xrandr_timeout: 5
   system_profiler_timeout: 10
   head_request_timeout: 10
 
@@ -1972,7 +1971,6 @@ Global timeouts for external command execution and basic connectivity checks.
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `system_timeouts.ffprobe_timeout` | int | 10 | Timeout for media analysis (seconds) |
-| `system_timeouts.xrandr_timeout` | int | 5 | Timeout for monitor detection on Linux (seconds) |
 | `system_timeouts.system_profiler_timeout` | int | 10 | Timeout for monitor detection on macOS (seconds) |
 | `system_timeouts.head_request_timeout` | int | 10 | Default timeout for HTTP HEAD requests (seconds) |
 
@@ -2152,38 +2150,21 @@ Performance settings are configured in `config/performance.yaml`:
 
 ### Optimization Settings
 
+The settings are flat fields on the optimization model (see
+`OptimizationSettings` in the video config package for the full list and
+defaults). A representative excerpt:
+
 ```yaml
 optimization_settings:
-  # Background processing
-  background_processing:
-    enabled: true
-    max_workers: 4
-    queue_size: 100
-
-  # Connection pooling
-  connection_pooling:
-    enabled: true
-    max_connections: 20
-    connection_timeout: 30
-
-  # Async I/O
-  async_io:
-    enabled: true
-    chunk_size: 8192
-    max_concurrent: 10
-
-  # Caching
-  caching:
-    enabled: true
-    ttl_seconds: 3600       # 1 hour
-    max_size_mb: 100
-
-  # Memory optimization
-  memory:
-    gc_threshold: 0.8
-    max_memory_mb: 2048
-    max_image_size_mb: 50
-    mmap_threshold_bytes: 1048576  # 1MB
+  connection_pool_total_limit: 100
+  connection_pool_host_limit: 20
+  download_manager_max_concurrent: 5
+  download_chunk_size_bytes: 8192
+  mmap_file_size_threshold_bytes: 1048576   # files above this use mmap I/O
+  async_ffmpeg_max_concurrent: 2
+  async_io_max_concurrent: 8
+  cache_media_metadata_ttl_sec: 86400
+  cache_api_response_ttl_sec: 3600
 ```
 
 ### Download Settings

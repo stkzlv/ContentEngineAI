@@ -93,3 +93,8 @@ ROADMAP.private.md
 # logged-in session state, so they must never be committed.
 .playwright-mcp/
 error_logs/
+
+# Machine-local Poetry policy and timestamped env backups
+poetry.toml
+.env.bak*
+*.env.bak-*

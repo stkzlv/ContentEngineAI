@@ -16,8 +16,7 @@ NC := \033[0m # No Color
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
 	build package docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
-	install-botasaurus validate-migration rollback-migration \
-	scrape-test scrape-advanced produce-video migration-status \
+	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
 	print-python install-analytics-timer uninstall-analytics-timer analytics-timer-status
@@ -79,12 +78,6 @@ help:
 	@echo "  vulture       - Run dead code detector"
 	@echo "  safety        - Check dependency vulnerabilities"
 	@echo ""
-	@echo "$(YELLOW)Botasaurus Migration:$(NC)"
-	@echo "  install-botasaurus - Install Botasaurus dependencies"
-	@echo "  validate-migration - Validate migration is working"
-	@echo "  rollback-migration - Emergency rollback to pre-migration"
-	@echo "  migration-status   - Show migration status"
-	@echo ""
 	@echo "$(GREEN)Batch Pipeline:$(NC)"
 	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
 	@echo "  batch-lowpri  - Same but with reduced CPU/IO/memory priority"
@@ -94,7 +87,6 @@ help:
 	@echo "  scrape-test        - Run test scrape with Botasaurus"
 	@echo "  scrape-advanced    - Run advanced search scrape"
 	@echo "  scrape-lowpri      - Run scraper with reduced priority"
-	@echo "  produce-video      - Generate video from scraped data"
 	@echo "  produce-lowpri     - Run producer with reduced priority (supports --product-ids)"
 	@echo "  topics-batch       - Render several topics step by step (TOPICS=topics.yaml)"
 	@echo "  publish            - Schedule posts for products (ARGS=\"schedule --debug\")"
@@ -386,42 +378,6 @@ check: quick-check
 all: full-check
 	@echo "$(GREEN)All checks completed!$(NC)"
 
-# Botasaurus Migration Commands
-
-install-botasaurus: ## Install Botasaurus dependencies for migration
-	@echo "$(YELLOW)Installing Botasaurus dependencies...$(NC)"
-	poetry add botasaurus botasaurus-requests
-	@echo "$(YELLOW)Removing old dependencies...$(NC)"
-	poetry remove playwright playwright-stealth tenacity || true
-	@echo "$(GREEN)Botasaurus dependencies installed and old dependencies removed$(NC)"
-
-validate-migration: ## Validate Botasaurus migration is working
-	@echo "$(YELLOW)Validating Botasaurus migration...$(NC)"
-	python scripts/validate_botasaurus_migration.py
-	@echo "$(GREEN)Migration validation completed$(NC)"
-
-rollback-migration: ## Emergency rollback to pre-migration state  
-	@echo "$(RED)Rolling back to pre-migration state...$(NC)"
-	@echo "$(RED)This will reset to commit: 4c9314e7b8ca02e5333934a6934904e65fcd52e9$(NC)"
-	@read -p "Are you sure? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	git reset --hard 4c9314e7b8ca02e5333934a6934904e65fcd52e9
-	git clean -fd
-	poetry install
-	@echo "$(GREEN)Rollback completed$(NC)"
-
-migration-status: ## Show current migration status
-	@echo "$(YELLOW)Botasaurus Migration Status$(NC)"
-	@echo "============================"
-	@if poetry show botasaurus >/dev/null 2>&1; then echo "✅ Botasaurus dependency installed"; else echo "❌ Botasaurus dependency missing - run 'make install-botasaurus'"; fi
-	@if poetry show playwright >/dev/null 2>&1; then echo "⚠️  Old Playwright dependency still present"; else echo "✅ Old Playwright dependency removed"; fi
-	@if [ -f "src/scraper/amazon/scraper.py" ]; then echo "✅ Scraper file exists"; else echo "❌ Scraper file missing"; fi
-	@echo ""
-	@echo "Next steps:"
-	@echo "1. Run 'make install-botasaurus' if dependencies not installed"
-	@echo "2. Replace src/scraper/amazon/scraper.py with Botasaurus implementation"  
-	@echo "3. Run 'make validate-migration' to verify everything works"
-	@echo "4. Use 'make rollback-migration' if rollback needed"
-
 # Scraper-specific commands
 scrape-test: ## Run scraper with test ASIN (Botasaurus)
 	@echo "$(BLUE)Running Botasaurus scraper test...$(NC)"
@@ -633,10 +589,3 @@ publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 	fi
 
 # Video production commands
-produce-video: ## Run video producer on scraped data
-	@echo "$(BLUE)Running video producer...$(NC)"
-	@if [ -d "outputs" ] && [ -n "$$(find outputs -name 'data.json' -path '*/output/data.json' 2>/dev/null)" ]; then \
-		poetry run python -m src.video.producer $$(find outputs -name 'data.json' -path '*/output/data.json' | head -1) slideshow_images1 --debug; \
-	else \
-		echo "$(RED)No scraped data found. Run 'make scrape-test' first.$(NC)"; \
-	fi

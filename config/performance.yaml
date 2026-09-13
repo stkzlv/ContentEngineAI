@@ -37,17 +37,6 @@ ffmpeg_settings:
   validation_timeout_sec: 10
   
 # ============================================================================
-# MEMORY OPTIMIZATION
-# ============================================================================
-memory:
-  # Memory-mapped I/O threshold (bytes)
-  # Files larger than this use memory-mapped I/O for ~2-3x faster copying
-  # Files smaller use standard copy methods (lower overhead)
-  # 1,048,576 bytes = 1 MB (1024 * 1024)
-  # Typical values: 1MB (default), 512KB for SSDs, 4MB for HDDs
-  mmap_threshold_bytes: 1048576
-
-# ============================================================================
 # API SETTINGS
 # ============================================================================
 api_settings:
@@ -132,7 +121,6 @@ debug_settings:
   create_pipeline_metadata: true
   create_performance_metrics: true
   create_whisper_debug_files: true
-  create_temp_files: true
 
   # Performance thresholds (Whisper STT runs 60-120s; peak RSS ~2.3GB)
   operation_timing_threshold_sec: 180.0
