@@ -280,7 +280,10 @@ def scrape_amazon_products_browser_impl(
             ready_state = "<unreachable>"
             with contextlib.suppress(Exception):
                 ready_state = driver.run_js("return document.readyState")
-            logger.debug(
+            # ERROR, ungated: this swallow costs the whole scrape (the
+            # handler returns an empty list the caller records), so on a
+            # normal run it must still leave a cause line in the log.
+            logger.error(
                 "Navigation failed after %.1fs: %s: %s "
                 "(readyState=%s) — 'Response not received' indicates a CDP timeout, "
                 "not a page-load timeout",
@@ -668,7 +671,10 @@ def scrape_amazon_products_browser_impl(
                             # Back-navigation between products: same CDP-timeout class
                             # as the initial nav. Log elapsed + type so a stalled CDP
                             # endpoint is distinguishable from a missing element.
-                            logger.debug(
+                            # WARNING, ungated: the break silently truncates
+                            # the page's collection, so the cause must be
+                            # visible on a normal run.
+                            logger.warning(
                                 "Back-navigation failed after %.1fs: %s: %s",
                                 time.monotonic() - back_nav_start,
                                 type(e).__name__,
@@ -1167,16 +1173,16 @@ def scrape_single_product(
         logger.debug("Browser window info:")
         try:
             current_url = driver.current_url
-            logger.info("   Current URL: %s", current_url)
+            logger.debug("   Current URL: %s", current_url)
         except Exception as e:
-            logger.info("   Current URL: Unable to get (%s)", e)
+            logger.debug("   Current URL: Unable to get (%s)", e)
 
         try:
             # Check window size using JavaScript (Botasaurus-compatible)
             window_size = driver.run_js(
                 "return {width: window.outerWidth, height: window.outerHeight};"
             )
-            logger.info(
+            logger.debug(
                 "   • Window size: %sx%s",
                 window_size.get("width", "Unknown"),
                 window_size.get("height", "Unknown"),
@@ -1186,22 +1192,22 @@ def scrape_single_product(
             window_position = driver.run_js(
                 "return {x: window.screenX, y: window.screenY};"
             )
-            logger.info(
+            logger.debug(
                 "   • Window position: %s,%s",
                 window_position.get("x", "Unknown"),
                 window_position.get("y", "Unknown"),
             )
         except Exception as e:
-            logger.info("   Window info: Unable to get (%s)", e)
+            logger.debug("   Window info: Unable to get (%s)", e)
 
         try:
             # Use driver properties instead of methods
-            logger.info("   Browser session active: Yes")
+            logger.debug("   Browser session active: Yes")
         except Exception as e:
-            logger.info("   Browser session: Error (%s)", e)
+            logger.debug("   Browser session: Error (%s)", e)
 
-        logger.info("   Driver type: %s", type(driver).__name__)
-        logger.info("   Browser name: %s", getattr(driver, "name", "Unknown"))
+        logger.debug("   Driver type: %s", type(driver).__name__)
+        logger.debug("   Browser name: %s", getattr(driver, "name", "Unknown"))
 
         debug_pause = get_settings().global_settings.rate_limiting.debug_pause_duration
         logger.debug(
