@@ -5,7 +5,11 @@ description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{ include = "src", from = "." }]
+# Not a distributable package: the code runs from a checkout via
+# `python -m src.<module>`, never as an installed `src` top-level package
+# (which would collide with any other src-layout project). `poetry install`
+# provides the dependencies for that checkout; it does not install the root.
+package-mode = false
 
 [[tool.poetry.source]]
 name = "pytorch-cpu"
