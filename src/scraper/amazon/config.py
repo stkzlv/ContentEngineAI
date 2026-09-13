@@ -376,9 +376,15 @@ def get_batch_logging_config() -> dict[str, str | int]:
     }
 
 
-def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
+def load_browser_config_from_yaml(
+    config_path: str = "config/scraper.yaml", config_root: str | None = None
+):
     """Load and apply YAML configuration to global browser settings using config
-    adapter
+    adapter.
+
+    ``config_root`` overrides the adapter's repo-anchored default; tests use
+    it to point the loader at a crafted config directory, since the loader no
+    longer reads relative to the working directory.
     """
     global CONFIG, _BROWSER_CONFIG, SETTINGS
 
@@ -386,7 +392,7 @@ def load_browser_config_from_yaml(config_path: str = "config/scraper.yaml"):
         # Use the new config adapter for backward compatibility
         from ..config_adapter import ScraperConfigAdapter
 
-        adapter = ScraperConfigAdapter()
+        adapter = ScraperConfigAdapter(config_root)
         config_data = adapter.get_merged_config_dict()
         SETTINGS = adapter.get_settings()
         CONFIG.update(config_data)

@@ -1605,7 +1605,7 @@ Examples:
         "--outputs-dir",
         type=Path,
         default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to save registry files (default: outputs)",
+        help="Directory to save registry files (default: the repo outputs/)",
     )
     registry_parser.add_argument(
         "--scan-dir",
@@ -1643,7 +1643,7 @@ Examples:
         default=DEFAULT_OUTPUTS_DIR,
         help=(
             "Outputs root; post_metrics.json lives under its state/ "
-            "subdirectory (default: outputs)"
+            "subdirectory (default: the repo outputs/)"
         ),
     )
     analytics_parser.add_argument(

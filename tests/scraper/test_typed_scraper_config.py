@@ -161,7 +161,7 @@ class TestASectionLeftOutTakesTheDefaults:
             )
 
     def test_both_shapes_reach_the_manager_and_the_import_loader(
-        self, tmp_path, monkeypatch
+        self, tmp_path
     ) -> None:
         from src.config_manager import UnifiedConfigManager
         from src.scraper.amazon import config as scraper_config
@@ -174,9 +174,12 @@ class TestASectionLeftOutTakesTheDefaults:
             UnifiedConfigManager(
                 config_root=str(tmp_path / "config")
             ).get_scraper_config()
-        monkeypatch.chdir(tmp_path)
+        # The loader's default root is repo-anchored now, so the crafted
+        # directory is passed explicitly rather than smuggled in via cwd.
         with pytest.raises(ValidationError, match="both"):
-            scraper_config.load_browser_config_from_yaml()
+            scraper_config.load_browser_config_from_yaml(
+                config_root=str(tmp_path / "config")
+            )
 
     @pytest.mark.parametrize("content", ["", "- a list\n", "just a string\n"])
     def test_an_empty_or_non_mapping_file_is_refused(self, tmp_path, content) -> None:

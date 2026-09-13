@@ -30,6 +30,7 @@ from src.publisher.models import (
     ScheduleConfig,
     TikTokContentSettings,
 )
+from src.utils.outputs_paths import get_project_root
 from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
@@ -63,9 +64,7 @@ class MissingApiKeyError(ValueError):
 # default made every caller outside the repository root fall through to the
 # dataclass defaults in silence, which is how the batch ended up defaulting
 # `immediate_publish` to True against a shipped `false`.
-DEFAULT_PUBLISHER_CONFIG_PATH = (
-    Path(__file__).resolve().parents[2] / "config" / "publisher.yaml"
-)
+DEFAULT_PUBLISHER_CONFIG_PATH = get_project_root() / "config" / "publisher.yaml"
 
 
 def load_publisher_config(

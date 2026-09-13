@@ -20,13 +20,13 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from src.utils.outputs_paths import get_project_root
+
 # The file sits beside the other config, at the repo root. Anchored on this
 # module rather than on the working directory: the scraper is invoked from
 # anywhere, and a cwd-relative miss would silently load the `bare` no-op
 # instead of the operator's provider.
-DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parents[3] / "config" / "url_shortener.yaml"
-)
+DEFAULT_CONFIG_PATH = get_project_root() / "config" / "url_shortener.yaml"
 
 
 class URLShortenerApiSettings(BaseModel):

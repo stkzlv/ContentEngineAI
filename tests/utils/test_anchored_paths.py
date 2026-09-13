@@ -24,10 +24,13 @@ class TestNoHandCountedRootChains:
         `get_project_root()` is the single implementation; only its own
         module may count parents.
         """
-        pattern = re.compile(r"\.parent\s*\.\s*parent\s*\.\s*parent")
+        # Both spellings: chained `.parent` and subscripted `.parents[N]`.
+        # The regression's recorded trigger is a file move, and either form
+        # goes stale the same way.
+        pattern = re.compile(r"\.parent\s*\.\s*parent\s*\.\s*parent|\.parents\s*\[")
         offenders = []
         for path in (REPO / "src").rglob("*.py"):
-            if path.name == "outputs_paths.py":
+            if path == REPO / "src" / "utils" / "outputs_paths.py":
                 continue
             if pattern.search(path.read_text(encoding="utf-8")):
                 offenders.append(str(path.relative_to(REPO)))
