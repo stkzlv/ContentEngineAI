@@ -102,7 +102,7 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Parallel Execution:$(NC)"
 	@echo "  Use 'make -j$(PARALLEL_JOBS)' for parallel make execution"
-	@echo "  Example: make -j$(PARALLEL_JOBS) build test"
+	@echo "  Example: make -j$(PARALLEL_JOBS) lint test"
 	@echo "  Note: Linting tools run in parallel automatically"
 
 # Environment validation
