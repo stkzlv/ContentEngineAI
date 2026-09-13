@@ -23,6 +23,10 @@
 
 ## Quick Start
 
+ContentEngineAI runs from a checkout, not from a PyPI install: `poetry install`
+provides its dependencies and everything runs as `python -m src.<module>`. It
+is deliberately not published as a package.
+
 ```bash
 # 1. Setup (requires Python 3.12+, FFmpeg, Poetry)
 git clone https://github.com/stkzlv/ContentEngineAI.git && cd ContentEngineAI

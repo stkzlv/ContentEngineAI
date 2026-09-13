@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.118.0] - 2026-09-13
+
+### Changed
+- **Breaking (packaging)**: the project is declared not-installable (`package-mode = false`), the `src` package stanza is dropped, and the release no longer builds or attaches a wheel/sdist. It was only ever run from a checkout via `python -m src.<module>`, and a built wheel installed a top-level `src` package that collides with any other src-layout project. `poetry install` still provides dependencies for the checkout; releases carry notes and the source archive GitHub attaches. The `make build`/`package` targets and `release-prep`'s build step are removed with it.
+
 ## [0.117.1] - 2026-09-13
 
 ### Changed
