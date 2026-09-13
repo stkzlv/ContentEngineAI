@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.113.0] - 2026-09-13
+
 ### Fixed
 - The cleanup's preserve-list covers the schedule and the day-N metrics store, which a real (non-dry) cleanup would have deleted once they aged past the cutoff -- and those figures cannot be re-fetched past the provider's retention. A test now drives an actual non-dry cleanup and asserts every durable file survives.
 
