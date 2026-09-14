@@ -39,13 +39,55 @@ def _scraper_main() -> ast.FunctionDef:
     )
 
 
+def _is_logging_setup(call: ast.Call) -> bool:
+    """Both spellings: the bare name, and `<module>.setup_debug_logging`.
+
+    Matching only the name would let the attribute form reintroduce the
+    import-time call with every guard in this file green.
+    """
+    func = call.func
+    return (
+        getattr(func, "id", None) == "setup_debug_logging"
+        or getattr(func, "attr", None) == "setup_debug_logging"
+    )
+
+
 def _logging_setup_calls(node: ast.AST) -> list[ast.Call]:
     return [
         sub
         for sub in ast.walk(node)
-        if isinstance(sub, ast.Call)
-        and getattr(sub.func, "id", None) == "setup_debug_logging"
+        if isinstance(sub, ast.Call) and _is_logging_setup(sub)
     ]
+
+
+def _binds_at_module_scope(tree: ast.Module) -> bool:
+    """Does the module import the helper somewhere that runs at import?
+
+    Anything nested in a module-scope `try:` or `if:` binds the name just as
+    a top-level import does; anything inside a function or a class does not,
+    and function-local imports deliberately resolve through the patched
+    source module at call time.
+    """
+    stack: list[ast.AST] = list(tree.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            continue
+        if isinstance(node, ast.ImportFrom) and any(
+            alias.name == "setup_debug_logging" for alias in node.names
+        ):
+            return True
+        for field in ("body", "orelse", "finalbody", "handlers"):
+            stack.extend(getattr(node, field, None) or [])
+    return False
+
+
+def _dotted_name(path: Path) -> str:
+    """The name `sys.modules` holds, which for a package is not `__init__`."""
+    parts = list(path.relative_to(REPO).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
 
 
 def _marks_run(call: ast.Call) -> bool:
@@ -259,7 +301,7 @@ class TestOnlyAnEntryPointConfiguresLogging:
             for node in ast.parse(_SCRAPER_SOURCE).body
             if isinstance(node, ast.Expr)
             and isinstance(node.value, ast.Call)
-            and getattr(node.value.func, "id", None) == "setup_debug_logging"
+            and _is_logging_setup(node.value)
         ]
         assert not module_level, (
             "the scraper configures logging at import again, so importing "
@@ -323,12 +365,8 @@ class TestOnlyAnEntryPointConfiguresLogging:
         bound: set[str] = set()
         for path in (REPO / "src").rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in tree.body:
-                if isinstance(node, ast.ImportFrom) and any(
-                    alias.name == "setup_debug_logging" for alias in node.names
-                ):
-                    module = path.relative_to(REPO).with_suffix("")
-                    bound.add(".".join(module.parts))
+            if _binds_at_module_scope(tree):
+                bound.add(_dotted_name(path))
 
         missing = sorted(bound - set(_LOGGING_SETUP_SITES))
         assert not missing, (
