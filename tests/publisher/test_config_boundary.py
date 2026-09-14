@@ -18,11 +18,23 @@ REPO = get_project_root()
 
 
 def _imports_of(path) -> set[str]:
-    """Every module this file imports, at any scope."""
+    """Every module this file imports, at any scope, as an absolute name.
+
+    Relative imports are resolved rather than skipped: `from ...video.config
+    import X` inside `src/publisher/late/` reaches the same module by another
+    spelling, and a guard that only reads absolute ones would say the boundary
+    holds.
+    """
+    package = list(path.relative_to(REPO).parent.parts)
     names: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            names.add(node.module)
+        if isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                if node.module:
+                    names.add(node.module)
+                continue
+            base = package[: len(package) - (node.level - 1)]
+            names.add(".".join([*base, node.module] if node.module else base))
         elif isinstance(node, ast.Import):
             names.update(alias.name for alias in node.names)
     return names
