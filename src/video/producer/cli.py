@@ -714,10 +714,14 @@ async def main():
         # Use modular config loading (automatically handles modular vs monolithic)
         config = load_video_config_modular(cli_overrides=cli_overrides)
     except Exception as e:
-        # Fallback logging setup if config fails
+        # Fallback logging setup if config fails. `force=True` because
+        # basicConfig is a no-op once root has handlers, and something
+        # upstream configuring root would otherwise swallow the one line
+        # this branch exists to emit.
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            force=True,
         )
         logger.critical(f"Config loading failed, using fallback logging: {e}")
         sys.exit(1)

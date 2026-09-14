@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.118.2] - 2026-09-14
+
+### Fixed
+- The Amazon scraper configures logging in its `main()` rather than at module import, so only a scraper run writes `outputs/logs/scraper.log`. Importing `ProductData` from that module -- which the producer, the publisher, the batch and the test suite all do -- used to point the root logger at the production log: one full test run appended 430 KB of unrelated output to real scrape history and rotated the oldest copy out of existence. The run marker moves with the configuration and is still written once per invoked run, after argument parsing, so `--help` touches nothing.
+- The producer CLI's config-failure fallback passes `force=True` to `basicConfig`, which is otherwise a no-op once the root logger has handlers, and the test suite restores the root logger after every test so a test that configures logging for real cannot redirect the rest of the session.
+
 ## [0.118.1] - 2026-09-13
 
 ### Fixed

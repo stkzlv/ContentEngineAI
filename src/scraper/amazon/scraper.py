@@ -63,22 +63,14 @@ from .models import ProductData, SearchParameters
 # __init__ -- and are kept local only to keep this header small.
 from .utils import validate_asin_format
 
-# Initialize logging BEFORE Botasaurus imports to capture early errors
-log_dir = get_logs_directory()
-log_dir.mkdir(exist_ok=True)
-log_file = log_dir / "scraper.log"
-
-# Setup minimal logging (will be reconfigured in main with debug settings)
-setup_debug_logging(
-    log_file=log_file,
-    debug_mode=False,
-    verbose=False,
-    component_name="AmazonScraper",
-    # This runs at import, not at the start of a scrape -- every producer,
-    # publisher and batch invocation reaches it, and so does `--help`.
-    # `main()` writes the marker once a scrape is actually starting.
-    mark_run=False,
-)
+# Logging is configured by `main()`, not here: an entry point owns its
+# logging, an imported module does not. Configuring it at import to catch
+# Botasaurus load errors pointed the ROOT logger at the production
+# scraper.log for everything that imports `ProductData` -- the producer, the
+# publisher, the batch, the test suite -- so one pytest session appended
+# 430 KB to a real scrape history and rotated the oldest copy away. The
+# window before `main()` runs is given up: a record there reaches logging's
+# last-resort handler on stderr rather than the file.
 
 # Suppress websocket errors (before any browser imports)
 ws_logger = logging.getLogger("websocket")
@@ -1653,13 +1645,18 @@ def main():
 
     args = parser.parse_args()
 
-    # Written here rather than by `setup_debug_logging`, which this module
-    # calls at import and so reaches every producer, publisher and batch
-    # invocation. This marks an invoked run, not a completed scrape -- a
-    # missing `--input-file` or no inputs at all still returns below, after
-    # the marker and followed by its own error. `--help` and an argparse
-    # error exit inside `parse_args` above and write nothing.
-    logging.getLogger("AmazonScraper").info("=== AmazonScraper run starting ===")
+    # After parsing, so `--help` and an argparse error exit without touching
+    # the log at all. The marker records an invoked run, not a completed
+    # scrape: a missing `--input-file` still returns below, after the marker
+    # and followed by its own error. Reconfigured with debug settings further
+    # down, once the config has been read.
+    log_file = get_logs_directory() / "scraper.log"
+    setup_debug_logging(
+        log_file=log_file,
+        debug_mode=False,
+        verbose=False,
+        component_name="AmazonScraper",
+    )
 
     # --input-file: read product IDs/URLs from file and merge with --product-ids
     if args.input_file:

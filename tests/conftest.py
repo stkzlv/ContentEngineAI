@@ -1,7 +1,9 @@
 """Pytest configuration and shared fixtures for ContentEngineAI tests."""
 
+import inspect
 import json
 import logging
+import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -14,6 +16,7 @@ from aioresponses import aioresponses
 
 from src.scraper.amazon.scraper import ProductData
 from src.scraper.base.models import Platform
+from src.utils import logging_setup
 from src.video.config import VideoConfig, VideoProfile, load_video_config
 
 
@@ -484,12 +487,72 @@ def mock_google_cloud_credentials(temp_dir: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def setup_logging():
-    """Set up logging for tests."""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+def isolate_root_logging():
+    """Keep one test's logging configuration out of the next test's.
+
+    This used to call `logging.basicConfig`, which is documented as a no-op
+    once the root logger has handlers -- and pytest's own capture handler is
+    on root for the whole of a test, so the call never configured anything.
+    What it did instead was hide the leak: a test that configures logging for
+    real leaves its file handler attached to root, and every later test's
+    records are written to that file.
+    """
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
+    yield
+    for handler in root.handlers[:]:
+        if handler not in saved_handlers:
+            root.removeHandler(handler)
+            handler.close()
+    for handler in saved_handlers:
+        if handler not in root.handlers:
+            root.addHandler(handler)
+    root.setLevel(saved_level)
+
+
+# Every module that binds `setup_debug_logging` at import. Patching the
+# source module reaches the function-local import and every module imported
+# after the patch, but not one that bound the name before it.
+_LOGGING_SETUP_SITES = (
+    "src.scraper.amazon.scraper",
+    "src.publisher.late.cli",
+    "src.video.producer.cli",
+    "src.video.producer.orchestration",
+    "src.video.producer.utils",
+)
+_SETUP_DEBUG_LOGGING_SIGNATURE = inspect.signature(logging_setup.setup_debug_logging)
+
+
+@pytest.fixture(autouse=True)
+def no_production_log_files(monkeypatch):
+    """A test that drives an entry point must not write to outputs/logs/.
+
+    Several tests call the scraper's `main()`, which configures logging for
+    a real run against the real log path -- so the suite appended run markers
+    to production scrape history. The log directory is anchored on the
+    repository, so there is nowhere to redirect it to; neutralising the
+    configuration is the seam. `tests/utils/test_logging_appends.py` keeps
+    its own binding of the helper, imported directly, and still exercises it.
+    """
+
+    def _noop(*args, **kwargs):
+        # Bound against the real signature, because a variadic stand-in
+        # accepts a renamed or dropped keyword: those `main()` tests are the
+        # only coverage the call site has, and a break there kills every real
+        # run while the suite stays green.
+        _SETUP_DEBUG_LOGGING_SIGNATURE.bind(*args, **kwargs)
+        return None
+
+    # Only what is already imported: a module imported later binds the name
+    # from the patched source module at its own import, and eagerly resolving
+    # these five pulls the scraper, publisher and producer stacks into every
+    # session, which costs a targeted single-file run seconds.
+    monkeypatch.setattr(logging_setup, "setup_debug_logging", _noop)
+    for name in _LOGGING_SETUP_SITES:
+        module = sys.modules.get(name)
+        if module is not None:
+            monkeypatch.setattr(module, "setup_debug_logging", _noop, raising=False)
 
 
 @pytest.fixture(autouse=True)

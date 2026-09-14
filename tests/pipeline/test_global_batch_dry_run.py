@@ -99,13 +99,13 @@ class TestDryRunDeletesNothing:
             ],
         )
 
-        # `main` opens outputs/logs/global_pipeline.log relative to the cwd,
-        # in write mode, and reads the developer's real `.env`. Neither is
-        # under test here, and the first destroys the log the project's own
-        # runbooks tell you to grep after a batch run.
-        monkeypatch.setattr(
-            "src.utils.logging_setup.setup_debug_logging", lambda **kwargs: None
-        )
+        # `main` reads the developer's real `.env`, which is not under test.
+        # Its logging setup is neutralised by the autouse fixture in
+        # tests/conftest.py -- do not re-patch it here with a variadic lambda:
+        # this test and `TestTheBatchVerdictMatchesItsExitCode` are the only
+        # ones that drive the batch's `main()`, so they are the whole arity
+        # check on its logging call, and a lambda swallowing a renamed keyword
+        # leaves every real batch run dying at startup with the suite green.
         monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
         with pytest.raises(SystemExit) as exit_info:
@@ -239,9 +239,6 @@ class TestTheBatchVerdictMatchesItsExitCode:
         if strict:
             argv.append("--strict")
         monkeypatch.setattr(sys, "argv", argv)
-        monkeypatch.setattr(
-            "src.utils.logging_setup.setup_debug_logging", lambda **kwargs: None
-        )
         monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
         orchestrator = MagicMock()
