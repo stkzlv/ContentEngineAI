@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.3] - 2026-09-14
+
+### Fixed
+- A product whose detail page answers the title selector with an empty element is no longer dropped. The page carries `productTitle` twice, once as the span holding the title and once as a hidden input whose text is empty, and the loop broke on the element being present rather than on it having text, so three working fallback selectors were never tried. The product was then discarded as titleless with price, rating and description intact, since validation reduces to a title check under the shipped settings. A batch validated zero of 27 products across two keywords before this. The description loop had the same shape.
+- The warning that explains a rejected product names which fields were missing. Two of its arguments printed the empty string whichever way the field went, so the line reported no cause.
+
 ## [0.121.2] - 2026-09-14
 
 ### Changed
