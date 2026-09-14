@@ -484,12 +484,60 @@ def mock_google_cloud_credentials(temp_dir: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def setup_logging():
-    """Set up logging for tests."""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+def isolate_root_logging():
+    """Keep one test's logging configuration out of the next test's.
+
+    This used to call `logging.basicConfig`, which is documented as a no-op
+    once the root logger has handlers -- and pytest's own capture handler is
+    on root for the whole of a test, so the call never configured anything.
+    What it did instead was hide the leak: a test that configures logging for
+    real leaves its file handler attached to root, and every later test's
+    records are written to that file.
+    """
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
+    yield
+    for handler in root.handlers[:]:
+        if handler not in saved_handlers:
+            root.removeHandler(handler)
+            handler.close()
+    for handler in saved_handlers:
+        if handler not in root.handlers:
+            root.addHandler(handler)
+    root.setLevel(saved_level)
+
+
+# Every module that binds `setup_debug_logging` at import; patching the
+# source module alone reaches only the one call site that imports it
+# function-locally.
+_LOGGING_SETUP_SITES = (
+    "src.utils.logging_setup",
+    "src.scraper.amazon.scraper",
+    "src.publisher.late.cli",
+    "src.video.producer.cli",
+    "src.video.producer.orchestration",
+    "src.video.producer.utils",
+)
+
+
+@pytest.fixture(autouse=True)
+def no_production_log_files(monkeypatch):
+    """A test that drives an entry point must not write to outputs/logs/.
+
+    Several tests call the scraper's `main()`, which configures logging for
+    a real run against the real log path -- so the suite appended run markers
+    to production scrape history. The log directory is anchored on the
+    repository, so there is nowhere to redirect it to; neutralising the
+    configuration is the seam. `tests/utils/test_logging_appends.py` keeps
+    its own binding of the helper, imported directly, and still exercises it.
+    """
+
+    def _noop(*args, **kwargs):
+        return None
+
+    for module in _LOGGING_SETUP_SITES:
+        monkeypatch.setattr(f"{module}.setup_debug_logging", _noop, raising=False)
 
 
 @pytest.fixture(autouse=True)

@@ -451,6 +451,12 @@ async def my_function():
         raise
 ```
 
+Modules take a named logger and nothing more. Configuring the root logger
+(`setup_debug_logging`, `logging.basicConfig`) belongs in an entry point's
+`main()`, never at module scope: an import-time call redirects the root
+logger of every process that imports the module, including the test suite,
+and its records then land in that module's production log file.
+
 ## Configuration Development
 
 **📖 Complete configuration guide**: [Configuration](configuration.md)

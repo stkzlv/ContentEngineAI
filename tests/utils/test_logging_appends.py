@@ -14,6 +14,7 @@ another.
 
 from __future__ import annotations
 
+import ast
 import logging
 from pathlib import Path
 
@@ -24,6 +25,37 @@ from src.utils.logging_setup import (
     LOG_MAX_BYTES,
     setup_debug_logging,
 )
+from src.utils.outputs_paths import get_project_root
+
+REPO = get_project_root()
+_SCRAPER_SOURCE = (REPO / "src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+
+
+def _scraper_main() -> ast.FunctionDef:
+    return next(
+        node
+        for node in ast.parse(_SCRAPER_SOURCE).body
+        if isinstance(node, ast.FunctionDef) and node.name == "main"
+    )
+
+
+def _logging_setup_calls(node: ast.AST) -> list[ast.Call]:
+    return [
+        sub
+        for sub in ast.walk(node)
+        if isinstance(sub, ast.Call)
+        and getattr(sub.func, "id", None) == "setup_debug_logging"
+    ]
+
+
+def _marks_run(call: ast.Call) -> bool:
+    """The helper marks the run unless `mark_run=False` says otherwise."""
+    for keyword in call.keywords:
+        if keyword.arg == "mark_run":
+            return not (
+                isinstance(keyword.value, ast.Constant) and keyword.value.value is False
+            )
+    return True
 
 
 @pytest.fixture(autouse=True)
@@ -150,11 +182,13 @@ class TestEachRunIsFindable:
 class TestTheMarkerMeansARunStarted:
     """Configuring logging is not the same event as starting a run.
 
-    The scraper configures logging at module import, so importing it -- which
-    every producer, publisher and batch invocation does transitively, and so
-    does `--help` -- wrote a marker claiming a scrape had begun, with no
-    completion line after it. That is worse than no marker: it is a boundary
-    an operator would trust while reading the runbook.
+    The scraper used to configure logging at module import, so importing it --
+    which every producer, publisher and batch invocation does transitively,
+    and so does `--help` -- wrote a marker claiming a scrape had begun, with
+    no completion line after it. That is worse than no marker: it is a
+    boundary an operator would trust while reading the runbook. The import-time
+    call is gone (see the class below); `mark_run` still gates the second,
+    debug-level configuration of the same run.
     """
 
     def test_it_can_be_suppressed(self, tmp_path: Path):
@@ -173,53 +207,20 @@ class TestTheMarkerMeansARunStarted:
 
         assert "a line" in log_file.read_text(encoding="utf-8")
 
-    def test_the_scraper_suppresses_it_at_import(self):
-        """Read from the source: the defect was a call site, not the helper.
+    def test_the_scraper_marks_its_own_run_once_after_parsing(self):
+        """Located structurally, not by searching the file for a string.
 
-        Driving it would need the module re-imported, which the suite cannot
-        do without disturbing the root handlers every other test shares.
+        A substring check passes when the literal survives only in a comment,
+        and passes again when the call is moved back to module scope -- which
+        is the defect this file exists to keep out. Both mutations were tried
+        and both slipped through the substring form.
         """
-        import ast
-
-        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        module_level = [
-            node
-            for node in tree.body
-            if isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Call)
-            and getattr(node.value.func, "id", None) == "setup_debug_logging"
-        ]
-        assert len(module_level) == 1, "the import-time call moved or multiplied"
-
-        passed = {
-            keyword.arg: keyword.value
-            for keyword in module_level[0].value.keywords
-            if isinstance(keyword.value, ast.Constant)
-        }
-        assert passed.get("mark_run") is not None, "mark_run is not passed at all"
-        assert passed["mark_run"].value is False, (
-            "importing the scraper writes a run marker, so every producer, "
-            "publisher and batch invocation logs a scrape that never happened"
-        )
-
-    def test_the_scraper_marks_its_own_run_after_parsing(self):
-        """Suppressing at import is only correct if the run marks itself.
-
-        Located structurally, not by searching the file for the string. A
-        plain substring check passes when the literal survives only in a
-        comment, and passes again when the marker is moved back to module
-        scope -- which is the exact defect the gating exists to remove. Both
-        mutations were tried and both slipped through the substring form.
-        """
-        import ast
-
-        source = Path("src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        main = next(
-            node
-            for node in tree.body
-            if isinstance(node, ast.FunctionDef) and node.name == "main"
+        main = _scraper_main()
+        marking = [call for call in _logging_setup_calls(main) if _marks_run(call)]
+        assert len(marking) == 1, (
+            "main() must configure logging exactly once with the marker on: "
+            "no marking call leaves a real scrape without a boundary in an "
+            "appended log, two of them fake a second run"
         )
 
         def index_of(predicate) -> int | None:
@@ -229,16 +230,126 @@ class TestTheMarkerMeansARunStarted:
             return None
 
         parsed_at = index_of(lambda dumped: "parse_args" in dumped)
-        marked_at = index_of(
-            lambda dumped: "=== AmazonScraper run starting ===" in dumped
-        )
+        configured_at = index_of(lambda dumped: "setup_debug_logging" in dumped)
 
         assert parsed_at is not None, "main() no longer parses arguments"
-        assert marked_at is not None, (
-            "main() does not log the run marker, so with the import-time one "
-            "suppressed a real scrape has no boundary at all"
+        assert configured_at is not None, "main() no longer configures logging"
+        assert configured_at > parsed_at, (
+            "logging is configured before argument parsing, so `--help` and "
+            "an argparse error open the log and write a marker for a run "
+            "that never started"
         )
-        assert marked_at > parsed_at, (
-            "the marker runs before argument parsing, so `--help` and an "
-            "argparse error write a marker for a run that never started"
+
+
+class TestOnlyAnEntryPointConfiguresLogging:
+    """An imported module must not point the root logger anywhere (#442).
+
+    The scraper configured logging at module scope, and `ProductData` is
+    imported from it by the producer, the publisher, the batch and the test
+    suite, so every one of those processes had root aimed at the production
+    scraper.log before its own `main()` ran. One pytest session appended
+    430 KB of unrelated output to real scrape history and rotated the oldest
+    copy out of existence; the producer's fallback `basicConfig` was a no-op
+    for the same reason, because root already had handlers.
+    """
+
+    def test_the_scraper_configures_nothing_at_import(self):
+        module_level = [
+            node
+            for node in ast.parse(_SCRAPER_SOURCE).body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and getattr(node.value.func, "id", None) == "setup_debug_logging"
+        ]
+        assert not module_level, (
+            "the scraper configures logging at import again, so importing "
+            "ProductData points root at the production scraper.log"
         )
+
+    def test_importing_the_module_leaves_root_alone(self):
+        """Driven for real, in a subprocess.
+
+        Re-importing in-process proves nothing (the module is already in
+        `sys.modules`, and the suite cannot disturb the root handlers every
+        other test shares). A fresh interpreter is the only honest check.
+        """
+        import subprocess
+        import sys
+
+        production_log = REPO / "outputs/logs/scraper.log"
+        before = (
+            (production_log.stat().st_size, production_log.stat().st_mtime_ns)
+            if production_log.exists()
+            else None
+        )
+        probe = (
+            "import logging, src.scraper.amazon.scraper;"
+            "print(len(logging.getLogger().handlers))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip().splitlines()[-1] == "0", (
+            "importing the scraper installed root handlers: every log record "
+            "in the importing process now lands in the scraper's log file"
+        )
+        # The handler count is the cause; this is the damage. Opening the
+        # file is enough to do it -- a rotating handler can roll the chain
+        # over before a line is written.
+        if before is None:
+            assert not production_log.exists(), "a bare import created the log file"
+        else:
+            after = (production_log.stat().st_size, production_log.stat().st_mtime_ns)
+            assert after == before, "a bare import touched the production log"
+
+    def test_every_module_level_binding_is_neutralised_in_tests(self):
+        """The suite's own guard against writing to outputs/logs/.
+
+        `tests/conftest.py` patches the helper per module, because a module
+        that binds the name at import keeps its own reference and patching
+        the source module never reaches it. A new entry point binding it the
+        same way would be missed, and the first test driving that entry
+        point would append to production logs again. Function-local imports
+        are not listed: they re-read the source module at call time.
+        """
+        from tests.conftest import _LOGGING_SETUP_SITES
+
+        bound: set[str] = set()
+        for path in (REPO / "src").rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in tree.body:
+                if isinstance(node, ast.ImportFrom) and any(
+                    alias.name == "setup_debug_logging" for alias in node.names
+                ):
+                    module = path.relative_to(REPO).with_suffix("")
+                    bound.add(".".join(module.parts))
+
+        missing = sorted(bound - set(_LOGGING_SETUP_SITES))
+        assert not missing, (
+            f"modules bind setup_debug_logging but tests do not neutralise "
+            f"it there: {missing}; add them to _LOGGING_SETUP_SITES"
+        )
+
+    def test_the_producer_fallback_forces_its_configuration(self):
+        """The one line that branch exists to emit must not be swallowed by
+        a root logger something else already configured.
+        """
+        source = (REPO / "src/video/producer/cli.py").read_text(encoding="utf-8")
+        call = next(
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and getattr(node.func, "attr", None) == "basicConfig"
+        )
+        forced = {
+            keyword.arg
+            for keyword in call.keywords
+            if isinstance(keyword.value, ast.Constant) and keyword.value.value is True
+        }
+        assert "force" in forced, "basicConfig is a no-op once root has handlers"
