@@ -258,11 +258,13 @@ class TestTheScheduleAutoPathStripsItToo:
         from pathlib import Path
 
         tree = ast.parse(Path("src/publisher/schedule.py").read_text())
+        # The caption branches live in the helper `auto_schedule` builds them
+        # with; the scheduler's own body no longer reads metadata files.
         auto = next(
             n
             for n in ast.walk(tree)
             if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
-            and n.name == "auto_schedule"
+            and n.name == "_captions_for"
         )
 
         calls = [
@@ -280,9 +282,23 @@ class TestTheScheduleAutoPathStripsItToo:
         # routed through the builder, and pinning the count would fail on the
         # improvement rather than on a regression.
         assert len(calls) >= 2, (
-            f"auto_schedule has {len(calls)} metadata_from_file call(s); "
+            f"the caption builder has {len(calls)} metadata_from_file call(s); "
             "the metadata, data.json and bare-literal branches need it"
         )
+
+        # And the scheduler still goes through it: the builder being correct
+        # is no use if the publish path stops calling it.
+        schedule_one = next(
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == "_schedule_one"
+        )
+        assert any(
+            isinstance(node, ast.Call)
+            and getattr(node.func, "attr", None) == "_captions_for"
+            for node in ast.walk(schedule_one)
+        ), "the scheduler no longer builds its captions with _captions_for"
 
     def test_an_absent_flag_still_leads_with_it(self):
         """Same default as everywhere else: disclose unless told otherwise."""
