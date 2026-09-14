@@ -101,7 +101,7 @@ class TestTheFilterShape:
 
 
 class TestTheProfileWiring:
-    """Three conditions, per CLAUDE.md, or the override is swallowed silently.
+    """Three conditions, per docs/notes/video.md, or the override is swallowed.
 
     Declared on `VideoSettings`, declared on `VideoProfile`, and listed in the
     `_collect_overrides` map. Missing the third is the quiet one: no warning,

@@ -8,8 +8,8 @@ same one and the loop runs to `max_pages` on a listing that will never pass.
 `scrape_products_unified` is called per input, so a media-poor entry cost all
 seven of `max_pages` browser sessions re-fetching the same listing before the
 loop gave up and returned empty. Nothing was dropped: the run recorded the
-failure and moved on. The documented behaviour in `CLAUDE.md` already said page
-retry applies to keyword searches only, and the global batch gates it that way;
+failure and moved on. The documented behaviour in `docs/notes/scraper.md` already said
+page retry applies to keyword searches only, and the global batch gates it that way;
 this path did not.
 
 The batch side of that gate is covered behaviourally by

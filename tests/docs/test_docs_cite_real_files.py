@@ -75,9 +75,12 @@ SOURCE_FILE_ON_LINE = re.compile(r"[A-Za-z0-9_]+\.(?:py|yaml|yml)(?![A-Za-z0-9_]
 
 def shipped_prose() -> list[Path]:
     """Docs and config a reader follows, minus the gitignored private overlay."""
+    # `rglob`, so `docs/notes/` is swept too: those files carry most of the
+    # repository's citations, having been moved out of CLAUDE.md, which no
+    # check ever read.
     files = [
         p
-        for p in sorted((REPO / "docs").glob("*.md"))
+        for p in sorted((REPO / "docs").rglob("*.md"))
         if not p.name.endswith(".private.md")
     ]
     files += [REPO / "README.md", REPO / "CONTRIBUTING.md"]

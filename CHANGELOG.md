@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.2] - 2026-09-14
+
+### Changed
+- The per-module postmortems move from `CLAUDE.md` into `docs/notes/`, one file per module, with a pointer table in the section each left. `CLAUDE.md` keeps the rules and drops from 224KB to 24KB. Entry text is unchanged apart from the citations below. A test bounds the file's size and fails if a notes file is linked from nowhere.
+- The doc-citation sweep reads `docs/` recursively, so the moved notes are checked for the first time: three citations to source line numbers now name a symbol, and a placeholder filename is written as one. Cross-references that pointed within `CLAUDE.md`, in the notes and from five test docstrings, name the file that carries the text.
+
 ## [0.121.1] - 2026-09-14
 
 ### Changed
