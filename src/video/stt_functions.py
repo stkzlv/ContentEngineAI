@@ -490,8 +490,8 @@ def _get_audio_duration(audio_path: Path) -> float:
             capture_output=True,
             text=True,
             check=True,
-            # `config/core.yaml` has carried this since it shipped; it was
-            # read by a dotted string until this became a declared field.
+            # Carried by `config/core.yaml`, and read by a dotted string
+            # until it became a declared field.
             timeout=config.system_timeouts.ffprobe_timeout,
         )
         return float(result.stdout.strip())

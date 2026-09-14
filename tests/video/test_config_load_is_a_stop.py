@@ -74,33 +74,47 @@ class TestNoSubstituteConfig:
         the one thing that could reach it -- and the value it returned equalled
         the call site's own default, which is what made the knob look dead.
         """
-        from src.video.config import config
+        from src.video.config import VideoConfig, config
         from src.video.config_adapter import ModularConfigAdapter
 
         merged = ModularConfigAdapter().get_merged_config_dict()
         assert "system_timeouts" in merged, "core.yaml stopped carrying the block"
+        assert config.system_timeouts.ffprobe_timeout > 0
+
+        # Against a value the model does not default to: the shipped 10 equals
+        # the field default, so comparing them would hold even if the block
+        # stopped reaching the model at all -- which is the silent drop this
+        # exists to catch.
+        raised = VideoConfig(**{**merged, "system_timeouts": {"ffprobe_timeout": 45}})
         assert (
-            config.system_timeouts.ffprobe_timeout
-            == merged["system_timeouts"]["ffprobe_timeout"]
+            raised.system_timeouts.ffprobe_timeout == 45
         ), "the YAML value no longer reaches the model"
 
 
 class TestTheDefaultsHaveOneDeclaration:
-    def test_the_amazon_sort_token_agrees_across_layers(self):
+    def test_the_two_layers_agree_field_by_field(self):
         """Two layers legitimately carry a default -- the YAML model and the
         runtime dataclass -- so they cannot collapse into one declaration.
-        Drift between them is what mattered, so it is asserted instead.
+        Drift between them is what mattered, so it is asserted instead, over
+        every shared field rather than the one token that had drifted.
         """
         from src.scraper.amazon.models import SearchParameters
         from src.scraper.config_models import (
             SearchParameters as TypedSearchParameters,
         )
 
-        typed = TypedSearchParameters.model_fields["sort_order"].default
-        assert SearchParameters().sort_order == typed
+        runtime = SearchParameters()
+        drifted = {
+            name: (getattr(runtime, name), field.default)
+            for name, field in TypedSearchParameters.model_fields.items()
+            if hasattr(runtime, name)
+            and field.default is not None
+            and getattr(runtime, name) != field.default
+        }
+        assert not drifted, f"the two layers disagree: {drifted}"
 
     def test_the_yaml_reader_declares_no_defaults_of_its_own(self):
-        """`get_default_search_parameters` restated six of them, so a value
+        """`get_default_search_parameters` restated four of them, so a value
         absent from the file came from there rather than from the dataclass.
         """
         source = (REPO / "src/scraper/amazon/config.py").read_text(encoding="utf-8")

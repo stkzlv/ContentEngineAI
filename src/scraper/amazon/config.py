@@ -250,6 +250,10 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
 
 
 # The search-parameter keys the YAML may carry, in the dataclass's own names.
+# `include_sponsored` and `skip_unavailable` are here because the bundled
+# scraper.yaml sets both and the per-key list this replaces read neither, so
+# setting them did nothing; they happen to match the dataclass defaults, so
+# reading them changes no shipped behaviour.
 _SEARCH_PARAMETER_KEYS = (
     "min_price",
     "max_price",
@@ -259,6 +263,8 @@ _SEARCH_PARAMETER_KEYS = (
     "brands",
     "sort_order",
     "category",
+    "include_sponsored",
+    "skip_unavailable",
 )
 
 

@@ -702,9 +702,9 @@ class VideoConfig(BaseModel):
     cta_detection: CTADetectionSettings | None = Field(None)
     system_timeouts: SystemTimeouts = Field(
         default_factory=lambda: SystemTimeouts(),  # type: ignore[call-arg]
-        description="Timeouts for local system commands. Present in "
-        "config/core.yaml since it shipped, but undeclared here until the "
-        "dotted-string reader that served it was removed.",
+        description="Timeouts for local system commands. Carried by "
+        "config/core.yaml and merged into this config, but undeclared here "
+        "until the dotted-string reader that served it was removed.",
     )
 
     project_root: Path = Field(
