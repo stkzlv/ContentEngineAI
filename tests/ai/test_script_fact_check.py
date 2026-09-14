@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.ai.llm_settings import ScriptFactCheckConfig
 from src.ai.script_fact_check import (
     FactCheckClaim,
     accept_revision,
@@ -27,7 +28,6 @@ from src.ai.script_fact_check import (
     sentences,
 )
 from src.video.config import config
-from src.video.config.llm_settings import ScriptFactCheckConfig
 
 PROMPTS = Path(__file__).resolve().parents[2] / "src" / "ai" / "prompts"
 

@@ -10,7 +10,7 @@ import logging
 import aiohttp
 from google import genai
 
-from src.video.config.llm_settings import LLMSettings
+from src.ai.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

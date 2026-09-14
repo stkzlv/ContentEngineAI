@@ -90,8 +90,8 @@ class TestGenerateWithLlmNarratorIntegration:
         ):
             from pathlib import Path
 
+            from src.ai.llm_settings import LLMSettings
             from src.ai.platform_metadata.utilities import generate_with_llm
-            from src.video.config.llm_settings import LLMSettings
 
             settings = MagicMock(spec=LLMSettings)
             settings.provider = "gemini"

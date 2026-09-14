@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.video.config.llm_settings import LLMSettings
+from src.ai.llm_settings import LLMSettings
 
 pytestmark = pytest.mark.unit
 

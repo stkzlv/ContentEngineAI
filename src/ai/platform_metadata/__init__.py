@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import aiohttp
 
+    from src.ai.llm_settings import LLMSettings
+
     # Type checkers only; a module `__getattr__` returns `Any`.
     from src.ai.platform_metadata.ab_testing import (
         ABTestingSettings,
@@ -69,7 +71,6 @@ if TYPE_CHECKING:
     )
     from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
     from src.scraper.amazon.models import ProductData
-    from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

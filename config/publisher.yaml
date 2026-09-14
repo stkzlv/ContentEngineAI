@@ -98,8 +98,8 @@ max_retries: 3
 timeout: 120.0
 
 # DEPRECATED: Exponential backoff multiplier for retries
-# NOTE: This setting is currently NOT USED - the Late publisher uses a hardcoded
-# value of 2.0 from src/video/config/constants.py (DEFAULT_EXPONENTIAL_BACKOFF_BASE)
+# NOTE: This setting is currently NOT USED - the publisher uses the fixed
+# DEFAULT_EXPONENTIAL_BACKOFF_BASE in src/publisher/constants.py
 # Kept for backward compatibility; may be wired up in a future release.
 # Delay between retries = backoff_multiplier ^ attempt_number
 # Example: multiplier=2.0 → delays of 2s, 4s, 8s for attempts 1, 2, 3

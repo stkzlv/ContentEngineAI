@@ -97,8 +97,7 @@ src/
 │   │   ├── audio_models.py    # Audio/TTS configuration
 │   │   ├── visual_models.py   # Visual effects settings
 │   │   ├── subtitle_models.py # Subtitle configuration
-│   │   ├── llm_settings.py    # LLM provider settings
-│   │   └── constants.py       # Configuration constants
+│   │   └── constants.py       # Video configuration constants
 │   ├── assembler/             # FFmpeg-based video assembly (modular)
 │   │   ├── core.py            # VideoAssembler orchestrator
 │   │   ├── visual_builder.py  # Visual filter chains
@@ -129,6 +128,7 @@ src/
 │
 ├── ai/                        # AI & LLM integration
 │   ├── llm_client.py          # Shared LLM dispatch (Gemini, OpenRouter)
+│   ├── llm_settings.py        # LLM provider settings and validation bounds
 │   ├── script_generator.py    # Script generation with provider fallback
 │   ├── description_generator.py # Social media description generation
 │   ├── platform_metadata/     # Platform-specific metadata (v0.17.0+)

@@ -30,6 +30,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.ai.llm_settings import DescriptionValidationConfig, LLMSettings
+
 # Configure module logger
 from src.ai.model_pool import (
     discover_any_free_model,
@@ -40,7 +42,6 @@ from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
-from src.video.config.llm_settings import DescriptionValidationConfig, LLMSettings
 
 logger = logging.getLogger(__name__)
 

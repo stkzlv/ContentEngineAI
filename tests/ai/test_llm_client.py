@@ -6,7 +6,7 @@ import aiohttp
 import pytest
 
 from src.ai.llm_client import LLMCallError, _call_gemini, _call_openrouter, call_llm
-from src.video.config.llm_settings import LLMSettings
+from src.ai.llm_settings import LLMSettings
 
 
 def _make_settings(provider: str = "openrouter", **overrides) -> LLMSettings:

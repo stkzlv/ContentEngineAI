@@ -18,10 +18,10 @@ from src.ai.description_generator import (
     load_prompt_template,
     strip_single_asterisk_emphasis,
 )
+from src.ai.llm_settings import LLMSettings
 from src.ai.model_pool import fetch_and_select_model
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.scraper.amazon.models import ProductData
-from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

@@ -24,9 +24,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from src.publisher.constants import DEFAULT_OUTPUTS_DIR
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR, WEBHOOK_EVENT_HISTORY_LIMIT
 from src.publisher.tracking import load_tracking, save_tracking
-from src.video.config.constants import WEBHOOK_EVENT_HISTORY_LIMIT
 
 logger = logging.getLogger(__name__)
 

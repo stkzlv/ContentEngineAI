@@ -33,6 +33,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from src.ai.llm_settings import MIN_PHRASE_WORDS, LLMSettings
 from src.ai.model_pool import (
     discover_any_free_model,
     fetch_and_select_model,
@@ -44,7 +45,7 @@ from src.utils.circuit_breaker import llm_circuit_breaker
 
 # Configure module logger
 from src.utils.script_sanitizer import split_sentences
-from src.video.config import MIN_PHRASE_WORDS, LLMSettings, config
+from src.video.config import config
 
 logger = logging.getLogger(__name__)
 

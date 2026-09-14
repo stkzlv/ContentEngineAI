@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from src.publisher.base import BasePublisher, PublishError
-from src.publisher.constants import DEFAULT_OUTPUTS_DIR
+from src.publisher.constants import DEFAULT_OUTPUTS_DIR, LATE_DEFAULT_RETRY_AFTER_SEC
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.metadata import load_platform_metadata
 from src.publisher.models import (
@@ -28,7 +28,6 @@ from src.publisher.tracking import (
     remove_from_retry_queue,
 )
 from src.publisher.video_selector import sole_render_for_product
-from src.video.config.constants import LATE_DEFAULT_RETRY_AFTER_SEC
 
 logger = logging.getLogger(__name__)
 

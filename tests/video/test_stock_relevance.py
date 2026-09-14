@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.ai.llm_settings import StockRelevanceConfig
 from src.video.config import config
-from src.video.config.llm_settings import StockRelevanceConfig
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.stock_relevance import (
     UNKNOWN,

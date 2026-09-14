@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from src.publisher.constants import LATE_API_KEY_MIN_LENGTH
 from src.publisher.models import (
     DEFAULT_PLATFORMS,
     AccountConfig,
@@ -31,7 +32,6 @@ from src.publisher.models import (
     TikTokContentSettings,
 )
 from src.utils.outputs_paths import get_project_root
-from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
 
