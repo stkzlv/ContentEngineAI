@@ -266,119 +266,24 @@ class UnifiedConfigManager:
 
         current[final_key] = value
 
-    def _get_video_fallback_config(
-        self, cli_overrides: dict[str, Any] = None
-    ) -> dict[str, Any]:
-        """Provide minimal fallback video configuration."""
-        fallback_config = {
-            "debug_mode": True,
-            "global_output_directory": "outputs",
-            "pipeline_timeout_sec": 2700,
-            "audio_settings": {
-                "bitrate": "192k",
-                "sample_rate": 48000,
-                "channels": 2,
-            },
-            "video_settings": {
-                "resolution": {"width": 1920, "height": 1080},
-                "framerate": 30,
-                "bitrate": "5M",
-            },
-            "subtitle_settings": {
-                "enabled": True,
-                "font_family": "Arial",
-                "font_size": 48,
-            },
-            "ffmpeg_settings": {
-                "encoding": {
-                    "preset": "medium",
-                    "crf": 23,
-                    "threads": 0,
-                }
-            },
-            "cleanup": {
-                "remove_temp_on_success": True,
-                "remove_temp_on_failure": False,
-            },
-        }
-        return self.apply_precedence_rules(fallback_config, cli_overrides)
-
-    def _get_scraper_fallback_config(
-        self, cli_overrides: dict[str, Any] = None
-    ) -> dict[str, Any]:
-        """Provide minimal fallback scraper configuration."""
-        fallback_config = {
-            "global_settings": {
-                "debug_mode": True,
-                "output_config": {
-                    "base_directory": "outputs",
-                    "file_patterns": {
-                        "product_file": "{keyword}_products.json",
-                        "image_file": "{asin}_image_{index}.{ext}",
-                        "video_file": "{asin}_video_{index}.{ext}",
-                    },
-                },
-                "retry_config": {
-                    "default_max_retries": 3,
-                    "base_delay": 1.0,
-                    "max_delay": 60.0,
-                    "backoff_factor": 2.0,
-                    "use_jitter": True,
-                    "jitter_factor": 0.5,
-                },
-                "browser_config": {
-                    "max_products_per_search": 5,
-                    "search_result_timeout": 10,
-                },
-            },
-            "scrapers": {
-                "amazon": {
-                    "enabled": True,
-                    "base_url": "https://www.amazon.com",
-                    "max_products": 3,
-                    "keywords": [],
-                    "default_search_parameters": {
-                        "min_price": None,
-                        "max_price": None,
-                        "min_rating": None,
-                        "prime_only": False,
-                        "free_shipping": False,
-                        "brands": [],
-                        "sort_order": "relevanceblender",
-                        "category": None,
-                    },
-                }
-            },
-        }
-        return self.apply_precedence_rules(fallback_config, cli_overrides)
+    # Neither getter substitutes a config for one that failed to load. Both
+    # used to: the video half answered any exception with a hardcoded dict
+    # that rendered 1920x1080 at 30fps with Arial 48 subtitles, so a typo in
+    # a YAML file changed the output format instead of failing, and the
+    # hardcoded values were a second declaration of defaults the models
+    # already own. A config that does not load is a stop.
 
     def get_video_config(self, cli_overrides: dict[str, Any] = None) -> dict[str, Any]:
         """Get video configuration with precedence rules applied."""
-        try:
-            base_config = self.video_adapter.get_merged_config_dict()
-            return self.apply_precedence_rules(base_config, cli_overrides)
-        except Exception as e:
-            logger.warning(
-                "Failed to load video config, using fallback: %s", e, exc_info=True
-            )
-            return self._get_video_fallback_config(cli_overrides)
+        base_config = self.video_adapter.get_merged_config_dict()
+        return self.apply_precedence_rules(base_config, cli_overrides)
 
     def get_scraper_config(
         self, cli_overrides: dict[str, Any] = None
     ) -> dict[str, Any]:
         """Get scraper configuration with precedence rules applied."""
-        try:
-            base_config = self.scraper_adapter.get_merged_config_dict()
-            return self.apply_precedence_rules(base_config, cli_overrides)
-        except (ValidationError, yaml.YAMLError):
-            # A misspelled key, an empty file, or one that does not parse;
-            # the fallback would read every value as a default, silently.
-            raise
-        except Exception as e:
-            logger.warning(
-                "Failed to load scraper config, using fallback: %s", e, exc_info=True
-            )
-            return self._get_scraper_fallback_config(cli_overrides)
+        base_config = self.scraper_adapter.get_merged_config_dict()
+        return self.apply_precedence_rules(base_config, cli_overrides)
 
     def validate_config_structure(self) -> dict[str, bool]:
         """Validate that all required configuration files exist."""
@@ -495,27 +400,9 @@ if __name__ == "__main__":
         print("Modular configuration validation failed!")
 
 
-def get_config_value(key: str, default: Any = None) -> Any:
-    """Get a configuration value using dot notation from video config.
-
-    Args:
-    ----
-        key: Dot-separated configuration key (e.g. 'video_settings.resolution.width')
-        default: Default value if key is not found
-
-    Returns:
-    -------
-        Configuration value or default
-
-    """
-    manager = get_unified_config_manager()
-    # Prioritize video config as this is primarily used by video processing components
-    current = manager.get_video_config()
-
-    for k in key.split("."):
-        if isinstance(current, dict) and k in current:
-            current = current[k]
-        else:
-            return default
-
-    return current
+# `get_config_value` lived here: a dotted-string reader over the merged video
+# dict, and a third way to read config beside the typed models and the
+# per-module loaders. It is gone because a string key is unchecked -- one of
+# its three call sites asked the video config for `system_timeouts.*`, which
+# only the scraper config has, so it returned its hardcoded default on every
+# run and nothing said so. Read the typed model.

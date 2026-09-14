@@ -17,7 +17,6 @@ from typing import Any
 
 import psutil
 
-from src.config_manager import get_config_value
 from src.utils import ensure_dirs_exist, format_timestamp
 from src.utils.circuit_breaker import google_stt_circuit_breaker
 from src.utils.pipeline_deadline import remaining_pipeline_seconds
@@ -28,6 +27,11 @@ from src.video.config import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Reading one duration out of a local file. Not configurable, and never was:
+# the removed lookup asked the video config for a scraper-only key, so it
+# returned this number on every run whatever any YAML said.
+FFPROBE_DURATION_TIMEOUT_SEC = 10
 
 # Check for library availability
 WHISPER_AVAILABLE = False
@@ -489,7 +493,7 @@ def _get_audio_duration(audio_path: Path) -> float:
             capture_output=True,
             text=True,
             check=True,
-            timeout=get_config_value("system_timeouts.ffprobe_timeout", 10),
+            timeout=FFPROBE_DURATION_TIMEOUT_SEC,
         )
         return float(result.stdout.strip())
     except (subprocess.SubprocessError, ValueError) as e:

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.120.0] - 2026-09-14
+
+### Changed
+- **Breaking (config)**: a configuration file that does not parse now fails the run. Three layers used to absorb it: the YAML loader logged the error and returned an empty dict, the video config getter answered any exception with a hardcoded config (1920x1080 at 30 fps with Arial 48 subtitles), and the scraper getter did the same for everything except two exception types. A typo therefore changed the render instead of stopping it. A missing file is still a warning, since the five files are optional layers, and a file that parses to something other than a mapping is now named as such.
+- `get_config_value`, the dotted-string reader over the merged video config, is gone and its three readers use the typed models. One of them asked the video config for a key only the scraper config has, so it returned its hardcoded default on every run.
+- The search-parameter defaults are declared once. The retired fallback config and the YAML reader each restated them, which is where the drifted `sort_order` and `remove_temp_on_success` copies the issue names came from.
+
 ## [0.119.1] - 2026-09-14
 
 ### Changed

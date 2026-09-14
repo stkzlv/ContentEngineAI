@@ -394,6 +394,14 @@ def create_static_upper_subtitle(
                     if config.cta_detection
                     else 9999.0
                 )
+                # Read here beside its siblings, off the typed model rather
+                # than by dotted string: the section is optional, so the
+                # `None` case has to be answered once either way.
+                default_cta_duration = (
+                    config.cta_detection.default_cta_duration
+                    if config.cta_detection
+                    else 5.0
+                )
 
                 if cta_windows:
                     total_duration = sum(end - start for start, end in cta_windows)
@@ -418,12 +426,6 @@ def create_static_upper_subtitle(
                                 else fallback_duration
                             )
                         else:
-                            # Get default CTA duration from config
-                            from src.config_manager import get_config_value
-
-                            default_cta_duration = get_config_value(
-                                "cta_detection.default_cta_duration", 5.0
-                            )
                             logger.warning(
                                 "Detected CTA windows too short (%.2fs < %ss): %s. "
                                 "Using %ss at end",
@@ -468,12 +470,6 @@ def create_static_upper_subtitle(
                             else fallback_duration
                         )
                     else:
-                        # Get default CTA duration from config
-                        from src.config_manager import get_config_value
-
-                        default_cta_duration = get_config_value(
-                            "cta_detection.default_cta_duration", 5.0
-                        )
                         logger.warning(
                             "No CTA detected, use_full_duration=False. Using %ss at "
                             "end",
