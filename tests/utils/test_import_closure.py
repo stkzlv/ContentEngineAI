@@ -104,3 +104,34 @@ def test_the_lazy_re_exports_still_resolve():
     assert "ProductData" in dir(amazon)
     with pytest.raises(AttributeError):
         getattr(amazon, "no_such_name")  # noqa: B009 - the point is the lookup
+
+
+@pytest.mark.parametrize("package", ["src.scraper.amazon", "src.video.producer"])
+def test_every_mapped_name_resolves(package: str):
+    """The map is the only new machinery here, and no gate reads it.
+
+    mypy reads the `TYPE_CHECKING` block instead and ruff does not look, so a
+    name pointed at a module that does not provide it passes lint, types and
+    the rest of the suite, then raises `AttributeError` on the one runtime
+    path that uses it. Ten of these names are used nowhere in the repo, so
+    nothing else would catch it before a scrape.
+
+    What this cannot catch is an entry pointed at a module that merely
+    re-imports the name: it serves the identical object, so the only cost is
+    that the lazy load pulls a heavier module than it needed to. The mapped
+    module legitimately re-exports in several places already (the media
+    extractor's names are defined in `image_utils` and `video_extractor`),
+    so there is no rule separating the two cases from the outside.
+    """
+    import importlib
+
+    module = importlib.import_module(package)
+    wrong: list[str] = []
+    for name, submodule in module._EXPORTS.items():
+        target = importlib.import_module(f"{package}.{submodule}")
+        if not hasattr(target, name):
+            wrong.append(f"{name}: {submodule} does not provide it")
+            continue
+        if getattr(module, name) is not getattr(target, name):
+            wrong.append(f"{name}: resolves to a different object than {submodule}'s")
+    assert not wrong, f"{package} _EXPORTS entries are wrong: {wrong}"

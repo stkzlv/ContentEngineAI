@@ -17,7 +17,7 @@ from src.ai.script_generator import (
     load_prompt_template,
     save_debug_prompt,
 )
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config import LLMSettings
 
 

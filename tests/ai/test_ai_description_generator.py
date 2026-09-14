@@ -14,7 +14,7 @@ from src.ai.description_generator import (
     save_debug_prompt,
     validate_description_completeness,
 )
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config import LLMSettings
 
 
