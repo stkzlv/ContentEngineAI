@@ -48,6 +48,89 @@ class TestTheSchedulerIsReadable:
             "Extract, rather than adding another comment-separated section"
         )
 
+    def test_a_resolved_conflict_counts_even_if_the_publish_fails(self):
+        """The one number the split nearly changed.
+
+        The conflict counter used to be incremented where the conflict was
+        resolved, which is before the post is attempted; carrying the outcome
+        as a value made it easy to tally only on the scheduled branch, and a
+        product whose slot was resolved and whose upload then failed stopped
+        reporting the resolution. Nothing else reads the number, which is
+        exactly why a refactor could move it unnoticed.
+        """
+        import asyncio
+        import tempfile
+        from datetime import UTC, datetime, timedelta
+        from pathlib import Path
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src.publisher.base import PublishError
+        from src.publisher.models import (
+            CleanupConfig,
+            ConflictResolution,
+            Platform,
+            RecurringSlot,
+            ScheduleConfig,
+        )
+        from src.publisher.schedule import ScheduleManager
+
+        async def run(tmp: Path) -> dict[str, int]:
+            config = ScheduleConfig(
+                enabled=True,
+                slots=[
+                    RecurringSlot(day_of_week="monday", time="10:00:00", timezone="UTC")
+                ],
+            )
+            manager = ScheduleManager(
+                schedule_path=tmp / "schedule.json", config=config
+            )
+
+            publisher = MagicMock()
+            publisher.list_posts = AsyncMock(return_value=[])
+            publisher.get_accounts = AsyncMock(
+                return_value=[{"platform": "youtube", "account_id": "a1"}]
+            )
+            publisher.upload_media = AsyncMock(
+                side_effect=PublishError("upload failed")
+            )
+            publisher.first_comment_config = None
+
+            video = tmp / "B0TEST00001" / "video.mp4"
+            video.parent.mkdir(parents=True)
+            video.write_bytes(b"x")
+
+            with (
+                patch("src.publisher.schedule.ScheduleValidator") as validator,
+                patch.object(manager, "resolve_conflict") as resolver,
+                patch(
+                    "src.publisher.schedule.is_already_published", return_value=False
+                ),
+            ):
+                validator.return_value.validate.return_value = (False, "slot taken")
+                resolver.return_value = ConflictResolution(
+                    original_time=datetime.now(UTC),
+                    conflict_reason="taken",
+                    alternatives=[],
+                    auto_resolved=True,
+                    resolved_time=datetime.now(UTC) + timedelta(days=1),
+                )
+                return await manager.auto_schedule(
+                    videos=[video],
+                    platforms=[Platform.YOUTUBE],
+                    publisher=publisher,
+                    auto_resolve=True,
+                    outputs_dir=None,
+                    cleanup_config=CleanupConfig(enabled=False),
+                )
+
+        with tempfile.TemporaryDirectory() as directory:
+            summary = asyncio.run(run(Path(directory)))
+
+        assert summary["failed"] == 1
+        assert (
+            summary["conflicts_resolved"] == 1
+        ), "a conflict resolved before a failed publish stopped being counted"
+
     def test_the_publish_branches_are_their_own_methods(self):
         """The two that the caption defect hid between.
 

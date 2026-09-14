@@ -1294,7 +1294,9 @@ class ScheduleManager:
             link_in_bio_config=link_in_bio_config,
         )
         if cleaned is None:
-            return _VideoOutcome("failed")
+            # The conflict was still resolved, whatever became of the post:
+            # the base counted it at resolution time, and this is a refactor.
+            return _VideoOutcome("failed", conflict_resolved=was_resolved)
         return _VideoOutcome(
             "scheduled",
             cleaned=cleaned,
@@ -1422,6 +1424,11 @@ class ScheduleManager:
                 failed_count += 1
                 continue
 
+            # Counted before the outcome is read: a conflict resolved into a
+            # post that then failed to publish was still resolved, which is
+            # what the number meant before the split.
+            conflicts_resolved_count += int(outcome.conflict_resolved)
+
             if outcome.result == "skipped":
                 skipped_count += 1
                 continue
@@ -1431,7 +1438,6 @@ class ScheduleManager:
 
             scheduled_count += 1
             cleaned_count += int(outcome.cleaned)
-            conflicts_resolved_count += int(outcome.conflict_resolved)
             if outcome.slot is not None:
                 # Only a scheduled product moves the cursor: a skip or a
                 # failure leaves the slot for the next video, as before.

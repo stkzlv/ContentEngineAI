@@ -286,6 +286,20 @@ class TestTheScheduleAutoPathStripsItToo:
             "the metadata, data.json and bare-literal branches need it"
         )
 
+        # And the scheduler still goes through it: the builder being correct
+        # is no use if the publish path stops calling it.
+        schedule_one = next(
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == "_schedule_one"
+        )
+        assert any(
+            isinstance(node, ast.Call)
+            and getattr(node.func, "attr", None) == "_captions_for"
+            for node in ast.walk(schedule_one)
+        ), "the scheduler no longer builds its captions with _captions_for"
+
     def test_an_absent_flag_still_leads_with_it(self):
         """Same default as everywhere else: disclose unless told otherwise."""
         caption = _caption(
