@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from src.publisher.base import PublishError
 from src.publisher.constants import (
@@ -111,6 +111,21 @@ def metadata_from_file(
             product_id=product_id,
             carries_affiliate_content=discloses,
         )
+
+
+class _VideoOutcome(NamedTuple):
+    """What happened to one video, for the caller to tally.
+
+    A slot is reported only for a scheduled video, because only a scheduled
+    one moves the cursor: a skip or a failure leaves the slot for the next.
+    """
+
+    result: str  # "scheduled" | "skipped" | "failed"
+    cleaned: bool = False
+    conflict_resolved: bool = False
+    # (time, slot index) for a scheduled video, and nothing otherwise, so the
+    # cursor advances exactly when there is a slot to advance to.
+    slot: tuple[datetime, int] | None = None
 
 
 class ScheduleManager:
@@ -606,6 +621,687 @@ class ScheduleManager:
 
         return filtered
 
+    async def _build_occupancy(
+        self, publisher: "BasePublisher", current_time: datetime
+    ) -> set[datetime]:
+        """Slot times already taken, from the API and the local schedule.
+
+        Local entries are NOT created from API posts: the API does not return
+        the product id, and entries with placeholder ids broke duplicate
+        detection. Only the times are tracked.
+        """
+        occupied_slot_times: set[datetime] = set()
+        try:
+            logger.debug("Fetching existing posts from API (all statuses)...")
+            # Scheduled and published alike, or a published post's slot is
+            # offered again.
+            api_posts = await publisher.list_posts()
+            logger.debug("Found %d posts on API", len(api_posts))
+
+            for api_post in api_posts:
+                scheduled_time = api_post.get("scheduledFor")
+                if not scheduled_time:
+                    continue
+
+                if isinstance(scheduled_time, str):
+                    time_str = scheduled_time.replace("+00:00", "")
+                    scheduled_dt = datetime.fromisoformat(time_str)
+                else:
+                    scheduled_dt = scheduled_time
+
+                if scheduled_dt.tzinfo is None:
+                    scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
+
+                occupied_slot_times.add(scheduled_dt.replace(second=0, microsecond=0))
+
+            logger.info("Found %d occupied slots from API", len(occupied_slot_times))
+
+            for entry in self.entries:
+                occupied_slot_times.add(
+                    entry.scheduled_time.replace(second=0, microsecond=0)
+                )
+
+            logger.info(
+                "Total %d occupied slots (API + local)", len(occupied_slot_times)
+            )
+
+            # The search still starts at now, so gaps before the latest post
+            # are filled; the latest is logged only to explain the skipping.
+            if occupied_slot_times:
+                logger.info("Latest post on API: %s", max(occupied_slot_times))
+                logger.info(
+                    "Searching for next available slot from now (%s), "
+                    "skipping %d occupied slots",
+                    current_time,
+                    len(occupied_slot_times),
+                )
+
+        except (PublishError, OSError, TimeoutError) as e:
+            logger.warning("Failed to check API schedule: %s", e)
+
+        return occupied_slot_times
+
+    def _next_free_slot(
+        self,
+        product_id: str,
+        current_time: datetime,
+        current_slot: int,
+        occupied_slot_times: set[datetime],
+    ) -> tuple[datetime, int]:
+        """The next slot no post already holds.
+
+        Raises ValueError once the search budget is spent, which the caller
+        counts as a failed product rather than aborting the run.
+        """
+        search_time = current_time
+        attempts = 0
+
+        while attempts < SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS:
+            next_time, next_idx = self.get_next_slot(
+                slots=self.config.slots,
+                after=search_time,
+                slot_index=current_slot,
+            )
+
+            if next_time.replace(second=0, microsecond=0) not in occupied_slot_times:
+                logger.debug(
+                    "Next slot for %s: %s (slot %d)", product_id, next_time, next_idx
+                )
+                return next_time, next_idx
+
+            logger.debug("Slot %s occupied by API post, trying next slot", next_time)
+            search_time = next_time
+            attempts += 1
+
+        raise ValueError(
+            f"No available slot after {SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS} attempts"
+        )
+
+    def _settle_conflict(
+        self,
+        product_id: str,
+        next_time: datetime,
+        next_idx: int,
+        platforms: list[Platform],
+        occupied_slot_times: set[datetime],
+        auto_resolve: bool,
+    ) -> tuple[datetime, bool] | None:
+        """Validate the slot, resolving a conflict when asked to.
+
+        Returns the time to use and whether a conflict was resolved, or None
+        when the product cannot be placed -- which the caller counts as
+        failed. Without `--auto-resolve` a conflict is reported with
+        alternatives and the product is dropped, as before.
+        """
+        temp_entry = ScheduleEntry(
+            product_id=product_id,
+            scheduled_time=next_time,
+            # One validation covers the product; separate posts per platform
+            # are created later.
+            platforms=[platforms[0]],
+            post_id=None,
+            status="pending",
+            created_at=datetime.now(UTC),
+            slot_index=next_idx,
+        )
+
+        validator = ScheduleValidator(self.config, self.entries)
+        is_valid, error_message = validator.validate(temp_entry)
+        if is_valid:
+            return next_time, False
+
+        if auto_resolve:
+            resolution = self.resolve_conflict(
+                preferred_time=next_time,
+                platforms=platforms,
+                occupied_slots=occupied_slot_times,
+                auto_resolve=True,
+            )
+            if resolution.auto_resolved and resolution.resolved_time:
+                logger.info(
+                    "Conflict resolved for %s: %s -> %s (reason: %s)",
+                    product_id,
+                    next_time,
+                    resolution.resolved_time,
+                    resolution.conflict_reason,
+                )
+                resolved_time = resolution.resolved_time
+                occupied_slot_times.add(resolved_time.replace(second=0, microsecond=0))
+                return resolved_time, True
+
+            logger.warning(
+                "Could not resolve conflict for %s: %s", product_id, error_message
+            )
+            if resolution.alternatives:
+                logger.info(
+                    "Available alternatives: %s",
+                    ", ".join(t.isoformat() for t in resolution.alternatives[:3]),
+                )
+            return None
+
+        logger.warning("Validation failed for %s: %s", product_id, error_message)
+        resolution = self.find_alternatives(
+            preferred_time=next_time,
+            platforms=platforms,
+            occupied_slots=occupied_slot_times,
+        )
+        if resolution.alternatives:
+            logger.info(
+                "Suggested alternatives for %s: %s",
+                product_id,
+                ", ".join(t.isoformat() for t in resolution.alternatives[:3]),
+            )
+            logger.info("Use --auto-resolve to automatically use first")
+        return None
+
+    async def _publish_targets(
+        self, publisher: "BasePublisher", platforms: list[Platform]
+    ) -> list[dict[str, str]]:
+        """The platform/account pairs the post can actually go to."""
+        accounts = await publisher.get_accounts()
+        account_map = {acc["platform"]: acc["account_id"] for acc in accounts}
+
+        platform_dicts = []
+        for p in platforms:
+            account_id = account_map.get(p.value)
+            if not account_id:
+                logger.warning("No account for %s", p.value)
+                continue
+            platform_dicts.append({"platform": p.value, "account_id": account_id})
+
+        if not platform_dicts:
+            raise ValueError("No valid accounts for platforms")
+        return platform_dicts
+
+    def _captions_for(
+        self, video: Path, product_id: str, platforms: list[Platform]
+    ) -> tuple[dict[str, PublishMetadata], dict[str, str], dict[str, bool]]:
+        """Per-platform metadata, titles and disclosure decisions.
+
+        The metadata is returned unclamped: each posting branch clamps at its
+        own point of use, for exactly the platforms that post carries (#408).
+        Titles ride separately, because the caption clamp's trimmed title is
+        deliberately not what the payload carries.
+        """
+        platform_metas: dict[str, PublishMetadata] = {}
+        titles: dict[str, str] = {}
+        # The producer records whether the render has a material connection to
+        # disclose. Read it rather than deriving one here, and default to
+        # disclosing: a metadata file written before the key existed carries
+        # no opinion, and a missing disclosure is the costly direction.
+        carries_affiliate: dict[str, bool] = {}
+
+        unified_meta_path = video.parent / "metadata.json"
+        unified_meta = None
+        if unified_meta_path.exists():
+            unified_meta = json.loads(unified_meta_path.read_text())
+            logger.debug("Using unified metadata: %s", unified_meta_path)
+
+        for p in platforms:
+            meta = unified_meta
+            if not meta:
+                platform_meta = video.parent / f"metadata_{p.value}.json"
+                if platform_meta.exists():
+                    meta = json.loads(platform_meta.read_text())
+
+            if meta:
+                carries_affiliate[p.value] = bool(
+                    meta.get("carries_affiliate_content", True)
+                )
+                platform_metas[p.value] = metadata_from_file(meta, product_id, p)
+                titles[p.value] = _trim_on_word_boundary(meta.get("title") or "", 100)
+                continue
+
+            fallback_path = video.parent / "data.json"
+            if fallback_path.exists():
+                fb = json.loads(fallback_path.read_text())
+                if isinstance(fb, list) and fb:
+                    fb = fb[0]
+                # The raw scraped title, routinely past YouTube's 100-character
+                # cap. This branch carries the title separately from the
+                # caption the builder returns, so it is trimmed here.
+                title = _trim_on_word_boundary(fb.get("title", "Product Video"), 100)
+                desc = fb.get("description", "")
+                # Routed through the same builder so this branch leads with the
+                # disclosure too, and the decision is read off the record:
+                # `data.json` carries the two fields the rule uses, so
+                # defaulting would stamp `#ad` on a topic whose own record says
+                # there is nothing to disclose.
+                fb_discloses = carries_affiliate_content(SimpleNamespace(**fb))
+                carries_affiliate[p.value] = fb_discloses
+                platform_metas[p.value] = metadata_from_file(
+                    {
+                        "title": title,
+                        "description": f"{title}\n\n{desc}",
+                        "carries_affiliate_content": fb_discloses,
+                    },
+                    product_id,
+                    p,
+                )
+                titles[p.value] = title
+                continue
+
+            # Nothing on disk at all. Routed through the builder like every
+            # other branch, so this caption is recorded and clamped the same
+            # way (#408); it used to be a bare literal that skipped both. It
+            # neither discloses nor votes in `carries_affiliate`: with no
+            # record, asserting a material connection would stamp a false
+            # `brand_organic` on a unified topic post whose siblings all say
+            # there is nothing to disclose.
+            literal = f"Product video for {product_id}"
+            platform_metas[p.value] = metadata_from_file(
+                {
+                    "title": literal,
+                    "description": literal,
+                    "carries_affiliate_content": False,
+                },
+                product_id,
+                p,
+            )
+            titles[p.value] = literal
+
+        return platform_metas, titles, carries_affiliate
+
+    def _first_comments_for(
+        self,
+        publisher: "BasePublisher",
+        platforms: list[Platform],
+        product_id: str,
+        outputs_dir: Path | None,
+    ) -> dict[str, str]:
+        """First comments, attached by each posting branch.
+
+        The unified branch used to drop them, because its per-platform payload
+        copied only content and title.
+        """
+        first_comments: dict[str, str] = {}
+        fc_config = getattr(publisher, "first_comment_config", None)
+        if not (fc_config and fc_config.enabled and outputs_dir):
+            return first_comments
+        for p in platforms:
+            comment = build_first_comment(fc_config, p.value, product_id, outputs_dir)
+            if comment:
+                first_comments[p.value] = comment
+        return first_comments
+
+    async def _post_per_platform(
+        self,
+        *,
+        publisher: "BasePublisher",
+        platform_dicts: list[dict[str, str]],
+        platform_metas: dict[str, PublishMetadata],
+        titles: dict[str, str],
+        carries_affiliate: dict[str, bool],
+        first_comments: dict[str, str],
+        media_id: str,
+        product_id: str,
+        next_time: datetime,
+        next_idx: int,
+    ) -> list[tuple[str, str]]:
+        """One post per platform, each with its own metadata."""
+        scheduled_legs: list[tuple[str, str]] = []
+        for platform_dict in platform_dicts:
+            p_name = platform_dict["platform"]
+            p_meta = platform_metas.get(p_name)
+            p_content_data: dict[str, Any] = {}
+            p_content = ""
+            if p_meta is not None:
+                # Clamped here, for exactly this post's one destination (#408).
+                p_content = p_meta.clamped_for([Platform(p_name)]).format_content()
+                p_content_data = {
+                    "content": p_content,
+                    "title": titles.get(p_name, ""),
+                }
+                if p_name in first_comments:
+                    p_content_data["first_comment"] = first_comments[p_name]
+
+            result = await publisher.publish(
+                media_id=media_id,
+                platforms=[platform_dict],
+                content=p_content,
+                platform_contents={p_name: p_content_data},
+                scheduled_time=next_time,
+                carries_affiliate_content=carries_affiliate.get(p_name, True),
+            )
+
+            platform_entry = ScheduleEntry(
+                product_id=product_id,
+                scheduled_time=next_time,
+                platforms=[Platform(p_name)],
+                post_id=str(result.get("post_id")) if result.get("post_id") else None,
+                status="scheduled",
+                created_at=datetime.now(UTC),
+                slot_index=next_idx,
+            )
+
+            self.entries.append(platform_entry)
+            if platform_entry.post_id:
+                scheduled_legs.append((p_name, platform_entry.post_id))
+            logger.info(
+                "Scheduled %s on %s (post: %s)",
+                product_id,
+                p_name,
+                platform_entry.post_id,
+            )
+        return scheduled_legs
+
+    async def _post_unified(
+        self,
+        *,
+        publisher: "BasePublisher",
+        platform_dicts: list[dict[str, str]],
+        platform_metas: dict[str, PublishMetadata],
+        titles: dict[str, str],
+        carries_affiliate: dict[str, bool],
+        first_comments: dict[str, str],
+        media_id: str,
+        product_id: str,
+        next_time: datetime,
+        next_idx: int,
+    ) -> list[tuple[str, str]]:
+        """One post carrying one caption to every platform."""
+        scheduled_legs: list[tuple[str, str]] = []
+        unified_content = ""
+        unified_platform_contents: dict[str, dict[str, Any]] = {}
+
+        if platform_metas:
+            first_platform = next(iter(platform_metas))
+            # One post carries a single caption to every target, so it is
+            # clamped for all of them at once -- reusing a caption clamped for
+            # one platform is the four-round defect the collapse removed
+            # (#403, #408).
+            unified_targets = [
+                Platform(d["platform"])
+                for d in platform_dicts
+                if d.get("platform") in {pl.value for pl in Platform}
+            ] or [Platform(first_platform)]
+            unified_content = (
+                platform_metas[first_platform]
+                .clamped_for(unified_targets)
+                .format_content()
+            )
+            for p_dict in platform_dicts:
+                p_name = p_dict["platform"]
+                payload: dict[str, Any] = {"content": unified_content}
+                if p_name == "youtube" and titles.get(p_name):
+                    payload["title"] = titles[p_name]
+                if p_name in first_comments:
+                    payload["first_comment"] = first_comments[p_name]
+                unified_platform_contents[p_name] = payload
+
+        result = await publisher.publish(
+            media_id=media_id,
+            platforms=platform_dicts,  # All platforms in one post
+            content=unified_content,
+            platform_contents=unified_platform_contents,
+            scheduled_time=next_time,
+            # One post covers every platform, so it discloses if any leg has
+            # something to disclose.
+            carries_affiliate_content=(
+                any(carries_affiliate.values()) if carries_affiliate else True
+            ),
+        )
+
+        unified_entry = ScheduleEntry(
+            product_id=product_id,
+            scheduled_time=next_time,
+            platforms=[Platform(p["platform"]) for p in platform_dicts],
+            post_id=str(result.get("post_id")) if result.get("post_id") else None,
+            status="scheduled",
+            created_at=datetime.now(UTC),
+            slot_index=next_idx,
+        )
+
+        self.entries.append(unified_entry)
+        if unified_entry.post_id:
+            for p_dict in platform_dicts:
+                scheduled_legs.append((p_dict["platform"], unified_entry.post_id))
+        logger.info(
+            "Scheduled %s on %s (post: %s)",
+            product_id,
+            ", ".join(p["platform"] for p in platform_dicts),
+            unified_entry.post_id,
+        )
+        return scheduled_legs
+
+    async def _record_scheduled_legs(
+        self,
+        product_id: str,
+        scheduled_legs: list[tuple[str, str]],
+        outputs_dir: Path,
+        link_in_bio_config: LinkInBioConfig | None,
+    ) -> None:
+        """Local tracking, registry and the bio link, before cleanup.
+
+        `add_to_registry` and the bio link both read `data.json`, so this runs
+        before the directory is removed. Mirrors the single publish path, so a
+        scheduled post keeps a local record and the duplicate-publish guard
+        sees it.
+        """
+        for leg_platform, leg_post_id in scheduled_legs:
+            try:
+                record_publish(product_id, leg_platform, leg_post_id, outputs_dir)
+            except OSError as track_error:
+                logger.error(
+                    "Failed to record publish %s:%s: %s",
+                    product_id,
+                    leg_platform,
+                    track_error,
+                )
+        try:
+            add_to_registry(product_id, outputs_dir)
+        except (OSError, ValueError) as reg_error:
+            logger.warning(
+                "Failed to update registry for %s: %s", product_id, reg_error
+            )
+
+        await update_link_in_bio_safe(product_id, outputs_dir, link_in_bio_config)
+
+    async def _cleanup_scheduled(
+        self,
+        cleanup_manager: Any,
+        product_id: str,
+        platforms: list[Platform],
+    ) -> bool:
+        """Remove the product directory; True when it was actually removed."""
+        try:
+            cleanup_result = await cleanup_manager.cleanup(
+                product_id, platforms, dry_run=False
+            )
+            if cleanup_result.get("success"):
+                logger.info(
+                    "Cleaned up %s: %s",
+                    product_id,
+                    cleanup_result.get("message", "success"),
+                )
+                return True
+            logger.warning(
+                "Cleanup skipped for %s: %s",
+                product_id,
+                cleanup_result.get("message", "unknown"),
+            )
+        except (OSError, ValueError) as cleanup_error:
+            logger.warning("Cleanup failed for %s: %s", product_id, cleanup_error)
+        return False
+
+    async def _schedule_one(
+        self,
+        *,
+        video: Path,
+        product_id: str,
+        platforms: list[Platform],
+        publisher: "BasePublisher",
+        next_time: datetime,
+        next_idx: int,
+        occupied_slot_times: set[datetime],
+        outputs_dir: Path | None,
+        cleanup_manager: Any,
+        link_in_bio_config: LinkInBioConfig | None,
+    ) -> bool | None:
+        """Publish one product into its settled slot.
+
+        Returns whether the product directory was cleaned, or None when the
+        product failed -- in which case a failed entry is already recorded.
+        """
+        try:
+            logger.info(
+                "Scheduling %s at %s (slot %d)", product_id, next_time, next_idx
+            )
+
+            platform_dicts = await self._publish_targets(publisher, platforms)
+            # The upload comes before the captions: a media failure should not
+            # be paid for after reading every metadata file.
+            media_id = await publisher.upload_media(video)
+
+            platform_metas, titles, carries_affiliate = self._captions_for(
+                video, product_id, platforms
+            )
+            first_comments = self._first_comments_for(
+                publisher, platforms, product_id, outputs_dir
+            )
+
+            post = (
+                self._post_per_platform
+                if self.config.use_platform_specific_content
+                else self._post_unified
+            )
+            scheduled_legs = await post(
+                publisher=publisher,
+                platform_dicts=platform_dicts,
+                platform_metas=platform_metas,
+                titles=titles,
+                carries_affiliate=carries_affiliate,
+                first_comments=first_comments,
+                media_id=media_id,
+                product_id=product_id,
+                next_time=next_time,
+                next_idx=next_idx,
+            )
+            occupied_slot_times.add(next_time.replace(second=0, microsecond=0))
+
+            self._save_schedule()
+
+            if outputs_dir:
+                await self._record_scheduled_legs(
+                    product_id, scheduled_legs, outputs_dir, link_in_bio_config
+                )
+
+            if cleanup_manager:
+                return await self._cleanup_scheduled(
+                    cleanup_manager, product_id, platforms
+                )
+            return False
+
+        except (PublishError, OSError, TimeoutError) as e:
+            logger.error("Failed to schedule %s: %s", product_id, e)
+            self.entries.append(
+                ScheduleEntry(
+                    product_id=product_id,
+                    scheduled_time=next_time,
+                    platforms=platforms.copy(),
+                    post_id=None,
+                    status="failed",
+                    created_at=datetime.now(UTC),
+                    slot_index=next_idx,
+                )
+            )
+            self._save_schedule()
+            return None
+
+    async def _schedule_video(
+        self,
+        *,
+        video: Path,
+        platforms: list[Platform],
+        publisher: "BasePublisher",
+        current_time: datetime,
+        current_slot: int,
+        occupied_slot_times: set[datetime],
+        dry_run: bool,
+        force: bool,
+        auto_resolve: bool,
+        outputs_dir: Path | None,
+        cleanup_manager: Any,
+        link_in_bio_config: LinkInBioConfig | None,
+    ) -> "_VideoOutcome":
+        """Place one video: skip check, slot, conflict, then publish.
+
+        Every exit says what happened rather than mutating counters, so the
+        caller holds the tally and the cursor in one place. Only a scheduled
+        video reports a slot, because only a scheduled one moves the cursor.
+        """
+        # "outputs/B0ABC123/video_B0ABC123.mp4" -> "B0ABC123"
+        product_id = video.parent.name
+        logger.debug("Processing video: %s", product_id)
+
+        if not force:
+            already_published = [
+                platform.value
+                for platform in platforms
+                if is_already_published(product_id, platform.value)
+            ]
+            if already_published:
+                logger.info(
+                    "Skipping %s: already published to %s",
+                    product_id,
+                    ", ".join(already_published),
+                )
+                return _VideoOutcome("skipped")
+
+        try:
+            next_time, next_idx = self._next_free_slot(
+                product_id, current_time, current_slot, occupied_slot_times
+            )
+        except (ValueError, KeyError) as e:
+            logger.error("Failed to calculate next slot: %s", e)
+            return _VideoOutcome("failed")
+
+        settled = self._settle_conflict(
+            product_id,
+            next_time,
+            next_idx,
+            platforms,
+            occupied_slot_times,
+            auto_resolve,
+        )
+        if settled is None:
+            return _VideoOutcome("failed")
+        next_time, was_resolved = settled
+
+        if dry_run:
+            logger.info(
+                "[DRY RUN] Would schedule %s at %s (slot %d)",
+                product_id,
+                next_time,
+                next_idx,
+            )
+            return _VideoOutcome(
+                "scheduled",
+                conflict_resolved=was_resolved,
+                slot=(next_time, next_idx),
+            )
+
+        cleaned = await self._schedule_one(
+            video=video,
+            product_id=product_id,
+            platforms=platforms,
+            publisher=publisher,
+            next_time=next_time,
+            next_idx=next_idx,
+            occupied_slot_times=occupied_slot_times,
+            outputs_dir=outputs_dir,
+            cleanup_manager=cleanup_manager,
+            link_in_bio_config=link_in_bio_config,
+        )
+        if cleaned is None:
+            return _VideoOutcome("failed")
+        return _VideoOutcome(
+            "scheduled",
+            cleaned=cleaned,
+            conflict_resolved=was_resolved,
+            slot=(next_time, next_idx),
+        )
+
     async def auto_schedule(
         self,
         videos: list[Path],
@@ -665,7 +1361,6 @@ class ScheduleManager:
             >>> print(f"Scheduled: {summary['scheduled']}")
 
         """
-        # Validate recurring schedule is enabled and has slots
         if not self.config.enabled:
             raise ValueError(
                 "Recurring schedule is not enabled. "
@@ -686,78 +1381,15 @@ class ScheduleManager:
         logger.info("Platforms: %s", ", ".join([p.value for p in platforms]))
         logger.info("Start slot: %d, Dry run: %s", start_slot, dry_run)
 
-        # Initialize reference time for calculating next slot
         current_time = datetime.now(UTC)
+        occupied_slot_times = await self._build_occupancy(publisher, current_time)
 
-        # Build set of occupied slots from API to find gaps
-        # NOTE: We do NOT create local entries from API posts because the API
-        # doesn't return the original product_id (Amazon ASIN). Creating entries
-        # with placeholder product_ids (e.g., API_abc123) causes confusion and
-        # breaks duplicate detection. Instead, we track occupied slot times.
-        occupied_slot_times: set[datetime] = set()
-        try:
-            logger.debug("Fetching existing posts from API (all statuses)...")
-            # Fetch ALL posts (scheduled + published) to avoid slot conflicts
-            api_posts = await publisher.list_posts()
-            logger.debug("Found %d posts on API", len(api_posts))
-
-            # Build set of all occupied slot times from API posts
-            for api_post in api_posts:
-                scheduled_time = api_post.get("scheduledFor")
-                if not scheduled_time:
-                    continue
-
-                # Parse scheduled time (handle both datetime and string)
-                if isinstance(scheduled_time, str):
-                    # Parse ISO format datetime string
-                    time_str = scheduled_time.replace("+00:00", "")
-                    scheduled_dt = datetime.fromisoformat(time_str)
-                else:
-                    scheduled_dt = scheduled_time
-
-                # Ensure timezone-aware
-                if scheduled_dt.tzinfo is None:
-                    scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
-
-                # Normalize to slot time (remove seconds/microseconds)
-                normalized = scheduled_dt.replace(second=0, microsecond=0)
-                occupied_slot_times.add(normalized)
-
-            logger.info("Found %d occupied slots from API", len(occupied_slot_times))
-
-            # Also include local schedule entries in occupied slots
-            # This prevents duplicates and enables proper gap-filling
-            for entry in self.entries:
-                normalized = entry.scheduled_time.replace(second=0, microsecond=0)
-                occupied_slot_times.add(normalized)
-
-            logger.info(
-                "Total %d occupied slots (API + local)", len(occupied_slot_times)
-            )
-
-            # Log latest post time for debugging, but keep current_time at NOW
-            # to enable gap-filling from current time forward
-            if occupied_slot_times:
-                api_latest_time = max(occupied_slot_times)
-                logger.info("Latest post on API: %s", api_latest_time)
-                logger.info(
-                    "Searching for next available slot from now (%s), "
-                    "skipping %d occupied slots",
-                    current_time,
-                    len(occupied_slot_times),
-                )
-
-        except (PublishError, OSError, TimeoutError) as e:
-            logger.warning("Failed to check API schedule: %s", e)
-
-        # Initialize counters
         scheduled_count = 0
         skipped_count = 0
         failed_count = 0
         cleaned_count = 0
         conflicts_resolved_count = 0
 
-        # Initialize cleanup manager if cleanup enabled
         cleanup_manager = None
         if cleanup_config is None:
             cleanup_config = CleanupConfig()  # Default: enabled=True
@@ -767,572 +1399,46 @@ class ScheduleManager:
             cleanup_manager = CleanupManager(outputs_dir, cleanup_config, publisher)
             logger.info("Cleanup enabled - will cleanup after successful scheduling")
 
-        # Current slot index (wraps around)
-        current_slot = start_slot
+        current_slot = start_slot  # Wraps around
 
         for video in videos:
             try:
-                # Extract product_id from video path
-                # e.g., "outputs/B0ABC123/video_B0ABC123.mp4" -> "B0ABC123"
-                product_id = video.parent.name
-                logger.debug("Processing video: %s", product_id)
-
-                # Check if already published to ANY of the specified platforms
-                if not force:
-                    already_published = []
-                    for platform in platforms:
-                        if is_already_published(product_id, platform.value):
-                            already_published.append(platform.value)
-
-                    if already_published:
-                        logger.info(
-                            "Skipping %s: already published to %s",
-                            product_id,
-                            ", ".join(already_published),
-                        )
-                        skipped_count += 1
-                        continue
-
-                # Find next available slot (skip occupied slots from API)
-                try:
-                    search_time = current_time
-                    max_attempts = SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS
-                    attempts = 0
-
-                    while attempts < max_attempts:
-                        next_time, next_idx = self.get_next_slot(
-                            slots=self.config.slots,
-                            after=search_time,
-                            slot_index=current_slot,
-                        )
-
-                        # Normalize slot time for comparison
-                        normalized = next_time.replace(second=0, microsecond=0)
-
-                        # Check if slot is occupied by API post
-                        if normalized not in occupied_slot_times:
-                            logger.debug(
-                                "Next slot for %s: %s (slot %d)",
-                                product_id,
-                                next_time,
-                                next_idx,
-                            )
-                            break
-
-                        # Slot occupied, try next one
-                        logger.debug(
-                            "Slot %s occupied by API post, trying next slot", next_time
-                        )
-                        search_time = next_time
-                        attempts += 1
-
-                    if attempts >= max_attempts:
-                        raise ValueError(
-                            f"No available slot after {max_attempts} attempts"
-                        )
-
-                except (ValueError, KeyError) as e:
-                    logger.error("Failed to calculate next slot: %s", e)
-                    failed_count += 1
-                    continue
-
-                # Validate scheduling (check slot availability for this product)
-                # Note: We'll create separate posts per platform, but validate once
-                # for all
-                temp_entry = ScheduleEntry(
-                    product_id=product_id,
-                    scheduled_time=next_time,
-                    platforms=[platforms[0]],  # Validate with first platform only
-                    post_id=None,
-                    status="pending",
-                    created_at=datetime.now(UTC),
-                    slot_index=next_idx,
+                outcome = await self._schedule_video(
+                    video=video,
+                    platforms=platforms,
+                    publisher=publisher,
+                    current_time=current_time,
+                    current_slot=current_slot,
+                    occupied_slot_times=occupied_slot_times,
+                    dry_run=dry_run,
+                    force=force,
+                    auto_resolve=auto_resolve,
+                    outputs_dir=outputs_dir,
+                    cleanup_manager=cleanup_manager,
+                    link_in_bio_config=link_in_bio_config,
                 )
-
-                validator = ScheduleValidator(self.config, self.entries)
-                is_valid, error_message = validator.validate(temp_entry)
-                if not is_valid:
-                    if auto_resolve:
-                        # Try to resolve conflict by finding alternative
-                        resolution = self.resolve_conflict(
-                            preferred_time=next_time,
-                            platforms=platforms,
-                            occupied_slots=occupied_slot_times,
-                            auto_resolve=True,
-                        )
-                        if resolution.auto_resolved and resolution.resolved_time:
-                            logger.info(
-                                "Conflict resolved for %s: %s -> %s (reason: %s)",
-                                product_id,
-                                next_time,
-                                resolution.resolved_time,
-                                resolution.conflict_reason,
-                            )
-                            next_time = resolution.resolved_time
-                            conflicts_resolved_count += 1
-                            # Mark the resolved time as occupied
-                            occupied_slot_times.add(
-                                next_time.replace(second=0, microsecond=0)
-                            )
-                        else:
-                            logger.warning(
-                                "Could not resolve conflict for %s: %s",
-                                product_id,
-                                error_message,
-                            )
-                            if resolution.alternatives:
-                                alt_str = ", ".join(
-                                    t.isoformat() for t in resolution.alternatives[:3]
-                                )
-                                logger.info("Available alternatives: %s", alt_str)
-                            failed_count += 1
-                            continue
-                    else:
-                        logger.warning(
-                            "Validation failed for %s: %s", product_id, error_message
-                        )
-                        # Suggest alternatives even without auto-resolve
-                        resolution = self.find_alternatives(
-                            preferred_time=next_time,
-                            platforms=platforms,
-                            occupied_slots=occupied_slot_times,
-                        )
-                        if resolution.alternatives:
-                            alt_str = ", ".join(
-                                t.isoformat() for t in resolution.alternatives[:3]
-                            )
-                            logger.info(
-                                "Suggested alternatives for %s: %s", product_id, alt_str
-                            )
-                            logger.info("Use --auto-resolve to automatically use first")
-                        failed_count += 1
-                        continue
-
-                if dry_run:
-                    # Dry run mode: just log without publishing
-                    logger.info(
-                        "[DRY RUN] Would schedule %s at %s (slot %d)",
-                        product_id,
-                        next_time,
-                        next_idx,
-                    )
-                    scheduled_count += 1
-                else:
-                    # Call publisher.publish() with scheduled_time
-                    try:
-                        logger.info(
-                            "Scheduling %s at %s (slot %d)",
-                            product_id,
-                            next_time,
-                            next_idx,
-                        )
-
-                        # Get actual account IDs from publisher
-                        accounts = await publisher.get_accounts()
-                        account_map = {
-                            acc["platform"]: acc["account_id"] for acc in accounts
-                        }
-
-                        # Prepare platforms for publisher
-                        platform_dicts = []
-                        for p in platforms:
-                            account_id = account_map.get(p.value)
-                            if not account_id:
-                                logger.warning("No account for %s", p.value)
-                                continue
-                            platform_dicts.append(
-                                {
-                                    "platform": p.value,
-                                    "account_id": account_id,
-                                }
-                            )
-
-                        if not platform_dicts:
-                            raise ValueError("No valid accounts for platforms")
-
-                        # Upload video first (publisher needs media_id)
-                        media_id = await publisher.upload_media(video)
-
-                        # Per-platform metadata objects; each posting branch
-                        # clamps at its own point of use (#408). Titles ride
-                        # separately: the caption clamp's trimmed title is
-                        # deliberately not what the payload carries.
-                        platform_metas: dict[str, PublishMetadata] = {}
-                        titles: dict[str, str] = {}
-
-                        # Try unified metadata.json first
-                        unified_meta_path = video.parent / "metadata.json"
-                        unified_meta = None
-                        if unified_meta_path.exists():
-                            unified_meta = json.loads(unified_meta_path.read_text())
-                            logger.debug(
-                                "Using unified metadata: %s", unified_meta_path
-                            )
-
-                        # The producer records whether the render has a
-                        # material connection to disclose. Read it rather than
-                        # deriving one here, and default to disclosing: a
-                        # metadata file written before the key existed carries
-                        # no opinion, and a missing disclosure is the costly
-                        # direction to be wrong in.
-                        carries_affiliate: dict[str, bool] = {}
-
-                        for p in platforms:
-                            meta = None
-
-                            # Use unified metadata if available
-                            if unified_meta:
-                                meta = unified_meta
-                            else:
-                                # Fallback to platform-specific metadata
-                                meta_file = f"metadata_{p.value}.json"
-                                platform_meta = video.parent / meta_file
-                                if platform_meta.exists():
-                                    meta = json.loads(platform_meta.read_text())
-
-                            if meta:
-                                carries_affiliate[p.value] = bool(
-                                    meta.get("carries_affiliate_content", True)
-                                )
-                                platform_metas[p.value] = metadata_from_file(
-                                    meta, product_id, p
-                                )
-                                titles[p.value] = _trim_on_word_boundary(
-                                    meta.get("title") or "", 100
-                                )
-                            else:
-                                # Fallback to data.json
-                                fallback_path = video.parent / "data.json"
-                                if fallback_path.exists():
-                                    fb = json.loads(fallback_path.read_text())
-                                    if isinstance(fb, list) and fb:
-                                        fb = fb[0]
-                                    # The raw scraped title, routinely past
-                                    # YouTube's 100-character cap. This branch
-                                    # carries the title separately from the
-                                    # caption the builder returns, so it is
-                                    # trimmed here.
-                                    title = _trim_on_word_boundary(
-                                        fb.get("title", "Product Video"), 100
-                                    )
-                                    desc = fb.get("description", "")
-                                    # The title is carried as well as
-                                    # concatenated: without it the YouTube
-                                    # payload has none, and the platform
-                                    # derives one from the caption's first
-                                    # line.
-                                    #
-                                    # Routed through the same builder so this
-                                    # branch leads with the disclosure too.
-                                    #
-                                    # The decision is read off the record
-                                    # rather than defaulted. `data.json`
-                                    # carries the two fields the rule uses, so
-                                    # defaulting here would stamp `#ad` on a
-                                    # topic whose own record says there is
-                                    # nothing to disclose -- the defect this
-                                    # fix's sibling removed.
-                                    fb_discloses = carries_affiliate_content(
-                                        SimpleNamespace(**fb)
-                                    )
-                                    carries_affiliate[p.value] = fb_discloses
-                                    fb_meta = {
-                                        "title": title,
-                                        "description": f"{title}\n\n{desc}",
-                                        "carries_affiliate_content": fb_discloses,
-                                    }
-                                    platform_metas[p.value] = metadata_from_file(
-                                        fb_meta, product_id, p
-                                    )
-                                    titles[p.value] = title
-                                else:
-                                    # Nothing on disk at all. Routed through
-                                    # the builder like every other branch, so
-                                    # this caption is recorded and clamped
-                                    # the same way (#408); it used to be a
-                                    # bare literal that skipped both. It
-                                    # neither discloses nor votes in
-                                    # `carries_affiliate`: with no record,
-                                    # asserting a material connection would
-                                    # stamp a false `brand_organic` on a
-                                    # unified topic post whose siblings all
-                                    # say there is nothing to disclose.
-                                    literal = f"Product video for {product_id}"
-                                    platform_metas[p.value] = metadata_from_file(
-                                        {
-                                            "title": literal,
-                                            "description": literal,
-                                            "carries_affiliate_content": False,
-                                        },
-                                        product_id,
-                                        p,
-                                    )
-                                    titles[p.value] = literal
-
-                        # First comments, attached by each posting branch --
-                        # the unified branch used to drop them because its
-                        # per-platform payload copied only content and title.
-                        first_comments: dict[str, str] = {}
-                        fc_config = getattr(publisher, "first_comment_config", None)
-                        if fc_config and fc_config.enabled and outputs_dir:
-                            for p in platforms:
-                                comment = build_first_comment(
-                                    fc_config,
-                                    p.value,
-                                    product_id,
-                                    outputs_dir,
-                                )
-                                if comment:
-                                    first_comments[p.value] = comment
-
-                        # Per-platform (platform, post_id) legs to record in
-                        # local tracking/registry before cleanup removes the dir.
-                        scheduled_legs: list[tuple[str, str]] = []
-
-                        if self.config.use_platform_specific_content:
-                            # Platform-specific mode: Create separate posts per platform
-                            # with optimized metadata for each platform
-                            for platform_dict in platform_dicts:
-                                p_name = platform_dict["platform"]
-                                p_meta = platform_metas.get(p_name)
-                                p_content_data: dict[str, Any] = {}
-                                p_content = ""
-                                if p_meta is not None:
-                                    # Clamped here, for exactly this post's
-                                    # one destination (#408).
-                                    p_content = p_meta.clamped_for(
-                                        [Platform(p_name)]
-                                    ).format_content()
-                                    p_content_data = {
-                                        "content": p_content,
-                                        "title": titles.get(p_name, ""),
-                                    }
-                                    if p_name in first_comments:
-                                        p_content_data["first_comment"] = (
-                                            first_comments[p_name]
-                                        )
-
-                                result = await publisher.publish(
-                                    media_id=media_id,
-                                    platforms=[platform_dict],
-                                    content=p_content,
-                                    platform_contents={p_name: p_content_data},
-                                    scheduled_time=next_time,
-                                    carries_affiliate_content=(
-                                        carries_affiliate.get(p_name, True)
-                                    ),
-                                )
-
-                                # Create separate entry for this platform
-                                platform_entry = ScheduleEntry(
-                                    product_id=product_id,
-                                    scheduled_time=next_time,
-                                    platforms=[Platform(p_name)],
-                                    post_id=str(result.get("post_id"))
-                                    if result.get("post_id")
-                                    else None,
-                                    status="scheduled",
-                                    created_at=datetime.now(UTC),
-                                    slot_index=next_idx,
-                                )
-
-                                self.entries.append(platform_entry)
-                                if platform_entry.post_id:
-                                    scheduled_legs.append(
-                                        (p_name, platform_entry.post_id)
-                                    )
-                                logger.info(
-                                    "Scheduled %s on %s (post: %s)",
-                                    product_id,
-                                    p_name,
-                                    platform_entry.post_id,
-                                )
-
-                            # Mark slot as occupied
-                            occupied_slot_times.add(
-                                next_time.replace(second=0, microsecond=0)
-                            )
-                        else:
-                            # Unified mode (default): Create single post for all
-                            # platforms with shared metadata
-                            unified_content = ""
-                            unified_platform_contents: dict[str, dict[str, Any]] = {}
-
-                            if platform_metas:
-                                first_platform = next(iter(platform_metas))
-                                # One post carries a single caption to every
-                                # target, so it is clamped for all of them at
-                                # once -- reusing a caption clamped for one
-                                # platform is the four-round defect the
-                                # collapse removed (#403, #408).
-                                unified_targets = [
-                                    Platform(d["platform"])
-                                    for d in platform_dicts
-                                    if d.get("platform")
-                                    in {pl.value for pl in Platform}
-                                ] or [Platform(first_platform)]
-                                unified_content = (
-                                    platform_metas[first_platform]
-                                    .clamped_for(unified_targets)
-                                    .format_content()
-                                )
-                                for p_dict in platform_dicts:
-                                    p_name = p_dict["platform"]
-                                    payload: dict[str, Any] = {
-                                        "content": unified_content
-                                    }
-                                    if p_name == "youtube" and titles.get(p_name):
-                                        payload["title"] = titles[p_name]
-                                    if p_name in first_comments:
-                                        payload["first_comment"] = first_comments[
-                                            p_name
-                                        ]
-                                    unified_platform_contents[p_name] = payload
-
-                            result = await publisher.publish(
-                                media_id=media_id,
-                                platforms=platform_dicts,  # All platforms in one post
-                                content=unified_content,
-                                platform_contents=unified_platform_contents,
-                                scheduled_time=next_time,
-                                # One post covers every platform, so it
-                                # discloses if any leg has something to
-                                # disclose.
-                                carries_affiliate_content=(
-                                    any(carries_affiliate.values())
-                                    if carries_affiliate
-                                    else True
-                                ),
-                            )
-
-                            # Create single entry with all platforms
-                            unified_entry = ScheduleEntry(
-                                product_id=product_id,
-                                scheduled_time=next_time,
-                                platforms=[
-                                    Platform(p["platform"]) for p in platform_dicts
-                                ],
-                                post_id=str(result.get("post_id"))
-                                if result.get("post_id")
-                                else None,
-                                status="scheduled",
-                                created_at=datetime.now(UTC),
-                                slot_index=next_idx,
-                            )
-
-                            self.entries.append(unified_entry)
-                            if unified_entry.post_id:
-                                for p_dict in platform_dicts:
-                                    scheduled_legs.append(
-                                        (p_dict["platform"], unified_entry.post_id)
-                                    )
-                            platform_names = ", ".join(
-                                p["platform"] for p in platform_dicts
-                            )
-                            logger.info(
-                                "Scheduled %s on %s (post: %s)",
-                                product_id,
-                                platform_names,
-                                unified_entry.post_id,
-                            )
-
-                            # Mark slot as occupied
-                            occupied_slot_times.add(
-                                next_time.replace(second=0, microsecond=0)
-                            )
-
-                        self._save_schedule()
-                        scheduled_count += 1
-
-                        # Record local tracking + registry BEFORE cleanup removes
-                        # the dir (add_to_registry reads data.json). Mirrors the
-                        # single publish path so scheduled posts keep a local
-                        # record and the duplicate-publish guard sees them.
-                        if outputs_dir and not dry_run:
-                            for leg_platform, leg_post_id in scheduled_legs:
-                                try:
-                                    record_publish(
-                                        product_id,
-                                        leg_platform,
-                                        leg_post_id,
-                                        outputs_dir,
-                                    )
-                                except OSError as track_error:
-                                    logger.error(
-                                        "Failed to record publish %s:%s: %s",
-                                        product_id,
-                                        leg_platform,
-                                        track_error,
-                                    )
-                            try:
-                                add_to_registry(product_id, outputs_dir)
-                            except (OSError, ValueError) as reg_error:
-                                logger.warning(
-                                    "Failed to update registry for %s: %s",
-                                    product_id,
-                                    reg_error,
-                                )
-
-                            # Link-in-bio before cleanup (reads data.json;
-                            # non-blocking, enabled by default)
-                            await update_link_in_bio_safe(
-                                product_id, outputs_dir, link_in_bio_config
-                            )
-
-                        # Cleanup product directory if enabled
-                        if cleanup_manager and not dry_run:
-                            try:
-                                cleanup_result = await cleanup_manager.cleanup(
-                                    product_id, platforms, dry_run=False
-                                )
-                                if cleanup_result.get("success"):
-                                    cleaned_count += 1
-                                    logger.info(
-                                        "Cleaned up %s: %s",
-                                        product_id,
-                                        cleanup_result.get("message", "success"),
-                                    )
-                                else:
-                                    logger.warning(
-                                        "Cleanup skipped for %s: %s",
-                                        product_id,
-                                        cleanup_result.get("message", "unknown"),
-                                    )
-                            except (OSError, ValueError) as cleanup_error:
-                                logger.warning(
-                                    "Cleanup failed for %s: %s",
-                                    product_id,
-                                    cleanup_error,
-                                )
-
-                    except (PublishError, OSError, TimeoutError) as e:
-                        logger.error("Failed to schedule %s: %s", product_id, e)
-                        # Create failed entry for tracking
-                        failed_entry = ScheduleEntry(
-                            product_id=product_id,
-                            scheduled_time=next_time,
-                            platforms=platforms.copy(),
-                            post_id=None,
-                            status="failed",
-                            created_at=datetime.now(UTC),
-                            slot_index=next_idx,
-                        )
-                        self.entries.append(failed_entry)
-                        self._save_schedule()
-                        failed_count += 1
-                        continue
-
-                # Move to next slot for next video
-                current_slot = (next_idx + 1) % len(self.config.slots)
-                # Update current_time to after this scheduled post
-                current_time = next_time
-
             except Exception as e:  # Per-video boundary
                 logger.error("Unexpected error processing %s: %s", video, e)
                 failed_count += 1
                 continue
 
-        # Log summary
+            if outcome.result == "skipped":
+                skipped_count += 1
+                continue
+            if outcome.result == "failed":
+                failed_count += 1
+                continue
+
+            scheduled_count += 1
+            cleaned_count += int(outcome.cleaned)
+            conflicts_resolved_count += int(outcome.conflict_resolved)
+            if outcome.slot is not None:
+                # Only a scheduled product moves the cursor: a skip or a
+                # failure leaves the slot for the next video, as before.
+                scheduled_time, slot_index = outcome.slot
+                current_slot = (slot_index + 1) % len(self.config.slots)
+                current_time = scheduled_time
+
         summary_parts = [
             f"scheduled={scheduled_count}",
             f"skipped={skipped_count}",
