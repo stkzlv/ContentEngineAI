@@ -56,7 +56,7 @@ from src.ai.platform_metadata.utilities import (
     save_metadata_to_file,
 )
 from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)

@@ -7,7 +7,7 @@ from typing import Any
 
 import aiohttp
 
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config import VideoConfig, VideoProfile
 
 

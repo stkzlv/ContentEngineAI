@@ -69,14 +69,14 @@ from src.video.producer.utils import (
     select_profile_for_product,
 )
 
-# The publisher (the Zernio SDK) is the one survivor below that a
-# function-local import genuinely keeps out of the import closure -- it is
-# not otherwise reached at module load. The scraper and producer
-# orchestration are ALREADY resident at import of this module (their package
-# __init__ re-export chains pull botasaurus/torch/whisper regardless), so
-# their function-local imports here defer nothing; they are kept local only
-# to keep this module's header small. The eager-load lever is those __init__
-# chains, tracked separately.
+# Every function-local import below now genuinely defers something: the
+# publisher (the Zernio SDK), the scraper (Botasaurus and its Chromium
+# driver) and the producer orchestration (Whisper, torch) are each absent
+# from this module's import closure until a path that needs them runs. That
+# holds only because the package `__init__` re-exports resolve lazily --
+# they used to load all three regardless -- so hoisting one of these to
+# module scope puts its whole stack back into `--help` and every dry run.
+# `tests/utils/test_import_closure.py` fails if that happens.
 
 if TYPE_CHECKING:
     from src.publisher.models import PublisherConfig

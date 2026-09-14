@@ -40,12 +40,13 @@ from src.video.producer.context import (
     PipelineError,
 )
 
-# The pycaps engine and its `pycaps.ai` tagger are the survivors that a
-# function-local import genuinely defers: they are the optional group, absent
-# on a default install, so importing them at module scope would break that
-# install. The STT/render modules (`stt_functions`, `unified_subtitle_generator`)
-# are ALREADY resident via the producer package __init__, so their local
-# imports defer nothing and are kept local only to keep this header small.
+# The pycaps engine and its `pycaps.ai` tagger are absent on a default
+# install (the optional group), so importing them at module scope would break
+# that install. The STT/render modules (`stt_functions`,
+# `unified_subtitle_generator`) are kept local for a different reason: they
+# pull Whisper and torch, and since the producer package `__init__` stopped
+# re-exporting eagerly this module is no longer imported by a `--help` or a
+# dry run, so hoisting them would put the model stack back into both.
 from src.video.producer.state import (
     STEP_ASSEMBLE_VIDEO,
     STEP_CREATE_VOICEOVER,

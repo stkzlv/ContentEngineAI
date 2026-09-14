@@ -58,9 +58,9 @@ from .models import ProductData, SearchParameters
 
 # `src.video.config_adapter` is imported function-locally on purpose: it
 # resolves the video config, which the scraper package must not load at
-# import. The botasaurus_output/config/batch_controller relatives defer
-# nothing -- the botasaurus stack is already resident via this package's
-# __init__ -- and are kept local only to keep this header small.
+# import. The botasaurus_output/config/batch_controller relatives are kept
+# local for readability only: this module already imports
+# `browser_functions` above, so Botasaurus is resident by the time they run.
 from .utils import validate_asin_format
 
 # Logging is configured by `main()`, not here: an entry point owns its
