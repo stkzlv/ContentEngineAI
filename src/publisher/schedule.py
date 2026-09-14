@@ -1281,18 +1281,28 @@ class ScheduleManager:
                 slot=(next_time, next_idx),
             )
 
-        cleaned = await self._schedule_one(
-            video=video,
-            product_id=product_id,
-            platforms=platforms,
-            publisher=publisher,
-            next_time=next_time,
-            next_idx=next_idx,
-            occupied_slot_times=occupied_slot_times,
-            outputs_dir=outputs_dir,
-            cleanup_manager=cleanup_manager,
-            link_in_bio_config=link_in_bio_config,
-        )
+        try:
+            cleaned = await self._schedule_one(
+                video=video,
+                product_id=product_id,
+                platforms=platforms,
+                publisher=publisher,
+                next_time=next_time,
+                next_idx=next_idx,
+                occupied_slot_times=occupied_slot_times,
+                outputs_dir=outputs_dir,
+                cleanup_manager=cleanup_manager,
+                link_in_bio_config=link_in_bio_config,
+            )
+        except Exception as e:
+            # `_schedule_one` catches the three publish failures; anything
+            # else -- a truncated metadata file reaching `json.loads`, an SDK
+            # error from `get_accounts` -- would otherwise reach the loop's
+            # own boundary, which cannot see that a conflict was resolved.
+            # Same message as that boundary, so the log is unchanged.
+            logger.error("Unexpected error processing %s: %s", video, e)
+            return _VideoOutcome("failed", conflict_resolved=was_resolved)
+
         if cleaned is None:
             # The conflict was still resolved, whatever became of the post:
             # the base counted it at resolution time, and this is a refactor.
