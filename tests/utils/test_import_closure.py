@@ -113,15 +113,15 @@ def test_every_mapped_name_resolves(package: str):
     mypy reads the `TYPE_CHECKING` block instead and ruff does not look, so a
     name pointed at a module that does not provide it passes lint, types and
     the rest of the suite, then raises `AttributeError` on the one runtime
-    path that uses it. Ten of these names are used nowhere in the repo, so
-    nothing else would catch it before a scrape.
+    path that uses it. Nothing in the repo imports any name *through* either
+    package -- every in-repo import names a submodule -- so a wrong entry is
+    invisible until an outside consumer reaches it.
 
-    What this cannot catch is an entry pointed at a module that merely
-    re-imports the name: it serves the identical object, so the only cost is
-    that the lazy load pulls a heavier module than it needed to. The mapped
-    module legitimately re-exports in several places already (the media
-    extractor's names are defined in `image_utils` and `video_extractor`),
-    so there is no rule separating the two cases from the outside.
+    An entry pointed at a module that merely re-imports the name is not
+    caught here: it serves the identical object, and the maps legitimately
+    re-export already (the media extractor's names are defined in
+    `image_utils` and `video_extractor`), so there is no rule separating the
+    two from the outside. What it would cost is what the test below measures.
     """
     import importlib
 
@@ -135,3 +135,81 @@ def test_every_mapped_name_resolves(package: str):
         if getattr(module, name) is not getattr(target, name):
             wrong.append(f"{name}: resolves to a different object than {submodule}'s")
     assert not wrong, f"{package} _EXPORTS entries are wrong: {wrong}"
+
+
+# Names that must cost nothing heavy: the data models and the state helpers a
+# config read, a batch plan or a resume reaches for. Listed by name rather
+# than by the submodule they are mapped to, because the mapping is what is
+# under test -- `ProductData` re-pointed at `scraper`, the spelling seventeen
+# modules used before this branch, serves the same class and loads Botasaurus
+# with it. The rest of both packages calls those libraries directly and is
+# expected to load them.
+_MUST_STAY_LIGHT = {
+    "src.scraper.amazon": (
+        "ProductData",
+        "SearchParameters",
+        "SerpProductInfo",
+        "SearchParameterBuilder",
+    ),
+    "src.video.producer": (
+        "PipelineContext",
+        "PipelineError",
+        "InsufficientMediaError",
+        "VALID_STEPS",
+        "get_video_run_paths",
+        "_load_pipeline_state",
+        "setup_logging",
+        "validate_media_requirements",
+        "load_artifacts_for_step",
+    ),
+}
+
+RESOLVE_PROBE = """
+import importlib, sys
+package = importlib.import_module({package!r})
+for name in {light_names!r}:
+    getattr(package, name)
+loaded = [
+    n for n in {heavy!r}
+    if any(m == n or m.startswith(n + ".") for m in sys.modules)
+]
+print("heavy:" + ",".join(loaded))
+print("modules:" + str(len(sys.modules)))
+"""
+
+
+@pytest.mark.parametrize("package", ["src.scraper.amazon", "src.video.producer"])
+def test_resolving_the_light_names_stays_light(package: str):
+    """Resolving a name must cost only what that name needs.
+
+    The map test above cannot tell a deliberate re-export from an entry
+    pointed at a heavier module that happens to import the name, because both
+    serve the identical object. This is the difference that matters: the
+    lookup itself must not drag the render or scrape stack in.
+    """
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            RESOLVE_PROBE.format(
+                package=package,
+                light_names=_MUST_STAY_LIGHT[package],
+                heavy=HEAVY,
+            ),
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stderr
+    heavy = next(
+        line
+        for line in reversed(result.stdout.splitlines())
+        if line.startswith("heavy:")
+    )
+    loaded = [name for name in heavy[len("heavy:") :].split(",") if name]
+    assert not loaded, (
+        f"resolving {package}'s light names loaded {loaded}; an _EXPORTS entry "
+        "points at a module that carries the heavy stack"
+    )
