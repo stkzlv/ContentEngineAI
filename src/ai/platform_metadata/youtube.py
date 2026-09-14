@@ -10,12 +10,12 @@ from pathlib import Path
 
 import aiohttp
 
+from src.ai.llm_settings import LLMSettings
 from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.ai.platform_metadata.utilities import generate_with_llm, strip_inline_markdown
 from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.models import ProductData
-from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

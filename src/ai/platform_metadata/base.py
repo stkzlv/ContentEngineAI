@@ -13,9 +13,9 @@ from pathlib import Path
 import aiohttp
 
 from src.ai.description_generator import format_prompt, load_prompt_template
+from src.ai.llm_settings import LLMSettings
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.scraper.amazon.models import ProductData
-from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

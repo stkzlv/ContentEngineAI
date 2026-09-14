@@ -1,5 +1,12 @@
-# src/video/config/llm_settings.py
-"""LLM configuration settings - extracted to avoid circular imports."""
+# src/ai/llm_settings.py
+"""LLM configuration settings.
+
+Lives beside the generators that read it rather than under the video config
+package: ten `src/ai` modules and the pipeline import it, none of them for a
+video setting, and importing it from there ran that package's `__init__` and
+everything it reaches. `src/video/config` re-exports `LLMSettings` for the
+old import path.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +15,12 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from src.video.config.constants import MIN_PHRASE_WORDS
+# Shortest acceptable stock-search phrase, in words. Below this a phrase is an
+# object with no place and no actor, which the library answers with a
+# catalogue page. Lives here so the config bound, the sanitizer and the prompt
+# all read one number: stated separately, the instruction and the filter drift
+# and the rule holds only for as long as the model chooses to follow it.
+MIN_PHRASE_WORDS = 3
 
 
 class ScriptTemplateConfig(BaseModel):

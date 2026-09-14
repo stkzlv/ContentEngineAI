@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.video.config.llm_settings import LLMSettings
+from src.ai.llm_settings import LLMSettings
 
 MODELS_RESPONSE = {
     "data": [

@@ -12,6 +12,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from src.ai.llm_settings import LLMSettings
+
 # Platform-specific metadata models (no circular import after extracting LLMSettings)
 from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
@@ -28,7 +30,6 @@ from src.video.config.constants import (
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
 )
-from src.video.config.llm_settings import LLMSettings
 from src.video.config.subtitle_models import (
     ColorPoolEntry,
     FontPoolEntry,

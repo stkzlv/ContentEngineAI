@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from src.video.config.constants import LATE_API_KEY_MIN_LENGTH
+from src.publisher.constants import LATE_API_KEY_MIN_LENGTH
 
 logger = logging.getLogger(__name__)
 

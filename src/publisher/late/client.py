@@ -26,15 +26,15 @@ from src.publisher.base import (
     UploadError,
     ValidationError,
 )
-from src.publisher.constants import SDK_LIST_PAGE_SIZE
-from src.publisher.models import FirstCommentConfig, TikTokContentSettings
-from src.publisher.registry import register_publisher
-from src.video.config.constants import (
+from src.publisher.constants import (
     DEFAULT_EXPONENTIAL_BACKOFF_BASE,
     LATE_DEFAULT_RETRY_AFTER_SEC,
     LATE_DIRECT_UPLOAD_MAX_BYTES,
     LATE_MAX_UPLOAD_SIZE_BYTES,
+    SDK_LIST_PAGE_SIZE,
 )
+from src.publisher.models import FirstCommentConfig, TikTokContentSettings
+from src.publisher.registry import register_publisher
 
 logger = logging.getLogger(__name__)
 

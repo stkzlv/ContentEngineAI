@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.video.config.llm_settings import ScriptFactCheckConfig
+    from src.ai.llm_settings import ScriptFactCheckConfig
 
 from src.utils.script_sanitizer import split_sentences
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from src.publisher.constants import WEBHOOK_EVENT_HISTORY_LIMIT
 from src.publisher.webhooks import (
     WebhookEvent,
     WebhookEventType,
@@ -17,7 +18,6 @@ from src.publisher.webhooks import (
     get_disconnected_accounts,
     get_post_status,
 )
-from src.video.config.constants import WEBHOOK_EVENT_HISTORY_LIMIT
 
 
 @pytest.fixture

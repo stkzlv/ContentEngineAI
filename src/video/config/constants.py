@@ -92,40 +92,9 @@ SUBTITLE_BASE_FONT_SIZE_PERCENT = 0.04
 SUBTITLE_MIN_FONT_SIZE = 16  # Minimum readable size
 SUBTITLE_MAX_FONT_SIZE = 100  # Maximum practical size
 
-# =============================================================================
-# MATHEMATICAL CONSTANTS
-# =============================================================================
-DEFAULT_EXPONENTIAL_BACKOFF_BASE = 2  # Standard exponential backoff multiplier
-
-# =============================================================================
-# LATE.DEV API UPLOAD LIMITS (platform constraints, not user preferences)
-# =============================================================================
-# Maximum file size for direct upload (larger files require Vercel Blob token)
-LATE_DIRECT_UPLOAD_MAX_BYTES = 4 * 1024 * 1024  # 4 MB
-# Maximum file size Late.dev accepts for any upload
-LATE_MAX_UPLOAD_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
-# Default retry-after delay when rate limit header is missing
-LATE_DEFAULT_RETRY_AFTER_SEC = 60
-# Maximum webhook events to retain for idempotency tracking
-WEBHOOK_EVENT_HISTORY_LIMIT = 1000
-# Minimum API key length for validation (security best practice)
-LATE_API_KEY_MIN_LENGTH = 10
-
-# =============================================================================
-# SCHEDULE CONFLICT RESOLUTION (safety limits)
-# =============================================================================
-# Maximum attempts to find available slot before giving up
-SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS = 100
-# Multiplier for max attempts when finding alternatives (count * multiplier)
-SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER = 10
-
-
-# =============================================================================
-# STOCK SEARCH PHRASES
-# =============================================================================
-# Shortest acceptable stock-search phrase, in words. Below this a phrase is an
-# object with no place and no actor, which the library answers with a
-# catalogue page. Lives here so the config bound, the sanitizer and the prompt
-# all read one number: stated separately, the instruction and the filter drift
-# and the rule holds only for as long as the model chooses to follow it.
-MIN_PHRASE_WORDS = 3
+# The publisher's API limits, webhook and scheduling constants live in
+# `src/publisher/constants.py`, and the LLM settings with the stock-phrase
+# bound in `src/ai/llm_settings.py`. Nothing outside the video pipeline reads
+# this module any more: a retry delay for the publishing provider is not a
+# video setting, and editing one here dragged the whole video config package
+# into the importer.

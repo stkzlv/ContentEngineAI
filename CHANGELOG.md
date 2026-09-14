@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.119.1] - 2026-09-14
+
+### Changed
+- The publisher's provider limits, webhook history bound and slot-search limits live in `src/publisher/constants.py`, and the LLM settings model in `src/ai/llm_settings.py`, beside the generators that read it. Both were in the video config package, so a publishing retry delay was a video-package edit and ten `src/ai` modules imported a video module for a setting that is not a video setting; `src/video/config` re-exports `LLMSettings` for the old import path. Values are unchanged, and a test fails if a publisher module imports from the video package again.
+
 ## [0.119.0] - 2026-09-14
 
 ### Changed

@@ -7,6 +7,10 @@ with existing imports like: from src.video.config import VideoConfig
 
 from typing import TYPE_CHECKING, Any
 
+# Re-exported for the old import path; the model itself lives beside the
+# generators that read it, none of which wanted a video setting.
+from src.ai.llm_settings import LLMSettings  # noqa: F401
+
 # Re-export all constants
 # Re-export audio models
 from src.video.config.audio_models import (  # noqa: F401
@@ -47,9 +51,6 @@ from src.video.config.core_models import (  # noqa: F401
     WhisperSettings,
     load_video_config,
 )
-
-# Re-export LLM settings (separate module to avoid circular imports)
-from src.video.config.llm_settings import LLMSettings  # noqa: F401
 
 # Re-export subtitle models
 from src.video.config.subtitle_models import (  # noqa: F401

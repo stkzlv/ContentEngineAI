@@ -311,7 +311,7 @@ class TestDescriptionRejectsReasoningOutput:
         assert "cut off" in reason
 
     def test_max_chars_comes_from_config(self):
-        from src.video.config.llm_settings import DescriptionValidationConfig
+        from src.ai.llm_settings import DescriptionValidationConfig
 
         desc = "This is a perfectly ordinary sentence about a product. " * 5
         assert 250 < len(desc) < 900

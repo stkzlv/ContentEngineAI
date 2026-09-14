@@ -177,7 +177,7 @@ class TestTheValidatorRefusesAScriptWithoutOne:
         assert not ends_with_cta(f"{BODY} {sentence}", PRODUCT_CTAS)
 
     def test_an_empty_option_is_refused_at_load(self) -> None:
-        from src.video.config.llm_settings import ScriptTemplateConfig
+        from src.ai.llm_settings import ScriptTemplateConfig
 
         with pytest.raises(ValueError, match="no words"):
             ScriptTemplateConfig(cta_options=["Link in bio.", "..."])
@@ -720,7 +720,7 @@ class TestTheShippedConfig:
             assert "want one" not in cta.lower()
 
     def test_the_model_chooses_by_kind(self, shipped_ctas) -> None:
-        from src.video.config.llm_settings import ScriptTemplateConfig
+        from src.ai.llm_settings import ScriptTemplateConfig
 
         cfg = ScriptTemplateConfig(
             cta_options=shipped_ctas["product"],
@@ -731,7 +731,7 @@ class TestTheShippedConfig:
         assert cfg.cta_options_for(is_topic=True) == shipped_ctas["topic"]
 
     def test_no_topic_list_falls_back_to_product(self) -> None:
-        from src.video.config.llm_settings import ScriptTemplateConfig
+        from src.ai.llm_settings import ScriptTemplateConfig
 
         cfg = ScriptTemplateConfig(cta_options=PRODUCT_CTAS)
 

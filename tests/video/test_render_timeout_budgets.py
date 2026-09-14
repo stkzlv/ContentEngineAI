@@ -13,12 +13,12 @@ from pathlib import Path
 
 import pytest
 
+from src.ai.llm_settings import LLMSettings  # noqa: F401  (config import)
 from src.utils.pipeline_deadline import (
     clear_pipeline_deadline,
     remaining_pipeline_seconds,
     set_pipeline_deadline,
 )
-from src.video.config.llm_settings import LLMSettings  # noqa: F401  (config import)
 from src.video.stt_functions import (
     _attempt_limit,
     _calculate_timeout,

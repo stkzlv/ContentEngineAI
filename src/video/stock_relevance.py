@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 
 if TYPE_CHECKING:
-    from src.video.config.llm_settings import StockRelevanceConfig
+    from src.ai.llm_settings import StockRelevanceConfig
 
 logger = logging.getLogger(__name__)
 

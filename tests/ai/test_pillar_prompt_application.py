@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from src.ai.llm_settings import LLMSettings, ScriptTemplateConfig
 from src.ai.script_generator import (
     _resolve_audience,
     _warn_unknown_pillar,
     apply_prompt_preambles,
     select_script_template,
 )
-from src.video.config.llm_settings import LLMSettings, ScriptTemplateConfig
 
 
 def _make_settings(
