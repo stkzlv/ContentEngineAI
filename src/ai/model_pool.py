@@ -176,26 +176,28 @@ async def fetch_and_select_model(
                 combined = ordered_models + extra_free
                 random.shuffle(combined)
                 logger.info(
-                    f"Found {len(combined)} free models (random order): "
-                    f"{combined[:3]}..."
+                    "Found %s free models (random order): %s...",
+                    len(combined),
+                    combined[:3],
                 )
                 return combined
             else:
                 # Keep configured order, append extras at end
                 result = ordered_models + extra_free
                 logger.info(
-                    f"Found {len(result)} free models (priority order): "
-                    f"{result[:3]}..."
+                    "Found %s free models (priority order): %s...",
+                    len(result),
+                    result[:3],
                 )
                 return result
 
     except (TimeoutError, ClientError) as e:
-        logger.error(f"Failed to fetch models: {e}. Using fallback list.")
+        logger.error("Failed to fetch models: %s. Using fallback list.", e)
         return []
     except Exception as e:
-        logger.error(
-            f"Unexpected error fetching models: {e}. Using fallback list.",
-            exc_info=True,
+        logger.exception(
+            "Unexpected error fetching models: %s. Using fallback list.",
+            e,
         )
         return []
 
@@ -263,12 +265,13 @@ async def discover_any_free_model(
                         if model_id in already_tried:
                             continue
                         if model_id in blocklist:
-                            logger.debug(f"Skipping blocklisted model: {model_id}")
+                            logger.debug("Skipping blocklisted model: %s", model_id)
                             continue
                         if context_length < min_ctx:
                             logger.debug(
-                                f"Skipping small model: {model_id} "
-                                f"(context={context_length})"
+                                "Skipping small model: %s (context=%s)",
+                                model_id,
+                                context_length,
                             )
                             continue
                         reject = model_reject_reason(model)
@@ -286,8 +289,9 @@ async def discover_any_free_model(
 
             if all_free:
                 logger.info(
-                    f"Fallback discovered {len(all_free)} untried free models: "
-                    f"{all_free[:5]}..."
+                    "Fallback discovered %s untried free models: %s...",
+                    len(all_free),
+                    all_free[:5],
                 )
             else:
                 logger.warning("Fallback: no additional free models available")
@@ -295,5 +299,5 @@ async def discover_any_free_model(
             return all_free
 
     except Exception as e:
-        logger.error(f"Fallback discovery failed: {e}")
+        logger.error("Fallback discovery failed: %s", e)
         return []

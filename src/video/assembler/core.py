@@ -131,21 +131,21 @@ class VideoAssembler:
         self.subtitle_engine = subtitle_engine
 
         if self.debug_mode:
-            logger.debug(f"Applied profile settings for '{profile_name}'")
+            logger.debug("Applied profile settings for '%s'", profile_name)
             logger.debug(
-                f"Image width percent: "
-                f"{self.profile_settings.video_settings.image_width_percent}"
+                "Image width percent: %s",
+                self.profile_settings.video_settings.image_width_percent,
             )
             logger.debug(
-                f"Image top position: "
-                f"{self.profile_settings.video_settings.image_top_position_percent}"
+                "Image top position: %s",
+                self.profile_settings.video_settings.image_top_position_percent,
             )
             logger.debug(
-                f"Subtitle anchor: " f"{self.profile_settings.subtitle_settings.anchor}"
+                "Subtitle anchor: %s", self.profile_settings.subtitle_settings.anchor
             )
             logger.debug(
-                f"Subtitle style preset: "
-                f"{self.profile_settings.subtitle_settings.style_preset}"
+                "Subtitle style preset: %s",
+                self.profile_settings.subtitle_settings.style_preset,
             )
 
         # Initialize builders that depend on profile settings
@@ -161,7 +161,7 @@ class VideoAssembler:
         """
         self.product_id = product_id
         if self.debug_mode:
-            logger.debug(f"Set product_id for randomization: {product_id}")
+            logger.debug("Set product_id for randomization: %s", product_id)
 
         # Re-initialize strategy factory with product_id
         if self.profile_settings:
@@ -372,15 +372,16 @@ class VideoAssembler:
 
             if proc.returncode != 0:
                 logger.warning(
-                    f"FFprobe failed for {video_path.name}, "
-                    f"using original: {stderr.decode()}"
+                    "FFprobe failed for %s, using original: %s",
+                    video_path.name,
+                    stderr.decode(),
                 )
                 return video_path
 
             probe_data = json.loads(stdout.decode())
             if not probe_data.get("streams"):
                 logger.warning(
-                    f"No video stream found in {video_path.name}, using original"
+                    "No video stream found in %s, using original", video_path.name
                 )
                 return video_path
 
@@ -425,8 +426,8 @@ class VideoAssembler:
             if is_h264 and is_30fps and is_yuv420p and not oversized:
                 if self.debug_mode:
                     logger.debug(
-                        f"Video {video_path.name} already H.264/30fps/yuv420p, "
-                        "skipping transcode"
+                        "Video %s already H.264/30fps/yuv420p, skipping transcode",
+                        video_path.name,
                     )
                 return video_path
 
@@ -448,14 +449,19 @@ class VideoAssembler:
 
             if cache_path.exists():
                 if self.debug_mode:
-                    logger.debug(f"Using cached normalized video: {cache_path.name}")
+                    logger.debug("Using cached normalized video: %s", cache_path.name)
                 return cache_path
 
             if self.debug_mode:
                 logger.debug(
-                    f"Transcoding {video_path.name} to "
-                    f"{target_codec}/{target_fps}fps/{target_pixel_format} "
-                    f"(current: {codec}/{fps:.1f}fps/{pix_fmt})"
+                    "Transcoding %s to %s/%sfps/%s (current: %s/%.1ffps/%s)",
+                    video_path.name,
+                    target_codec,
+                    target_fps,
+                    target_pixel_format,
+                    codec,
+                    fps,
+                    pix_fmt,
                 )
 
             scale_args = (
@@ -498,8 +504,9 @@ class VideoAssembler:
 
             if transcode_proc.returncode != 0:
                 logger.error(
-                    f"Transcode failed for {video_path.name}: "
-                    f"{transcode_stderr.decode()}, using original"
+                    "Transcode failed for %s: %s, using original",
+                    video_path.name,
+                    transcode_stderr.decode(),
                 )
                 partial_path.unlink(missing_ok=True)
                 return video_path
@@ -518,14 +525,15 @@ class VideoAssembler:
                     stale.unlink(missing_ok=True)
 
             if self.debug_mode:
-                logger.debug(f"Transcode complete: {cache_path.name}")
+                logger.debug("Transcode complete: %s", cache_path.name)
 
             return cache_path
 
         except Exception as e:
             logger.error(
-                f"Error normalizing video format for {video_path.name}: {e}, "
-                "using original"
+                "Error normalizing video format for %s: %s, using original",
+                video_path.name,
+                e,
             )
             return video_path
 
@@ -614,7 +622,7 @@ class VideoAssembler:
                 return bool(create_logs)
             return True
         except Exception as e:
-            logger.debug(f"Error checking FFmpeg log setting, defaulting to True: {e}")
+            logger.debug("Error checking FFmpeg log setting, defaulting to True: %s", e)
             return True
 
     async def assemble_video(
@@ -659,8 +667,9 @@ class VideoAssembler:
 
         """
         logger.info(
-            f"Starting single-pass video assembly for '{output_path.name}'. "
-            f"Target Duration: {total_video_duration:.2f}s"
+            "Starting single-pass video assembly for '%s'. Target Duration: %.2fs",
+            output_path.name,
+            total_video_duration,
         )
         if not visual_inputs:
             logger.error("No visual inputs provided for video assembly.")
@@ -677,9 +686,9 @@ class VideoAssembler:
                 subtitle_upper_path.exists() if subtitle_upper_path else False
             )
             logger.debug(
-                f"Checking dual subtitle mode: "
-                f"subtitle_upper_path={subtitle_upper_path}, "
-                f"exists={upper_exists}"
+                "Checking dual subtitle mode: subtitle_upper_path=%s, exists=%s",
+                subtitle_upper_path,
+                upper_exists,
             )
 
             # Build visual chain first (needed for subtitle positioning)
@@ -864,9 +873,9 @@ class VideoAssembler:
                     # Atomic within a filesystem, so no reader sees a partial
                     # file under the finished name.
                     os.replace(partial_path, output_path)
-                    logger.info(f"Successfully assembled video: {output_path}")
+                    logger.info("Successfully assembled video: %s", output_path)
                     return output_path
-                logger.error(f"FFmpeg failed. Stderr: {stderr}")
+                logger.error("FFmpeg failed. Stderr: %s", stderr)
                 return None
             finally:
                 # Runs on cancellation too, which is how the pipeline timeout

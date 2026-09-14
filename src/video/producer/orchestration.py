@@ -283,7 +283,7 @@ async def execute_pipeline_parallel(
         # Re-raise InsufficientMediaError so main handler can process it cleanly
         raise
     except Exception as e:
-        logger.error("Pipeline execution failed: %s", e, exc_info=True)
+        logger.exception("Pipeline execution failed: %s", e)
         return False, None
 
 
@@ -588,11 +588,10 @@ async def create_video_for_product(
         # None return, naming the step so callers can report it.
         return f"{FAILED_PREFIX}{step or 'unknown'}"
     except Exception as e:
-        logger.error(
+        logger.exception(
             "An unexpected error occurred in pipeline for '%s': %s",
             product_id,
             e,
-            exc_info=True,
         )
         # Mark pipeline as failed for history tracking
         performance_monitor.finish_pipeline(success=False, error_message=str(e))
@@ -604,10 +603,10 @@ async def create_video_for_product(
         summary = performance_monitor.get_pipeline_summary()
         if summary:
             logger.info(
-                f"Pipeline performance: "
-                f"{summary.get('total_duration', 0):.2f}s total, "
-                f"{summary.get('steps_completed', 0)} steps, "
-                f"Memory: {summary.get('total_memory_delta_mb', 0):+.1f}MB"
+                "Pipeline performance: %.2fs total, %s steps, Memory: %+.1fMB",
+                summary.get("total_duration", 0),
+                summary.get("steps_completed", 0),
+                summary.get("total_memory_delta_mb", 0),
             )
 
         if (

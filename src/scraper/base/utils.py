@@ -90,7 +90,7 @@ def exponential_backoff_retry(
 
                     if attempt == actual_max_retries:
                         logging.getLogger(__name__).error(
-                            f"Final retry failed for {wrapped_func.__name__}: {e}"
+                            "Final retry failed for %s: %s", wrapped_func.__name__, e
                         )
                         raise last_exception from None
 
@@ -105,8 +105,12 @@ def exponential_backoff_retry(
                     )
 
                 logging.getLogger(__name__).debug(
-                    f"Retry {attempt + 1}/{actual_max_retries} for "
-                    f"{wrapped_func.__name__} in {delay:.2f}s: {last_exception}"
+                    "Retry %s/%s for %s in %.2fs: %s",
+                    attempt + 1,
+                    actual_max_retries,
+                    wrapped_func.__name__,
+                    delay,
+                    last_exception,
                 )
 
                 time.sleep(delay)
@@ -317,7 +321,7 @@ def detect_monitors() -> list[dict[str, Any]]:
         # Ultimate fallback
         import logging
 
-        logging.getLogger(__name__).debug(f"Monitor detection failed: {e}")
+        logging.getLogger(__name__).debug("Monitor detection failed: %s", e)
 
     # Default single monitor if detection failed
     if not monitors:

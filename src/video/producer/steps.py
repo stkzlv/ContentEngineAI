@@ -303,8 +303,10 @@ async def step_gather_visuals(ctx: PipelineContext):
             all_visuals.extend(item.path for item in ctx.stock_media)
             ctx.visuals = all_visuals
             logger.info(
-                f"Loaded visuals: Scraped Imgs: {len(ctx.scraped_images)}, "
-                f"Vids: {len(ctx.scraped_videos)}, Stock: {len(ctx.stock_media)}."
+                "Loaded visuals: Scraped Imgs: %s, Vids: %s, Stock: %s.",
+                len(ctx.scraped_images),
+                len(ctx.scraped_videos),
+                len(ctx.stock_media),
             )
             return
 
@@ -320,7 +322,8 @@ async def step_gather_visuals(ctx: PipelineContext):
             )
             ctx.preload_task_ids.extend(preload_task_ids)
             logger.debug(
-                f"Started {len(preload_task_ids)} background resource pre-loading tasks"
+                "Started %s background resource pre-loading tasks",
+                len(preload_task_ids),
             )
 
         project_root = ctx.config.project_root
@@ -460,7 +463,7 @@ async def step_gather_visuals(ctx: PipelineContext):
                             )
                         )
                 logger.info(
-                    f"Using {len(stock_media_fetched)} pre-loaded stock media items"
+                    "Using %s pre-loaded stock media items", len(stock_media_fetched)
                 )
             else:
                 # Fallback to regular fetch if no pre-loaded media
@@ -486,8 +489,10 @@ async def step_gather_visuals(ctx: PipelineContext):
         all_visuals.extend(item.path for item in stock_media_fetched)
         ctx.visuals = all_visuals
         logger.info(
-            f"Visuals gathered: Scraped Imgs: {len(scraped_images)}, "
-            f"Vids: {len(scraped_videos)}, Stock: {len(stock_media_fetched)}."
+            "Visuals gathered: Scraped Imgs: %s, Vids: %s, Stock: %s.",
+            len(scraped_images),
+            len(scraped_videos),
+            len(stock_media_fetched),
         )
         if not ctx.visuals:
             raise PipelineError(
@@ -524,8 +529,8 @@ async def step_gather_visuals(ctx: PipelineContext):
             search_queries=[" ".join(q) for q in stock_queries_issued],
         )
         logger.info(
-            f"Saved gathered visuals info to "
-            f"{ctx.run_paths['gathered_visuals_file'].name}"
+            "Saved gathered visuals info to %s",
+            ctx.run_paths["gathered_visuals_file"].name,
         )
 
 
@@ -556,8 +561,9 @@ async def step_generate_script(ctx: PipelineContext):
             logger.info("Loading existing script from previous run")
             ctx.script = script_file.read_text(encoding="utf-8")
             logger.info(
-                f"Loaded existing script from {script_file.name} "
-                f"({len(ctx.script or '')} characters)"
+                "Loaded existing script from %s (%s characters)",
+                script_file.name,
+                len(ctx.script or ""),
             )
         else:
             try:
@@ -1074,8 +1080,9 @@ async def step_create_voiceover(ctx: PipelineContext):
             try:
                 ctx.voiceover_duration = float(duration_file.read_text())
                 logger.info(
-                    f"Loaded existing voiceover ({vo_file.name}) "
-                    f"with duration: {ctx.voiceover_duration:.2f}s"
+                    "Loaded existing voiceover (%s) with duration: %.2fs",
+                    vo_file.name,
+                    ctx.voiceover_duration,
                 )
                 return
             except (ValueError, FileNotFoundError):
@@ -1149,8 +1156,9 @@ async def step_create_voiceover(ctx: PipelineContext):
                 # Replace original with trimmed version
                 trimmed_vo_path.replace(vo_path)
                 logger.debug(
-                    f"Trimmed silence from voiceover "
-                    f"(threshold={threshold_db}dB, min_duration={min_duration}s)"
+                    "Trimmed silence from voiceover (threshold=%sdB, min_duration=%ss)",
+                    threshold_db,
+                    min_duration,
                 )
             except (RuntimeError, OSError) as e:
                 logger.warning(
@@ -1163,8 +1171,9 @@ async def step_create_voiceover(ctx: PipelineContext):
         ensure_dirs_exist(ctx.run_paths["voiceover_duration_file"].parent)
         ctx.run_paths["voiceover_duration_file"].write_text(str(ctx.voiceover_duration))
         logger.info(
-            f"Voiceover created ({vo_path.name}) with duration: "
-            f"{ctx.voiceover_duration:.2f}s"
+            "Voiceover created (%s) with duration: %.2fs",
+            vo_path.name,
+            ctx.voiceover_duration,
         )
 
 
@@ -2251,7 +2260,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
                     return
             if pycaps_settings.fallback_policy in ("raise", "fallback_ffmpeg"):
                 raise PipelineError(msg) from e
-            logger.warning(msg + " Skipping burn; keeping FFmpeg output.")
+            logger.warning("%s Skipping burn; keeping FFmpeg output.", msg)
             return
 
         if not result.success:

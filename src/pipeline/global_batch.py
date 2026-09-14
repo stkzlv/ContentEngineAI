@@ -1877,13 +1877,12 @@ class GlobalPipelineOrchestrator:
                 except Exception as e:
                     failed += 1
                     failed_products.append(product_id)
-                    logger.error(
+                    logger.exception(
                         "[%s/%s] Failed to process %s: %s",
                         idx,
                         total_products,
                         product_id,
                         e,
-                        exc_info=True,
                     )
 
                     if self.config.fail_fast:
@@ -2133,7 +2132,7 @@ class GlobalPipelineOrchestrator:
             logger.info("Found %s connected account(s)", len(accounts))
 
         except Exception as e:
-            logger.error("Failed to initialize publisher: %s", e, exc_info=True)
+            logger.exception("Failed to initialize publisher: %s", e)
             # Return early with all videos marked as failed
             return PublishingPhaseSummary(
                 total_attempted=total_attempted,
@@ -2388,13 +2387,12 @@ class GlobalPipelineOrchestrator:
                 failed += 1
                 failed_videos.append(product_id)
                 errors.append({"product_id": product_id, "error": str(e)})
-                logger.error(
+                logger.exception(
                     "[%s/%s] Failed to process %s: %s",
                     idx,
                     total_attempted,
                     product_id,
                     e,
-                    exc_info=True,
                 )
 
                 if self.config.fail_fast_publish:
@@ -2728,7 +2726,7 @@ async def main():
         sys.exit(exit_code)
 
     except KeyboardInterrupt:
-        logger.warning("\n" + "=" * 80)
+        logger.warning("\n%s", "=" * 80)
         logger.warning("PIPELINE INTERRUPTED BY USER")
         logger.warning("=" * 80)
         logger.warning("Partial log saved to: %s", log_file)

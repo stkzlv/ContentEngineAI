@@ -162,7 +162,7 @@ def extract_product_data_from_page(
         for indicator in unavailable_indicators:
             if indicator.lower() in driver.get_text("body").lower():
                 if DEBUG_MODE:
-                    logger.info(f"Shipping restriction detected: {indicator}")
+                    logger.info("Shipping restriction detected: %s", indicator)
                     logger.info(
                         "Continuing to extract media " "despite shipping restriction"
                     )
@@ -262,12 +262,13 @@ def extract_product_data_from_page(
                     get_settings().global_settings.debug_config.title_preview_length
                 )
                 logger.warning(
-                    f"Invalid product data for {asin}: "
-                    f"title='{title[:title_preview_length]}...', "
-                    f"price='{price}', "
-                    f"description={'' if description else ''}, "
-                    f"rating={'' if rating else ''} "
-                    f"- SKIPPING MEDIA EXTRACTION"
+                    "Invalid product data for %s: title='%s...', price='%s', "
+                    "description=%s, rating=%s - SKIPPING MEDIA EXTRACTION",
+                    asin,
+                    title[:title_preview_length],
+                    price,
+                    "" if description else "",
+                    "" if rating else "",
                 )
             return None
 
@@ -299,8 +300,10 @@ def extract_product_data_from_page(
 
         if DEBUG_MODE:
             logger.info(
-                f"Extracted product data for {asin}: "
-                f"{len(images)} images, {len(videos)} videos"
+                "Extracted product data for %s: %s images, %s videos",
+                asin,
+                len(images),
+                len(videos),
             )
 
         return product_data

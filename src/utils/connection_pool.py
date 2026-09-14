@@ -120,7 +120,7 @@ class GlobalConnectionPool:
                         await self._session.connector.cleanup()  # type: ignore[attr-defined]
                     logger.debug("Cleaned up idle HTTP connections")
             except Exception as e:
-                logger.warning(f"Error during connection cleanup: {e}")
+                logger.warning("Error during connection cleanup: %s", e)
 
     async def close(self) -> None:
         """Close the connection pool and cleanup resources.
@@ -317,11 +317,11 @@ class DownloadManager:
                         async for chunk in response.content.iter_chunked(chunk_size):
                             f.write(chunk)
 
-                    logger.debug(f"Downloaded {url} to {output_path}")
+                    logger.debug("Downloaded %s to %s", url, output_path)
                     return True
 
             except Exception as e:
-                logger.error(f"Failed to download {url}: {e}")
+                logger.error("Failed to download %s: %s", url, e)
                 # Clean up partial file
                 if output_path.exists():
                     from contextlib import suppress

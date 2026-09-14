@@ -455,7 +455,7 @@ class PycapsRenderer:
         except Exception as e:  # noqa: BLE001 - build errors shouldn't leak
             wall_time = time.monotonic() - wall_start
             peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
-            logger.error("Failed to build pycaps pipeline: %s", e, exc_info=True)
+            logger.exception("Failed to build pycaps pipeline: %s", e)
             return PycapsRenderResult(
                 success=False,
                 output_path=output_video,
@@ -474,7 +474,7 @@ class PycapsRenderer:
         except Exception as e:  # noqa: BLE001 - render errors caught for telemetry
             wall_time = time.monotonic() - wall_start
             peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
-            logger.error("pycaps render failed: %s", e, exc_info=True)
+            logger.exception("pycaps render failed: %s", e)
             return PycapsRenderResult(
                 success=False,
                 output_path=output_video,

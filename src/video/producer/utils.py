@@ -128,7 +128,7 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     )
 
     log_level_name = logging.getLevelName(logging.DEBUG if debug_mode else logging.INFO)
-    logger.debug(f"Logging configured - Level: {log_level_name}, File: {log_file}")
+    logger.debug("Logging configured - Level: %s, File: %s", log_level_name, log_file)
     return log_file
 
 
@@ -231,29 +231,32 @@ def validate_media_requirements(
     # Warn for borderline cases but allow processing
     if total_media == MIN_TOTAL_MEDIA:
         logger.warning(
-            f"Minimal media count ({total_media}) - video quality may be limited"
+            "Minimal media count (%s) - video quality may be limited", total_media
         )
 
     # Log mode selection (Requirement 8.5 - clear logging)
     if is_video_first_profile and has_videos:
         logger.info(
-            f"Video-first mode enabled: {total_video_count} video(s) available "
-            f"for assembly mode '{video_assembly_mode}'"
+            "Video-first mode enabled: %s video(s) available for assembly mode '%s'",
+            total_video_count,
+            video_assembly_mode,
         )
     elif has_videos and not uses_scraped_videos:
         logger.info(
-            f"Profile configured to exclude videos - using image-only processing "
-            f"({total_video_count} video(s) available but ignored)"
+            "Profile configured to exclude videos - using image-only processing (%s "
+            "video(s) available but ignored)",
+            total_video_count,
         )
     elif has_videos:
         logger.info(
-            f"Video processing enabled: {total_video_count} video(s) available "
-            f"(legacy mode - no assembly mode configured)"
+            "Video processing enabled: %s video(s) available (legacy mode - no "
+            "assembly mode configured)",
+            total_video_count,
         )
     else:
         logger.info(
-            f"Image-only processing: {total_image_count} image(s) available "
-            f"(no videos found)"
+            "Image-only processing: %s image(s) available (no videos found)",
+            total_image_count,
         )
 
     msg = (

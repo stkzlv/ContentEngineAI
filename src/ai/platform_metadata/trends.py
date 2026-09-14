@@ -110,7 +110,7 @@ class TrendCache:
         entry = self._cache[platform]
         # Check if entry is expired
         if datetime.now(UTC) - entry.fetched_at.replace(tzinfo=UTC) > self.ttl:
-            logger.debug(f"Trend cache expired for {platform}")
+            logger.debug("Trend cache expired for %s", platform)
             del self._cache[platform]
             return None
 
@@ -194,11 +194,11 @@ class TrendAwareHashtagGenerator:
 
         if trending is None:
             try:
-                logger.info(f"Fetching trending tags for {platform}...")
+                logger.info("Fetching trending tags for %s...", platform)
                 trending = await self.provider.get_trending_tags(platform)
                 self.cache.set(platform, trending)
             except Exception as e:
-                logger.error(f"Failed to fetch trends for {platform}: {e}")
+                logger.error("Failed to fetch trends for %s: %s", platform, e)
                 return existing_tags
 
         if not trending:
@@ -218,5 +218,5 @@ class TrendAwareHashtagGenerator:
         if not tags_to_add:
             return existing_tags
 
-        logger.debug(f"Adding trending tags to {platform}: {tags_to_add}")
+        logger.debug("Adding trending tags to %s: %s", platform, tags_to_add)
         return existing_tags + tags_to_add

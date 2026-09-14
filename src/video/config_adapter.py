@@ -49,10 +49,10 @@ class ModularConfigAdapter:
                     content = yaml.safe_load(f)
                     return content if isinstance(content, dict) else {}
             else:
-                logger.warning(f"Config file not found: {file_path}")
+                logger.warning("Config file not found: %s", file_path)
                 return {}
         except Exception as e:
-            logger.error(f"Error loading config file {file_path}: {e}")
+            logger.error("Error loading config file %s: %s", file_path, e)
             return {}
 
     def _merge_configs(self) -> dict[str, Any]:

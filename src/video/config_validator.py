@@ -217,8 +217,10 @@ class VideoConfigValidator:
         elif width > height:
             # Warn about landscape format (expected 9:16 vertical)
             logger.warning(
-                f"Landscape resolution detected: {width}x{height}. "
-                "ContentEngineAI optimized for vertical 9:16 format."
+                "Landscape resolution detected: %sx%s. ContentEngineAI optimized for "
+                "vertical 9:16 format.",
+                width,
+                height,
             )
 
         return errors
@@ -284,8 +286,9 @@ class VideoConfigValidator:
         )
         if freesound_key_var and not os.getenv(freesound_key_var):
             logger.warning(
-                f"Environment variable {freesound_key_var} not set. "
-                "Freesound background music will be unavailable."
+                "Environment variable %s not set. Freesound background music will be "
+                "unavailable.",
+                freesound_key_var,
             )
 
         return errors
@@ -343,7 +346,7 @@ class VideoConfigValidator:
             except Exception as e:
                 # Handle compatibility issues for specific packages like whisper
                 if package_name == "whisper":
-                    logger.warning(f"Whisper package has compatibility issues: {e}")
+                    logger.warning("Whisper package has compatibility issues: %s", e)
                     # Don't treat whisper compatibility issues as fatal since we have
                     # fallback STT
                 else:
@@ -357,8 +360,9 @@ class VideoConfigValidator:
             available_memory_gb = psutil.virtual_memory().available / (1024**3)
             if available_memory_gb < 2.0:
                 logger.warning(
-                    f"Low available memory: {available_memory_gb:.1f}GB. "
-                    "Whisper models may cause OOM errors."
+                    "Low available memory: %.1fGB. Whisper models may cause OOM "
+                    "errors.",
+                    available_memory_gb,
                 )
         except ImportError:
             logger.warning("psutil not available for system resource validation")
@@ -414,7 +418,7 @@ class VideoConfigValidator:
                     )
 
         except Exception as e:
-            logger.warning(f"Could not validate effect count: {e}")
+            logger.warning("Could not validate effect count: %s", e)
 
     def _validate_unified_subtitle_config(self, config: VideoConfig) -> list[str]:
         """Validate unified subtitle configuration and suggest optimizations.
@@ -519,7 +523,7 @@ def validate_config_and_exit_on_error(config: VideoConfig) -> None:
     if all_errors:
         logger.critical("Configuration validation failed:")
         for error in all_errors:
-            logger.critical(f"{error}")
+            logger.critical("%s", error)
         logger.critical("Fix configuration errors before proceeding")
         logger.info("See CONFIGURATION.md for configuration guide")
         raise SystemExit(1)

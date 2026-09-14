@@ -34,15 +34,16 @@ class MemoryMappedFile:
                 raise ValueError(f"Unsupported mode: {self.mode}")
 
             logger.debug(
-                f"Memory mapped {self.file_path} "
-                f"({self.file_path.stat().st_size} bytes)"
+                "Memory mapped %s (%s bytes)",
+                self.file_path,
+                self.file_path.stat().st_size,
             )
             if self.mmap_obj is None:
                 raise RuntimeError("Failed to create memory map")
             return self.mmap_obj
 
         except Exception as e:
-            logger.error(f"Failed to memory map {self.file_path}: {e}")
+            logger.error("Failed to memory map %s: %s", self.file_path, e)
             self._cleanup()
             raise
 
@@ -56,14 +57,14 @@ class MemoryMappedFile:
             try:
                 self.mmap_obj.close()
             except Exception as e:
-                logger.warning(f"Error closing memory map: {e}")
+                logger.warning("Error closing memory map: %s", e)
             self.mmap_obj = None
 
         if self.file_obj:
             try:
                 self.file_obj.close()
             except Exception as e:
-                logger.warning(f"Error closing file: {e}")
+                logger.warning("Error closing file: %s", e)
             self.file_obj = None
 
 
@@ -85,11 +86,11 @@ def copy_file_mmap(
     """
     try:
         if not src_path.exists():
-            logger.error(f"Source file does not exist: {src_path}")
+            logger.error("Source file does not exist: %s", src_path)
             return False
 
         file_size = src_path.stat().st_size
-        logger.debug(f"Copying {src_path} to {dst_path} ({file_size} bytes)")
+        logger.debug("Copying %s to %s (%s bytes)", src_path, dst_path, file_size)
 
         # For small files, use regular copy
         if file_size < 1024 * 1024:  # 1MB threshold
@@ -113,11 +114,11 @@ def copy_file_mmap(
                 dst_file.write(chunk)
                 bytes_copied = chunk_end
 
-        logger.debug(f"Successfully copied {file_size} bytes using memory mapping")
+        logger.debug("Successfully copied %s bytes using memory mapping", file_size)
         return True
 
     except Exception as e:
-        logger.error(f"Failed to copy {src_path} to {dst_path}: {e}")
+        logger.error("Failed to copy %s to %s: %s", src_path, dst_path, e)
         # Clean up partial file
         if dst_path.exists():
             from contextlib import suppress
@@ -151,7 +152,7 @@ def read_file_chunk_mmap(file_path: Path, offset: int, size: int) -> bytes | Non
             return chunk_data
 
     except Exception as e:
-        logger.error(f"Failed to read chunk from {file_path}: {e}")
+        logger.error("Failed to read chunk from %s: %s", file_path, e)
         return None
 
 
@@ -195,7 +196,7 @@ def get_file_hash_mmap(file_path: Path, algorithm: str = "sha256") -> str | None
         return hash_obj.hexdigest()
 
     except Exception as e:
-        logger.error(f"Failed to calculate hash for {file_path}: {e}")
+        logger.error("Failed to calculate hash for %s: %s", file_path, e)
         return None
 
 
@@ -235,5 +236,5 @@ def is_file_suitable_for_mmap(file_path: Path, min_size: int = 1024 * 1024) -> b
             return file_size < 1024 * 1024 * 1024  # 1GB threshold
 
     except Exception as e:
-        logger.warning(f"Error checking file suitability for mmap: {e}")
+        logger.warning("Error checking file suitability for mmap: %s", e)
         return False

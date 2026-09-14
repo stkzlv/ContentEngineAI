@@ -77,7 +77,7 @@ def ensure_dirs_exist(path: Path) -> None:
         else:  # If path is a directory path, make the path itself
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        logger.error(f"Failed to create directories for {path}: {e}")
+        logger.error("Failed to create directories for %s: %s", path, e)
 
 
 def cleanup_temp_dirs(*temp_dirs: Path, verify: bool = False) -> bool:
@@ -99,7 +99,7 @@ def cleanup_temp_dirs(*temp_dirs: Path, verify: bool = False) -> bool:
             continue
 
         if not temp_dir.exists():
-            logger.debug(f"Temporary directory does not exist: {temp_dir}")
+            logger.debug("Temporary directory does not exist: %s", temp_dir)
             continue
 
         try:
@@ -108,21 +108,21 @@ def cleanup_temp_dirs(*temp_dirs: Path, verify: bool = False) -> bool:
                 if file_path.is_file() and file_path.stat().st_size == 0:
                     try:
                         file_path.unlink()
-                        logger.debug(f"Removed empty file: {file_path}")
+                        logger.debug("Removed empty file: %s", file_path)
                     except Exception as e:
-                        logger.debug(f"Failed to remove empty file {file_path}: {e}")
+                        logger.debug("Failed to remove empty file %s: %s", file_path, e)
 
             # Then remove the entire directory
             shutil.rmtree(temp_dir, ignore_errors=True)
-            logger.info(f"Cleaned up temporary directory: {temp_dir}")
+            logger.info("Cleaned up temporary directory: %s", temp_dir)
 
             # Verify removal if requested
             if verify and temp_dir.exists():
-                logger.warning(f"Directory still exists after cleanup: {temp_dir}")
+                logger.warning("Directory still exists after cleanup: %s", temp_dir)
                 all_cleaned = False
 
         except Exception as e:
-            logger.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
+            logger.warning("Failed to clean up temporary directory %s: %s", temp_dir, e)
             all_cleaned = False
 
     return all_cleaned if verify else True
@@ -197,7 +197,9 @@ async def download_file(
                         # Rename temporary file to final name
                         temp_file.replace(output_path)
 
-                        logger.info(f"Successfully downloaded {url} to {output_path}")
+                        logger.info(
+                            "Successfully downloaded %s to %s", url, output_path
+                        )
                         return True
 
                 except Exception as e:
@@ -207,14 +209,18 @@ async def download_file(
 
                     # Re-raise the exception to trigger retry
                     logger.warning(
-                        f"Download attempt {attempt.retry_state.attempt_number} "
-                        f"failed for {url}: {e}"
+                        "Download attempt %s failed for %s: %s",
+                        attempt.retry_state.attempt_number,
+                        url,
+                        e,
                     )
                     raise
 
     except RetryError as e:
         # All retries failed
-        logger.error(f"Failed to download {url} after multiple attempts: {e.__cause__}")
+        logger.error(
+            "Failed to download %s after multiple attempts: %s", url, e.__cause__
+        )
         return False
 
     # This should never be reached due to the retry logic, but satisfies MyPy
@@ -365,7 +371,7 @@ def get_filename_from_url(
         return sanitize_filename(filename)
 
     except Exception as e:
-        logger.warning(f"Filename generation error for '{url}': {e}")
+        logger.warning("Filename generation error for '%s': %s", url, e)
         # Fallback to a safe default name using just the identifier and type hint
         ext = (
             mimetypes.guess_extension(content_type) if content_type else None
@@ -389,9 +395,9 @@ async def take_screenshot(page: Page, debug_dir: Path, name: str):
         screenshot_path = debug_dir / "screenshots" / f"{safe_name}.png"
         ensure_dirs_exist(screenshot_path)  # Ensure parent directory exists
         await page.screenshot(path=screenshot_path)
-        logger.debug(f"Screenshot saved: {screenshot_path}")
+        logger.debug("Screenshot saved: %s", screenshot_path)
     except Exception as e:
-        logger.warning(f"Failed to take screenshot '{name}': {e}")
+        logger.warning("Failed to take screenshot '%s': %s", name, e)
 
 
 def remove_duplicates(paths: list[Path]) -> list[Path]:

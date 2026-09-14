@@ -83,12 +83,12 @@ class ScreenshotAnalyzer:
                     screenshots.append((screenshot_path, timestamp))
                     frame_number += 1
                 else:
-                    logger.warning(f"Failed to extract screenshot at {timestamp}s")
+                    logger.warning("Failed to extract screenshot at %ss", timestamp)
             except subprocess.TimeoutExpired:
-                logger.error(f"Screenshot extraction timeout at {timestamp}s")
+                logger.error("Screenshot extraction timeout at %ss", timestamp)
                 break
             except Exception as e:
-                logger.error(f"Screenshot extraction error at {timestamp}s: {e}")
+                logger.error("Screenshot extraction error at %ss: %s", timestamp, e)
                 break
 
             timestamp += interval
@@ -152,7 +152,7 @@ class ScreenshotAnalyzer:
                 return analysis
 
         except Exception as e:
-            logger.error(f"Subtitle positioning analysis failed: {e}")
+            logger.error("Subtitle positioning analysis failed: %s", e)
             return {"error": str(e)}
 
     def analyze_image_positioning(self, screenshot_path: Path) -> dict[str, Any]:
@@ -198,7 +198,7 @@ class ScreenshotAnalyzer:
                 return analysis
 
         except Exception as e:
-            logger.error(f"Image positioning analysis failed: {e}")
+            logger.error("Image positioning analysis failed: %s", e)
             return {"error": str(e)}
 
 
@@ -260,7 +260,7 @@ class AudioAnalyzer:
             json.JSONDecodeError,
             subprocess.SubprocessError,
         ) as e:
-            logger.error(f"Audio analysis failed: {e}")
+            logger.error("Audio analysis failed: %s", e)
 
         return {"error": "Failed to analyze audio"}
 
@@ -319,7 +319,7 @@ class AudioAnalyzer:
             return analysis
 
         except (subprocess.TimeoutExpired, ValueError, subprocess.SubprocessError) as e:
-            logger.error(f"Audio level analysis failed: {e}")
+            logger.error("Audio level analysis failed: %s", e)
 
         return {"error": "Failed to analyze audio levels"}
 
@@ -428,7 +428,7 @@ class SlideshowImagesProfileValidator:
                     }
 
         except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError) as e:
-            logger.error(f"Video structure analysis failed: {e}")
+            logger.error("Video structure analysis failed: %s", e)
 
         return {"error": "Failed to analyze video structure"}
 
@@ -508,7 +508,7 @@ class TestSlideshowImagesVerification:
         screenshots_dir = verification_dir / "screenshots"
 
         # Phase 1: Extract and analyze screenshots from real video
-        logger.info(f"Extracting screenshots from real video: {video_path}")
+        logger.info("Extracting screenshots from real video: %s", video_path)
         screenshots = screenshot_analyzer.extract_screenshots(video_path, interval=2.0)
         assert (
             len(screenshots) > 0
@@ -523,7 +523,7 @@ class TestSlideshowImagesVerification:
 
         # Phase 2: Analyze visual elements in screenshots
         logger.info(
-            f"Analyzing visual elements in {len(moved_screenshots)} screenshots"
+            "Analyzing visual elements in %s screenshots", len(moved_screenshots)
         )
         visual_analysis_results = []
         for screenshot_path, timestamp in moved_screenshots:
@@ -898,4 +898,4 @@ class TestSlideshowImagesVerification:
         with open(audio_analysis_path, "w") as f:
             json.dump(audio_data, f, indent=2, default=str)
 
-        logger.info(f"Analysis artifacts saved to {verification_dir}")
+        logger.info("Analysis artifacts saved to %s", verification_dir)

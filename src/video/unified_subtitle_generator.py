@@ -261,7 +261,7 @@ class UnifiedSubtitleGenerator:
             return result
 
         except Exception as e:
-            logger.error(f"Error generating subtitles: {e}", exc_info=debug_mode)
+            logger.error("Error generating subtitles: %s", e, exc_info=debug_mode)
             result = SubtitleResult(
                 success=False,
                 path=None,
@@ -354,7 +354,7 @@ class UnifiedSubtitleGenerator:
 
         except Exception as e:
             logger.error(
-                f"Error generating subtitles from script: {e}", exc_info=debug_mode
+                "Error generating subtitles from script: %s", e, exc_info=debug_mode
             )
             return SubtitleResult(
                 success=False,
@@ -440,10 +440,14 @@ class UnifiedSubtitleGenerator:
 
                 if debug_mode and _i < 5:  # Log first 5 words for debugging
                     logger.debug(
-                        f"Word {_i} '{word}': current_words={len(current_words)}, "
-                        f"word_count_check={word_count_would_exceed}, "
-                        f"char_limit={char_limit_exceeded}, "
-                        f"max_words_per_line={self.config.max_words_per_line}"
+                        "Word %s '%s': current_words=%s, word_count_check=%s, "
+                        "char_limit=%s, max_words_per_line=%s",
+                        _i,
+                        word,
+                        len(current_words),
+                        word_count_would_exceed,
+                        char_limit_exceeded,
+                        self.config.max_words_per_line,
                     )
 
                 if (
@@ -565,9 +569,9 @@ class UnifiedSubtitleGenerator:
 
         # DEBUG: Log configuration values
         logger.debug(
-            f"_create_script_segments: "
-            f"max_words_per_line={self.config.max_words_per_line}, "
-            f"max_line_length={self.config.max_line_length}"
+            "_create_script_segments: max_words_per_line=%s, max_line_length=%s",
+            self.config.max_words_per_line,
+            self.config.max_line_length,
         )
 
         segments = []
@@ -616,12 +620,15 @@ class UnifiedSubtitleGenerator:
             # DEBUG: Log first 5 words
             if _i < 5:
                 logger.debug(
-                    f"Script word {_i} '{word}': "
-                    f"current_words={len(current_segment_words)}, "
-                    f"word_count_check={word_count_check}, "
-                    f"char_check={char_check}, "
-                    f"max_words={self.config.max_words_per_line}, "
-                    f"potential_text='{potential_text}'"
+                    "Script word %s '%s': current_words=%s, word_count_check=%s, "
+                    "char_check=%s, max_words=%s, potential_text='%s'",
+                    _i,
+                    word,
+                    len(current_segment_words),
+                    word_count_check,
+                    char_check,
+                    self.config.max_words_per_line,
+                    potential_text,
                 )
 
             if word_count_check or char_check:
@@ -751,12 +758,14 @@ class UnifiedSubtitleGenerator:
             subs.save(str(output_path), encoding="utf-8")
 
             if debug_mode:
-                logger.debug(f"Generated SRT with {len(subs)} segments: {output_path}")
+                logger.debug(
+                    "Generated SRT with %s segments: %s", len(subs), output_path
+                )
 
             return output_path
 
         except Exception as e:
-            logger.error(f"Failed to generate SRT: {e}")
+            logger.error("Failed to generate SRT: %s", e)
             return None
 
     def _generate_ass(
@@ -780,11 +789,14 @@ class UnifiedSubtitleGenerator:
 
             # DEBUG: Log position calculation
             logger.debug(
-                f"Subtitle position calculated: anchor={self.config.anchor}, "
-                f"position.x={position.x}, position.y={position.y}, "
-                f"frame_size={self.frame_size}, "
-                f"pixel_coords=({int(position.x * self.frame_size[0])}, "
-                f"{int(position.y * self.frame_size[1])})"
+                "Subtitle position calculated: anchor=%s, position.x=%s, "
+                "position.y=%s, frame_size=%s, pixel_coords=(%s, %s)",
+                self.config.anchor,
+                position.x,
+                position.y,
+                self.frame_size,
+                int(position.x * self.frame_size[0]),
+                int(position.y * self.frame_size[1]),
             )
 
             # Randomize colors if enabled
@@ -807,13 +819,13 @@ class UnifiedSubtitleGenerator:
 
             if debug_mode:
                 logger.debug(
-                    f"Generated ASS with {len(segments)} segments: {output_path}"
+                    "Generated ASS with %s segments: %s", len(segments), output_path
                 )
 
             return output_path
 
         except Exception as e:
-            logger.error(f"Failed to generate ASS: {e}")
+            logger.error("Failed to generate ASS: %s", e)
             return None
 
     def _select_colors(self) -> dict[str, str]:
@@ -868,7 +880,7 @@ class UnifiedSubtitleGenerator:
             if available_effects:
                 chosen_effect = random.choice(available_effects)  # noqa: S311
                 selected_effects[chosen_effect] = True
-                logger.debug(f"Selected random effect for video: {chosen_effect}")
+                logger.debug("Selected random effect for video: %s", chosen_effect)
         else:
             # Non-random presets: Use exactly 1 effect from preset
             # (modern=karaoke, bold=fade, animated=karaoke)
@@ -876,7 +888,7 @@ class UnifiedSubtitleGenerator:
                 effect = preset_effects[0]
                 if effect in selected_effects:
                     selected_effects[effect] = True
-                    logger.debug(f"Applied preset effect: {effect}")
+                    logger.debug("Applied preset effect: %s", effect)
             elif len(preset_effects) > 1:
                 # REQUIREMENTS.md violation: "exactly 1 effect per video"
                 preset_name = self._preset_name
@@ -1141,7 +1153,7 @@ class UnifiedSubtitleGenerator:
 
         except Exception as e:
             if debug_mode:
-                logger.warning(f"Failed to create dialogue line: {e}")
+                logger.warning("Failed to create dialogue line: %s", e)
             return None
 
     def _format_ass_time(self, seconds: float) -> str:

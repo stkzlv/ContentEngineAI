@@ -92,7 +92,7 @@ class SubtitleParser:
                     )
                 )
             except Exception as e:
-                logger.warning(f"Failed to parse SRT block: {e}")
+                logger.warning("Failed to parse SRT block: %s", e)
         return entries
 
     @staticmethod
@@ -119,7 +119,7 @@ class SubtitleParser:
 
             return hours * 3600 + minutes * 60 + seconds + centiseconds / 100.0
         except (ValueError, IndexError) as e:
-            logger.warning(f"Failed to parse ASS time '{time_str}': {e}")
+            logger.warning("Failed to parse ASS time '%s': %s", time_str, e)
             return 0.0
 
 
@@ -151,7 +151,7 @@ class SubtitleStyler:
 
         """
         if not font_directory.is_dir():
-            logger.warning(f"Font directory does not exist: {font_directory}")
+            logger.warning("Font directory does not exist: %s", font_directory)
             return None
 
         # Get all valid font files in the directory
@@ -162,7 +162,7 @@ class SubtitleStyler:
         ]
 
         if not font_files:
-            logger.error(f"No valid font files found in directory: {font_directory}")
+            logger.error("No valid font files found in directory: %s", font_directory)
             return None
 
         # Normalize font name by removing spaces and converting to lowercase
@@ -184,44 +184,47 @@ class SubtitleStyler:
             )
 
             logger.debug(
-                f"Checking font file: {file_path.name} "
-                f"(normalized: '{normalized_file_stem}')"
+                "Checking font file: %s (normalized: '%s')",
+                file_path.name,
+                normalized_file_stem,
             )
 
             if (
                 normalized_file_stem == normalized_font_name
                 or normalized_file_stem.startswith(normalized_font_name)
             ):
-                logger.info(f"Resolved font '{font_name}' to path: {file_path}")
+                logger.info("Resolved font '%s' to path: %s", font_name, file_path)
                 return file_path
 
         # Second attempt: Try to find the default fallback font
         logger.warning(
-            f"Could not find font '{font_name}', "
-            f"trying fallback: {DEFAULT_FALLBACK_FONT}"
+            "Could not find font '%s', trying fallback: %s",
+            font_name,
+            DEFAULT_FALLBACK_FONT,
         )
         fallback_path = SubtitleStyler.resolve_font_path(
             DEFAULT_FALLBACK_FONT, font_directory
         )
         if fallback_path:
             logger.info(
-                f"Using fallback font: {DEFAULT_FALLBACK_FONT} -> {fallback_path}"
+                "Using fallback font: %s -> %s", DEFAULT_FALLBACK_FONT, fallback_path
             )
             return fallback_path
 
         # Third attempt: Try alternative fallback fonts
         for alt_font in FALLBACK_FONT_ALTERNATIVES:
-            logger.warning(f"Trying alternative fallback font: {alt_font}")
+            logger.warning("Trying alternative fallback font: %s", alt_font)
             alt_path = SubtitleStyler.resolve_font_path(alt_font, font_directory)
             if alt_path:
                 logger.info(
-                    f"Using alternative fallback font: {alt_font} -> {alt_path}"
+                    "Using alternative fallback font: %s -> %s", alt_font, alt_path
                 )
                 return alt_path
 
         # Last resort: Use the first valid font file
         logger.warning(
-            f"No fallback fonts found, using first available font: {font_files[0].name}"
+            "No fallback fonts found, using first available font: %s",
+            font_files[0].name,
         )
         return font_files[0]
 

@@ -76,8 +76,9 @@ try:
     FailedPreconditionError = FailedPrecondition
 except (ImportError, AttributeError) as e:
     logger.warning(
-        f"Google Cloud Text-to-Speech import failed: {e}. "
-        f"This provider will be disabled."
+        "Google Cloud Text-to-Speech import failed: %s. This provider will be "
+        "disabled.",
+        e,
     )
 
     # Dummy classes for when Google Cloud TTS is not available
@@ -185,7 +186,7 @@ def _initialize_coqui_tts_model(settings: CoquiTTSSettings) -> Any | None:
         if _global_coqui_tts_model is not None:
             return _global_coqui_tts_model
         try:
-            logger.info(f"Loading Coqui TTS model: {settings.model_name}")
+            logger.info("Loading Coqui TTS model: %s", settings.model_name)
             # Use configurable GPU setting
             from src.video.config import config
 
@@ -197,11 +198,12 @@ def _initialize_coqui_tts_model(settings: CoquiTTSSettings) -> Any | None:
             _global_coqui_tts_model = tts_class(
                 model_name=settings.model_name, progress_bar=False, gpu=use_gpu
             )
-            logger.info(f"Coqui TTS model loaded: {settings.model_name}")
+            logger.info("Coqui TTS model loaded: %s", settings.model_name)
         except Exception as e:
-            logger.error(
-                f"Failed to load Coqui TTS model '{settings.model_name}': {e}",
-                exc_info=True,
+            logger.exception(
+                "Failed to load Coqui TTS model '%s': %s",
+                settings.model_name,
+                e,
             )
             _global_coqui_tts_model = None
         return _global_coqui_tts_model
@@ -217,7 +219,7 @@ def _generate_coqui_speech_sync(
         try:
             model.tts_to_file(**kwargs)
         except Exception as e:
-            logger.error(f"Error during Coqui TTS call: {e}", exc_info=True)
+            logger.exception("Error during Coqui TTS call: %s", e)
             raise
 
 
@@ -239,9 +241,7 @@ async def _initialize_google_cloud_client():
             )
             logger.info("Google Cloud TTS client initialized.")
         except Exception as e:
-            logger.error(
-                f"Failed to initialize Google Cloud TTS client: {e}", exc_info=True
-            )
+            logger.exception("Failed to initialize Google Cloud TTS client: %s", e)
             _global_google_cloud_client = None
 
 
@@ -257,10 +257,10 @@ async def _fetch_available_voices() -> list[Voice] | None:
         logger.info("Fetching available Google Cloud TTS voices...")
         response = await _global_google_cloud_client.list_voices()
         _cached_google_cloud_voices = list(response.voices) if response else []
-        logger.info(f"Fetched {len(_cached_google_cloud_voices)} voices.")
+        logger.info("Fetched %s voices.", len(_cached_google_cloud_voices))
         return _cached_google_cloud_voices
     except Exception as e:
-        logger.error(f"Failed to fetch voices: {e}", exc_info=True)
+        logger.exception("Failed to fetch voices: %s", e)
         return None
 
 
@@ -312,9 +312,12 @@ def _filter_and_select_voice(
     neural2_voices = [v for v in candidate_voices if "Neural2" in v.name]
 
     logger.debug(
-        f"Voice selection breakdown: {len(candidate_voices)} total candidates, "
-        f"Chirp 3 HD: {len(chirp3_voices)}, Chirp: {len(chirp_voices)}, "
-        f"Neural2: {len(neural2_voices)}"
+        "Voice selection breakdown: %s total candidates, Chirp 3 HD: %s, Chirp: %s, "
+        "Neural2: %s",
+        len(candidate_voices),
+        len(chirp3_voices),
+        len(chirp_voices),
+        len(neural2_voices),
     )
 
     # Build a deterministic RNG when product_id is provided
@@ -328,16 +331,16 @@ def _filter_and_select_voice(
     # Select from highest priority group available
     if chirp3_voices:
         selected_voice = rng.choice(chirp3_voices)
-        logger.info(f"Selected Chirp 3 HD voice: {selected_voice.name}")
+        logger.info("Selected Chirp 3 HD voice: %s", selected_voice.name)
     elif chirp_voices:
         selected_voice = rng.choice(chirp_voices)
-        logger.info(f"Selected Chirp voice: {selected_voice.name}")
+        logger.info("Selected Chirp voice: %s", selected_voice.name)
     elif neural2_voices:
         selected_voice = rng.choice(neural2_voices)
-        logger.info(f"Selected Neural2 voice: {selected_voice.name}")
+        logger.info("Selected Neural2 voice: %s", selected_voice.name)
     else:
         selected_voice = rng.choice(candidate_voices)
-        logger.info(f"Selected standard voice: {selected_voice.name}")
+        logger.info("Selected standard voice: %s", selected_voice.name)
 
     gender_name = (
         ssml_gender_enum(selected_voice.ssml_gender).name
@@ -345,7 +348,7 @@ def _filter_and_select_voice(
         else "Unknown"
     )
     logger.info(
-        f"Final TTS voice selection: {selected_voice.name} (Gender: {gender_name})"
+        "Final TTS voice selection: %s (Gender: %s)", selected_voice.name, gender_name
     )
     return selected_voice
 
@@ -415,7 +418,7 @@ async def _generate_google_cloud_speech(
         input=synthesis_input, voice=voice_params, audio_config=audio_config
     )
 
-    logger.info(f"Calling Google Cloud TTS API for text (length: {len(text)})")
+    logger.info("Calling Google Cloud TTS API for text (length: %s)", len(text))
     for attempt in range(settings.api_max_retries + 1):
         try:
             response = await asyncio.wait_for(
@@ -426,7 +429,7 @@ async def _generate_google_cloud_speech(
                 await out_file.write(response.audio_content)
             if not output_path.exists() or output_path.stat().st_size == 0:
                 raise OSError("Generated voiceover file is empty.")
-            logger.info(f"Google Cloud voiceover created: {output_path}")
+            logger.info("Google Cloud voiceover created: %s", output_path)
             return output_path, selected_voice.name
         except (
             OSError,
@@ -436,7 +439,10 @@ async def _generate_google_cloud_speech(
             DefaultCredentialsError,
         ) as e:
             logger.error(
-                f"TTS API error (attempt {attempt+1}): {e}", exc_info=settings.debug
+                "TTS API error (attempt %s): %s",
+                attempt + 1,
+                e,
+                exc_info=settings.debug,
             )
             if (
                 isinstance(e, DefaultCredentialsError)
@@ -445,14 +451,12 @@ async def _generate_google_cloud_speech(
                 break
             await asyncio.sleep(settings.api_retry_delay_sec)
         except TimeoutError:
-            logger.error(f"TTS API call timed out (attempt {attempt+1}).")
+            logger.error("TTS API call timed out (attempt %s).", attempt + 1)
             if attempt >= settings.api_max_retries:
                 break
             await asyncio.sleep(settings.api_retry_delay_sec)
         except Exception as e:
-            logger.error(
-                f"Unexpected TTS error (attempt {attempt+1}): {e}", exc_info=True
-            )
+            logger.exception("Unexpected TTS error (attempt %s): %s", attempt + 1, e)
             if attempt >= settings.api_max_retries:
                 break
             await asyncio.sleep(settings.api_retry_delay_sec)
@@ -600,11 +604,10 @@ async def _generate_gemini_speech(
                 break
             await asyncio.sleep(settings.api_retry_delay_sec)
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Unexpected Gemini TTS error (attempt %d): %s",
                 attempt + 1,
                 e,
-                exc_info=True,
             )
             if attempt >= settings.api_max_retries:
                 break
@@ -829,9 +832,7 @@ class TTSManager:
                         logger.info("Coqui TTS succeeded.")
                         return output_path
             except Exception as e:
-                logger.error(
-                    "Error with provider '%s': %s", provider_name, e, exc_info=True
-                )
+                logger.exception("Error with provider '%s': %s", provider_name, e)
 
             logger.warning("Provider '%s' failed.", provider_name)
 

@@ -171,7 +171,7 @@ class BasePlatformMetadataGenerator(ABC):
 
         """
         logger.debug(
-            f"Loading prompt template for {self.platform_name}: {template_path}"
+            "Loading prompt template for %s: %s", self.platform_name, template_path
         )
         return load_prompt_template(template_path)
 
@@ -200,7 +200,7 @@ class BasePlatformMetadataGenerator(ABC):
             prompt = self._format_product_prompt(template, product)
 
         """
-        logger.debug(f"Formatting prompt for {self.platform_name}")
+        logger.debug("Formatting prompt for %s", self.platform_name)
         return format_prompt(template, product)
 
     def _calculate_character_counts(
@@ -265,7 +265,11 @@ class BasePlatformMetadataGenerator(ABC):
 
         truncated = text[: max_length - 3] + "..."
         logger.warning(
-            f"{self.platform_name} {label} exceeded {max_length} chars "
-            f"(was {len(text)}), truncated to: {truncated}"
+            "%s %s exceeded %s chars (was %s), truncated to: %s",
+            self.platform_name,
+            label,
+            max_length,
+            len(text),
+            truncated,
         )
         return truncated

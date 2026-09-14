@@ -46,7 +46,7 @@ def adjust_subtitle_timing(
 
     """
     if not srt_path.exists():
-        logger.error(f"SRT file not found: {srt_path}")
+        logger.error("SRT file not found: %s", srt_path)
         return None
 
     output_path = output_path or srt_path
@@ -63,13 +63,15 @@ def adjust_subtitle_timing(
         subs.save(str(output_path), encoding="utf-8")
 
         logger.info(
-            f"Subtitle timing adjusted by {time_offset_ms}ms: "
-            f"{srt_path} -> {output_path}"
+            "Subtitle timing adjusted by %sms: %s -> %s",
+            time_offset_ms,
+            srt_path,
+            output_path,
         )
         return output_path
 
     except Exception as e:
-        logger.error(f"Failed to adjust subtitle timing: {e}", exc_info=True)
+        logger.exception("Failed to adjust subtitle timing: %s", e)
         return None
 
 
@@ -94,7 +96,7 @@ def slice_subtitles(
 
     """
     if not srt_path.exists():
-        logger.error(f"SRT file not found: {srt_path}")
+        logger.error("SRT file not found: %s", srt_path)
         return None
 
     try:
@@ -123,7 +125,9 @@ def slice_subtitles(
 
         if not sliced_subs:
             logger.warning(
-                f"No subtitles found in time range {start_time_ms}ms - {end_time_ms}ms"
+                "No subtitles found in time range %sms - %sms",
+                start_time_ms,
+                end_time_ms,
             )
             return None
 
@@ -135,13 +139,17 @@ def slice_subtitles(
         sliced_subs.save(str(output_path), encoding="utf-8")
 
         logger.info(
-            f"Subtitles sliced ({start_time_ms}ms - {end_time_ms}ms): "
-            f"{srt_path} -> {output_path} ({len(sliced_subs)} segments)"
+            "Subtitles sliced (%sms - %sms): %s -> %s (%s segments)",
+            start_time_ms,
+            end_time_ms,
+            srt_path,
+            output_path,
+            len(sliced_subs),
         )
         return output_path
 
     except Exception as e:
-        logger.error(f"Failed to slice subtitles: {e}", exc_info=True)
+        logger.exception("Failed to slice subtitles: %s", e)
         return None
 
 
@@ -158,7 +166,7 @@ def get_subtitle_info(srt_path: Path) -> dict[str, Any] | None:
 
     """
     if not srt_path.exists():
-        logger.error(f"SRT file not found: {srt_path}")
+        logger.error("SRT file not found: %s", srt_path)
         return None
 
     try:
@@ -193,7 +201,7 @@ def get_subtitle_info(srt_path: Path) -> dict[str, Any] | None:
         }
 
     except Exception as e:
-        logger.error(f"Failed to get subtitle info: {e}")
+        logger.error("Failed to get subtitle info: %s", e)
         return None
 
 
@@ -211,7 +219,7 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
 
     """
     if not srt_path.exists():
-        logger.error(f"SRT file not found: {srt_path}")
+        logger.error("SRT file not found: %s", srt_path)
         return None
 
     try:
@@ -230,11 +238,11 @@ def convert_timestamps_to_seconds(srt_path: Path, output_path: Path) -> Path | N
                 f.write(f"{start_seconds:.3f}s --> {end_seconds:.3f}s\n")
                 f.write(f"{sub.text}\n\n")
 
-        logger.info(f"SRT converted to seconds format: {srt_path} -> {output_path}")
+        logger.info("SRT converted to seconds format: %s -> %s", srt_path, output_path)
         return output_path
 
     except Exception as e:
-        logger.error(f"Failed to convert timestamps to seconds: {e}")
+        logger.error("Failed to convert timestamps to seconds: %s", e)
         return None
 
 
@@ -297,15 +305,18 @@ def create_static_upper_subtitle(
         # Determine timing based on use_full_duration setting
         cta_windows: list[tuple[float, float]] | None = None
         logger.debug(
-            f"CTA Detection Debug: use_full_duration={use_full_duration}, "
-            f"lower_subtitle_path={lower_subtitle_path}, "
-            f"exists={lower_subtitle_path.exists() if lower_subtitle_path else 'N/A'}"
+            "CTA Detection Debug: use_full_duration=%s, lower_subtitle_path=%s, "
+            "exists=%s",
+            use_full_duration,
+            lower_subtitle_path,
+            lower_subtitle_path.exists() if lower_subtitle_path else "N/A",
         )
         if use_full_duration and voiceover_duration:
             end_time = voiceover_duration
             logger.info(
-                f"Upper subtitle set to full video duration: {end_time:.2f}s "
-                f"(use_full_duration=True)"
+                "Upper subtitle set to full video duration: %.2fs "
+                "(use_full_duration=True)",
+                end_time,
             )
         elif (
             not use_full_duration
@@ -394,9 +405,11 @@ def create_static_upper_subtitle(
                         # CTA windows too short - use fallback
                         if use_full_duration:
                             logger.warning(
-                                f"Detected CTA windows too short "
-                                f"({total_duration:.2f}s < {min_cta_duration}s): "
-                                f"{windows_str}. Using full duration."
+                                "Detected CTA windows too short (%.2fs < %ss): %s. "
+                                "Using full duration.",
+                                total_duration,
+                                min_cta_duration,
+                                windows_str,
                             )
                             cta_windows = None
                             end_time = (
@@ -412,9 +425,12 @@ def create_static_upper_subtitle(
                                 "cta_detection.default_cta_duration", 5.0
                             )
                             logger.warning(
-                                f"Detected CTA windows too short "
-                                f"({total_duration:.2f}s < {min_cta_duration}s): "
-                                f"{windows_str}. Using {default_cta_duration}s at end"
+                                "Detected CTA windows too short (%.2fs < %ss): %s. "
+                                "Using %ss at end",
+                                total_duration,
+                                min_cta_duration,
+                                windows_str,
+                                default_cta_duration,
                             )
                             if voiceover_duration:
                                 start_time = max(
@@ -423,16 +439,18 @@ def create_static_upper_subtitle(
                                 cta_windows = [(start_time, voiceover_duration)]
                                 end_time = 0.0
                                 logger.info(
-                                    f"Fallback CTA: {start_time:.2f}-"
-                                    f"{voiceover_duration:.2f}s"
+                                    "Fallback CTA: %.2f-%.2fs",
+                                    start_time,
+                                    voiceover_duration,
                                 )
                             else:
                                 cta_windows = None
                                 end_time = fallback_duration
                     else:
                         logger.info(
-                            f"Detected {len(cta_windows)} CTA timing windows: "
-                            f"{windows_str}"
+                            "Detected %s CTA timing windows: %s",
+                            len(cta_windows),
+                            windows_str,
                         )
                         # Set end_time to 0 as placeholder
                         # (won't be used for CTA-based subtitles)
@@ -457,8 +475,9 @@ def create_static_upper_subtitle(
                             "cta_detection.default_cta_duration", 5.0
                         )
                         logger.warning(
-                            f"No CTA detected, use_full_duration=False. "
-                            f"Using {default_cta_duration}s at end"
+                            "No CTA detected, use_full_duration=False. Using %ss at "
+                            "end",
+                            default_cta_duration,
                         )
                         if voiceover_duration:
                             # Create a single CTA window at the end of the video
@@ -468,13 +487,14 @@ def create_static_upper_subtitle(
                             cta_windows = [(start_time, voiceover_duration)]
                             end_time = 0.0  # Won't be used with CTA windows
                             logger.info(
-                                f"Fallback CTA: {start_time:.2f}-"
-                                f"{voiceover_duration:.2f}s"
+                                "Fallback CTA: %.2f-%.2fs",
+                                start_time,
+                                voiceover_duration,
                             )
                         else:
                             end_time = fallback_duration
             except Exception as e:
-                logger.error(f"Failed to parse lower subtitle for CTA detection: {e}")
+                logger.error("Failed to parse lower subtitle for CTA detection: %s", e)
                 # Use configured fallback duration
                 from src.video.config import config
 
@@ -495,8 +515,7 @@ def create_static_upper_subtitle(
             )
             end_time = fallback_duration
             logger.info(
-                f"Upper subtitle using default large duration "
-                f"({fallback_duration}s)"
+                "Upper subtitle using default large duration (%ss)", fallback_duration
             )
 
         # For static subtitles, bypass the normal segment creation
@@ -580,25 +599,27 @@ def create_static_upper_subtitle(
             )
 
         logger.debug(
-            f"DEBUG: result.success={result.success}, "
-            f"result.path={result.path}, "
-            f"exists={result.path.exists() if result.path else 'N/A'}"
+            "DEBUG: result.success=%s, result.path=%s, exists=%s",
+            result.success,
+            result.path,
+            result.path.exists() if result.path else "N/A",
         )
         if result.success and result.path and result.path.exists():
             logger.info(
-                f"Successfully generated static upper subtitle "
-                f"({format_type.upper()}): {result.path}"
+                "Successfully generated static upper subtitle (%s): %s",
+                format_type.upper(),
+                result.path,
             )
             return result.path
         else:
             logger.error(
-                f"Failed to generate static upper subtitle: "
-                f"{result.errors if result.errors else 'Unknown error'}"
+                "Failed to generate static upper subtitle: %s",
+                result.errors if result.errors else "Unknown error",
             )
             return None
 
     except Exception as e:
-        logger.error(f"Static upper subtitle generation failed: {e}", exc_info=True)
+        logger.exception("Static upper subtitle generation failed: %s", e)
         return None
 
 
@@ -694,13 +715,13 @@ async def create_unified_subtitles(
         output_path = output_srt_path.with_suffix(".ass")
         format_type = "ass"
         logger.info(
-            f"Generating ASS subtitles: {audio_path.name} -> {output_path.name}"
+            "Generating ASS subtitles: %s -> %s", audio_path.name, output_path.name
         )
     else:
         output_path = output_srt_path
         format_type = "srt"
         logger.info(
-            f"Generating SRT subtitles: {audio_path.name} -> {output_path.name}"
+            "Generating SRT subtitles: %s -> %s", audio_path.name, output_path.name
         )
 
     # Create unified configuration from subtitle settings dict
@@ -757,12 +778,12 @@ async def create_unified_subtitles(
                     whisper_transcript_target, transcript_mtime_before
                 )
                 logger.info(
-                    f"Whisper STT successful, got {len(stt_timings)} word timings."
+                    "Whisper STT successful, got %s word timings.", len(stt_timings)
                 )
             else:
                 logger.warning("Whisper STT did not return usable word timings")
         except Exception as e:
-            logger.error(f"Whisper STT failed: {e}", exc_info=debug_mode)
+            logger.error("Whisper STT failed: %s", e, exc_info=debug_mode)
     elif whisper_stt_settings and whisper_stt_settings.enabled:
         logger.warning("Whisper STT configured but library not available")
     else:
@@ -787,15 +808,15 @@ async def create_unified_subtitles(
                 )
                 if stt_timings:
                     logger.info(
-                        f"Google Cloud STT successful, got "
-                        f"{len(stt_timings)} word timings."
+                        "Google Cloud STT successful, got %s word timings.",
+                        len(stt_timings),
                     )
                 else:
                     logger.warning(
                         "Google Cloud STT did not return usable word timings"
                     )
             except Exception as e:
-                logger.error(f"Google Cloud STT failed: {e}", exc_info=debug_mode)
+                logger.error("Google Cloud STT failed: %s", e, exc_info=debug_mode)
         else:
             logger.warning(
                 "Google Cloud STT configured but "
@@ -836,8 +857,9 @@ async def create_unified_subtitles(
         if stt_timings:
             # Use STT timing data for precise subtitles
             logger.info(
-                f"Generating {format_type.upper()} from "
-                f"{len(stt_timings)} word timings."
+                "Generating %s from %s word timings.",
+                format_type.upper(),
+                len(stt_timings),
             )
             result = generator.generate_from_timings(
                 timings=stt_timings,
@@ -850,8 +872,7 @@ async def create_unified_subtitles(
         elif script and voiceover_duration:
             # Fallback to script-based timing estimation
             logger.info(
-                f"Generating {format_type.upper()} from script "
-                f"with estimated timing."
+                "Generating %s from script with estimated timing.", format_type.upper()
             )
             result = generator.generate_from_script(
                 script_text=script,
@@ -869,17 +890,18 @@ async def create_unified_subtitles(
 
         if result.success and result.path and result.path.exists():
             logger.info(
-                f"Successfully generated {format_type.upper()} subtitles: "
-                f"{result.path}"
+                "Successfully generated %s subtitles: %s",
+                format_type.upper(),
+                result.path,
             )
             return result.path
         else:
             logger.error(
-                f"Failed to generate subtitles: "
-                f"{result.errors if result.errors else 'Unknown error'}"
+                "Failed to generate subtitles: %s",
+                result.errors if result.errors else "Unknown error",
             )
             return None
 
     except Exception as e:
-        logger.error(f"Unified subtitle generation failed: {e}", exc_info=debug_mode)
+        logger.error("Unified subtitle generation failed: %s", e, exc_info=debug_mode)
         return None

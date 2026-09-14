@@ -101,9 +101,9 @@ def sanitize_script(
                     f"Original script:\n{original_script}\n\n"
                     f"Sanitized script:\n{script}"
                 )
-            logger.info(f"Debug: Saved sanitized script comparison to {debug_path}")
+            logger.info("Debug: Saved sanitized script comparison to %s", debug_path)
         except Exception as e:
-            logger.error(f"Debug: Failed to save sanitized script comparison: {e}")
+            logger.error("Debug: Failed to save sanitized script comparison: %s", e)
 
     return script.strip()
 

@@ -246,13 +246,13 @@ class PlatformMetadataFactory:
                 cached_metadata = cache.get(product_id, platform, product)
                 if cached_metadata:
                     results[platform] = cached_metadata
-                    logger.info(f"Using cached {platform} metadata for {product_id}")
+                    logger.info("Using cached %s metadata for %s", platform, product_id)
                     continue
             platforms_to_generate.append(platform)
 
         # If all platforms were cached, return early
         if not platforms_to_generate:
-            logger.info(f"All platforms served from cache for {product_id}")
+            logger.info("All platforms served from cache for %s", product_id)
             return results
 
         # Create generators for platforms that need generation
@@ -263,9 +263,9 @@ class PlatformMetadataFactory:
                 generators[platform] = PlatformMetadataFactory.create(
                     platform, p_settings
                 )
-                logger.debug(f"Created {platform} generator")
+                logger.debug("Created %s generator", platform)
             except ValueError as e:
-                logger.warning(f"Skipping unknown platform '{platform}': {e}")
+                logger.warning("Skipping unknown platform '%s': %s", platform, e)
                 results[platform] = None
                 continue
 
@@ -309,7 +309,9 @@ class PlatformMetadataFactory:
         for platform, result in zip(task_platforms, results_list, strict=False):
             if isinstance(result, BaseException):
                 logger.error(
-                    f"Error generating {platform} metadata: {result}",
+                    "Error generating %s metadata: %s",
+                    platform,
+                    result,
                     exc_info=result,
                 )
                 results[platform] = None
@@ -325,14 +327,14 @@ class PlatformMetadataFactory:
                         if enhanced_tags != final_result.hashtags:
                             final_result = replace(final_result, hashtags=enhanced_tags)
                             logger.info(
-                                f"Enhanced {platform} metadata with trending tags"
+                                "Enhanced %s metadata with trending tags", platform
                             )
                     except Exception as e:
-                        logger.warning(f"Failed to apply trends to {platform}: {e}")
+                        logger.warning("Failed to apply trends to %s: %s", platform, e)
 
                 results[platform] = final_result
                 status = "success" if final_result else "failed"
-                logger.info(f"{platform.capitalize()} metadata generation: {status}")
+                logger.info("%s metadata generation: %s", platform.capitalize(), status)
 
                 # Cache successful results
                 if final_result and cache:
@@ -344,9 +346,12 @@ class PlatformMetadataFactory:
         generated_count = success_count - cached_count
 
         logger.info(
-            f"Multi-platform generation complete. "
-            f"Success: {success_count}/{total_count} "
-            f"(cached: {cached_count}, generated: {generated_count})"
+            "Multi-platform generation complete. Success: %s/%s (cached: %s, "
+            "generated: %s)",
+            success_count,
+            total_count,
+            cached_count,
+            generated_count,
         )
 
         return results

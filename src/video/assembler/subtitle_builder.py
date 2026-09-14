@@ -135,7 +135,7 @@ class SubtitleGraphBuilder:
             unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             use_content_aware = unified_config.content_aware
         except Exception as e:
-            logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
+            logger.warning("Failed to parse subtitle settings, using fallback: %s", e)
             use_content_aware = settings_dict.get("content_aware", True)
 
         subtitles_enabled = settings_dict.get("enabled", True)
@@ -185,7 +185,7 @@ class SubtitleGraphBuilder:
                 video_config=self.config,
             )
         except Exception as e:
-            logger.warning(f"Failed to get style config, using modern defaults: {e}")
+            logger.warning("Failed to get style config, using modern defaults: %s", e)
             style_config = _MODERN_PRESET_DEFAULTS.copy()
 
         font_name = style_config.get("font_name", "Montserrat")
@@ -194,7 +194,7 @@ class SubtitleGraphBuilder:
 
         font_path = self._resolve_font_path(font_name)
         if not font_path:
-            logger.warning(f"Could not resolve font path for '{font_name}'")
+            logger.warning("Could not resolve font path for '%s'", font_name)
             video_filters.append(f"{final_visual_stream}copy[v_out]")
             return video_filters, input_cmd_parts
 
@@ -300,7 +300,7 @@ class SubtitleGraphBuilder:
             unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             use_content_aware = unified_config.content_aware
         except Exception as e:
-            logger.warning(f"Failed to parse subtitle settings, using fallback: {e}")
+            logger.warning("Failed to parse subtitle settings, using fallback: %s", e)
             use_content_aware = settings_dict.get("content_aware", True)
 
         current_stream = final_visual_stream
@@ -349,8 +349,9 @@ class SubtitleGraphBuilder:
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to get upper line style config, "
-                        f"using minimal defaults: {e}"
+                        "Failed to get upper line style config, using minimal "
+                        "defaults: %s",
+                        e,
                     )
                     upper_style_config = _MODERN_PRESET_DEFAULTS.copy()
 
@@ -388,9 +389,10 @@ class SubtitleGraphBuilder:
                             )
                             if self.debug_mode:
                                 logger.debug(
-                                    f"Upper subtitle using actual geometry: "
-                                    f"y={geom.rendered_y / frame_height:.2%}, "
-                                    f"height={geom.rendered_h / frame_height:.2%}"
+                                    "Upper subtitle using actual geometry: "
+                                    "y=%.2f%%, height=%.2f%%",
+                                    geom.rendered_y / frame_height * 100,
+                                    geom.rendered_h / frame_height * 100,
                                 )
                         else:
                             # Fall back to configured video positioning
@@ -411,9 +413,10 @@ class SubtitleGraphBuilder:
                                     )
                                     if self.debug_mode:
                                         logger.debug(
-                                            f"Upper subtitle using configured bounds: "
-                                            f"y={video_top_percent:.2%}, "
-                                            f"height={video_height_percent:.2%}"
+                                            "Upper subtitle using configured "
+                                            "bounds: y=%.2f%%, height=%.2f%%",
+                                            video_top_percent * 100,
+                                            video_height_percent * 100,
                                         )
 
                     position = calculate_position(
@@ -498,8 +501,9 @@ class SubtitleGraphBuilder:
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to get lower line style config, "
-                        f"using modern defaults: {e}"
+                        "Failed to get lower line style config, using modern defaults: "
+                        "%s",
+                        e,
                     )
                     lower_style_config = _MODERN_PRESET_DEFAULTS.copy()
 
@@ -696,7 +700,7 @@ class SubtitleGraphBuilder:
             try:
                 unified_config = SubtitleSettings.from_legacy_dict(settings_dict)
             except Exception as e:
-                logger.warning(f"Failed to parse unified subtitle config: {e}")
+                logger.warning("Failed to parse unified subtitle config: %s", e)
                 return original_ass_path
 
             if (
@@ -799,11 +803,11 @@ class SubtitleGraphBuilder:
                 for event_line in content_aware_events:
                     f.write(event_line + "\n")
 
-            logger.info(f"Created content-aware ASS file: {content_aware_ass_path}")
+            logger.info("Created content-aware ASS file: %s", content_aware_ass_path)
             return content_aware_ass_path
 
         except Exception as e:
-            logger.error(f"Failed to create content-aware ASS file: {e}")
+            logger.error("Failed to create content-aware ASS file: %s", e)
             return None
 
     async def _create_content_aware_upper_ass_file(

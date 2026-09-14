@@ -103,9 +103,7 @@ def write_scraped_data_output(
             except Exception:
                 # The product's primary artifact failed to write; a print
                 # never reached any log file, so the loss was invisible.
-                logger.error(
-                    "Failed to save product data for %s", product_id, exc_info=True
-                )
+                logger.exception("Failed to save product data for %s", product_id)
     else:
         logger.warning("Scraper returned non-list result, skipping save")
 

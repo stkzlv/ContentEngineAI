@@ -274,6 +274,8 @@ def setup_debug_logging(
     if mark_run:
         logger.info("=== %s run starting ===", component_name)
     logger.debug(
-        f"Logging initialized: level={logging.getLevelName(log_level)}, "
-        f"log_file={log_file}, verbose={verbose}"
+        "Logging initialized: level=%s, log_file=%s, verbose=%s",
+        logging.getLevelName(log_level),
+        log_file,
+        verbose,
     )

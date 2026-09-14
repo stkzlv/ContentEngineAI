@@ -36,40 +36,43 @@ def validate_srt_file(srt_path: Path, debug_mode: bool = False) -> bool:
 
     """
     if not srt_path.exists():
-        logger.error(f"SRT file not found: {srt_path}")
+        logger.error("SRT file not found: %s", srt_path)
         return False
 
     try:
         subs = pysrt.open(str(srt_path), encoding="utf-8")
 
         if not subs:
-            logger.warning(f"SRT file is empty: {srt_path}")
+            logger.warning("SRT file is empty: %s", srt_path)
             return False
 
         # Check for basic validity
         valid_segments = 0
         for i, sub in enumerate(subs):
             if not sub.text.strip():
-                logger.warning(f"Empty subtitle text at index {i}")
+                logger.warning("Empty subtitle text at index %s", i)
                 continue
             if sub.start is None or sub.end is None or sub.start >= sub.end:
-                logger.warning(f"Invalid timing at index {i}: {sub.start} >= {sub.end}")
+                logger.warning(
+                    "Invalid timing at index %s: %s >= %s", i, sub.start, sub.end
+                )
                 return False
             valid_segments += 1
 
         if valid_segments == 0:
-            logger.warning(f"No valid subtitle segments found in: {srt_path}")
+            logger.warning("No valid subtitle segments found in: %s", srt_path)
             return False
 
         if debug_mode:
             logger.debug(
-                f"SRT validation passed: {valid_segments} valid segments "
-                f"out of {len(subs)} total"
+                "SRT validation passed: %s valid segments out of %s total",
+                valid_segments,
+                len(subs),
             )
         return True
 
     except Exception as e:
-        logger.error(f"SRT validation failed: {e}")
+        logger.error("SRT validation failed: %s", e)
         return False
 
 
@@ -97,14 +100,16 @@ def validate_subtitle_segments(
         # Check required fields
         if "text" not in segment or "start" not in segment or "end" not in segment:
             logger.warning(
-                f"Missing required fields at segment {i}: "
-                f"required ['text', 'start', 'end'], got {list(segment.keys())}"
+                "Missing required fields at segment %s: required ['text', 'start', "
+                "'end'], got %s",
+                i,
+                list(segment.keys()),
             )
             continue
 
         # Check text content
         if not segment["text"] or not segment["text"].strip():
-            logger.warning(f"Empty text in segment {i}")
+            logger.warning("Empty text in segment %s", i)
             continue
 
         # Check timing validity
@@ -112,16 +117,19 @@ def validate_subtitle_segments(
         end_time = segment["end"]
 
         if not isinstance(start_time, int | float) or start_time < 0:
-            logger.warning(f"Invalid start time in segment {i}: {start_time}")
+            logger.warning("Invalid start time in segment %s: %s", i, start_time)
             return False
 
         if not isinstance(end_time, int | float) or end_time < 0:
-            logger.warning(f"Invalid end time in segment {i}: {end_time}")
+            logger.warning("Invalid end time in segment %s: %s", i, end_time)
             return False
 
         if start_time >= end_time:
             logger.warning(
-                f"Invalid timing in segment {i}: start {start_time} >= end {end_time}"
+                "Invalid timing in segment %s: start %s >= end %s",
+                i,
+                start_time,
+                end_time,
             )
             return False
 
@@ -133,8 +141,9 @@ def validate_subtitle_segments(
 
     if debug_mode:
         logger.debug(
-            f"Segment validation passed: {valid_segments} valid segments "
-            f"out of {len(segments)} total"
+            "Segment validation passed: %s valid segments out of %s total",
+            valid_segments,
+            len(segments),
         )
 
     return True
@@ -154,14 +163,14 @@ def validate_ass_file(ass_path: Path, debug_mode: bool = False) -> bool:
 
     """
     if not ass_path.exists():
-        logger.error(f"ASS file not found: {ass_path}")
+        logger.error("ASS file not found: %s", ass_path)
         return False
 
     try:
         content = ass_path.read_text(encoding="utf-8")
 
         if not content.strip():
-            logger.warning(f"ASS file is empty: {ass_path}")
+            logger.warning("ASS file is empty: %s", ass_path)
             return False
 
         # Check for essential ASS sections
@@ -172,22 +181,22 @@ def validate_ass_file(ass_path: Path, debug_mode: bool = False) -> bool:
                 missing_sections.append(section)
 
         if missing_sections:
-            logger.warning(f"ASS file missing required sections: {missing_sections}")
+            logger.warning("ASS file missing required sections: %s", missing_sections)
             return False
 
         # Count dialogue lines
         dialogue_lines = content.count("Dialogue:")
         if dialogue_lines == 0:
-            logger.warning(f"No dialogue lines found in ASS file: {ass_path}")
+            logger.warning("No dialogue lines found in ASS file: %s", ass_path)
             return False
 
         if debug_mode:
             logger.debug(
-                f"ASS validation passed: {dialogue_lines} dialogue lines found"
+                "ASS validation passed: %s dialogue lines found", dialogue_lines
             )
 
         return True
 
     except Exception as e:
-        logger.error(f"ASS validation failed: {e}")
+        logger.error("ASS validation failed: %s", e)
         return False

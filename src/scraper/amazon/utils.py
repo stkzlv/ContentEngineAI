@@ -140,7 +140,7 @@ def detect_regional_redirect(
         import logging
 
         logging.getLogger(__name__).debug(
-            f"Could not detect redirect for {original_url}: {e}"
+            "Could not detect redirect for %s: %s", original_url, e
         )
 
     return False, None

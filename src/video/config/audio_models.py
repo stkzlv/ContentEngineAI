@@ -121,9 +121,9 @@ class GoogleCloudTTSSettings(BaseModel):
     @model_validator(mode="after")
     def check_audio_config_ranges(self) -> "GoogleCloudTTSSettings":
         if not (TTS_SPEAKING_RATE_MIN <= self.speaking_rate <= TTS_SPEAKING_RATE_MAX):
-            logger.warning(f"Google TTS rate {self.speaking_rate} outside range.")
+            logger.warning("Google TTS rate %s outside range.", self.speaking_rate)
         if not (TTS_PITCH_MIN <= self.pitch <= TTS_PITCH_MAX):
-            logger.warning(f"Google TTS pitch {self.pitch} outside range.")
+            logger.warning("Google TTS pitch %s outside range.", self.pitch)
         return self
 
 
@@ -182,7 +182,7 @@ class TTSConfig(BaseModel):
                 valid_providers.append(name)
             else:
                 logger.warning(
-                    f"TTS provider '{name}' skipped (unavailable or config missing)."
+                    "TTS provider '%s' skipped (unavailable or config missing).", name
                 )
         if not valid_providers:
             # In test environments or when no providers are available,

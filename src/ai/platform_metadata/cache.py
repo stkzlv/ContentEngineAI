@@ -144,9 +144,9 @@ class MetadataCache:
         """Create cache directory if it doesn't exist."""
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-            logger.debug(f"Cache directory ready: {self.cache_dir}")
+            logger.debug("Cache directory ready: %s", self.cache_dir)
         except OSError as e:
-            logger.warning(f"Failed to create cache directory: {e}")
+            logger.warning("Failed to create cache directory: %s", e)
 
     def _get_cache_path(self, product_id: str, platform: str) -> Path:
         """Get the cache file path for a product/platform combination.
@@ -229,20 +229,22 @@ class MetadataCache:
         cache_path = self._get_cache_path(product_id, platform)
 
         if not cache_path.exists():
-            logger.debug(f"Cache miss (not found): {product_id}/{platform}")
+            logger.debug("Cache miss (not found): %s/%s", product_id, platform)
             return None
 
         try:
             entry = self._load_entry(cache_path)
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             # Handle cache corruption gracefully
-            logger.warning(f"Cache corruption detected, removing: {cache_path} ({e})")
+            logger.warning(
+                "Cache corruption detected, removing: %s (%s)", cache_path, e
+            )
             self._safe_remove(cache_path)
             return None
 
         # Check TTL expiration
         if entry.is_expired():
-            logger.debug(f"Cache miss (expired): {product_id}/{platform}")
+            logger.debug("Cache miss (expired): %s/%s", product_id, platform)
             self._safe_remove(cache_path)
             return None
 
@@ -251,13 +253,16 @@ class MetadataCache:
             current_hash = self.compute_product_hash(product)
             if current_hash != entry.product_hash:
                 logger.debug(
-                    f"Cache miss (product changed): {product_id}/{platform} "
-                    f"(hash: {entry.product_hash} -> {current_hash})"
+                    "Cache miss (product changed): %s/%s (hash: %s -> %s)",
+                    product_id,
+                    platform,
+                    entry.product_hash,
+                    current_hash,
                 )
                 self._safe_remove(cache_path)
                 return None
 
-        logger.info(f"Cache hit: {product_id}/{platform}")
+        logger.info("Cache hit: %s/%s", product_id, platform)
         return entry.metadata
 
     def set(
@@ -308,12 +313,14 @@ class MetadataCache:
         try:
             self._save_entry(entry, cache_path)
             logger.info(
-                f"Cached metadata: {product_id}/{platform} "
-                f"(expires: {expires_at.isoformat()})"
+                "Cached metadata: %s/%s (expires: %s)",
+                product_id,
+                platform,
+                expires_at.isoformat(),
             )
             return True
         except OSError as e:
-            logger.warning(f"Failed to cache metadata: {e}")
+            logger.warning("Failed to cache metadata: %s", e)
             return False
 
     def invalidate(self, product_id: str, platform: str | None = None) -> int:
@@ -339,7 +346,7 @@ class MetadataCache:
             cache_path = self._get_cache_path(product_id, platform)
             if self._safe_remove(cache_path):
                 count = 1
-                logger.info(f"Invalidated cache: {product_id}/{platform}")
+                logger.info("Invalidated cache: %s/%s", product_id, platform)
         else:
             # Invalidate all platforms for this product
             platforms = ["youtube", "tiktok", "instagram"]
@@ -349,7 +356,7 @@ class MetadataCache:
                     count += 1
 
             if count > 0:
-                logger.info(f"Invalidated {count} cache entries for {product_id}")
+                logger.info("Invalidated %s cache entries for %s", count, product_id)
 
         return count
 
@@ -369,7 +376,7 @@ class MetadataCache:
             if self._safe_remove(cache_file):
                 count += 1
 
-        logger.info(f"Cleared {count} cache entries")
+        logger.info("Cleared %s cache entries", count)
         return count
 
     def get_stats(self) -> dict:
@@ -468,7 +475,7 @@ class MetadataCache:
                 return True
             return False
         except OSError as e:
-            logger.warning(f"Failed to remove cache file {cache_path}: {e}")
+            logger.warning("Failed to remove cache file %s: %s", cache_path, e)
             return False
 
     def _enforce_max_entries(self) -> None:
@@ -487,4 +494,4 @@ class MetadataCache:
         entries_to_remove = len(cache_files) - self.settings.max_entries + 1
         for cache_file in cache_files[:entries_to_remove]:
             self._safe_remove(cache_file)
-            logger.debug(f"Removed oldest cache entry: {cache_file.name}")
+            logger.debug("Removed oldest cache entry: %s", cache_file.name)

@@ -96,8 +96,9 @@ class CircuitBreaker:
         if self.state == CircuitState.OPEN:
             if time.time() < self.next_attempt_time:
                 logger.warning(
-                    f"Circuit breaker {self.name} is OPEN, failing fast. "
-                    f"Next attempt in {self.next_attempt_time - time.time():.1f}s"
+                    "Circuit breaker %s is OPEN, failing fast. Next attempt in %.1fs",
+                    self.name,
+                    self.next_attempt_time - time.time(),
                 )
                 raise CircuitBreakerError(
                     f"Circuit breaker {self.name} is OPEN. Service temporarily "
@@ -134,8 +135,9 @@ class CircuitBreaker:
         if self.state == CircuitState.OPEN:
             if time.time() < self.next_attempt_time:
                 logger.warning(
-                    f"Circuit breaker {self.name} is OPEN, failing fast. "
-                    f"Next attempt in {self.next_attempt_time - time.time():.1f}s"
+                    "Circuit breaker %s is OPEN, failing fast. Next attempt in %.1fs",
+                    self.name,
+                    self.next_attempt_time - time.time(),
                 )
                 raise CircuitBreakerError(
                     f"Circuit breaker {self.name} is OPEN. Service temporarily "
@@ -177,9 +179,9 @@ class CircuitBreaker:
         if self.state == CircuitState.HALF_OPEN:
             # Recovery successful, close the circuit
             self.state = CircuitState.CLOSED
-            logger.info(f"Circuit breaker {self.name} recovered - state: CLOSED")
+            logger.info("Circuit breaker %s recovered - state: CLOSED", self.name)
 
-        logger.debug(f"Circuit breaker {self.name} - successful call")
+        logger.debug("Circuit breaker %s - successful call", self.name)
 
     def _on_failure(self, exception: Exception):
         """Handle failed function execution."""
@@ -188,8 +190,11 @@ class CircuitBreaker:
         self.last_failure_time = time.time()
 
         logger.warning(
-            f"Circuit breaker {self.name} - failure "
-            f"{self.failure_count}/{self.failure_threshold}: {exception}"
+            "Circuit breaker %s - failure %s/%s: %s",
+            self.name,
+            self.failure_count,
+            self.failure_threshold,
+            exception,
         )
 
         if self.failure_count >= self.failure_threshold:
@@ -197,15 +202,16 @@ class CircuitBreaker:
             self.state = CircuitState.OPEN
             self.next_attempt_time = time.time() + self.timeout
             logger.error(
-                f"Circuit breaker {self.name} OPENED - threshold reached. "
-                f"Will retry after {self.timeout}s"
+                "Circuit breaker %s OPENED - threshold reached. Will retry after %ss",
+                self.name,
+                self.timeout,
             )
 
     def _transition_to_half_open(self):
         """Transition circuit to HALF_OPEN state for recovery testing."""
         self.state = CircuitState.HALF_OPEN
         logger.info(
-            f"Circuit breaker {self.name} attempting recovery - state: HALF_OPEN"
+            "Circuit breaker %s attempting recovery - state: HALF_OPEN", self.name
         )
 
     @property
@@ -249,7 +255,7 @@ class CircuitBreaker:
         self.failure_count = 0
         self.last_failure_time = None
         self.next_attempt_time = 0.0
-        logger.info(f"Circuit breaker {self.name} manually reset to CLOSED")
+        logger.info("Circuit breaker %s manually reset to CLOSED", self.name)
 
 
 def _load_circuit_breaker_config() -> dict[str, Any]:
@@ -266,7 +272,7 @@ def _load_circuit_breaker_config() -> dict[str, Any]:
                 result: dict[str, Any] = config.get("circuit_breaker", {})
                 return result
     except Exception as e:
-        logger.debug(f"Could not load circuit breaker config, using defaults: {e}")
+        logger.debug("Could not load circuit breaker config, using defaults: %s", e)
     return {}
 
 

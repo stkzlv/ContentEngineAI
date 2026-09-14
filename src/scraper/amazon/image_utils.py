@@ -447,8 +447,12 @@ def _validate_image_dimensions(
                 result = max_dimension >= min_dimension
                 if debug_mode and logger:
                     logger.debug(
-                        f"Actual dimensions: {width}x{height}, max: {max_dimension}px, "
-                        f"required: {min_dimension}px -> {'PASS' if result else 'FAIL'}"
+                        "Actual dimensions: %sx%s, max: %spx, required: %spx -> %s",
+                        width,
+                        height,
+                        max_dimension,
+                        min_dimension,
+                        "PASS" if result else "FAIL",
                     )
 
                 return result

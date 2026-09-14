@@ -266,10 +266,10 @@ def ensure_outputs_structure(custom_outputs_dir: str | None = None) -> None:
         # Create Botasaurus cache
         get_botasaurus_cache_directory(custom_outputs_dir)
 
-        logger.debug(f"Outputs structure ensured at: {outputs_root}")
+        logger.debug("Outputs structure ensured at: %s", outputs_root)
 
     except Exception as e:
-        logger.error(f"Failed to ensure outputs structure: {e}")
+        logger.error("Failed to ensure outputs structure: %s", e)
         raise
 
 

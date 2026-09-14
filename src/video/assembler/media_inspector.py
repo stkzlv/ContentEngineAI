@@ -117,14 +117,15 @@ class MediaInspector:
             stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
                 logger.warning(
-                    f"ffprobe failed to get dimensions for {file_path.name}: "
-                    f"{stderr.decode()}"
+                    "ffprobe failed to get dimensions for %s: %s",
+                    file_path.name,
+                    stderr.decode(),
                 )
                 return 0, 0
             w_str, h_str = stdout.decode().strip().split("x")
             return int(w_str), int(h_str)
         except Exception as e:
-            logger.error(f"Error getting dimensions for {file_path.name}: {e}")
+            logger.error("Error getting dimensions for %s: %s", file_path.name, e)
             return 0, 0
 
     async def get_media_duration(self, file_path: Path) -> float:
