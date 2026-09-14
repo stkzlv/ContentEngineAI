@@ -60,26 +60,31 @@ def _logging_setup_calls(node: ast.AST) -> list[ast.Call]:
     ]
 
 
-def _module_scope_imports(tree: ast.Module) -> list[ast.alias]:
-    """Every `setup_debug_logging` alias bound while the module imports.
+def _module_scope_imports(tree: ast.Module) -> list[tuple[ast.alias, bool]]:
+    """Every `setup_debug_logging` alias bound while the module imports,
+    each with whether it landed in a class namespace rather than the
+    module's.
 
     Anything nested in a module-scope `try:`, `if:`, `match:` or class body
     binds the name just as a top-level import does. A function body does not:
     a function-local import deliberately resolves through the patched source
     module at call time.
     """
-    found: list[ast.alias] = []
-    stack: list[ast.AST] = list(tree.body)
+    found: list[tuple[ast.alias, bool]] = []
+    stack: list[tuple[ast.AST, bool]] = [(node, False) for node in tree.body]
     while stack:
-        node = stack.pop()
+        node, in_class = stack.pop()
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         if isinstance(node, ast.ImportFrom):
             found.extend(
-                alias for alias in node.names if alias.name == "setup_debug_logging"
+                (alias, in_class)
+                for alias in node.names
+                if alias.name == "setup_debug_logging"
             )
+        nested = in_class or isinstance(node, ast.ClassDef)
         for field in ("body", "orelse", "finalbody", "handlers", "cases"):
-            stack.extend(getattr(node, field, None) or [])
+            stack.extend((child, nested) for child in getattr(node, field, None) or [])
     return found
 
 
@@ -364,25 +369,29 @@ class TestOnlyAnEntryPointConfiguresLogging:
         from tests.conftest import _LOGGING_SETUP_SITES
 
         bound: set[str] = set()
-        renamed: set[str] = set()
+        unreachable: set[str] = set()
         for path in (REPO / "src").rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))
-            for alias in _module_scope_imports(tree):
-                bound.add(_dotted_name(path))
-                if alias.asname:
-                    renamed.add(f"{_dotted_name(path)}:{alias.asname}")
+            for alias, in_class in _module_scope_imports(tree):
+                name = _dotted_name(path)
+                bound.add(name)
+                if alias.asname or in_class:
+                    unreachable.add(f"{name}:{alias.asname or 'in a class body'}")
 
+        # Both shapes bind the real helper somewhere the fixture's
+        # `setattr(module, "setup_debug_logging", ...)` does not reach -- under
+        # another name, or in a class namespace -- so listing the module would
+        # turn this guard green while the entry point still wrote to the log.
+        # They have to move, not be registered.
+        assert not unreachable, (
+            f"setup_debug_logging is bound where the test stand-in cannot "
+            f"replace it: {sorted(unreachable)}; import it at module scope "
+            f"under its own name, or inside the function that calls it"
+        )
         missing = sorted(bound - set(_LOGGING_SETUP_SITES))
         assert not missing, (
             f"modules bind setup_debug_logging but tests do not neutralise "
             f"it there: {missing}; add them to _LOGGING_SETUP_SITES"
-        )
-        # An `as` name is bound to the real helper and the fixture patches the
-        # attribute by its own name, so listing the module would not save it:
-        # the guard would go green while the entry point wrote to the log.
-        assert not renamed, (
-            f"setup_debug_logging is imported under another name, which the "
-            f"test stand-in cannot replace: {sorted(renamed)}"
         )
 
     def test_a_module_imported_during_a_test_picks_up_the_stand_in(self):
