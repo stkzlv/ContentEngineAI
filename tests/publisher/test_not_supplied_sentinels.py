@@ -45,7 +45,7 @@ class TestFailFastReachesTheLoader:
         """`action="store_true"` defaults to False, which the loader cannot
         tell from a deliberate `--fail-fast` absent... or present.
         """
-        from src.scraper.amazon.scraper import build_argument_parser
+        from src.scraper.amazon.cli import build_argument_parser
 
         args = build_argument_parser().parse_args([])
 
@@ -55,7 +55,7 @@ class TestFailFastReachesTheLoader:
         )
 
     def test_the_flag_still_works_when_passed(self):
-        from src.scraper.amazon.scraper import build_argument_parser
+        from src.scraper.amazon.cli import build_argument_parser
 
         args = build_argument_parser().parse_args(["--fail-fast"])
 
@@ -66,7 +66,7 @@ class TestFailFastReachesTheLoader:
         False, which leaves a user who configured `fail_fast: true` no way to
         ask for continue-on-error on one run. The paired form restores it.
         """
-        from src.scraper.amazon.scraper import build_argument_parser
+        from src.scraper.amazon.cli import build_argument_parser
 
         args = build_argument_parser().parse_args(["--no-fail-fast"])
 
@@ -224,7 +224,7 @@ def test_no_other_store_true_flag_feeds_a_not_supplied_resolver():
     import inspect
 
     from src.scraper.amazon import config as scraper_config
-    from src.scraper.amazon.scraper import build_argument_parser
+    from src.scraper.amazon.cli import build_argument_parser
 
     resolved = {
         name

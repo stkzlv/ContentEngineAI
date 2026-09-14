@@ -137,6 +137,7 @@ class TestTheScraperUnderStrict:
         import sys
         from unittest.mock import MagicMock, patch
 
+        from src.scraper.amazon import cli as scraper_cli
         from src.scraper.amazon import scraper as scraper_module
 
         controller = MagicMock()
@@ -144,7 +145,7 @@ class TestTheScraperUnderStrict:
 
         with (
             patch.object(sys, "argv", ["scraper", *argv]),
-            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch.object(scraper_cli, "BotasaurusAmazonScraper", MagicMock()),
             patch(
                 "src.scraper.amazon.batch_controller.BatchController",
                 return_value=controller,
@@ -243,6 +244,7 @@ class TestChunkedRunsKeepTheirLosses:
         import sys
         from unittest.mock import MagicMock, patch
 
+        from src.scraper.amazon import cli as scraper_cli
         from src.scraper.amazon import scraper as scraper_module
         from src.scraper.amazon.models import BatchSummary
 
@@ -275,7 +277,7 @@ class TestChunkedRunsKeepTheirLosses:
         ]
         with (
             patch.object(sys, "argv", argv),
-            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch.object(scraper_cli, "BotasaurusAmazonScraper", MagicMock()),
             patch(
                 "src.scraper.amazon.batch_controller.BatchController",
                 return_value=controller,

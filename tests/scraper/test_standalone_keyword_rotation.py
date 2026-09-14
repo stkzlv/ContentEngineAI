@@ -113,16 +113,16 @@ class TestBothPathsShareOneImplementation:
     def test_the_standalone_scraper_reads_the_same_one(self):
         import inspect
 
-        from src.scraper.amazon import scraper as scraper_module
+        from src.scraper.amazon import cli as scraper_cli
 
-        source = inspect.getsource(scraper_module)
+        source = inspect.getsource(scraper_cli)
 
         assert "def rotate_keyword_pool(" not in source
         assert "rotate_keyword_pool" in source
 
     def test_both_read_their_rotation_from_keyword_pillars(self):
         from src.pipeline.config import keywords_for_run as batch_one
-        from src.scraper.amazon.scraper import rotate_keyword_pool as standalone_one
+        from src.scraper.amazon.cli import rotate_keyword_pool as standalone_one
         from src.scraper.base import keyword_pillars
 
         assert batch_one is keyword_pillars.keywords_for_run
@@ -156,6 +156,7 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
         import sys
         from unittest.mock import MagicMock
 
+        from src.scraper.amazon import cli as scraper_cli
         from src.scraper.amazon import scraper as scraper_module
 
         seen: dict[str, object] = {}
@@ -174,7 +175,7 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
 
         with (
             patch.object(sys, "argv", ["scraper", *argv]),
-            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch.object(scraper_cli, "BotasaurusAmazonScraper", MagicMock()),
             patch.object(scraper_module.yaml, "safe_load", return_value=yaml_config),
             patch("src.scraper.base.keyword_pillars.date", _frozen_at(day)),
             patch(
