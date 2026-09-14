@@ -42,18 +42,29 @@ class ModularConfigAdapter:
         }
 
     def _load_yaml_file(self, file_path: Path) -> dict[str, Any]:
-        """Load a YAML file and return its contents."""
-        try:
-            if file_path.exists():
-                with open(file_path, encoding="utf-8") as f:
-                    content = yaml.safe_load(f)
-                    return content if isinstance(content, dict) else {}
-            else:
-                logger.warning("Config file not found: %s", file_path)
-                return {}
-        except Exception as e:
-            logger.error("Error loading config file %s: %s", file_path, e)
+        """Load a YAML file and return its contents.
+
+        A file that does not parse raises. It used to be logged and answered
+        with an empty dict, which is indistinguishable from a file of
+        defaults: a typo silently dropped every setting in that file, and the
+        run continued on model defaults with a different render at the end of
+        it. A missing file is different in kind and stays a warning -- the
+        five are optional layers, and an installation legitimately ships some
+        of them.
+        """
+        if not file_path.exists():
+            logger.warning("Config file not found: %s", file_path)
             return {}
+        with open(file_path, encoding="utf-8") as f:
+            content = yaml.safe_load(f)
+        if content is None:
+            return {}
+        if not isinstance(content, dict):
+            raise ValueError(
+                f"{file_path} does not contain a mapping "
+                f"(parsed as {type(content).__name__})"
+            )
+        return content
 
     def _merge_configs(self) -> dict[str, Any]:
         """Merge all modular config files into a single structure."""

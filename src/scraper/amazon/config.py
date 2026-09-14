@@ -249,6 +249,25 @@ def get_filename_pattern(file_type: str, **kwargs) -> str:
             return safe_filename
 
 
+# The search-parameter keys the YAML may carry, in the dataclass's own names.
+# `include_sponsored` and `skip_unavailable` are here because the bundled
+# scraper.yaml sets both and the per-key list this replaces read neither, so
+# setting them did nothing; they happen to match the dataclass defaults, so
+# reading them changes no shipped behaviour.
+_SEARCH_PARAMETER_KEYS = (
+    "min_price",
+    "max_price",
+    "min_rating",
+    "prime_only",
+    "free_shipping",
+    "brands",
+    "sort_order",
+    "category",
+    "include_sponsored",
+    "skip_unavailable",
+)
+
+
 def get_default_search_parameters():
     """Get default search parameters from YAML config
 
@@ -265,15 +284,12 @@ def get_default_search_parameters():
             .get("amazon", {})
             .get("default_search_parameters", {})
         )
+        # Only what the file carries; anything absent keeps the dataclass
+        # default. The per-key fallbacks this replaces were a second
+        # declaration of six defaults -- `sort_order` among them, which the
+        # retired config fallback declared a third time.
         return SearchParameters(
-            min_price=defaults.get("min_price"),
-            max_price=defaults.get("max_price"),
-            min_rating=defaults.get("min_rating"),
-            prime_only=defaults.get("prime_only", False),
-            free_shipping=defaults.get("free_shipping", False),
-            brands=defaults.get("brands", []),
-            sort_order=defaults.get("sort_order", "relevanceblender"),
-            category=defaults.get("category"),
+            **{key: defaults[key] for key in _SEARCH_PARAMETER_KEYS if key in defaults}
         )
     except Exception:
         # Return basic defaults if config fails

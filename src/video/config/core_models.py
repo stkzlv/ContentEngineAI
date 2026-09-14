@@ -47,6 +47,7 @@ from src.video.config.visual_models import (
     MergedProfileSettings,
     ProfileInfo,
     StockMediaSettings,
+    SystemTimeouts,
     VideoProcessingSettings,
     VideoProfile,
     VideoSettings,
@@ -699,6 +700,12 @@ class VideoConfig(BaseModel):
     media_validation: MediaValidationSettings | None = Field(None)
     llm_validation: LLMValidationSettings | None = Field(None)
     cta_detection: CTADetectionSettings | None = Field(None)
+    system_timeouts: SystemTimeouts = Field(
+        default_factory=lambda: SystemTimeouts(),  # type: ignore[call-arg]
+        description="Timeouts for local system commands. Carried by "
+        "config/core.yaml and merged into this config, but undeclared here "
+        "until the dotted-string reader that served it was removed.",
+    )
 
     project_root: Path = Field(
         default_factory=_project_root_factory,

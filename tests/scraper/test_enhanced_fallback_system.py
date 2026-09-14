@@ -23,41 +23,38 @@ from src.scraper.config_adapter import ScraperConfigAdapter
 class TestEnhancedFallbackSystem:
     """Test enhanced fallback logic across the configuration system."""
 
-    def test_unified_config_manager_video_fallback(self):
-        """Test UnifiedConfigManager video config fallback."""
+    def test_a_failed_video_config_load_propagates(self):
+        """It used to answer any failure with a hardcoded config -- 1920x1080
+        at 30fps with Arial 48 subtitles -- so a broken YAML changed the
+        render instead of stopping it.
+        """
         manager = UnifiedConfigManager(config_root="non/existent/path")
 
-        # Should use fallback when modular loading fails
-        with patch.object(
-            manager.video_adapter,
-            "get_merged_config_dict",
-            side_effect=Exception("Config error"),
+        with (
+            patch.object(
+                manager.video_adapter,
+                "get_merged_config_dict",
+                side_effect=Exception("Config error"),
+            ),
+            pytest.raises(Exception, match="Config error"),
         ):
-            config = manager.get_video_config({"debug": True})
+            manager.get_video_config({"debug": True})
 
-            # Should contain fallback values
-            assert config["debug_mode"] is True
-            assert config["global_output_directory"] == "outputs"
-            assert "audio_settings" in config
-            assert "video_settings" in config
-
-    def test_unified_config_manager_scraper_fallback(self):
-        """Test UnifiedConfigManager scraper config fallback."""
+    def test_a_failed_scraper_config_load_propagates(self):
+        """The scraper half already re-raised two exception types (#125); now
+        it substitutes nothing for any of them.
+        """
         manager = UnifiedConfigManager(config_root="non/existent/path")
 
-        # Should use fallback when modular loading fails
-        with patch.object(
-            manager.scraper_adapter,
-            "get_merged_config_dict",
-            side_effect=Exception("Config error"),
+        with (
+            patch.object(
+                manager.scraper_adapter,
+                "get_merged_config_dict",
+                side_effect=Exception("Config error"),
+            ),
+            pytest.raises(Exception, match="Config error"),
         ):
-            config = manager.get_scraper_config({"output_dir": "/custom/path"})
-
-            # Should contain fallback values with CLI override applied
-            assert "global_settings" in config
-            assert config["global_settings"]["debug_mode"] is True
-            assert "scrapers" in config
-            assert config["scrapers"]["amazon"]["enabled"] is True
+            manager.get_scraper_config({"output_dir": "/custom/path"})
 
     def test_scraper_config_adapter_refuses_malformed_yaml(self):
         """A file that is there but does not parse is a defect, not a state
@@ -213,33 +210,34 @@ class TestEnhancedFallbackSystem:
         assert config["section"]["subsection"]["setting"] == "value"
 
     @pytest.mark.integration
-    def test_fallback_system_integration(self):
-        """Integration test of complete fallback system."""
+    def test_an_empty_config_directory_is_not_a_working_config(self):
+        """The one case a substitute config made look healthy.
+
+        With nothing to read, the merged dict is empty, and the models refuse
+        it rather than a caller rendering on whatever the defaults happen to
+        be. CLI overrides cannot rescue it either: an override sets one key
+        on a config that still has none of the others.
+        """
+        from pydantic import ValidationError
+
+        from src.video.config_adapter import load_video_config_modular
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create empty config directory to trigger fallbacks
             manager = UnifiedConfigManager(config_root=temp_dir)
 
-            # Mock the adapters to simulate failure and force fallbacks
+            assert manager.get_video_config() == {}
+            # An override sets its own key and nothing else; `debug` writes
+            # both spellings, which is the precedence layer's business.
+            assert set(manager.get_video_config({"debug": True})) == {
+                "debug_mode",
+                "global_settings",
+            }
+
             with (
-                patch.object(
-                    manager.video_adapter,
-                    "get_merged_config_dict",
-                    side_effect=Exception("Config error"),
+                patch(
+                    "src.video.config_adapter.ModularConfigAdapter.get_merged_config_dict",
+                    return_value={},
                 ),
-                patch.object(
-                    manager.scraper_adapter,
-                    "get_merged_config_dict",
-                    side_effect=Exception("Config error"),
-                ),
+                pytest.raises(ValidationError),
             ):
-                # Test that system works end-to-end with fallbacks
-                video_config = manager.get_video_config()
-                scraper_config = manager.get_scraper_config()
-
-                # Both should have fallback values
-                assert video_config["debug_mode"] is True
-                assert scraper_config["global_settings"]["debug_mode"] is True
-
-                # Test CLI overrides work with fallbacks
-                video_config_override = manager.get_video_config({"debug": False})
-                assert video_config_override["debug_mode"] is False
+                load_video_config_modular()
