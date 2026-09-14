@@ -3,7 +3,7 @@
 Lazy `%` formatting is enforced by ruff (`G004`), but ruff does not count the
 placeholders: `logger.info("a %s b %s", one)` passes every linter and raises
 inside `logging` at runtime, where the handler swallows it to stderr and the
-call logs nothing. That failure mode arrived with the sweep that converted 640
+call logs nothing. That failure mode arrived with the sweep that converted 601
 f-string call sites, so the count is checked here rather than trusted.
 """
 
@@ -26,6 +26,7 @@ LOG_METHODS = {
     "critical",
     "exception",
     "fatal",
+    "log",
 }
 
 # A %-conversion, in the shape `logging` will hand to `str.__mod__`.
@@ -53,23 +54,41 @@ def placeholders(template: str) -> int | None:
 
 
 def literal_of(node: ast.AST) -> str | None:
-    """The static text of a message argument, if it has one."""
+    """The static text of a message argument, if it has one.
+
+    A concatenation or an f-string has no static text to count, and both are
+    ruff's business anyway (G003, G004).
+    """
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
-    if isinstance(node, ast.BinOp) or isinstance(node, ast.JoinedStr):
-        return None  # concatenation and f-strings are ruff's business (G003/G004)
     return None
 
 
+def _receiver(node: ast.AST) -> str:
+    """The dotted name a method was called on, as far as it is static."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return f"{_receiver(node.value)}.{node.attr}"
+    return ""
+
+
 def _calls(tree: ast.AST):
+    """Logging calls only.
+
+    The method names are shared: `warnings.warn` takes a category rather than
+    format arguments, and `parser.error` does no %-formatting at all, so
+    counting placeholders there would fail a correct call. The receiver has to
+    name a logger, or be the instance holding one.
+    """
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         if not isinstance(func, ast.Attribute) or func.attr not in LOG_METHODS:
             continue
-        # `warnings.warn` shares the name and takes a category, not args.
-        if getattr(func.value, "id", None) == "warnings":
+        receiver = _receiver(func.value)
+        if "log" not in receiver.lower() and receiver not in {"self", "cls"}:
             continue
         yield node
 
@@ -78,9 +97,11 @@ def mismatches(path: Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found: list[str] = []
     for call in _calls(tree):
-        if not call.args:
+        # `logger.log` takes the level first, so its message is one along.
+        index = 1 if getattr(call.func, "attr", "") == "log" else 0
+        if len(call.args) <= index:
             continue
-        template = literal_of(call.args[0])
+        template = literal_of(call.args[index])
         if template is None:
             continue
         if any(isinstance(arg, ast.Starred) for arg in call.args):
@@ -88,7 +109,7 @@ def mismatches(path: Path) -> list[str]:
         expected = placeholders(template)
         if expected is None:
             continue
-        supplied = len(call.args) - 1
+        supplied = len(call.args) - 1 - index
         if expected != supplied:
             found.append(
                 f"{path.relative_to(REPO)}:{call.lineno}: "
@@ -100,7 +121,9 @@ def mismatches(path: Path) -> list[str]:
 class TestFormatStringsMatchTheirArguments:
     def test_source_tree(self):
         found: list[str] = []
-        for directory in ("src", "tools"):
+        # Tests included: the sweep converted a call site there too, and a
+        # miscount is as silent in a test as it is in production.
+        for directory in ("src", "tools", "tests"):
             for path in sorted((REPO / directory).rglob("*.py")):
                 found.extend(mismatches(path))
         assert not found, "logging calls whose arguments do not match: " + "; ".join(

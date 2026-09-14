@@ -452,8 +452,9 @@ async def my_function():
 ```
 
 Pass the arguments, do not format the message: ruff's `G` and `LOG` rule
-groups reject an f-string in a logging call, and a literal percent sign in
-the message has to be written `%%`.
+groups reject an f-string in a logging call. In a message that takes
+arguments, write a literal percent sign as `%%`; in one that takes none,
+`logging` does no formatting, so a `%` stands for itself.
 
 Modules take a named logger and nothing more. Configuring the root logger
 (`setup_debug_logging`, `logging.basicConfig`) belongs in an entry point's
