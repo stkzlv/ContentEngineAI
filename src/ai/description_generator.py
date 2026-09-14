@@ -37,7 +37,7 @@ from src.ai.model_pool import (
     model_reject_reason,
 )
 from src.ai.prompt_selection import prompt_path_for
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
 from src.video.config.llm_settings import DescriptionValidationConfig, LLMSettings

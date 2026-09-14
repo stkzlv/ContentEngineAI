@@ -14,7 +14,7 @@ import pytest
 import yaml
 from aioresponses import aioresponses
 
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.scraper.base.models import Platform
 from src.utils import logging_setup
 from src.video.config import VideoConfig, VideoProfile, load_video_config

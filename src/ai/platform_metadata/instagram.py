@@ -19,7 +19,7 @@ from src.ai.platform_metadata.utilities import (
     strip_inline_markdown,
 )
 from src.ai.prompt_selection import prompt_path_for
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)

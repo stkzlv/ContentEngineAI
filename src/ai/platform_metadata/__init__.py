@@ -2,64 +2,129 @@
 
 This package provides platform-optimized metadata generation including titles,
 descriptions, captions, and hashtags tailored to each platform's best practices.
+
+**The re-exports resolve on first access, not at import.** Eager ones closed a
+real cycle: `core_models` imports `PlatformMetadataSettings` from this
+package's `models`, which ran this `__init__`, which imported `base`, which
+imports `description_generator`, which imports the video config -- so
+importing `description_generator` or `producer.steps` first died on a
+partially initialised module. The old producer `__init__` hid it by importing
+in a lucky order.
 """
 
-# Import for type hints and async
+from __future__ import annotations
+
 import asyncio
 import logging
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path  # runtime: _read_video_script builds paths with it
+from typing import TYPE_CHECKING, Any
 
-import aiohttp
+if TYPE_CHECKING:
+    import aiohttp
 
-from src.ai.platform_metadata.ab_testing import (
-    ABTestingSettings,
-    PlatformABConfig,
-    PromptVariant,
-    PromptVariantSelector,
-    VariantSelection,
-)
-from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
-from src.ai.platform_metadata.batch import (
-    BatchGenerationResult,
-    BatchMetadataGenerator,
-    ProductGenerationResult,
-    ProgressCallback,
-)
-from src.ai.platform_metadata.cache import MetadataCache
-from src.ai.platform_metadata.export import (
-    ExportFormat,
-    ExportResult,
-    MetadataExporter,
-)
-from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
-from src.ai.platform_metadata.models import (
-    BatchGenerationSettings,
-    ExportSettings,
-    InstagramPlatformSettings,
-    MetadataCacheSettings,
-    PlatformMetadata,
-    PlatformMetadataSettings,
-    TikTokPlatformSettings,
-    TrendSettings,
-    YouTubePlatformSettings,
-)
-from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
-from src.ai.platform_metadata.trends import TrendAwareHashtagGenerator
-from src.ai.platform_metadata.utilities import (
-    call_llm_api_with_retry,
-    fetch_and_select_model,
-    format_prompt,
-    generate_with_llm,
-    load_metadata_from_file,
-    load_prompt_template,
-    save_metadata_to_file,
-)
-from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
-from src.scraper.amazon.scraper import ProductData
-from src.video.config.llm_settings import LLMSettings
+    # Type checkers only; a module `__getattr__` returns `Any`.
+    from src.ai.platform_metadata.ab_testing import (
+        ABTestingSettings,
+        PlatformABConfig,
+        PromptVariant,
+        PromptVariantSelector,
+        VariantSelection,
+    )
+    from src.ai.platform_metadata.base import BasePlatformMetadataGenerator
+    from src.ai.platform_metadata.batch import (
+        BatchGenerationResult,
+        BatchMetadataGenerator,
+        ProductGenerationResult,
+        ProgressCallback,
+    )
+    from src.ai.platform_metadata.cache import MetadataCache
+    from src.ai.platform_metadata.export import (
+        ExportFormat,
+        ExportResult,
+        MetadataExporter,
+    )
+    from src.ai.platform_metadata.instagram import InstagramMetadataGenerator
+    from src.ai.platform_metadata.models import (
+        BatchGenerationSettings,
+        ExportSettings,
+        InstagramPlatformSettings,
+        MetadataCacheSettings,
+        PlatformMetadata,
+        PlatformMetadataSettings,
+        TikTokPlatformSettings,
+        TrendSettings,
+        YouTubePlatformSettings,
+    )
+    from src.ai.platform_metadata.tiktok import TikTokMetadataGenerator
+    from src.ai.platform_metadata.trends import TrendAwareHashtagGenerator
+    from src.ai.platform_metadata.utilities import (
+        call_llm_api_with_retry,
+        fetch_and_select_model,
+        format_prompt,
+        generate_with_llm,
+        load_metadata_from_file,
+        load_prompt_template,
+        save_metadata_to_file,
+    )
+    from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
+    from src.scraper.amazon.models import ProductData
+    from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
+
+_EXPORTS: dict[str, str] = {
+    "ABTestingSettings": "ab_testing",
+    "PlatformABConfig": "ab_testing",
+    "PromptVariant": "ab_testing",
+    "PromptVariantSelector": "ab_testing",
+    "VariantSelection": "ab_testing",
+    "BasePlatformMetadataGenerator": "base",
+    "BatchGenerationResult": "batch",
+    "BatchMetadataGenerator": "batch",
+    "ProductGenerationResult": "batch",
+    "ProgressCallback": "batch",
+    "MetadataCache": "cache",
+    "ExportFormat": "export",
+    "ExportResult": "export",
+    "MetadataExporter": "export",
+    "InstagramMetadataGenerator": "instagram",
+    "BatchGenerationSettings": "models",
+    "ExportSettings": "models",
+    "InstagramPlatformSettings": "models",
+    "MetadataCacheSettings": "models",
+    "PlatformMetadata": "models",
+    "PlatformMetadataSettings": "models",
+    "TikTokPlatformSettings": "models",
+    "TrendSettings": "models",
+    "YouTubePlatformSettings": "models",
+    "TikTokMetadataGenerator": "tiktok",
+    "TrendAwareHashtagGenerator": "trends",
+    "call_llm_api_with_retry": "utilities",
+    "fetch_and_select_model": "utilities",
+    "format_prompt": "utilities",
+    "generate_with_llm": "utilities",
+    "load_metadata_from_file": "utilities",
+    "load_prompt_template": "utilities",
+    "save_metadata_to_file": "utilities",
+    "YouTubeMetadataGenerator": "youtube",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve a re-export on first access (PEP 562)."""
+    module = _EXPORTS.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    import importlib
+
+    value = getattr(importlib.import_module(f"{__name__}.{module}"), name)
+    globals()[name] = value  # cached, so the lookup happens once
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_EXPORTS))
 
 
 def _read_video_script(
@@ -113,11 +178,13 @@ class PlatformMetadataFactory:
         # results = {"youtube": metadata, "tiktok": metadata, "instagram": metadata}
     """
 
-    # Platform generator mapping for extensibility
-    _PLATFORM_GENERATORS: dict[str, type[BasePlatformMetadataGenerator]] = {
-        "youtube": YouTubeMetadataGenerator,
-        "tiktok": TikTokMetadataGenerator,
-        "instagram": InstagramMetadataGenerator,
+    # The generator modules are named rather than imported: importing them
+    # here would undo the lazy re-exports above, since this class body runs
+    # at package import.
+    _PLATFORM_GENERATORS: dict[str, str] = {
+        "youtube": "YouTubeMetadataGenerator",
+        "tiktok": "TikTokMetadataGenerator",
+        "instagram": "InstagramMetadataGenerator",
     }
 
     @staticmethod
@@ -154,8 +221,14 @@ class PlatformMetadataFactory:
                 f"Supported platforms: {known_platforms}"
             )
 
-        generator_class = PlatformMetadataFactory._PLATFORM_GENERATORS[platform]
-        return generator_class(platform_settings)  # type: ignore[call-arg]
+        import sys
+
+        # Resolved through this package's own lazy lookup rather than by
+        # deriving a module name from the platform key: one map decides where
+        # a name lives, and the test that walks it then covers this path too.
+        name = PlatformMetadataFactory._PLATFORM_GENERATORS[platform]
+        generator_class = getattr(sys.modules[__name__], name)
+        return generator_class(platform_settings)  # type: ignore[no-any-return]
 
     @staticmethod
     async def generate_multi_platform(

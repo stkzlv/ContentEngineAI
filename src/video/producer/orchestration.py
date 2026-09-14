@@ -9,7 +9,7 @@ from typing import Any
 
 import aiohttp
 
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.utils import cleanup_temp_dirs, ensure_dirs_exist, sanitize_filename
 from src.utils.background_processing import (
     ResourcePreloader,

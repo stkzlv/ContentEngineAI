@@ -16,7 +16,7 @@ from typing import Any, cast
 
 from dotenv import load_dotenv
 
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.utils import cleanup_temp_dirs
 from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session

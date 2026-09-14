@@ -15,7 +15,7 @@ import aiohttp
 
 from src.ai.platform_metadata.cache import MetadataCache
 from src.ai.platform_metadata.models import PlatformMetadata
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.video.config.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)

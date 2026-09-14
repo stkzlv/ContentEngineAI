@@ -14,7 +14,7 @@ import re
 import shutil
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -34,12 +34,12 @@ try:
 except ImportError:
     AsyncRetrying = Retrying  # Fallback
 
-try:
+if TYPE_CHECKING:
+    # Annotation only, so Playwright is not imported here. This package is on
+    # the import path of everything, and the browser stack has no business in
+    # a process that only wanted a filename helper; the one function that
+    # takes a Page is handed one by a caller that already has Playwright.
     from playwright.async_api import Page
-except ImportError:
-
-    class Page:  # type: ignore
-        pass
 
 
 # Constants for file handling
@@ -379,7 +379,7 @@ def get_filename_from_url(
         return sanitize_filename(f"item_{identifier}{ext}")
 
 
-async def take_screenshot(page: Page, debug_dir: Path, name: str):
+async def take_screenshot(page: "Page", debug_dir: Path, name: str):
     """Takes a screenshot of the current Playwright page and saves it to a debug
     directory.
 

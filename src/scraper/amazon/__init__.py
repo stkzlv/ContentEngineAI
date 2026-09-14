@@ -16,48 +16,94 @@ Usage:
     scraper = BotasaurusAmazonScraper()
     products = scraper.scrape_products(["B0BTYCRJSS"])  # ASIN
     products = scraper.scrape_products(["wireless headphones"])  # Search
+
+**The re-exports resolve on first access, not at import.** A package's
+`__init__` runs whenever any submodule is imported, so eagerly re-exporting
+`browser_functions` here loaded Botasaurus and its Chromium driver into every
+process that merely wanted `models` -- which `src/pipeline/config.py` does.
 """
 
-# Main scraper class - primary interface
-# Browser automation
-from .browser_functions import (
-    create_dynamic_browser_function,
-    scrape_amazon_products_browser_impl,
-    scrape_single_product,
-)
+from typing import TYPE_CHECKING, Any
 
-# Configuration and utilities
-from .config import (
-    CONFIG,
-    get_default_search_parameters,
-    get_filename_pattern,
-    get_output_path,
-    load_browser_config_from_yaml,
-)
-from .downloader import download_file_sync, download_media_files
+if TYPE_CHECKING:
+    # Type checkers only; a module `__getattr__` returns `Any`, which would
+    # silence mypy at every call site that uses a re-exported name.
+    from .browser_functions import (
+        create_dynamic_browser_function,
+        scrape_amazon_products_browser_impl,
+        scrape_single_product,
+    )
+    from .config import (
+        CONFIG,
+        get_default_search_parameters,
+        get_filename_pattern,
+        get_output_path,
+        load_browser_config_from_yaml,
+    )
+    from .downloader import download_file_sync, download_media_files
+    from .media_extractor import (
+        extract_functional_videos_with_validation,
+        extract_high_res_images_botasaurus,
+        is_valid_high_res_image,
+        is_valid_video_url,
+        modify_amazon_image_for_high_res,
+    )
+    from .models import ProductData, SearchParameters, SerpProductInfo
+    from .scraper import BotasaurusAmazonScraper, main
+    from .search_builder import SearchParameterBuilder
+    from .utils import (
+        detect_monitors,
+        exponential_backoff_retry,
+        get_optimal_browser_position,
+        is_valid_product_data,
+        validate_asin_format,
+    )
 
-# Media extraction and download
-from .media_extractor import (
-    extract_functional_videos_with_validation,
-    extract_high_res_images_botasaurus,
-    is_valid_high_res_image,
-    is_valid_video_url,
-    modify_amazon_image_for_high_res,
-)
+_EXPORTS: dict[str, str] = {
+    "create_dynamic_browser_function": "browser_functions",
+    "scrape_amazon_products_browser_impl": "browser_functions",
+    "scrape_single_product": "browser_functions",
+    "CONFIG": "config",
+    "get_default_search_parameters": "config",
+    "get_filename_pattern": "config",
+    "get_output_path": "config",
+    "load_browser_config_from_yaml": "config",
+    "download_file_sync": "downloader",
+    "download_media_files": "downloader",
+    "extract_functional_videos_with_validation": "media_extractor",
+    "extract_high_res_images_botasaurus": "media_extractor",
+    "is_valid_high_res_image": "media_extractor",
+    "is_valid_video_url": "media_extractor",
+    "modify_amazon_image_for_high_res": "media_extractor",
+    "ProductData": "models",
+    "SearchParameters": "models",
+    "SerpProductInfo": "models",
+    "BotasaurusAmazonScraper": "scraper",
+    "main": "scraper",
+    "SearchParameterBuilder": "search_builder",
+    "detect_monitors": "utils",
+    "exponential_backoff_retry": "utils",
+    "get_optimal_browser_position": "utils",
+    "is_valid_product_data": "utils",
+    "validate_asin_format": "utils",
+}
 
-# Data models
-from .models import ProductData, SearchParameters, SerpProductInfo
-from .scraper import BotasaurusAmazonScraper, main
 
-# Search functionality
-from .search_builder import SearchParameterBuilder
-from .utils import (
-    detect_monitors,
-    exponential_backoff_retry,
-    get_optimal_browser_position,
-    is_valid_product_data,
-    validate_asin_format,
-)
+def __getattr__(name: str) -> Any:
+    """Resolve a re-export on first access (PEP 562)."""
+    module = _EXPORTS.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    import importlib
+
+    value = getattr(importlib.import_module(f"{__name__}.{module}"), name)
+    globals()[name] = value  # cached, so the lookup happens once
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_EXPORTS))
+
 
 # Expose main public interface
 __all__ = [

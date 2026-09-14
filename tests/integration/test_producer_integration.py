@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 
 
 @pytest.fixture

@@ -38,7 +38,7 @@ from src.ai.model_pool import (
     fetch_and_select_model,
     model_reject_reason,
 )
-from src.scraper.amazon.scraper import ProductData
+from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
 
