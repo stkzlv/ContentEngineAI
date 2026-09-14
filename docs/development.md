@@ -451,6 +451,10 @@ async def my_function():
         raise
 ```
 
+Pass the arguments, do not format the message: ruff's `G` and `LOG` rule
+groups reject an f-string in a logging call, and a literal percent sign in
+the message has to be written `%%`.
+
 Modules take a named logger and nothing more. Configuring the root logger
 (`setup_debug_logging`, `logging.basicConfig`) belongs in an entry point's
 `main()`, never at module scope: an import-time call redirects the root
@@ -710,10 +714,10 @@ def debug_config_access(config, setting_path: str):
     """Debug configuration access patterns"""
     try:
         value = getattr(config, setting_path)
-        logging.debug(f"Config {setting_path} = {value}")
+        logging.debug("Config %s = %s", setting_path, value)
         return value
     except AttributeError:
-        logging.warning(f"Config {setting_path} not found, using fallback")
+        logging.warning("Config %s not found, using fallback", setting_path)
         return None
 ```
 
