@@ -42,7 +42,7 @@ The standalone scraper accepts all of these. The global batch accepts the common
 | `--batch-size` | Process products in chunks of N | `--batch-size 10` |
 | `--output-dir` | Override output directory | `--output-dir tmp` |
 | `--no-profile-uses-videos` | Validate for an image-only profile: videos ignored, images required on their own | `--no-profile-uses-videos` |
-| `--profile-uses-videos` | Validate as if the profile uses scraped videos | `--profile-uses-videos` |
+| `--profile-uses-videos` | Keep the configured requirements, which count videos (same as passing neither flag) | `--profile-uses-videos` |
 
 ### Filtering
 | Argument | Description | Example |

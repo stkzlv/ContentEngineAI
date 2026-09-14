@@ -219,8 +219,9 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=None,
         help=(
-            "Validate media as if the target video profile uses scraped "
-            "videos. Omit both flags to use the configured requirements."
+            "Keep the configured media requirements, which already count "
+            "scraped videos. Same as passing neither flag; here so a script "
+            "can say which rule it means."
         ),
     )
     videos.add_argument(
@@ -793,10 +794,15 @@ def main() -> None:
     if args.profile_uses_videos is not None:
         # The `--profile NAME` path this replaces logged which profile it had
         # aligned with; an operator reading scraper.log still needs to see
-        # which validation rule a run used.
+        # which rule a run used. Only the false side changes anything: the
+        # one consumer tests `is False` (scraper.py, `effective_vid_count`),
+        # so the true side restates the configured requirements, as naming a
+        # video-using profile did before.
         logger.info(
-            "Media validation aligned with the flag: videos %s",
-            "enabled" if args.profile_uses_videos else "disabled",
+            "Media validation: %s",
+            "the configured requirements, which count videos"
+            if args.profile_uses_videos
+            else "videos ignored, images required on their own",
         )
 
     try:

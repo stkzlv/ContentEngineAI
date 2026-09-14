@@ -84,6 +84,43 @@ class TestTheScraperOwnsItsInputs:
         assert passed.get("profile_uses_videos") == "args.profile_uses_videos"
 
 
+class TestTheTestsPatchWhereTheCliReads:
+    """A patch on the wrong module intercepts nothing, and says nothing.
+
+    `main()` moved out of `scraper.py`, so the four tests that drive it and
+    patched `BotasaurusAmazonScraper` there kept passing while constructing
+    the real class ten times a session -- resetting the websocket logger and
+    leaving its filters attached. Nothing failed, which is why this is
+    pinned rather than left to the next mover to notice.
+    """
+
+    def test_every_main_driving_test_patches_the_cli_module(self):
+        drivers = [
+            path
+            for path in sorted((REPO / "tests").rglob("test_*.py"))
+            # This file carries the patterns it searches for, so it matches
+            # itself; the strings below are why it has to be skipped.
+            if path.name != "test_entry_point_boundaries.py"
+            and (
+                "scraper_module.main()" in path.read_text(encoding="utf-8")
+                or "scraper_mod.main()" in path.read_text(encoding="utf-8")
+            )
+        ]
+        assert drivers, "no test drives the scraper's main(); this guard is blind"
+
+        wrong = []
+        for path in drivers:
+            source = path.read_text(encoding="utf-8")
+            if 'scraper_mod, "BotasaurusAmazonScraper"' in source or (
+                'scraper_module, "BotasaurusAmazonScraper"' in source
+            ):
+                wrong.append(str(path.relative_to(REPO)))
+        assert not wrong, (
+            "these tests patch the scraper class on the module that no longer "
+            f"constructs it, so the real one is built: {wrong}"
+        )
+
+
 class TestTheEntryPointStaysReadable:
     def test_no_function_in_the_cli_is_oversized(self):
         tree = ast.parse(CLI.read_text(encoding="utf-8"))
