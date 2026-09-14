@@ -150,6 +150,7 @@ src/
 │   │   └── browser_utils.py  # Shared browser utilities
 │   ├── amazon/               # Amazon implementation
 │   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
+│   │   ├── cli.py            # Command line: parsing, dispatch, run summary
 │   │   ├── batch_controller.py # Batch scraping orchestration
 │   │   ├── browser_functions.py # Browser automation logic
 │   │   ├── botasaurus_output.py # Botasaurus output handling

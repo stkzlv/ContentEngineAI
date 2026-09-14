@@ -515,7 +515,7 @@ def isolate_root_logging():
 # source module reaches the function-local import and every module imported
 # after the patch, but not one that bound the name before it.
 _LOGGING_SETUP_SITES = (
-    "src.scraper.amazon.scraper",
+    "src.scraper.amazon.cli",
     "src.publisher.late.cli",
     "src.video.producer.cli",
     "src.video.producer.orchestration",

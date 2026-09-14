@@ -51,7 +51,7 @@ def test_later_chunks_are_given_an_empty_list_not_none():
     strict about the form it recognises: skipping an unfamiliar one would make
     this test pass on a call site it never inspected.
     """
-    tree = ast.parse(Path("src/scraper/amazon/scraper.py").read_text())
+    tree = ast.parse(Path("src/scraper/amazon/cli.py").read_text())
 
     calls = [
         node

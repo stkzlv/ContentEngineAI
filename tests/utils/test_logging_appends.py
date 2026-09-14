@@ -28,7 +28,9 @@ from src.utils.logging_setup import (
 from src.utils.outputs_paths import get_project_root
 
 REPO = get_project_root()
-_SCRAPER_SOURCE = (REPO / "src/scraper/amazon/scraper.py").read_text(encoding="utf-8")
+# The scraper's CLI, where `main()` lives; the scraper module itself
+# re-exports it for `python -m src.scraper.amazon.scraper`.
+_SCRAPER_SOURCE = (REPO / "src/scraper/amazon/cli.py").read_text(encoding="utf-8")
 
 
 def _scraper_main() -> ast.FunctionDef:
@@ -263,13 +265,15 @@ class TestTheMarkerMeansARunStarted:
         is the defect this file exists to keep out. Both mutations were tried
         and both slipped through the substring form.
         """
-        main = _scraper_main()
-        marking = [call for call in _logging_setup_calls(main) if _marks_run(call)]
+        module = ast.parse(_SCRAPER_SOURCE)
+        marking = [call for call in _logging_setup_calls(module) if _marks_run(call)]
         assert len(marking) == 1, (
-            "main() must configure logging exactly once with the marker on: "
+            "the CLI must configure logging exactly once with the marker on: "
             "no marking call leaves a real scrape without a boundary in an "
             "appended log, two of them fake a second run"
         )
+
+        main = _scraper_main()
 
         def index_of(predicate) -> int | None:
             for position, statement in enumerate(main.body):
@@ -278,7 +282,9 @@ class TestTheMarkerMeansARunStarted:
             return None
 
         parsed_at = index_of(lambda dumped: "parse_args" in dumped)
-        configured_at = index_of(lambda dumped: "setup_debug_logging" in dumped)
+        # The call that owns the marking `setup_debug_logging`, wherever the
+        # CLI keeps it; what matters is that main reaches it after parsing.
+        configured_at = index_of(lambda dumped: "_start_logging" in dumped)
 
         assert parsed_at is not None, "main() no longer parses arguments"
         assert configured_at is not None, "main() no longer configures logging"
@@ -302,17 +308,19 @@ class TestOnlyAnEntryPointConfiguresLogging:
     """
 
     def test_the_scraper_configures_nothing_at_import(self):
-        module_level = [
-            node
-            for node in ast.parse(_SCRAPER_SOURCE).body
-            if isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Call)
-            and _is_logging_setup(node.value)
-        ]
-        assert not module_level, (
-            "the scraper configures logging at import again, so importing "
-            "ProductData points root at the production scraper.log"
-        )
+        for name in ("cli.py", "scraper.py"):
+            source = (REPO / "src/scraper/amazon" / name).read_text(encoding="utf-8")
+            module_level = [
+                node
+                for node in ast.parse(source).body
+                if isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Call)
+                and _is_logging_setup(node.value)
+            ]
+            assert not module_level, (
+                f"{name} configures logging at import again, so importing "
+                "ProductData points root at the production scraper.log"
+            )
 
     def test_importing_the_module_leaves_root_alone(self):
         """Driven for real, in a subprocess.
