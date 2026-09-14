@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.118.3] - 2026-09-14
+
+### Changed
+- Logging calls use lazy `%` formatting everywhere, and ruff's `G` and `LOG` rule groups enforce it with no per-module ignores. 640 call sites carried f-strings, which format the message whether or not the level is enabled and lose the template a log aggregator groups by; the sweep was mechanical and every message is unchanged, with literal percent signs escaped. `logger.error(..., exc_info=True)` becomes `logger.exception(...)` at the 40 sites that used it.
+- A test counts each logging call's `%` placeholders against its arguments, which no linter does: a miscount raises inside `logging`, where the handler prints it to stderr and the call logs nothing.
+
 ## [0.118.2] - 2026-09-14
 
 ### Fixed

@@ -33,7 +33,7 @@ class URLShortenerRegistry:
 
         """
         cls._providers[provider] = shortener_class
-        logger.debug(f"Registered URL shortener: {provider.value}")
+        logger.debug("Registered URL shortener: %s", provider.value)
 
     @classmethod
     def get_shortener_class(

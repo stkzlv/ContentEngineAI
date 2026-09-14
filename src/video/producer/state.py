@@ -141,15 +141,15 @@ def _clean_producer_files(
             try:
                 if file_path.is_file():
                     file_path.unlink()
-                    logger.debug(f"Removed file: {file_path.name}")
+                    logger.debug("Removed file: %s", file_path.name)
                 elif file_path.is_dir():
                     shutil.rmtree(file_path)
-                    logger.debug(f"Removed directory: {file_path.name}")
+                    logger.debug("Removed directory: %s", file_path.name)
                 removed_count += 1
             except OSError as e:
-                logger.warning(f"Could not remove {file_path}: {e}")
+                logger.warning("Could not remove %s: %s", file_path, e)
 
-    logger.info(f"Cleaned {removed_count} producer-generated files/directories")
+    logger.info("Cleaned %s producer-generated files/directories", removed_count)
 
 
 def get_video_run_paths(
@@ -236,11 +236,11 @@ async def _save_pipeline_state(ctx: PipelineContext):
         state_file.write_text(
             json.dumps(ctx.state, indent=2, default=str), encoding="utf-8"
         )
-        logger.debug(f"Saved pipeline state to {state_file.name}")
+        logger.debug("Saved pipeline state to %s", state_file.name)
     except Exception as e:
         # The state file is load-bearing for resume; a silent save failure
         # corrupts the next resume, so the traceback is worth keeping.
-        logger.error("Failed to save pipeline state: %s", e, exc_info=True)
+        logger.exception("Failed to save pipeline state: %s", e)
 
 
 # Artifacts whose presence makes a step short-circuit and skip its work. Only
@@ -345,7 +345,7 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
         return False
 
     try:
-        logger.info(f"Loading existing state from {state_file.name}")
+        logger.info("Loading existing state from %s", state_file.name)
         state_data = json.loads(state_file.read_text(encoding="utf-8"))
 
         # Verify that all artifacts for completed steps still exist.
@@ -383,8 +383,12 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                     reason = _artifact_invalid_reason(ctx, key, path_str)
                     if reason is not None:
                         logger.warning(
-                            f"State is invalid. Artifact '{key}' for step "
-                            f"'{step}' {reason}. Restarting from step '{step}'."
+                            "State is invalid. Artifact '%s' for step '%s' %s. "
+                            "Restarting from step '%s'.",
+                            key,
+                            step,
+                            reason,
+                            step,
                         )
                         # Truncate state up to the failed step. Ordered by
                         # this profile's real order: on a script-first render
@@ -406,7 +410,7 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
         return True
     except (json.JSONDecodeError, KeyError) as e:
         logger.warning(
-            f"Could not parse state file {state_file.name}, starting fresh: {e}"
+            "Could not parse state file %s, starting fresh: %s", state_file.name, e
         )
         ctx.state = {}
         return False
@@ -565,7 +569,7 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
         step_state["cold_open_variant"] = ctx.state["cold_open_variant"]
 
     ctx.state[step_name] = step_state
-    logger.debug(f"Updated state for completed step: {step_name}")
+    logger.debug("Updated state for completed step: %s", step_name)
 
 
 def _load_artifacts_from_state(ctx: PipelineContext, step_name: str) -> bool:
@@ -574,7 +578,7 @@ def _load_artifacts_from_state(ctx: PipelineContext, step_name: str) -> bool:
     if state_entry.get("status") != "done":
         return False
 
-    logger.debug(f"Loading artifacts for skipped step '{step_name}' into context.")
+    logger.debug("Loading artifacts for skipped step '%s' into context.", step_name)
     try:
         if step_name == STEP_GATHER_VISUALS:
             path = Path(state_entry["artifacts"]["gathered_visuals_file"])
@@ -594,8 +598,10 @@ def _load_artifacts_from_state(ctx: PipelineContext, step_name: str) -> bool:
         # files directly.
     except (KeyError, FileNotFoundError) as e:
         logger.error(
-            f"Failed to load artifact for step '{step_name}': {e}. "
-            f"This may cause downstream failures."
+            "Failed to load artifact for step '%s': %s. This may cause downstream "
+            "failures.",
+            step_name,
+            e,
         )
         return False
     return True
@@ -652,8 +658,10 @@ def load_visuals_info(
                 stock_media.append(StockMediaInfo(**item_dict))
         except TypeError as e:
             logger.warning(
-                f"Skipping stock media item due to unexpected keyword argument: "
-                f"{e}. Item: {item_dict}"
+                "Skipping stock media item due to unexpected keyword argument: %s. "
+                "Item: %s",
+                e,
+                item_dict,
             )
     return scraped_imgs, scraped_vids, stock_media
 
@@ -676,9 +684,11 @@ async def _get_video_duration(video_path: Path, ffmpeg_path: str) -> float:
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            logger.warning(f"ffprobe failed for {video_path.name}: {stderr.decode()}")
+            logger.warning(
+                "ffprobe failed for %s: %s", video_path.name, stderr.decode()
+            )
             return 0.0
         return float(stdout.strip())
     except Exception as e:
-        logger.error(f"Error getting duration for {video_path.name}: {e}")
+        logger.error("Error getting duration for %s: %s", video_path.name, e)
         return 0.0

@@ -470,7 +470,7 @@ class BatchController:
         """
         duration_places = int(self.log_config["duration_decimal_places"])
 
-        self.logger.info("\n" + self.separator)
+        self.logger.info("\n%s", self.separator)
         self.logger.info("BATCH SCRAPING SUMMARY")
         self.logger.info(self.separator)
         self.logger.info("Total Attempted: %d", summary.total_attempted)

@@ -149,7 +149,7 @@ def get_style_config(
         if all_effects:
             selected_effect = random.choice(all_effects)  # noqa: S311
             base_config["effects"] = [selected_effect]
-            logger.debug(f"RANDOM preset selected effect: {selected_effect}")
+            logger.debug("RANDOM preset selected effect: %s", selected_effect)
 
         # Force randomization for fonts, colors, and effects
         if config:
@@ -160,9 +160,10 @@ def get_style_config(
     # Apply randomization if enabled and product_id provided
     if config and product_id:
         logger.debug(
-            f"Randomization check - config: {config is not None}, "
-            f"product_id: {product_id}, "
-            f"randomize_fonts: {config.randomize_fonts if config else 'N/A'}"
+            "Randomization check - config: %s, product_id: %s, randomize_fonts: %s",
+            config is not None,
+            product_id,
+            config.randomize_fonts if config else "N/A",
         )
         # Import here to avoid circular imports
         try:
@@ -170,9 +171,10 @@ def get_style_config(
 
             randomizer = RandomizationEngine(video_config=video_config)
             logger.debug(
-                f"RandomizationEngine imported successfully, calling "
-                f"generate_randomized_style with fonts={config.randomize_fonts}, "
-                f"colors={config.randomize_colors}"
+                "RandomizationEngine imported successfully, calling "
+                "generate_randomized_style with fonts=%s, colors=%s",
+                config.randomize_fonts,
+                config.randomize_colors,
             )
 
             # Apply font/color randomization
@@ -182,7 +184,7 @@ def get_style_config(
                 enable_color_randomization=config.randomize_colors,
                 base_style=base_config,
             )
-            logger.debug(f"Randomization result: {randomized_style}")
+            logger.debug("Randomization result: %s", randomized_style)
 
             # Merge randomized settings
             base_config.update(randomized_style)
@@ -190,16 +192,15 @@ def get_style_config(
             # Apply manual overrides if provided
             if config.selected_font:
                 base_config["font_name"] = config.selected_font
-                logger.debug(f"Font manually overridden to: {config.selected_font}")
+                logger.debug("Font manually overridden to: %s", config.selected_font)
 
             if config.selected_color_pair:
                 logger.debug(
-                    f"Color pair manually overridden to: "
-                    f"{config.selected_color_pair}"
+                    "Color pair manually overridden to: %s", config.selected_color_pair
                 )
 
         except ImportError as e:
-            logger.warning(f"Could not import RandomizationEngine: {e}")
+            logger.warning("Could not import RandomizationEngine: %s", e)
 
     return dict(base_config)
 

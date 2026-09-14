@@ -132,7 +132,7 @@ class WebhookNotifier:
             self._validated = is_valid
             self._validation_error = error
             if not is_valid:
-                logger.warning(f"Webhook URL validation failed: {error}")
+                logger.warning("Webhook URL validation failed: %s", error)
 
     def is_ready(self) -> bool:
         """Check if webhook notifier is ready to send notifications.
@@ -178,33 +178,42 @@ class WebhookNotifier:
                 ) as response:
                     if response.status < 400:
                         logger.debug(
-                            f"Webhook sent successfully: {response.status} "
-                            f"(attempt {attempt + 1})"
+                            "Webhook sent successfully: %s (attempt %s)",
+                            response.status,
+                            attempt + 1,
                         )
                         return True
 
                     # Log non-success status but continue to retry
                     logger.warning(
-                        f"Webhook returned status {response.status} "
-                        f"(attempt {attempt + 1}/{self.config.max_retries + 1})"
+                        "Webhook returned status %s (attempt %s/%s)",
+                        response.status,
+                        attempt + 1,
+                        self.config.max_retries + 1,
                     )
 
             except TimeoutError:
                 logger.warning(
-                    f"Webhook timeout after {self.config.timeout_sec}s "
-                    f"(attempt {attempt + 1}/{self.config.max_retries + 1})"
+                    "Webhook timeout after %ss (attempt %s/%s)",
+                    self.config.timeout_sec,
+                    attempt + 1,
+                    self.config.max_retries + 1,
                 )
 
             except aiohttp.ClientError as e:
                 logger.warning(
-                    f"Webhook request failed: {e} "
-                    f"(attempt {attempt + 1}/{self.config.max_retries + 1})"
+                    "Webhook request failed: %s (attempt %s/%s)",
+                    e,
+                    attempt + 1,
+                    self.config.max_retries + 1,
                 )
 
             except Exception as e:
                 logger.warning(
-                    f"Unexpected webhook error: {e} "
-                    f"(attempt {attempt + 1}/{self.config.max_retries + 1})"
+                    "Unexpected webhook error: %s (attempt %s/%s)",
+                    e,
+                    attempt + 1,
+                    self.config.max_retries + 1,
                 )
 
             # Wait before retry (except on last attempt)
@@ -213,7 +222,7 @@ class WebhookNotifier:
                 delay *= 2  # Exponential backoff
 
         logger.error(
-            f"Webhook failed after {self.config.max_retries + 1} attempts: {url}"
+            "Webhook failed after %s attempts: %s", self.config.max_retries + 1, url
         )
         return False
 
@@ -239,12 +248,12 @@ class WebhookNotifier:
 
         """
         if not self.is_ready():
-            logger.debug(f"Webhook not ready, skipping event: {event}")
+            logger.debug("Webhook not ready, skipping event: %s", event)
             return False
 
         # Check if event type is enabled
         if event not in self.config.events:
-            logger.debug(f"Event type not enabled: {event}")
+            logger.debug("Event type not enabled: %s", event)
             return False
 
         payload = {

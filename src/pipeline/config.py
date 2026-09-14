@@ -245,7 +245,7 @@ def save_pipeline_state(state: PipelineState, outputs_dir: Path) -> None:
 
     # Atomic rename
     temp_path.rename(state_path)
-    logger.debug(f"Saved pipeline state to {state_path}")
+    logger.debug("Saved pipeline state to %s", state_path)
 
 
 def load_pipeline_state(outputs_dir: Path) -> PipelineState | None:
@@ -265,7 +265,7 @@ def load_pipeline_state(outputs_dir: Path) -> PipelineState | None:
     state_path = get_state_file_path(outputs_dir)
 
     if not state_path.exists():
-        logger.debug(f"No pipeline state file found at {state_path}")
+        logger.debug("No pipeline state file found at %s", state_path)
         return None
 
     try:
@@ -276,22 +276,22 @@ def load_pipeline_state(outputs_dir: Path) -> PipelineState | None:
         state_dict["current_phase"] = PipelinePhase(state_dict["current_phase"])
 
         state = PipelineState(**state_dict)
-        logger.info(f"Loaded pipeline state from {state_path}")
-        logger.info(f"  Run ID: {state.run_id}")
-        logger.info(f"  Current phase: {state.current_phase.value}")
+        logger.info("Loaded pipeline state from %s", state_path)
+        logger.info("  Run ID: %s", state.run_id)
+        logger.info("  Current phase: %s", state.current_phase.value)
         logger.info(
-            f"  Completed phases: {', '.join(state.completed_phases) or 'none'}"
+            "  Completed phases: %s", ", ".join(state.completed_phases) or "none"
         )
 
         return state
 
     except json.JSONDecodeError as e:
-        logger.warning(f"Corrupted state file at {state_path}: {e}")
+        logger.warning("Corrupted state file at %s: %s", state_path, e)
         logger.warning("State file will be ignored. Starting fresh pipeline.")
         return None
 
     except (KeyError, TypeError, ValueError) as e:
-        logger.warning(f"Invalid state file format at {state_path}: {e}")
+        logger.warning("Invalid state file format at %s: %s", state_path, e)
         logger.warning("State file will be ignored. Starting fresh pipeline.")
         return None
 
@@ -307,7 +307,7 @@ def clear_pipeline_state(outputs_dir: Path) -> None:
     state_path = get_state_file_path(outputs_dir)
     if state_path.exists():
         state_path.unlink()
-        logger.debug(f"Cleared pipeline state at {state_path}")
+        logger.debug("Cleared pipeline state at %s", state_path)
 
 
 @dataclass

@@ -108,17 +108,17 @@ class SecretsValidationResult:
         """Log a summary of the validation result."""
         if self.present:
             logger.debug(
-                f"Secrets configured: {', '.join(s.name for s in self.present)}"
+                "Secrets configured: %s", ", ".join(s.name for s in self.present)
             )
         if self.missing_optional:
             logger.info(
-                f"Optional secrets not configured: "
-                f"{', '.join(s.name for s in self.missing_optional)}"
+                "Optional secrets not configured: %s",
+                ", ".join(s.name for s in self.missing_optional),
             )
         if self.missing_required:
             for secret in self.missing_required:
                 logger.error(
-                    f"Missing required secret: {secret.name} - {secret.description}"
+                    "Missing required secret: %s - %s", secret.name, secret.description
                 )
 
 
@@ -423,7 +423,7 @@ class UnifiedConfigManager:
             value = secret.get_value()
             if value:
                 present.append(secret)
-                logger.debug(f"Secret {secret.name}: {mask_secret(value)}")
+                logger.debug("Secret %s: %s", secret.name, mask_secret(value))
             elif secret.required:
                 missing_required.append(secret)
             else:

@@ -87,7 +87,7 @@ class PipelineGraph:
             name=name, dependencies=dependencies, function=function
         )
 
-        logger.debug(f"Added step '{name}' with dependencies: {dependencies}")
+        logger.debug("Added step '%s' with dependencies: %s", name, dependencies)
 
     def has_step(self, name: str) -> bool:
         """Check if a step exists in the pipeline.
@@ -113,7 +113,7 @@ class PipelineGraph:
         """
         if name in self.steps:
             self.steps[name].status = StepStatus.SKIPPED
-            logger.debug(f"Mapped step '{name}' as skipped")
+            logger.debug("Mapped step '%s' as skipped", name)
 
     def compute_execution_order(self) -> list[list[str]]:
         """Compute the optimal execution order for parallel execution.
@@ -156,7 +156,7 @@ class PipelineGraph:
                         in_degree[remaining_name] -= 1
 
         self.execution_order = execution_levels
-        logger.info(f"Computed execution order: {execution_levels}")
+        logger.info("Computed execution order: %s", execution_levels)
         return execution_levels
 
     async def execute_step(self, step_name: str, context: Any) -> StepResult:
@@ -178,7 +178,7 @@ class PipelineGraph:
         start_time = asyncio.get_event_loop().time()
 
         try:
-            logger.info(f"Starting execution of step: {step_name}")
+            logger.info("Starting execution of step: %s", step_name)
 
             # Check if step should be skipped (already completed in state)
             if (
@@ -189,7 +189,7 @@ class PipelineGraph:
                 result = StepResult(
                     step_name=step_name, status=StepStatus.SKIPPED, duration=0.0
                 )
-                logger.info(f"Step '{step_name}' skipped - already completed")
+                logger.info("Step '%s' skipped - already completed", step_name)
                 return result
 
             # Execute the step function
@@ -203,7 +203,9 @@ class PipelineGraph:
             )
 
             step.result = result
-            logger.info(f"Step '{step_name}' completed successfully in {duration:.2f}s")
+            logger.info(
+                "Step '%s' completed successfully in %.2fs", step_name, duration
+            )
             return result
 
         except Exception as e:
@@ -227,7 +229,7 @@ class PipelineGraph:
             )
 
             step.result = result
-            logger.error(f"Step '{step_name}' failed after {duration:.2f}s: {e}")
+            logger.error("Step '%s' failed after %.2fs: %s", step_name, duration, e)
             return result
 
     async def execute_level(
@@ -250,7 +252,7 @@ class PipelineGraph:
             result = await self.execute_step(step_names[0], context)
             return [result]
 
-        logger.info(f"Executing {len(step_names)} steps in parallel: {step_names}")
+        logger.info("Executing %s steps in parallel: %s", len(step_names), step_names)
 
         # Execute all steps in parallel
         tasks = [self.execute_step(step_name, context) for step_name in step_names]
@@ -301,8 +303,10 @@ class PipelineGraph:
 
         for level_index, level_steps in enumerate(self.execution_order):
             logger.info(
-                f"Executing level {level_index + 1}/{len(self.execution_order)}: "
-                f"{level_steps}"
+                "Executing level %s/%s: %s",
+                level_index + 1,
+                len(self.execution_order),
+                level_steps,
             )
 
             level_results = await self.execute_level(level_steps, context)
@@ -311,10 +315,10 @@ class PipelineGraph:
             # Check for failures
             failed_steps = [r for r in level_results if r.status == StepStatus.FAILED]
             if failed_steps and fail_fast:
-                logger.error(f"Pipeline failed at level {level_index + 1}")
+                logger.error("Pipeline failed at level %s", level_index + 1)
                 for failed_result in failed_steps:
                     logger.error(
-                        f"  - {failed_result.step_name}: {failed_result.error}"
+                        "  - %s: %s", failed_result.step_name, failed_result.error
                     )
                 break
 
@@ -323,10 +327,10 @@ class PipelineGraph:
         skipped_steps = [r for r in all_results if r.status == StepStatus.SKIPPED]
 
         logger.info(
-            f"Pipeline execution completed: "
-            f"{len(completed_steps)} completed, "
-            f"{len(skipped_steps)} skipped, "
-            f"{len(failed_steps)} failed"
+            "Pipeline execution completed: %s completed, %s skipped, %s failed",
+            len(completed_steps),
+            len(skipped_steps),
+            len(failed_steps),
         )
 
         return all_results

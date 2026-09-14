@@ -113,7 +113,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             api_key_env = settings.api_key_env_var
             api_key = secrets.get(api_key_env)
             if not api_key:
-                logger.error(f"Missing API key: {api_key_env}")
+                logger.error("Missing API key: %s", api_key_env)
                 return None
 
             # Generate using LLM helper
@@ -179,20 +179,22 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             # Validate shortened affiliate link for YouTube
             if not product.shortened_affiliate_link:
                 logger.warning(
-                    f"Product {product.asin} has no shortened affiliate link. "
-                    "YouTube description will use full affiliate URL. "
-                    "Consider re-running scraper with URL shortening enabled."
+                    "Product %s has no shortened affiliate link. YouTube description "
+                    "will use full affiliate URL. Consider re-running scraper with URL "
+                    "shortening enabled.",
+                    product.asin,
                 )
             elif product.shortened_affiliate_link == product.affiliate_link:
                 logger.warning(
-                    f"Product {product.asin} affiliate link was not shortened. "
-                    "Picsee API may have failed. YouTube description will use "
-                    "full-length URL which may hurt engagement."
+                    "Product %s affiliate link was not shortened. Picsee API may have "
+                    "failed. YouTube description will use full-length URL which may "
+                    "hurt engagement.",
+                    product.asin,
                 )
             else:
                 logger.info(
-                    f"YouTube metadata will use shortened link: "
-                    f"{product.shortened_affiliate_link}"
+                    "YouTube metadata will use shortened link: %s",
+                    product.shortened_affiliate_link,
                 )
 
             # Create metadata object with validation
@@ -209,7 +211,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             # Validate and recreate with proper status if needed
             is_valid, error_msg = self.validate(temp_metadata)
             if not is_valid:
-                logger.error(f"YouTube metadata validation failed: {error_msg}")
+                logger.error("YouTube metadata validation failed: %s", error_msg)
                 # Recreate with error status
                 metadata = PlatformMetadata.create(
                     platform="youtube",
@@ -227,7 +229,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             return temp_metadata
 
         except Exception as e:
-            logger.error(f"Error generating YouTube metadata: {e}", exc_info=True)
+            logger.exception("Error generating YouTube metadata: %s", e)
             return None
 
     def validate(self, metadata: PlatformMetadata) -> tuple[bool, str]:
@@ -268,7 +270,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             elif title_len < 50:
                 # Warning, not error - but log it
                 logger.warning(
-                    f"Title shorter than optimal: {title_len} chars (optimal 50-60)"
+                    "Title shorter than optimal: %s chars (optimal 50-60)", title_len
                 )
 
         # Validate description length
@@ -369,5 +371,5 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             return title, description, hashtags, keywords
 
         except Exception as e:
-            logger.error(f"Error parsing LLM response: {e}", exc_info=True)
+            logger.exception("Error parsing LLM response: %s", e)
             return None

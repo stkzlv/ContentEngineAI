@@ -214,8 +214,9 @@ class BatchMetadataGenerator:
 
         started_at = datetime.now(UTC)
         logger.info(
-            f"Starting batch metadata generation for {len(products)} products "
-            f"(max_concurrent={self.max_concurrent})"
+            "Starting batch metadata generation for %s products (max_concurrent=%s)",
+            len(products),
+            self.max_concurrent,
         )
 
         # Initialize semaphore for rate limiting
@@ -259,7 +260,9 @@ class BatchMetadataGenerator:
                     product, "id", f"product_{idx}"
                 )
                 logger.error(
-                    f"Unexpected error for product {product_id}: {result}",
+                    "Unexpected error for product %s: %s",
+                    product_id,
+                    result,
                     exc_info=result,
                 )
                 results.append(
@@ -281,8 +284,11 @@ class BatchMetadataGenerator:
         total_duration = (completed_at - started_at).total_seconds()
 
         logger.info(
-            f"Batch generation complete: {successful}/{len(products)} successful "
-            f"({failed} failed) in {total_duration:.1f}s"
+            "Batch generation complete: %s/%s successful (%s failed) in %.1fs",
+            successful,
+            len(products),
+            failed,
+            total_duration,
         )
 
         return BatchGenerationResult(
@@ -342,8 +348,11 @@ class BatchMetadataGenerator:
                             metadata_results[platform] = cached
                             from_cache[platform] = True
                             logger.debug(
-                                f"[{idx + 1}/{total}] Cache hit for "
-                                f"{product_id_str}/{platform}"
+                                "[%s/%s] Cache hit for %s/%s",
+                                idx + 1,
+                                total,
+                                product_id_str,
+                                platform,
                             )
                             continue
                     platforms_to_generate.append(platform)
@@ -388,8 +397,12 @@ class BatchMetadataGenerator:
                 self._report_progress(idx + 1, total, product_id_str, status)
 
                 logger.info(
-                    f"[{idx + 1}/{total}] {product_id_str}: {status} "
-                    f"(duration: {duration:.1f}s)"
+                    "[%s/%s] %s: %s (duration: %.1fs)",
+                    idx + 1,
+                    total,
+                    product_id_str,
+                    status,
+                    duration,
                 )
 
                 return ProductGenerationResult(
@@ -403,8 +416,11 @@ class BatchMetadataGenerator:
 
             except Exception as e:
                 logger.error(
-                    f"[{idx + 1}/{total}] Error generating metadata for "
-                    f"{product_id_str}: {e}",
+                    "[%s/%s] Error generating metadata for %s: %s",
+                    idx + 1,
+                    total,
+                    product_id_str,
+                    e,
                     exc_info=e,
                 )
 
@@ -433,4 +449,4 @@ class BatchMetadataGenerator:
             try:
                 self.progress_callback(current, total, product_id, status)
             except Exception as e:
-                logger.warning(f"Progress callback error: {e}")
+                logger.warning("Progress callback error: %s", e)

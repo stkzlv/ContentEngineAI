@@ -158,7 +158,7 @@ async def generate_with_llm(
         # Step 1: Load template
         template = load_prompt_template(template_path)
         if debug_mode:
-            logger.info(f"Loaded template from {template_path}")
+            logger.info("Loaded template from %s", template_path)
 
         # Step 2: Format with product data
         prompt = format_prompt(
@@ -180,7 +180,7 @@ async def generate_with_llm(
             )
 
         if debug_mode:
-            logger.info(f"Formatted prompt ({len(prompt)} chars)")
+            logger.info("Formatted prompt (%s chars)", len(prompt))
 
         # Step 3: Fetch available free models (OpenRouter only)
         if settings.provider == "openrouter":
@@ -205,18 +205,19 @@ async def generate_with_llm(
         # Step 5: Try each model until one succeeds
         for model in models_to_try:
             try:
-                logger.info(f"Attempting generation with model: {model}")
+                logger.info("Attempting generation with model: %s", model)
                 response = await call_llm_api_with_retry(
                     prompt, model, settings, api_key, session, api_settings
                 )
                 logger.info(
-                    f"Successfully generated content with {model} "
-                    f"({len(response)} chars)"
+                    "Successfully generated content with %s (%s chars)",
+                    model,
+                    len(response),
                 )
                 return response
 
             except Exception as e:
-                logger.warning(f"Model {model} failed: {e}")
+                logger.warning("Model %s failed: %s", model, e)
                 continue
 
         # Provider fallback: try fallback_provider if primary exhausted
@@ -265,10 +266,10 @@ async def generate_with_llm(
         return None
 
     except FileNotFoundError as e:
-        logger.error(f"Template file not found: {e}")
+        logger.error("Template file not found: %s", e)
         return None
     except Exception as e:
-        logger.error(f"Unexpected error in generate_with_llm: {e}", exc_info=True)
+        logger.exception("Unexpected error in generate_with_llm: %s", e)
         return None
 
 
@@ -327,12 +328,12 @@ def save_metadata_to_file(
             json.dump(metadata_dict, f, indent=2, ensure_ascii=False)
 
         if debug_mode:
-            logger.info(f"Saved {metadata.platform} metadata to {output_path}")
+            logger.info("Saved %s metadata to %s", metadata.platform, output_path)
 
         return True
 
     except Exception as e:
-        logger.error(f"Failed to save metadata to {output_path}: {e}", exc_info=True)
+        logger.exception("Failed to save metadata to %s: %s", output_path, e)
         return False
 
 
@@ -376,12 +377,12 @@ def load_metadata_from_file(file_path: Path) -> PlatformMetadata | None:
             prompt_variant=data.get("prompt_variant"),
         )
 
-        logger.info(f"Loaded {metadata.platform} metadata from {file_path}")
+        logger.info("Loaded %s metadata from %s", metadata.platform, file_path)
         return metadata
 
     except FileNotFoundError:
-        logger.warning(f"Metadata file not found: {file_path}")
+        logger.warning("Metadata file not found: %s", file_path)
         return None
     except Exception as e:
-        logger.error(f"Failed to load metadata from {file_path}: {e}", exc_info=True)
+        logger.exception("Failed to load metadata from %s: %s", file_path, e)
         return None

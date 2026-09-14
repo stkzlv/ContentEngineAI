@@ -127,15 +127,15 @@ class StockMediaFetcher:
         # Initialize Pexels client if API key is available
         if not self.api_key:
             logger.warning(
-                f"Pexels API key not found in {settings.pexels_api_key_env_var}. "
-                "Stock media fetching disabled."
+                "Pexels API key not found in %s. Stock media fetching disabled.",
+                settings.pexels_api_key_env_var,
             )
         else:
             try:
                 self.pexels_client = Pexels(self.api_key)
                 logger.debug("Pexels API client initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Pexels API client: {e}")
+                logger.error("Failed to initialize Pexels API client: %s", e)
                 self.pexels_client = None
 
     @retry_network()
@@ -154,7 +154,7 @@ class StockMediaFetcher:
 
         cache_key = (search_query, item_type, count, orientation, size)
         if cache_key in self._query_cache:
-            logger.debug(f"Using cached Pexels results for {cache_key}")
+            logger.debug("Using cached Pexels results for %s", cache_key)
             return self._query_cache[cache_key]
 
         # Use configurable search multiplier and max per page
@@ -177,8 +177,10 @@ class StockMediaFetcher:
                 max_per_page, max(count * multiplier, relevance[0].max_candidates)
             )
         logger.debug(
-            f"Searching Pexels for {item_type} with query '{search_query}' "
-            f"(per_page={per_page})..."
+            "Searching Pexels for %s with query '%s' (per_page=%s)...",
+            item_type,
+            search_query,
+            per_page,
         )
 
         fetched_items_raw: list[dict] = []
@@ -208,15 +210,18 @@ class StockMediaFetcher:
                 )
 
             logger.debug(
-                f"Found {len(fetched_items_raw)} potential {item_type} matching "
-                f"query '{search_query}'."
+                "Found %s potential %s matching query '%s'.",
+                len(fetched_items_raw),
+                item_type,
+                search_query,
             )
 
         except Exception as e:
-            logger.error(
-                f"Error searching Pexels API for {item_type} with query "
-                f"'{search_query}': {e}",
-                exc_info=True,
+            logger.exception(
+                "Error searching Pexels API for %s with query '%s': %s",
+                item_type,
+                search_query,
+                e,
             )
             return []
 
@@ -274,7 +279,7 @@ class StockMediaFetcher:
             processed_items, count, search_query, script, session
         )
         self._query_cache[cache_key] = selected_items  # Cache results
-        logger.debug(f"Selected {len(selected_items)} {item_type} for download.")
+        logger.debug("Selected %s %s for download.", len(selected_items), item_type)
         return selected_items
 
     def _relevance(self) -> tuple[Any, str] | None:
@@ -376,7 +381,7 @@ class StockMediaFetcher:
                 script=script,
                 session=session,
             )
-            logger.info(f"Queuing {len(selected_images)} stock images for download.")
+            logger.info("Queuing %s stock images for download.", len(selected_images))
             for i, item in enumerate(selected_images):
                 img_url = item.get("url")
                 author = item.get("photographer") or "Unknown"
@@ -384,7 +389,7 @@ class StockMediaFetcher:
                 source = item.get("source", self.settings.source)
                 if not img_url:
                     logger.warning(
-                        f"Skipping stock image {item_id or i} due to missing URL."
+                        "Skipping stock image %s due to missing URL.", item_id or i
                     )
                     continue
                 save_filename = get_filename_from_url(
@@ -406,7 +411,7 @@ class StockMediaFetcher:
                 script=script,
                 session=session,
             )
-            logger.info(f"Queuing {len(selected_videos)} stock videos for download.")
+            logger.info("Queuing %s stock videos for download.", len(selected_videos))
             for i, item in enumerate(selected_videos):
                 vid_url = item.get("url")
                 author = item.get("photographer") or "Unknown"
@@ -415,7 +420,7 @@ class StockMediaFetcher:
                 source = item.get("source", self.settings.source)
                 if not vid_url:
                     logger.warning(
-                        f"Skipping stock video {item_id or i} due to missing URL."
+                        "Skipping stock video %s due to missing URL.", item_id or i
                     )
                     continue
                 save_filename = get_filename_from_url(
@@ -430,11 +435,11 @@ class StockMediaFetcher:
 
         if not download_tasks:
             logger.warning(
-                f"No stock media queued for download for keywords: {search_query}."
+                "No stock media queued for download for keywords: %s.", search_query
             )
             return []
 
-        logger.info(f"Starting {len(download_tasks)} stock media downloads...")
+        logger.info("Starting %s stock media downloads...", len(download_tasks))
         download_results = await asyncio.gather(
             *[task for task, *_ in download_tasks], return_exceptions=True
         )
@@ -446,8 +451,10 @@ class StockMediaFetcher:
             )
             if isinstance(result, Exception):
                 logger.error(
-                    f"Stock media download failed for {media_type} from {media_url}: "
-                    f"{result}"
+                    "Stock media download failed for %s from %s: %s",
+                    media_type,
+                    media_url,
+                    result,
                 )
             elif result is True:
                 if save_path.exists() and save_path.stat().st_size > 0:
@@ -464,11 +471,12 @@ class StockMediaFetcher:
                     )
                 else:
                     logger.error(
-                        f"Stock media download reported success but file "
-                        f"missing/empty: {save_path}"
+                        "Stock media download reported success but file missing/empty: "
+                        "%s",
+                        save_path,
                     )
 
         logger.info(
-            f"Successfully downloaded {len(all_downloaded_info)} stock media items."
+            "Successfully downloaded %s stock media items.", len(all_downloaded_info)
         )
         return all_downloaded_info

@@ -493,13 +493,21 @@ class VisualFilterBuilder:
             if target_content_height is not None:
                 label = aspect_mode.upper()
                 logger.debug(
-                    f"[{label}] Constrained video: scale to "
-                    f"{target_width}x{scale_height}, "
-                    f"place in {target_width}x{target_height} at Y={pad_y}"
+                    "[%s] Constrained video: scale to %sx%s, place in %sx%s at Y=%s",
+                    label,
+                    target_width,
+                    scale_height,
+                    target_width,
+                    target_height,
+                    pad_y,
                 )
                 logger.debug(
-                    f"[{label}] Actual geometry: {actual_w}x{actual_h} "
-                    f"at ({actual_x}, {actual_y})"
+                    "[%s] Actual geometry: %sx%s at (%s, %s)",
+                    label,
+                    actual_w,
+                    actual_h,
+                    actual_x,
+                    actual_y,
                 )
 
         # Crop-to-fit mode: scale to fill, crop excess
@@ -513,7 +521,7 @@ class VisualFilterBuilder:
         else:
             # Invalid mode - fallback to letterbox with warning
             logger.warning(
-                f"Invalid aspect_mode '{aspect_mode}', falling back to letterbox"
+                "Invalid aspect_mode '%s', falling back to letterbox", aspect_mode
             )
             filter_string = (
                 f"{input_label}scale={target_width}:{target_height}:"
@@ -621,7 +629,7 @@ class VisualFilterBuilder:
         if video_files and video_settings.enable_format_normalization:
             if self.debug_mode:
                 logger.debug(
-                    f"Normalizing {len(video_files)} videos to H.264/30fps/yuv420p"
+                    "Normalizing %s videos to H.264/30fps/yuv420p", len(video_files)
                 )
             if self.normalize_video_callback:
                 video_files = list(
@@ -672,7 +680,7 @@ class VisualFilterBuilder:
             raise ValueError("No visual media could be prepared for the timeline.")
 
         if self.debug_mode and mode_info:
-            logger.debug(f"Visual assembly mode: {mode_info}")
+            logger.debug("Visual assembly mode: %s", mode_info)
 
         # Detect no-video scenario
         has_any_videos = any(is_video for _, _, is_video in timed_visuals)
@@ -700,7 +708,9 @@ class VisualFilterBuilder:
                 logger.info(
                     "No videos detected in video-centric profile - "
                     "applying image-optimized positioning "
-                    f"(top={fallback_top:.0%}, width={fallback_width:.0%})"
+                    "(top=%.0f%%, width=%.0f%%)",
+                    fallback_top * 100,
+                    fallback_width * 100,
                 )
 
         # Build filter chain
@@ -764,8 +774,10 @@ class VisualFilterBuilder:
                 video_height_percent = video_settings.video_content_height_percent
                 video_valign = video_settings.video_vertical_align
                 logger.debug(
-                    f"[VIDEO POS] top={video_top_percent:.2%}, "
-                    f"height={video_height_percent:.2%}, align={video_valign}"
+                    "[VIDEO POS] top=%.2f%%, height=%.2f%%, align=%s",
+                    video_top_percent * 100,
+                    video_height_percent * 100,
+                    video_valign,
                 )
 
                 target_content_height = int(height * video_height_percent)
@@ -798,9 +810,10 @@ class VisualFilterBuilder:
                 # Use actual geometry from apply_aspect_ratio_mode if available
                 if actual_geom:
                     logger.debug(
-                        f"Video {i}: Actual geometry "
-                        f"y={actual_geom.rendered_y}px, "
-                        f"height={actual_geom.rendered_h}px"
+                        "Video %s: Actual geometry y=%spx, height=%spx",
+                        i,
+                        actual_geom.rendered_y,
+                        actual_geom.rendered_h,
                     )
                     geometries.append(actual_geom)
                 else:
@@ -811,8 +824,10 @@ class VisualFilterBuilder:
                     else:
                         video_top_pixels = int(height * video_top_percent)
                     logger.debug(
-                        f"Video {i}: Config-based geometry "
-                        f"y={video_top_pixels}px, height={video_height_pixels}px"
+                        "Video %s: Config-based geometry y=%spx, height=%spx",
+                        i,
+                        video_top_pixels,
+                        video_height_pixels,
                     )
                     geometries.append(
                         VisualGeometry(

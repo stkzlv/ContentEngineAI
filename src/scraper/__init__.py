@@ -158,7 +158,7 @@ class ScraperFactory:
 
         except ImportError as e:
             logging.getLogger(__name__).debug(
-                f"Could not import {platform.value} scraper: {e}"
+                "Could not import %s scraper: %s", platform.value, e
             )
             raise ImportError(f"Platform {platform.value} module not available") from e
 
@@ -235,12 +235,12 @@ class MultiPlatformScraper:
                 results[platform] = products
 
                 logging.getLogger(__name__).info(
-                    f"Scraped {len(products)} products from {platform.value}"
+                    "Scraped %s products from %s", len(products), platform.value
                 )
 
             except Exception as e:
                 logging.getLogger(__name__).error(
-                    f"Failed to scrape {platform.value}: {e}"
+                    "Failed to scrape %s: %s", platform.value, e
                 )
                 results[platform] = []
 
@@ -252,7 +252,7 @@ class MultiPlatformScraper:
             try:
                 scraper.cleanup()
             except Exception as e:
-                logging.getLogger(__name__).debug(f"Cleanup warning: {e}")
+                logging.getLogger(__name__).debug("Cleanup warning: %s", e)
 
         self._scrapers.clear()
 

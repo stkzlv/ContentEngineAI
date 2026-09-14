@@ -148,7 +148,7 @@ def _validate_image_size_before_download(
             # Verify it's actually an image
             if content_type and not content_type.startswith("image/"):
                 if debug_mode and logger:
-                    logger.debug(f"[SMART-VALIDATION] Not an image: {content_type}")
+                    logger.debug("[SMART-VALIDATION] Not an image: %s", content_type)
                 return False
 
             if content_length:
@@ -186,26 +186,28 @@ def _validate_image_size_before_download(
                     if has_quality_hint:
                         if debug_mode and logger:
                             logger.info(
-                                f"[SMART-VALIDATION] Borderline size "
-                                f"({file_size} bytes) but quality hint "
-                                f"detected"
+                                "[SMART-VALIDATION] Borderline size (%s bytes) but "
+                                "quality hint detected",
+                                file_size,
                             )
                         return True
 
                 if debug_mode and logger:
                     if is_valid:
                         logger.info(
-                            f"[SMART-VALIDATION] Image size OK: "
-                            f"{file_size} bytes "
-                            f"(>= {effective_min_size}, "
-                            f"format: {content_type})"
+                            "[SMART-VALIDATION] Image size OK: %s bytes (>= %s, "
+                            "format: %s)",
+                            file_size,
+                            effective_min_size,
+                            content_type,
                         )
                     else:
                         logger.debug(
-                            f"[SMART-VALIDATION] Image too small: "
-                            f"{file_size} bytes "
-                            f"(< {effective_min_size}, "
-                            f"format: {content_type})"
+                            "[SMART-VALIDATION] Image too small: %s bytes (< %s, "
+                            "format: %s)",
+                            file_size,
+                            effective_min_size,
+                            content_type,
                         )
 
                 return is_valid
@@ -221,8 +223,8 @@ def _validate_image_size_before_download(
         else:
             if debug_mode and logger:
                 logger.debug(
-                    f"[SMART-VALIDATION] HTTP {response.status_code} "
-                    f"for URL validation"
+                    "[SMART-VALIDATION] HTTP %s for URL validation",
+                    response.status_code,
                 )
             return False
 
@@ -234,7 +236,5 @@ def _validate_image_size_before_download(
         return True  # Assume valid on timeout to avoid missing images
     except Exception as e:
         if debug_mode and logger:
-            logger.debug(
-                f"[SMART-VALIDATION] Validation error: {e}, " f"assuming valid"
-            )
+            logger.debug("[SMART-VALIDATION] Validation error: %s, assuming valid", e)
         return True  # Assume valid on error to avoid missing images

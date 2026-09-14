@@ -131,7 +131,7 @@ class BaseDownloader:
             return 200 <= response.status_code < 400
 
         except Exception as e:
-            self.logger.debug(f"URL validation failed for {url}: {e}")
+            self.logger.debug("URL validation failed for %s: %s", url, e)
             return False
 
     @scraper_circuit_breaker
@@ -182,16 +182,16 @@ class BaseDownloader:
 
             # Verify file was created and has content
             if filepath.exists() and filepath.stat().st_size > 0:
-                self.logger.debug(f"Downloaded {url} to {filepath}")
+                self.logger.debug("Downloaded %s to %s", url, filepath)
                 return True
             else:
-                self.logger.warning(f"Downloaded file is empty: {filepath}")
+                self.logger.warning("Downloaded file is empty: %s", filepath)
                 if filepath.exists():
                     filepath.unlink()
                 return False
 
         except Exception as e:
-            self.logger.error(f"Failed to download {url}: {e}")
+            self.logger.error("Failed to download %s: %s", url, e)
             # Clean up partial file
             if filepath.exists():
                 with contextlib.suppress(Exception):
@@ -234,16 +234,16 @@ class BaseDownloader:
 
                 # Verify file was created and has content
                 if filepath.exists() and filepath.stat().st_size > 0:
-                    self.logger.debug(f"Downloaded {url} to {filepath}")
+                    self.logger.debug("Downloaded %s to %s", url, filepath)
                     return True
                 else:
-                    self.logger.warning(f"Downloaded file is empty: {filepath}")
+                    self.logger.warning("Downloaded file is empty: %s", filepath)
                     if filepath.exists():
                         filepath.unlink()
                     return False
 
         except Exception as e:
-            self.logger.error(f"Failed to download {url}: {e}")
+            self.logger.error("Failed to download %s: %s", url, e)
             # Clean up partial file
             if filepath.exists():
                 with contextlib.suppress(Exception):
@@ -289,8 +289,11 @@ class BaseDownloader:
                 downloaded_files.append(str(filepath))
 
         self.logger.info(
-            f"Downloaded {len(downloaded_files)}/{len(urls)} {media_type} "
-            f"for {product_id}"
+            "Downloaded %s/%s %s for %s",
+            len(downloaded_files),
+            len(urls),
+            media_type,
+            product_id,
         )
 
         return downloaded_files
@@ -349,11 +352,14 @@ class BaseDownloader:
             if isinstance(result, str):
                 downloaded_files.append(result)
             elif isinstance(result, Exception):
-                self.logger.warning(f"Download task failed: {result}")
+                self.logger.warning("Download task failed: %s", result)
 
         self.logger.info(
-            f"Downloaded {len(downloaded_files)}/{len(urls)} {media_type} "
-            f"for {product_id}"
+            "Downloaded %s/%s %s for %s",
+            len(downloaded_files),
+            len(urls),
+            media_type,
+            product_id,
         )
 
         return downloaded_files

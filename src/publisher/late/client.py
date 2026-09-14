@@ -463,12 +463,11 @@ class LatePublisher(BasePublisher):
             except Exception as e:
                 # Unexpected errors - log full context and don't retry
                 err_type = type(e).__name__
-                logger.error(
+                logger.exception(
                     "%s unexpected error: %s: %s",
                     operation_name,
                     err_type,
                     e,
-                    exc_info=True,
                 )
                 raise
 

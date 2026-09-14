@@ -50,24 +50,24 @@ async def async_run_ffmpeg(
         stderr_str = stderr.decode(errors="ignore") if stderr else ""
 
         if not success:
-            logger.error(f"FFmpeg failed with return code {process.returncode}")
+            logger.error("FFmpeg failed with return code %s", process.returncode)
             if stderr_str:
-                logger.error(f"FFmpeg stderr: {stderr_str}")
+                logger.error("FFmpeg stderr: %s", stderr_str)
 
         return success, stdout_str, stderr_str
 
     except TimeoutError:
-        logger.error(f"FFmpeg process timed out after {timeout_sec} seconds")
+        logger.error("FFmpeg process timed out after %s seconds", timeout_sec)
         if "process" in locals():
             try:
                 process.kill()
                 await process.wait()
             except Exception as e:
-                logger.debug(f"Error terminating process: {e}")
+                logger.debug("Error terminating process: %s", e)
         return False, "", "Process timed out"
 
     except Exception as e:
-        logger.error(f"Error running FFmpeg command: {e}", exc_info=True)
+        logger.exception("Error running FFmpeg command: %s", e)
         return False, "", str(e)
 
 
@@ -113,7 +113,7 @@ async def async_probe_media(
         )
 
         if process.returncode != 0:
-            logger.warning(f"ffprobe failed for {file_path.name}: {stderr.decode()}")
+            logger.warning("ffprobe failed for %s: %s", file_path.name, stderr.decode())
             return None
 
         import json
@@ -122,17 +122,17 @@ async def async_probe_media(
         return result
 
     except TimeoutError:
-        logger.error(f"ffprobe timed out for {file_path.name}")
+        logger.error("ffprobe timed out for %s", file_path.name)
         if "process" in locals():
             try:
                 process.kill()
                 await process.wait()
             except Exception as e:
-                logger.debug(f"Error terminating process: {e}")
+                logger.debug("Error terminating process: %s", e)
         return None
 
     except Exception as e:
-        logger.error(f"Error probing {file_path.name}: {e}")
+        logger.error("Error probing %s: %s", file_path.name, e)
         return None
 
 
@@ -178,23 +178,23 @@ async def async_get_media_duration(
         )
 
         if process.returncode != 0:
-            logger.warning(f"ffprobe failed for {file_path.name}: {stderr.decode()}")
+            logger.warning("ffprobe failed for %s: %s", file_path.name, stderr.decode())
             return 0.0
 
         return float(stdout.decode().strip())
 
     except TimeoutError:
-        logger.error(f"ffprobe timed out for {file_path.name}")
+        logger.error("ffprobe timed out for %s", file_path.name)
         if "process" in locals():
             try:
                 process.kill()
                 await process.wait()
             except Exception as e:
-                logger.debug(f"Error terminating process: {e}")
+                logger.debug("Error terminating process: %s", e)
         return 0.0
 
     except Exception as e:
-        logger.error(f"Error getting duration for {file_path.name}: {e}")
+        logger.error("Error getting duration for %s: %s", file_path.name, e)
         return 0.0
 
 

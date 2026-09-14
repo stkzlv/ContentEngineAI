@@ -228,7 +228,7 @@ Operational gotchas the runbook captures (must-know inline):
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
 - **Type Annotations**: Use modern Python typing (`dict[str, Any]`, `| None`)
 - **Error Handling**: Specific exceptions (never bare `except Exception`), structured logging
-- **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings. No emojis in log messages (existing emoji-laden lines are pre-existing tech debt to clean up over time; new code emits plain text).
+- **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings -- ruff's `G`/`LOG` groups enforce this, so a new f-string call fails `ruff check` rather than being caught in review. A literal `%` in the message has to be written `%%`, and `tests/utils/test_lazy_logging.py` counts placeholders against arguments, which no linter does: a miscount raises inside `logging`, which prints it to stderr and logs nothing. No emojis in log messages (existing emoji-laden lines are pre-existing tech debt to clean up over time; new code emits plain text).
 - **Configuration**: Centralized in `src/video/config/` (Pydantic models)
 - **Secrets wiring**: the render pipeline's secrets dict is built once, by `collect_producer_secrets` in `src/video/producer/utils.py`, for both entry points (producer CLI and global batch). Adding an env var to the config model is the whole change; there are no per-entry-point copies to keep aligned any more. The audio provider `audio_providers[].settings` env vars are read dynamically; other modules use hardcoded lists.
 

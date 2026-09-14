@@ -117,14 +117,19 @@ class PicseeURLShortener(BaseURLShortener):
                     actual_delay = delay * jitter
 
                     logger.warning(
-                        f"{operation_name} failed (attempt {attempt + 1}/"
-                        f"{self.max_retries + 1}): {e}. "
-                        f"Retrying in {actual_delay:.2f}s..."
+                        "%s failed (attempt %s/%s): %s. Retrying in %.2fs...",
+                        operation_name,
+                        attempt + 1,
+                        self.max_retries + 1,
+                        e,
+                        actual_delay,
                     )
                     await asyncio.sleep(actual_delay)
                 else:
                     logger.error(
-                        f"{operation_name} failed after {self.max_retries + 1} attempts"
+                        "%s failed after %s attempts",
+                        operation_name,
+                        self.max_retries + 1,
                     )
 
         raise URLShortenerError(
@@ -182,7 +187,7 @@ class PicseeURLShortener(BaseURLShortener):
 
                 metadata = {"response": data.get("data", {})}
 
-                logger.info(f"Shortened URL: {url} -> {short_url}")
+                logger.info("Shortened URL: %s -> %s", url, short_url)
                 return ShortenedURL(
                     original_url=url,
                     short_url=short_url,
@@ -198,7 +203,7 @@ class PicseeURLShortener(BaseURLShortener):
         except URLShortenerError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error shortening URL: {e}")
+            logger.error("Unexpected error shortening URL: %s", e)
             raise URLShortenerError(f"Unexpected error: {e}") from e
 
     async def shorten_bulk(self, urls: list[str]) -> list[ShortenedURL]:
@@ -265,7 +270,7 @@ class PicseeURLShortener(BaseURLShortener):
                             )
                         )
 
-                logger.info(f"Bulk shortened {len(shortened_urls)} URLs")
+                logger.info("Bulk shortened %s URLs", len(shortened_urls))
                 return shortened_urls
 
         try:
@@ -276,7 +281,7 @@ class PicseeURLShortener(BaseURLShortener):
         except URLShortenerError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in bulk shortening: {e}")
+            logger.error("Unexpected error in bulk shortening: %s", e)
             raise URLShortenerError(f"Unexpected error: {e}") from e
 
     async def validate_api_key(self) -> bool:

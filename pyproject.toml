@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.118.2"
+version = "0.118.3"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -111,6 +111,8 @@ select = [
     "S",    # bandit (security issues)
     "D",    # pydocstyle (docstring style)
     "N",    # pep8-naming (naming conventions)
+    "G",    # flake8-logging-format (lazy %-formatting, not f-strings)
+    "LOG",  # flake8-logging (logging API misuse)
 ]
 ignore = [
     "F401",  # unused imports (handled by isort)

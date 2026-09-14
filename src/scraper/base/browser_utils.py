@@ -54,7 +54,7 @@ class BaseBrowserConfig:
             browser_config = platform_config.get("browser_config", {})
             options.update(browser_config)
         except Exception as e:
-            self.logger.debug(f"Could not load platform browser config: {e}")
+            self.logger.debug("Could not load platform browser config: %s", e)
 
         # Apply debug mode overrides
         if self.debug_mode:
@@ -144,7 +144,7 @@ class BaseBrowserConfig:
             import logging
 
             logging.getLogger(__name__).debug(
-                f"Could not load user agent from config: {e}"
+                "Could not load user agent from config: %s", e
             )
 
         # Default user agent

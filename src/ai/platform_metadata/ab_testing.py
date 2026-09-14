@@ -231,8 +231,11 @@ class PromptVariantSelector:
         template_path = self.project_root / selected.template_path
 
         logger.info(
-            f"A/B test: Selected variant '{selected.name}' for "
-            f"{platform}/{product_id} (hash: {selection_hash[:8]})"
+            "A/B test: Selected variant '%s' for %s/%s (hash: %s)",
+            selected.name,
+            platform,
+            product_id,
+            selection_hash[:8],
         )
 
         return VariantSelection(

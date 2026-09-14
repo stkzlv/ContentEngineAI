@@ -96,11 +96,11 @@ class BackgroundProcessor:
     ) -> BackgroundTask | None:
         """Start a background task if resources are available."""
         if len(self.active_tasks) >= self.max_concurrent_tasks:
-            logger.debug(f"Background task queue full, skipping task: {name}")
+            logger.debug("Background task queue full, skipping task: %s", name)
             return None
 
         if task_id in self.active_tasks:
-            logger.debug(f"Background task already running: {task_id}")
+            logger.debug("Background task already running: %s", task_id)
             return self.active_tasks[task_id]
 
         try:
@@ -115,7 +115,7 @@ class BackgroundProcessor:
             )
 
             self.active_tasks[task_id] = bg_task
-            logger.debug(f"Started background task: {name} (ID: {task_id})")
+            logger.debug("Started background task: %s (ID: %s)", name, task_id)
 
             # Add completion callback
             task.add_done_callback(lambda t: self._on_task_complete(task_id))
@@ -123,7 +123,7 @@ class BackgroundProcessor:
             return bg_task
 
         except Exception as e:
-            logger.error(f"Failed to start background task {name}: {e}")
+            logger.error("Failed to start background task %s: %s", name, e)
             return None
 
     def _on_task_complete(self, task_id: str) -> None:
@@ -137,15 +137,18 @@ class BackgroundProcessor:
 
             if bg_task.is_successful:
                 logger.debug(
-                    f"Background task completed successfully: {bg_task.name} "
-                    f"({bg_task.duration:.2f}s)"
+                    "Background task completed successfully: %s (%.2fs)",
+                    bg_task.name,
+                    bg_task.duration,
                 )
             else:
                 if bg_task.task.cancelled():
-                    logger.debug(f"Background task cancelled: {bg_task.name}")
+                    logger.debug("Background task cancelled: %s", bg_task.name)
                 else:
                     error = bg_task.task.exception()
-                    logger.warning(f"Background task failed: {bg_task.name} - {error}")
+                    logger.warning(
+                        "Background task failed: %s - %s", bg_task.name, error
+                    )
 
     async def wait_for_task(
         self, task_id: str, timeout: float | None = None
@@ -158,13 +161,13 @@ class BackgroundProcessor:
                     result = await asyncio.wait_for(bg_task.task, timeout=timeout)
                 else:
                     result = await bg_task.task
-                logger.debug(f"Background task result retrieved: {bg_task.name}")
+                logger.debug("Background task result retrieved: %s", bg_task.name)
                 return result
             except TimeoutError:
-                logger.warning(f"Background task timed out: {bg_task.name}")
+                logger.warning("Background task timed out: %s", bg_task.name)
                 return None
             except Exception as e:
-                logger.error(f"Background task error: {bg_task.name} - {e}")
+                logger.error("Background task error: %s - %s", bg_task.name, e)
                 return None
         else:
             # Check completed tasks
@@ -173,7 +176,7 @@ class BackgroundProcessor:
                     try:
                         return bg_task.task.result()
                     except Exception as e:
-                        logger.error(f"Error retrieving completed task result: {e}")
+                        logger.error("Error retrieving completed task result: %s", e)
                         return None
         return None
 
@@ -206,7 +209,7 @@ class BackgroundProcessor:
         if task_id in self.active_tasks:
             bg_task = self.active_tasks[task_id]
             bg_task.task.cancel()
-            logger.debug(f"Cancelled background task: {bg_task.name}")
+            logger.debug("Cancelled background task: %s", bg_task.name)
             return True
         return False
 
@@ -374,7 +377,7 @@ class ResourcePreloader:
             results = {}
 
             if prefetch_counts["images"] > 0 or prefetch_counts["videos"] > 0:
-                logger.debug(f"Pre-fetching stock media for query: {search_query}")
+                logger.debug("Pre-fetching stock media for query: %s", search_query)
                 # Create session for downloading (would need real session in practice)
                 from aiohttp import ClientSession
 
@@ -387,7 +390,7 @@ class ResourcePreloader:
                         session=session,
                     )
                 results["media_items"] = media_items
-                logger.debug(f"Pre-fetched {len(media_items)} stock media items")
+                logger.debug("Pre-fetched %s stock media items", len(media_items))
 
             # Cache the results for later use
             cache_key = f"stock_media_{hash(search_query)}"
@@ -400,7 +403,7 @@ class ResourcePreloader:
             return results
 
         except Exception as e:
-            logger.warning(f"Stock media pre-fetching failed: {e}")
+            logger.warning("Stock media pre-fetching failed: %s", e)
             return {}
 
     def get_preloaded_stock_media(self, keywords: list[str]) -> dict[str, Any] | None:
@@ -412,7 +415,7 @@ class ResourcePreloader:
             cached = self._preloaded_resources[cache_key]
             # Check if cache is still fresh (within 10 minutes)
             if time.time() - cached["timestamp"] < 600:
-                logger.debug(f"Using pre-loaded stock media for query: {search_query}")
+                logger.debug("Using pre-loaded stock media for query: %s", search_query)
                 results: dict[str, Any] = cached["results"]
                 return results
             else:
@@ -519,7 +522,7 @@ class TTSWarmer:
                     model = _initialize_coqui_tts_model(provider_config)
                     return model is not None
                 except Exception as e:
-                    logger.debug(f"Coqui model warming failed: {e}")
+                    logger.debug("Coqui model warming failed: %s", e)
                     return False
 
             success = await loop.run_in_executor(
@@ -534,7 +537,7 @@ class TTSWarmer:
             return result
 
         except Exception as e:
-            logger.warning(f"Failed to warm Coqui TTS model: {e}")
+            logger.warning("Failed to warm Coqui TTS model: %s", e)
             return False
 
     async def _warm_google_cloud_client(self, provider_config) -> bool:
@@ -558,17 +561,17 @@ class TTSWarmer:
 
                 self._warmed_models.add("google_cloud")
                 logger.debug(
-                    f"Google Cloud TTS client warmed successfully "
-                    f"({len(voices.voices)} voices available)"
+                    "Google Cloud TTS client warmed successfully (%s voices available)",
+                    len(voices.voices),
                 )
                 return True
 
             except Exception as e:
-                logger.debug(f"Google Cloud TTS warming failed: {e}")
+                logger.debug("Google Cloud TTS warming failed: %s", e)
                 return False
 
         except Exception as e:
-            logger.warning(f"Failed to warm Google Cloud TTS client: {e}")
+            logger.warning("Failed to warm Google Cloud TTS client: %s", e)
             return False
 
     def is_model_warmed(self, provider_name: str) -> bool:

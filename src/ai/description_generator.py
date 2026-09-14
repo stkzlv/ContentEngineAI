@@ -151,9 +151,9 @@ def save_debug_prompt(prompt: str, path: Path):
         ensure_dirs_exist(path)
         with path.open("w", encoding="utf-8") as f:
             f.write(prompt)
-        logger.debug(f"Saved formatted prompt to {path}")
+        logger.debug("Saved formatted prompt to %s", path)
     except Exception as e:
-        logger.error(f"Failed to save debug prompt to {path}: {e}", exc_info=True)
+        logger.exception("Failed to save debug prompt to %s: %s", path, e)
 
 
 async def _call_llm_api_with_retry(
@@ -456,7 +456,7 @@ async def generate_description(
     if not models_to_try:
         raise DescriptionGenerationError("No models available to generate description.")
 
-    logger.info(f"Order of models to attempt: {models_to_try}")
+    logger.info("Order of models to attempt: %s", models_to_try)
 
     # Load and format the description prompt template
     # Use absolute path to ensure it works regardless of working directory
@@ -485,7 +485,7 @@ async def generate_description(
                     if max_attempts > 1
                     else ""
                 )
-                logger.info(f"Trying LLM model: {model}{attempt_suffix}")
+                logger.info("Trying LLM model: %s%s", model, attempt_suffix)
                 description_text = await _call_llm_api_with_retry(
                     prompt, model, settings, api_key, session, api_settings
                 )
@@ -499,13 +499,14 @@ async def generate_description(
                 )
                 if is_complete:
                     logger.info(
-                        f"Description successfully generated with model: {model} - "
-                        f"{validation_reason}"
+                        "Description successfully generated with model: %s - %s",
+                        model,
+                        validation_reason,
                     )
                     return clean_description
                 else:
                     logger.warning(
-                        f"Description incomplete from {model}: {validation_reason}"
+                        "Description incomplete from %s: %s", model, validation_reason
                     )
                     # Save incomplete description for debugging if in debug mode
                     if debug_mode and "description" in intermediate_paths:
@@ -526,29 +527,31 @@ async def generate_description(
                                 )
                                 f.write(content)
                             logger.debug(
-                                f"Saved incomplete description to {incomplete_path}"
+                                "Saved incomplete description to %s", incomplete_path
                             )
                         except Exception as save_error:
                             logger.warning(
-                                f"Could not save incomplete description: {save_error}"
+                                "Could not save incomplete description: %s", save_error
                             )
 
                     if attempt < max_attempts - 1:
                         logger.info(
-                            f"Retrying with {model} for complete description..."
+                            "Retrying with %s for complete description...", model
                         )
                         continue
                     else:
                         logger.warning(
-                            f"Model {model} produced incomplete description after "
-                            f"{max_attempts} attempts"
+                            "Model %s produced incomplete description after %s "
+                            "attempts",
+                            model,
+                            max_attempts,
                         )
                         break
 
             except Exception as e:
-                logger.warning(f"Model {model} failed{attempt_suffix}: {e}")
+                logger.warning("Model %s failed%s: %s", model, attempt_suffix, e)
                 if attempt < max_attempts - 1:
-                    logger.info(f"Retrying {model} after error...")
+                    logger.info("Retrying %s after error...", model)
                     continue
                 else:
                     break
@@ -562,7 +565,7 @@ async def generate_description(
 
         for model in fallback_models:
             try:
-                logger.info(f"Fallback: trying discovered model {model}")
+                logger.info("Fallback: trying discovered model %s", model)
                 description_text = await _call_llm_api_with_retry(
                     prompt, model, settings, api_key, session, api_settings
                 )
@@ -571,12 +574,16 @@ async def generate_description(
                     clean_description, settings.description_validation
                 )
                 if is_complete:
-                    logger.info(f"Fallback success with {model} - {validation_reason}")
+                    logger.info(
+                        "Fallback success with %s - %s", model, validation_reason
+                    )
                     return clean_description
                 else:
-                    logger.warning(f"Fallback {model} incomplete: {validation_reason}")
+                    logger.warning(
+                        "Fallback %s incomplete: %s", model, validation_reason
+                    )
             except Exception as e:
-                logger.warning(f"Fallback model {model} failed: {e}")
+                logger.warning("Fallback model %s failed: %s", model, e)
                 continue
 
     # Provider fallback: try fallback_provider if primary exhausted all models

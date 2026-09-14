@@ -118,7 +118,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             api_key_env = settings.api_key_env_var
             api_key = secrets.get(api_key_env)
             if not api_key:
-                logger.error(f"Missing API key: {api_key_env}")
+                logger.error("Missing API key: %s", api_key_env)
                 return None
 
             # Determine caption style
@@ -153,7 +153,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 )
 
             if debug_mode:
-                logger.info(f"Instagram caption style: {caption_style}")
+                logger.info("Instagram caption style: %s", caption_style)
 
             # Call LLM API directly (custom formatting needed)
             from src.ai.platform_metadata.utilities import (
@@ -182,17 +182,18 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             response = None
             for model in models_to_try:
                 try:
-                    logger.info(f"Attempting generation with model: {model}")
+                    logger.info("Attempting generation with model: %s", model)
                     response = await call_llm_api_with_retry(
                         prompt, model, settings, api_key, session, api_settings
                     )
                     logger.info(
-                        f"Successfully generated content with {model} "
-                        f"({len(response)} chars)"
+                        "Successfully generated content with %s (%s chars)",
+                        model,
+                        len(response),
                     )
                     break
                 except Exception as e:
-                    logger.warning(f"Model {model} failed: {e}")
+                    logger.warning("Model %s failed: %s", model, e)
                     continue
 
             if not response:
@@ -233,7 +234,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             # Validate and recreate with proper status if needed
             is_valid, error_msg = self.validate(temp_metadata)
             if not is_valid:
-                logger.error(f"Instagram metadata validation failed: {error_msg}")
+                logger.error("Instagram metadata validation failed: %s", error_msg)
                 # Recreate with error status
                 metadata = PlatformMetadata.create(
                     platform="instagram",
@@ -251,7 +252,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             return temp_metadata
 
         except Exception as e:
-            logger.error(f"Error generating Instagram metadata: {e}", exc_info=True)
+            logger.exception("Error generating Instagram metadata: %s", e)
             return None
 
     def validate(self, metadata: PlatformMetadata) -> tuple[bool, str]:
@@ -299,8 +300,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             if caption_len > caption_len_target:
                 # Warning, not error - but still check
                 logger.warning(
-                    f"SEO caption longer than optimal: {caption_len} chars "
-                    f"(optimal {caption_len_target})"
+                    "SEO caption longer than optimal: %s chars (optimal %s)",
+                    caption_len,
+                    caption_len_target,
                 )
 
         # Validate hashtag count (15-30)
@@ -340,7 +342,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         caption_style = str(self.settings.get("caption_style", "seo"))
         if caption_style not in ["short", "seo"]:
             logger.warning(
-                f"Invalid caption_style '{caption_style}', defaulting to 'seo'"
+                "Invalid caption_style '%s', defaulting to 'seo'", caption_style
             )
             return "seo"
         return caption_style
@@ -365,7 +367,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                 # Truncate to 5 words
                 caption = " ".join(words[:5])
                 logger.warning(
-                    f"Short caption exceeded 5 words, truncated to: {caption}"
+                    "Short caption exceeded 5 words, truncated to: %s", caption
                 )
         else:  # SEO style
             max_len = self.settings["caption_length_seo"]
@@ -438,5 +440,5 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             return caption, hashtags, keywords
 
         except Exception as e:
-            logger.error(f"Error parsing LLM response: {e}", exc_info=True)
+            logger.exception("Error parsing LLM response: %s", e)
             return None

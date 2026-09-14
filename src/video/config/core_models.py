@@ -797,8 +797,10 @@ class VideoConfig(BaseModel):
         ):
             if field_name in video_overrides:
                 logger.debug(
-                    f"[TRACE] Profile '{profile_name}' overrides "
-                    f"{field_name}: {video_overrides[field_name]}"
+                    "[TRACE] Profile '%s' overrides %s: %s",
+                    profile_name,
+                    field_name,
+                    video_overrides[field_name],
                 )
         merged_video = self.video_settings.model_copy(update=video_overrides)
 
@@ -1127,7 +1129,7 @@ class VideoConfig(BaseModel):
         # Override dry_run if explicitly provided
         is_dry_run = dry_run if dry_run is not None else self.cleanup_settings.dry_run
 
-        logger.info(f"Starting outputs directory cleanup (dry_run={is_dry_run})")
+        logger.info("Starting outputs directory cleanup (dry_run=%s)", is_dry_run)
 
         cleanup_report: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
@@ -1148,7 +1150,7 @@ class VideoConfig(BaseModel):
 
         if not self.global_output_root_path.exists():
             logger.info(
-                f"Outputs directory does not exist: {self.global_output_root_path}"
+                "Outputs directory does not exist: %s", self.global_output_root_path
             )
             return cleanup_report
 
@@ -1212,8 +1214,10 @@ class VideoConfig(BaseModel):
         dirs_removed = cleanup_report["statistics"]["directories_removed"]
         bytes_freed = cleanup_report["statistics"]["bytes_freed"]
         logger.info(
-            f"Cleanup completed: {files_removed} files, "
-            f"{dirs_removed} directories removed, {bytes_freed} bytes freed"
+            "Cleanup completed: %s files, %s directories removed, %s bytes freed",
+            files_removed,
+            dirs_removed,
+            bytes_freed,
         )
 
         return cleanup_report
@@ -1291,9 +1295,9 @@ class VideoConfig(BaseModel):
 
                 if not dry_run:
                     path.unlink()
-                    logger.debug(f"Removed file: {path}")
+                    logger.debug("Removed file: %s", path)
                 else:
-                    logger.debug(f"Would remove file: {path}")
+                    logger.debug("Would remove file: %s", path)
 
             elif path.is_dir():
                 action_name = (
@@ -1307,14 +1311,14 @@ class VideoConfig(BaseModel):
 
                 if not dry_run:
                     shutil.rmtree(path)
-                    logger.debug(f"Removed directory: {path}")
+                    logger.debug("Removed directory: %s", path)
                 else:
-                    logger.debug(f"Would remove directory: {path}")
+                    logger.debug("Would remove directory: %s", path)
 
             return action
 
         except Exception as e:
-            logger.error(f"Failed to remove {path}: {e}")
+            logger.error("Failed to remove %s: %s", path, e)
             action.update(
                 {
                     "action": "error",
@@ -1353,10 +1357,10 @@ class VideoConfig(BaseModel):
 
                         if not dry_run:
                             item.rmdir()
-                            logger.debug(f"Removed empty directory: {item}")
+                            logger.debug("Removed empty directory: %s", item)
                             report["statistics"]["directories_removed"] += 1
                         else:
-                            logger.debug(f"Would remove empty directory: {item}")
+                            logger.debug("Would remove empty directory: %s", item)
 
                         report["actions"].append(action)
 
@@ -1393,10 +1397,10 @@ class VideoConfig(BaseModel):
             with report_path.open("w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2, ensure_ascii=False)
 
-            logger.info(f"Cleanup report saved to: {report_path}")
+            logger.info("Cleanup report saved to: %s", report_path)
 
         except Exception as e:
-            logger.error(f"Failed to save cleanup report: {e}")
+            logger.error("Failed to save cleanup report: %s", e)
 
 
 def load_video_config(config_path: Path) -> VideoConfig:
@@ -1416,7 +1420,7 @@ def load_video_config(config_path: Path) -> VideoConfig:
         ValueError: If config validation fails
 
     """
-    logger.info(f"Loading video config from: {config_path}")
+    logger.info("Loading video config from: %s", config_path)
     if not config_path.is_file():
         raise FileNotFoundError(f"Video config file not found: {config_path}")
     try:
@@ -1426,8 +1430,8 @@ def load_video_config(config_path: Path) -> VideoConfig:
             raise ValueError("Config file is not a valid dictionary.")
         return VideoConfig(**config_data)
     except ValidationError as e:
-        logger.error(f"Config validation error: {e}")
+        logger.error("Config validation error: %s", e)
         raise ValueError("Config validation failed.") from e
     except Exception as e:
-        logger.error(f"Error parsing config data: {e}", exc_info=True)
+        logger.exception("Error parsing config data: %s", e)
         raise ValueError("Unexpected error during config parsing.") from e

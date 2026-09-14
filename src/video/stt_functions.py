@@ -52,7 +52,7 @@ try:
 except ImportError:
     logger.warning("Google Cloud STT library not available. STT functionality limited.")
 except Exception as e:
-    logger.warning(f"Unexpected error during Google Cloud STT import: {e}")
+    logger.warning("Unexpected error during Google Cloud STT import: %s", e)
     GOOGLE_CLOUD_STT_AVAILABLE = False
 
 
@@ -124,9 +124,10 @@ async def generate_subtitles_with_whisper(
             _calculate_timeout(audio_duration, whisper_settings), whisper_settings
         )
         logger.info(
-            f"Audio duration: {audio_duration:.1f}s, "
-            f"timeout: {transcription_timeout:.1f}s"
-            + (" (capped by the render's remaining budget)" if capped_by_run else "")
+            "Audio duration: %.1fs, timeout: %.1fs%s",
+            audio_duration,
+            transcription_timeout,
+            " (capped by the render's remaining budget)" if capped_by_run else "",
         )
 
         # Add model config to options for subprocess
@@ -168,7 +169,7 @@ async def generate_subtitles_with_whisper(
                     timeout=limit,
                 )
                 elapsed = time.time() - start_time
-                logger.info(f"Whisper transcription completed in {elapsed:.1f}s")
+                logger.info("Whisper transcription completed in %.1fs", elapsed)
                 break
             except TimeoutError:
                 elapsed = time.time() - start_time
@@ -181,9 +182,11 @@ async def generate_subtitles_with_whisper(
                     "config/ai_services.yaml"
                 )
                 logger.error(
-                    f"Whisper transcription timed out after {elapsed:.1f}s "
-                    f"(limit: {limit:.1f}s). {remedy}, or run on a less "
-                    f"loaded machine."
+                    "Whisper transcription timed out after %.1fs (limit: %.1fs). %s, "
+                    "or run on a less loaded machine.",
+                    elapsed,
+                    limit,
+                    remedy,
                 )
                 if whisper_settings.enable_resource_monitoring:
                     _log_system_resources("after Whisper timeout")
@@ -191,7 +194,7 @@ async def generate_subtitles_with_whisper(
                     _cleanup_whisper_resources()
             except Exception as e:
                 elapsed = time.time() - start_time
-                logger.error(f"Whisper transcription failed after {elapsed:.1f}s: {e}")
+                logger.error("Whisper transcription failed after %.1fs: %s", elapsed, e)
                 if whisper_settings.enable_resource_monitoring:
                     _log_system_resources("after Whisper error")
                 if whisper_settings.enable_resource_cleanup:
@@ -227,7 +230,7 @@ async def generate_subtitles_with_whisper(
         if not word_list_whisper:
             logger.warning("Whisper provided no usable word timings.")
             return None
-        logger.info(f"Extracted {len(word_list_whisper)} word timings from Whisper.")
+        logger.info("Extracted %s word timings from Whisper.", len(word_list_whisper))
 
         # Apply timing smoothing to fix Whisper's coarse word timestamps.
         # Smooth both the flat list (for FFmpeg) and the raw dict (for pycaps).
@@ -285,7 +288,7 @@ async def generate_subtitles_with_whisper(
 
         return word_list_whisper
     except Exception as e:
-        logger.error(f"Whisper STT error: {e}", exc_info=True)
+        logger.exception("Whisper STT error: %s", e)
         return None
 
 
@@ -322,7 +325,7 @@ async def transcribe_with_google_cloud_stt(
         # Configure audio encoding
         encoding_name = settings.encoding.upper()
         if not hasattr(speech_v1.RecognitionConfig.AudioEncoding, encoding_name):
-            logger.error(f"Invalid Google STT encoding '{encoding_name}'.")
+            logger.error("Invalid Google STT encoding '%s'.", encoding_name)
             return None
 
         audio_encoding_enum = getattr(
@@ -379,12 +382,12 @@ async def transcribe_with_google_cloud_stt(
                     word_timings.append(word_timing)
 
         logger.info(
-            f"Google Cloud STT completed: {len(word_timings)} words with timing"
+            "Google Cloud STT completed: %s words with timing", len(word_timings)
         )
         return word_timings
 
     except Exception as e:
-        logger.error(f"Google Cloud STT error: {e}", exc_info=debug_mode)
+        logger.error("Google Cloud STT error: %s", e, exc_info=debug_mode)
         return None
 
 
@@ -410,10 +413,10 @@ def _load_whisper_model(whisper_settings: WhisperSettings, debug_mode: bool):
             download_root=whisper_settings.model_download_root
             or os.path.expanduser(DEFAULT_WHISPER_MODEL_DIR),
         )
-        logger.info(f"Whisper model loaded: {whisper_settings.model_size}")
+        logger.info("Whisper model loaded: %s", whisper_settings.model_size)
         return model
     except Exception as e:
-        logger.error(f"Failed to load Whisper model: {e}")
+        logger.error("Failed to load Whisper model: %s", e)
         return None
 
 
@@ -444,9 +447,11 @@ def _log_audio_file_info(audio_path: Path):
     """Log audio file information for debugging."""
     try:
         file_size = audio_path.stat().st_size
-        logger.debug(f"Audio file: {audio_path.name}, size: {file_size:,} bytes")
+        logger.debug(
+            "Audio file: %s, size: %s bytes", audio_path.name, f"{file_size:,}"
+        )
     except Exception as e:
-        logger.debug(f"Could not get audio file info: {e}")
+        logger.debug("Could not get audio file info: %s", e)
 
 
 def _log_system_resources(context: str):
@@ -455,13 +460,14 @@ def _log_system_resources(context: str):
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         logger.debug(
-            f"System resources {context}: "
-            f"CPU {cpu_percent:.1f}%, "
-            f"Memory {memory.percent:.1f}% "
-            f"({memory.available / 1024**3:.1f}GB available)"
+            "System resources %s: CPU %.1f%%, Memory %.1f%% (%.1fGB available)",
+            context,
+            cpu_percent,
+            memory.percent,
+            memory.available / 1024**3,
         )
     except Exception as e:
-        logger.debug(f"Could not log system resources: {e}")
+        logger.debug("Could not log system resources: %s", e)
 
 
 def _get_audio_duration(audio_path: Path) -> float:
@@ -487,7 +493,7 @@ def _get_audio_duration(audio_path: Path) -> float:
         )
         return float(result.stdout.strip())
     except (subprocess.SubprocessError, ValueError) as e:
-        logger.warning(f"Failed to get audio duration: {e}, using 60s fallback")
+        logger.warning("Failed to get audio duration: %s, using 60s fallback", e)
         return 60.0
 
 
@@ -671,7 +677,7 @@ def _save_whisper_debug_files(
                 f.write("\n\nWHISPER TEXT:\n")
                 f.write(result.get("text", ""))
 
-        logger.debug(f"Whisper debug files saved to {debug_dir}")
+        logger.debug("Whisper debug files saved to %s", debug_dir)
 
     except Exception as e:
-        logger.warning(f"Failed to save Whisper debug files: {e}")
+        logger.warning("Failed to save Whisper debug files: %s", e)

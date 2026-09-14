@@ -123,7 +123,7 @@ def discover_products_for_batch(
     products: list[tuple[Path, ProductData]] = []
 
     if not outputs_dir.exists():
-        logger.warning(f"Outputs directory does not exist: {outputs_dir}")
+        logger.warning("Outputs directory does not exist: %s", outputs_dir)
         return products
 
     for product_dir in outputs_dir.iterdir():
@@ -146,14 +146,14 @@ def discover_products_for_batch(
 
         data_file = product_dir / "data.json"
         if not data_file.exists():
-            logger.debug(f"Skipping {product_dir.name}: no data.json found")
+            logger.debug("Skipping %s: no data.json found", product_dir.name)
             continue
 
         if product_dir.name.startswith(TOPIC_ID_PREFIX) and not include_topics:
             # Topic renders need a stock-sourced profile. Batch discovery hands
             # products to product profiles, which would find no imagery here and
             # fail the run rather than skip it.
-            logger.debug(f"Skipping {product_dir.name}: topic directory")
+            logger.debug("Skipping %s: topic directory", product_dir.name)
             continue
 
         try:
@@ -163,19 +163,19 @@ def discover_products_for_batch(
                 if product_data:
                     product = ProductData(**product_data[0])
                 else:
-                    logger.warning(f"Empty product list in {data_file}")
+                    logger.warning("Empty product list in %s", data_file)
                     continue
             else:
                 product = ProductData(**product_data)
 
             products.append((product_dir, product))
-            logger.debug(f"Found valid product: {product_dir.name}")
+            logger.debug("Found valid product: %s", product_dir.name)
 
         except Exception as e:
-            logger.warning(f"Failed to load product data from {data_file}: {e}")
+            logger.warning("Failed to load product data from %s: %s", data_file, e)
             continue
 
-    logger.info(f"Discovered {len(products)} valid products for batch processing")
+    logger.info("Discovered %s valid products for batch processing", len(products))
     return products
 
 
@@ -723,19 +723,19 @@ async def main():
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             force=True,
         )
-        logger.critical(f"Config loading failed, using fallback logging: {e}")
+        logger.critical("Config loading failed, using fallback logging: %s", e)
         sys.exit(1)
 
     # Set up logging to both console and file
     log_file = setup_logging(config, args.debug)
-    logger.info(f"Video producer started - Log file: {log_file}")
+    logger.info("Video producer started - Log file: %s", log_file)
 
     # Validate configuration early to catch errors before processing
     logger.info("Validating configuration and runtime dependencies...")
     try:
         validate_config_and_exit_on_error(config)
     except SystemExit:
-        logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("Complete log saved to: %s", log_file)
         raise
 
     # Fail now, not three steps into the render, when a profile this run may
@@ -754,7 +754,7 @@ async def main():
     )
     if stock_key_error:
         logger.critical(stock_key_error)
-        logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("Complete log saved to: %s", log_file)
         sys.exit(1)
 
     # Apply script template override to LLM settings
@@ -767,20 +767,20 @@ async def main():
 
     # Log applied CLI overrides (already applied via config loader)
     if cli_overrides:
-        logger.info(f"Applied {len(cli_overrides)} CLI override(s):")
+        logger.info("Applied %s CLI override(s):", len(cli_overrides))
         for key, value in cli_overrides.items():
-            logger.info(f"  {key} = {value}")
+            logger.info("  %s = %s", key, value)
 
     try:
         secrets = collect_producer_secrets(config)
     except Exception as e:
-        logger.critical(f"Config/Secrets Error: {e}", exc_info=True)
-        logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("Config/Secrets Error: %s", e, exc_info=True)
+        logger.critical("Complete log saved to: %s", log_file)
         sys.exit(1)
 
     if not shutil.which(config.ffmpeg_settings.executable_path or "ffmpeg"):
         logger.error("FFmpeg not found in PATH or at specified executable_path.")
-        logger.error(f"Complete log saved to: {log_file}")
+        logger.error("Complete log saved to: %s", log_file)
         sys.exit(1)
     try:
         if args.batch:
@@ -793,7 +793,7 @@ async def main():
                 outputs_path = project_root / args.outputs_dir
             discovered_products = discover_products_for_batch(outputs_path)
             if not discovered_products:
-                logger.error(f"No valid products found in {outputs_path}")
+                logger.error("No valid products found in %s", outputs_path)
                 sys.exit(1)
 
             # Filter by product IDs if specified
@@ -865,7 +865,7 @@ async def main():
                 f"Failed to load or validate products from {products_file_path}: {e}"
             )
         logger.critical(error_msg, exc_info=True)
-        logger.critical(f"Complete log saved to: {log_file}")
+        logger.critical("Complete log saved to: %s", log_file)
         sys.exit(1)
 
     # Handle product index for single product mode only
@@ -881,8 +881,9 @@ async def main():
     )
     if args.product_index is not None and not indices:
         logger.error(
-            f"Product index {args.product_index} out of range for file with "
-            f"{len(products_list)} products."
+            "Product index %s out of range for file with %s products.",
+            args.product_index,
+            len(products_list),
         )
         sys.exit(1)
 
@@ -905,11 +906,12 @@ async def main():
                 config=config,
             )
             logger.info(
-                f"Profile randomization enabled with pool: {profile_pool} "
-                f"({len(profile_pool)} profiles)"
+                "Profile randomization enabled with pool: %s (%s profiles)",
+                profile_pool,
+                len(profile_pool),
             )
         except ValueError as e:
-            logger.critical(f"Invalid profile pool configuration: {e}")
+            logger.critical("Invalid profile pool configuration: %s", e)
             sys.exit(1)
 
         # Initialize usage tracker
@@ -922,7 +924,7 @@ async def main():
         try:
             validate_profiles([profile_name], config)
         except ValueError as e:
-            logger.critical(f"Invalid profile selection: {e}")
+            logger.critical("Invalid profile selection: %s", e)
             sys.exit(1)
 
     # Enhanced progress reporting for batch mode
@@ -930,13 +932,15 @@ async def main():
     if args.batch:
         if args.random_profile:
             logger.info(
-                f"Starting batch processing of {total_products} products with "
-                f"random profile selection"
+                "Starting batch processing of %s products with random profile "
+                "selection",
+                total_products,
             )
         else:
             logger.info(
-                f"Starting batch processing of {total_products} products with "
-                f"profile '{profile_name}'"
+                "Starting batch processing of %s products with profile '%s'",
+                total_products,
+                profile_name,
             )
 
     for i, idx in enumerate(indices):
@@ -954,15 +958,18 @@ async def main():
             )
             cast(ProfileUsageTracker, profile_tracker).record_usage(current_profile)
             logger.info(
-                f"[{i+1}/{total_products}] Processing {product_id} "
-                f"with profile '{current_profile}'"
+                "[%s/%s] Processing %s with profile '%s'",
+                i + 1,
+                total_products,
+                product_id,
+                current_profile,
             )
         else:
             # Fixed profile mode (profile_name validated at startup)
             current_profile = cast(str, profile_name)
             if args.batch:
                 logger.info(
-                    f"[{i+1}/{total_products}] Processing product: {product_id}"
+                    "[%s/%s] Processing product: %s", i + 1, total_products, product_id
                 )
 
         product_start_time = datetime.now(UTC)
@@ -989,12 +996,12 @@ async def main():
             )
         except TimeoutError:
             product_error = f"Pipeline timed out after {config.pipeline_timeout_sec}s"
-            logger.error(f"{product_error} for product {product_id}")
+            logger.error("%s for product %s", product_error, product_id)
             result_path = None
         except Exception as e:
             product_error = str(e)
-            logger.error(
-                f"Unexpected error processing product {product_id}: {e}", exc_info=True
+            logger.exception(
+                "Unexpected error processing product %s: %s", product_id, e
             )
             result_path = None
 
@@ -1013,8 +1020,10 @@ async def main():
             )
             if args.batch:
                 logger.info(
-                    f"[{i+1}/{total_products}] Skipped {product_id} "
-                    f"(insufficient media)"
+                    "[%s/%s] Skipped %s (insufficient media)",
+                    i + 1,
+                    total_products,
+                    product_id,
                 )
         elif failed_step is not None:
             batch_summary.failed_count += 1
@@ -1055,7 +1064,10 @@ async def main():
             )
             if args.batch:
                 logger.info(
-                    f"[{i+1}/{total_products}] Successfully completed {product_id}"
+                    "[%s/%s] Successfully completed %s",
+                    i + 1,
+                    total_products,
+                    product_id,
                 )
         elif not args.step:
             batch_summary.failed_count += 1
@@ -1069,11 +1081,14 @@ async def main():
                 )
             )
             if args.batch:
-                logger.error(f"[{i+1}/{total_products}] Failed to process {product_id}")
+                logger.error(
+                    "[%s/%s] Failed to process %s", i + 1, total_products, product_id
+                )
                 if args.fail_fast:
                     logger.error(
-                        f"Stopping batch processing due to --fail-fast "
-                        f"(failed on product {product_id})"
+                        "Stopping batch processing due to --fail-fast (failed on "
+                        "product %s)",
+                        product_id,
                     )
                     break
 
@@ -1139,7 +1154,7 @@ async def main():
         logger.info("---")
 
     if args.step:
-        logger.info(f"NOTE: Run was limited to debug step '{args.step}'.")
+        logger.info("NOTE: Run was limited to debug step '%s'.", args.step)
     if args.batch and args.fail_fast and batch_summary.failed_count > 0:
         logger.info("NOTE: Batch processing stopped early due to --fail-fast.")
 
@@ -1166,7 +1181,7 @@ async def main():
         )
     else:
         logger.info("Video producer completed successfully")
-    logger.info(f"Complete log saved to: {log_file}")
+    logger.info("Complete log saved to: %s", log_file)
 
     # Clean up HTTP connection pool
     from src.utils.connection_pool import close_global_pool

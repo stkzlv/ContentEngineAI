@@ -74,12 +74,14 @@ def detect_cta_timing_windows(
         # Check if any CTA keyword is present in the segment
         if contains_cta_keyword(text, cta_keywords, case_sensitive):
             cta_windows.append((float(start_time), float(end_time)))
-            logger.debug(f"CTA detected at {start_time:.2f}s-{end_time:.2f}s: '{text}'")
+            logger.debug(
+                "CTA detected at %.2fs-%.2fs: '%s'", start_time, end_time, text
+            )
 
     # Merge all windows into a single continuous period from first to last CTA
     merged_windows = merge_timing_windows(cta_windows, gap_threshold=None)
 
-    logger.info(f"Detected {len(merged_windows)} CTA timing window(s)")
+    logger.info("Detected %s CTA timing window(s)", len(merged_windows))
     return merged_windows
 
 

@@ -164,7 +164,7 @@ class MetadataExporter:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(content, encoding="utf-8")
 
-            logger.info(f"Exported {len(metadata_list)} records to {output_path}")
+            logger.info("Exported %s records to %s", len(metadata_list), output_path)
             return ExportResult(
                 success=True,
                 format=ExportFormat.JSON,
@@ -172,7 +172,7 @@ class MetadataExporter:
                 record_count=len(metadata_list),
             )
         except Exception as e:
-            logger.error(f"JSON export failed: {e}")
+            logger.error("JSON export failed: %s", e)
             return ExportResult(
                 success=False,
                 format=ExportFormat.JSON,
@@ -223,7 +223,9 @@ class MetadataExporter:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(content, encoding=self.csv_encoding)
 
-            logger.info(f"Exported {len(metadata_list)} records to CSV: {output_path}")
+            logger.info(
+                "Exported %s records to CSV: %s", len(metadata_list), output_path
+            )
             return ExportResult(
                 success=True,
                 format=ExportFormat.CSV,
@@ -231,7 +233,7 @@ class MetadataExporter:
                 record_count=len(metadata_list),
             )
         except Exception as e:
-            logger.error(f"CSV export failed: {e}")
+            logger.error("CSV export failed: %s", e)
             return ExportResult(
                 success=False,
                 format=ExportFormat.CSV,
@@ -320,7 +322,7 @@ class MetadataExporter:
             if len(youtube_metadata) < len(metadata_list):
                 skipped = len(metadata_list) - len(youtube_metadata)
                 logger.warning(
-                    f"Skipped {skipped} non-YouTube records in YouTube CSV export"
+                    "Skipped %s non-YouTube records in YouTube CSV export", skipped
                 )
 
             content = self.to_youtube_csv_string(youtube_metadata)
@@ -328,8 +330,9 @@ class MetadataExporter:
             output_path.write_text(content, encoding=self.csv_encoding)
 
             logger.info(
-                f"Exported {len(youtube_metadata)} records to YouTube CSV: "
-                f"{output_path}"
+                "Exported %s records to YouTube CSV: %s",
+                len(youtube_metadata),
+                output_path,
             )
             return ExportResult(
                 success=True,
@@ -338,7 +341,7 @@ class MetadataExporter:
                 record_count=len(youtube_metadata),
             )
         except Exception as e:
-            logger.error(f"YouTube CSV export failed: {e}")
+            logger.error("YouTube CSV export failed: %s", e)
             return ExportResult(
                 success=False,
                 format=ExportFormat.YOUTUBE_CSV,
@@ -428,15 +431,18 @@ class MetadataExporter:
             tiktok_metadata = [m for m in metadata_list if m.platform == "tiktok"]
             if len(tiktok_metadata) < len(metadata_list):
                 skipped = len(metadata_list) - len(tiktok_metadata)
-                logger.warning(f"Skipped {skipped} non-TikTok records in TikTok export")
+                logger.warning(
+                    "Skipped %s non-TikTok records in TikTok export", skipped
+                )
 
             content = self.to_tiktok_string(tiktok_metadata)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(content, encoding="utf-8")
 
             logger.info(
-                f"Exported {len(tiktok_metadata)} records to TikTok format: "
-                f"{output_path}"
+                "Exported %s records to TikTok format: %s",
+                len(tiktok_metadata),
+                output_path,
             )
             return ExportResult(
                 success=True,
@@ -445,7 +451,7 @@ class MetadataExporter:
                 record_count=len(tiktok_metadata),
             )
         except Exception as e:
-            logger.error(f"TikTok export failed: {e}")
+            logger.error("TikTok export failed: %s", e)
             return ExportResult(
                 success=False,
                 format=ExportFormat.TIKTOK,
@@ -514,7 +520,7 @@ class MetadataExporter:
             if len(ig_metadata) < len(metadata_list):
                 skipped = len(metadata_list) - len(ig_metadata)
                 logger.warning(
-                    f"Skipped {skipped} non-Instagram records in Instagram export"
+                    "Skipped %s non-Instagram records in Instagram export", skipped
                 )
 
             content = self.to_instagram_string(ig_metadata)
@@ -522,8 +528,9 @@ class MetadataExporter:
             output_path.write_text(content, encoding="utf-8")
 
             logger.info(
-                f"Exported {len(ig_metadata)} records to Instagram format: "
-                f"{output_path}"
+                "Exported %s records to Instagram format: %s",
+                len(ig_metadata),
+                output_path,
             )
             return ExportResult(
                 success=True,
@@ -532,7 +539,7 @@ class MetadataExporter:
                 record_count=len(ig_metadata),
             )
         except Exception as e:
-            logger.error(f"Instagram export failed: {e}")
+            logger.error("Instagram export failed: %s", e)
             return ExportResult(
                 success=False,
                 format=ExportFormat.INSTAGRAM,
@@ -676,7 +683,7 @@ class MetadataExporter:
 
         success_count = sum(1 for r in results.values() if r.success)
         logger.info(
-            f"Exported to {success_count}/{len(results)} formats in {output_dir}"
+            "Exported to %s/%s formats in %s", success_count, len(results), output_dir
         )
 
         return results

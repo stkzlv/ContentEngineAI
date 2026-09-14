@@ -50,7 +50,7 @@ class PersistentCache:
             return cached_data.get("data")
 
         except Exception as e:
-            logger.warning(f"Error reading cache file {cache_path}: {e}")
+            logger.warning("Error reading cache file %s: %s", cache_path, e)
             cache_path.unlink(missing_ok=True)
             return None
 
@@ -65,7 +65,7 @@ class PersistentCache:
                 json.dump(cached_data, f, indent=2)
 
         except Exception as e:
-            logger.warning(f"Error writing to cache file {cache_path}: {e}")
+            logger.warning("Error writing to cache file %s: %s", cache_path, e)
 
     def clear(self) -> None:
         """Clear all cache files."""
@@ -73,7 +73,7 @@ class PersistentCache:
             try:
                 cache_file.unlink()
             except Exception as e:
-                logger.warning(f"Error removing cache file {cache_file}: {e}")
+                logger.warning("Error removing cache file %s: %s", cache_file, e)
 
 
 # Global instances

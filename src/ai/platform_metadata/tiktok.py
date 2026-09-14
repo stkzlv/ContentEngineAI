@@ -112,7 +112,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             api_key_env = settings.api_key_env_var
             api_key = secrets.get(api_key_env)
             if not api_key:
-                logger.error(f"Missing API key: {api_key_env}")
+                logger.error("Missing API key: %s", api_key_env)
                 return None
 
             # Generate using LLM helper
@@ -172,7 +172,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             # Validate and recreate with proper status if needed
             is_valid, error_msg = self.validate(temp_metadata)
             if not is_valid:
-                logger.error(f"TikTok metadata validation failed: {error_msg}")
+                logger.error("TikTok metadata validation failed: %s", error_msg)
                 # Recreate with error status
                 metadata = PlatformMetadata.create(
                     platform="tiktok",
@@ -190,7 +190,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             return temp_metadata
 
         except Exception as e:
-            logger.error(f"Error generating TikTok metadata: {e}", exc_info=True)
+            logger.exception("Error generating TikTok metadata: %s", e)
             return None
 
     def validate(self, metadata: PlatformMetadata) -> tuple[bool, str]:
@@ -334,5 +334,5 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             return caption, hashtags, keywords
 
         except Exception as e:
-            logger.error(f"Error parsing LLM response: {e}", exc_info=True)
+            logger.exception("Error parsing LLM response: %s", e)
             return None

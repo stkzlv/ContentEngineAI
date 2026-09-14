@@ -37,8 +37,8 @@ def update_env_file(key_to_update: str, new_value: str):
         env_path = project_root / ".env"
         if not env_path.is_file():
             logger.warning(
-                f".env file not found at {env_path}. "
-                f"Cannot update refresh token automatically."
+                ".env file not found at %s. Cannot update refresh token automatically.",
+                env_path,
             )
             return
 
@@ -53,9 +53,9 @@ def update_env_file(key_to_update: str, new_value: str):
             return
 
         set_key(env_path, key_to_update, new_value, quote_mode="never")
-        logger.info(f"Successfully updated '{key_to_update}' in {env_path}")
+        logger.info("Successfully updated '%s' in %s", key_to_update, env_path)
     except Exception as e:
-        logger.error(f"Failed to automatically update .env file: {e}", exc_info=True)
+        logger.exception("Failed to automatically update .env file: %s", e)
 
 
 class FreesoundClient:
@@ -163,8 +163,13 @@ class FreesoundClient:
 
         """
         logger.debug(
-            f"Searching Freesound: query='{query}', filters='{filters}', "
-            f"max_results={max_results}, sort='{sort_order}', timeout={timeout_sec}s"
+            "Searching Freesound: query='%s', filters='%s', max_results=%s, sort='%s', "
+            "timeout=%ss",
+            query,
+            filters,
+            max_results,
+            sort_order,
+            timeout_sec,
         )
 
         try:
@@ -182,24 +187,32 @@ class FreesoundClient:
 
             tracks = list(results)
             logger.info(
-                f"Freesound search completed: {len(tracks)} tracks found "
-                f"(query='{query}', timeout={timeout_sec}s)"
+                "Freesound search completed: %s tracks found (query='%s', timeout=%ss)",
+                len(tracks),
+                query,
+                timeout_sec,
             )
             return tracks
 
         except TimeoutError:
             logger.warning(
-                f"Freesound search timed out after {timeout_sec}s - returning empty "
-                f"list (query='{query}', filters='{filters}')"
+                "Freesound search timed out after %ss - returning empty list "
+                "(query='%s', filters='%s')",
+                timeout_sec,
+                query,
+                filters,
             )
             return []
 
         except Exception as e:
             error_type = type(e).__name__
-            logger.error(
-                f"Freesound search failed with {error_type}: {e} - returning empty "
-                f"list (query='{query}', filters='{filters}')",
-                exc_info=True,
+            logger.exception(
+                "Freesound search failed with %s: %s - returning empty list "
+                "(query='%s', filters='%s')",
+                error_type,
+                e,
+                query,
+                filters,
             )
             # Reraise exceptions that should trigger the circuit breaker
             if isinstance(e, _NETWORK_EXCEPTIONS):
@@ -254,8 +267,8 @@ class FreesoundClient:
         """
         if not self._api_key:
             logger.warning(
-                "API key not configured - cannot download preview "
-                f"(sound: {getattr(sound, 'name', 'unknown')})"
+                "API key not configured - cannot download preview (sound: %s)",
+                getattr(sound, "name", "unknown"),
             )
             return None
 
@@ -274,8 +287,10 @@ class FreesoundClient:
             sound_name = getattr(sound, "name", "unknown")
             sound_id = getattr(sound, "id", "unknown")
             logger.warning(
-                f"No MP3 preview available for sound '{sound_name}' (id: {sound_id}) "
-                f"- missing both HQ and LQ preview URLs"
+                "No MP3 preview available for sound '%s' (id: %s) - missing both HQ "
+                "and LQ preview URLs",
+                sound_name,
+                sound_id,
             )
             return None
 
@@ -285,8 +300,10 @@ class FreesoundClient:
 
         download_timeout = timeout_sec or 60  # Default download timeout in seconds
         logger.debug(
-            f"Downloading {quality} preview for '{sound_name}' "
-            f"(timeout: {download_timeout}s)"
+            "Downloading %s preview for '%s' (timeout: %ss)",
+            quality,
+            sound_name,
+            download_timeout,
         )
 
         if await util_download_file(
@@ -294,8 +311,10 @@ class FreesoundClient:
         ):
             file_size_mb = file_path.stat().st_size / 1024 / 1024
             logger.info(
-                f"Preview download complete: {file_path.name} "
-                f"({file_size_mb:.2f} MB, {quality} quality)"
+                "Preview download complete: %s (%.2f MB, %s quality)",
+                file_path.name,
+                file_size_mb,
+                quality,
             )
 
             attribution = {
@@ -316,15 +335,18 @@ class FreesoundClient:
                 or attribution["license"] == "Unknown"
             ):
                 logger.warning(
-                    f"Attribution metadata incomplete for sound '{sound_name}' "
-                    f"(id: {attribution['id']}) - using defaults"
+                    "Attribution metadata incomplete for sound '%s' (id: %s) - using "
+                    "defaults",
+                    sound_name,
+                    attribution["id"],
                 )
 
             return file_path, attribution
 
         logger.error(
-            f"Preview download failed for '{sound_name}' "
-            f"(id: {getattr(sound, 'id', 'unknown')})"
+            "Preview download failed for '%s' (id: %s)",
+            sound_name,
+            getattr(sound, "id", "unknown"),
         )
         return None
 
@@ -384,8 +406,9 @@ class FreesoundClient:
                 ) as response:
                     if response.status in (401, 403):
                         logger.error(
-                            f"OAuth2 authentication failed with status "
-                            f"{response.status} - invalid credentials (not retrying)"
+                            "OAuth2 authentication failed with status %s - invalid "
+                            "credentials (not retrying)",
+                            response.status,
                         )
                         return False
 
@@ -416,8 +439,9 @@ class FreesoundClient:
                             )
                         except Exception as env_error:
                             logger.warning(
-                                f"Failed to update .env file with new refresh token: "
-                                f"{env_error} (token still valid in memory)"
+                                "Failed to update .env file with new refresh token: %s "
+                                "(token still valid in memory)",
+                                env_error,
                             )
 
                     self.oauth_token_expiry = time.time() + token_data.get(
@@ -427,28 +451,33 @@ class FreesoundClient:
                         "expires_in", FREESOUND_TOKEN_EXPIRY_SEC
                     )
                     logger.info(
-                        f"OAuth2 token refreshed successfully "
-                        f"(expires in {expires_in}s)"
+                        "OAuth2 token refreshed successfully (expires in %ss)",
+                        expires_in,
                     )
                     return True
 
             except (TimeoutError, aiohttp.ServerTimeoutError):
                 logger.warning(
-                    f"OAuth2 token refresh timed out on attempt "
-                    f"{attempt + 1}/{max_retries}"
+                    "OAuth2 token refresh timed out on attempt %s/%s",
+                    attempt + 1,
+                    max_retries,
                 )
                 if attempt == max_retries - 1:
                     logger.error(
-                        f"OAuth2 token refresh failed - all attempts timed out "
-                        f"after {timeout_sec}s"
+                        "OAuth2 token refresh failed - all attempts timed out after "
+                        "%ss",
+                        timeout_sec,
                     )
                     return False
                 await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
-                    f"OAuth2 token refresh failed with HTTP {e.status}: {e.message} "
-                    f"(attempt {attempt + 1}/{max_retries})"
+                    "OAuth2 token refresh failed with HTTP %s: %s (attempt %s/%s)",
+                    e.status,
+                    e.message,
+                    attempt + 1,
+                    max_retries,
                 )
                 if attempt == max_retries - 1:
                     return False
@@ -456,8 +485,10 @@ class FreesoundClient:
 
             except aiohttp.ClientConnectorError as e:
                 logger.warning(
-                    f"OAuth2 network connection failed: {e} "
-                    f"(attempt {attempt + 1}/{max_retries})"
+                    "OAuth2 network connection failed: %s (attempt %s/%s)",
+                    e,
+                    attempt + 1,
+                    max_retries,
                 )
                 if attempt == max_retries - 1:
                     logger.error("OAuth2 token refresh failed - network unreachable")
@@ -467,8 +498,8 @@ class FreesoundClient:
             except RuntimeError as e:
                 if "Session is closed" in str(e) and attempt < max_retries - 1:
                     logger.warning(
-                        f"Session closed on attempt {attempt + 1} - "
-                        f"acquiring new session"
+                        "Session closed on attempt %s - acquiring new session",
+                        attempt + 1,
                     )
                     from src.utils.connection_pool import get_http_session
 
@@ -476,8 +507,11 @@ class FreesoundClient:
                     continue
                 else:
                     logger.error(
-                        f"OAuth2 token refresh failed with runtime error: {e} "
-                        f"(attempt {attempt + 1}/{max_retries})"
+                        "OAuth2 token refresh failed with runtime error: %s (attempt "
+                        "%s/%s)",
+                        e,
+                        attempt + 1,
+                        max_retries,
                     )
                     if attempt == max_retries - 1:
                         return False
@@ -485,12 +519,13 @@ class FreesoundClient:
 
             except KeyError as e:
                 logger.error(
-                    f"OAuth2 token response missing required field {e} - "
-                    f"invalid response structure"
+                    "OAuth2 token response missing required field %s - invalid "
+                    "response structure",
+                    e,
                 )
                 return False
 
-        logger.error(f"OAuth2 token refresh failed after {max_retries} attempts")
+        logger.error("OAuth2 token refresh failed after %s attempts", max_retries)
         return False
 
     async def _get_valid_oauth2_token(
@@ -536,15 +571,17 @@ class FreesoundClient:
 
         """
         logger.debug(
-            f"Attempting OAuth2 download for sound ID {sound_id} "
-            f"(timeout: {timeout_sec}s)"
+            "Attempting OAuth2 download for sound ID %s (timeout: %ss)",
+            sound_id,
+            timeout_sec,
         )
 
         access_token = await self._get_valid_oauth2_token(session)
         if not access_token:
             logger.error(
-                f"Cannot download sound {sound_id} - OAuth2 token unavailable "
-                f"(credentials not configured or token refresh failed)"
+                "Cannot download sound %s - OAuth2 token unavailable (credentials not "
+                "configured or token refresh failed)",
+                sound_id,
             )
             return None
 
@@ -567,8 +604,10 @@ class FreesoundClient:
                 ) as response:
                     if response.status in (401, 403, 404):
                         logger.error(
-                            f"OAuth2 download failed with status {response.status} "
-                            f"for sound {sound_id} (not retrying)"
+                            "OAuth2 download failed with status %s for sound %s (not "
+                            "retrying)",
+                            response.status,
+                            sound_id,
                         )
                         return None
 
@@ -590,8 +629,10 @@ class FreesoundClient:
                     content_length = response.headers.get("Content-Length")
                     if content_length:
                         logger.debug(
-                            f"Downloading sound {sound_id}: {filename} "
-                            f"({int(content_length) / 1024 / 1024:.2f} MB)"
+                            "Downloading sound %s: %s (%.2f MB)",
+                            sound_id,
+                            filename,
+                            int(content_length) / 1024 / 1024,
                         )
 
                     bytes_downloaded = 0
@@ -604,8 +645,9 @@ class FreesoundClient:
 
                     if file_path.exists() and file_path.stat().st_size > 0:
                         logger.info(
-                            f"OAuth2 download complete: {filename} "
-                            f"({bytes_downloaded / 1024 / 1024:.2f} MB)"
+                            "OAuth2 download complete: %s (%.2f MB)",
+                            filename,
+                            bytes_downloaded / 1024 / 1024,
                         )
 
                         try:
@@ -627,16 +669,19 @@ class FreesoundClient:
 
                             if attribution["name"] == f"Sound {sound_id}":
                                 logger.warning(
-                                    f"Attribution metadata incomplete for sound "
-                                    f"{sound_id} - using defaults"
+                                    "Attribution metadata incomplete for sound %s - "
+                                    "using defaults",
+                                    sound_id,
                                 )
 
                             return file_path, attribution
 
                         except Exception as metadata_error:
                             logger.warning(
-                                f"Failed to fetch metadata for sound {sound_id}: "
-                                f"{metadata_error} - using minimal attribution"
+                                "Failed to fetch metadata for sound %s: %s - using "
+                                "minimal attribution",
+                                sound_id,
+                                metadata_error,
                             )
                             return file_path, {
                                 "source": "Freesound",
@@ -650,41 +695,53 @@ class FreesoundClient:
                             }
                     else:
                         logger.error(
-                            f"Downloaded file empty or missing: {file_path} "
-                            f"(sound_id: {sound_id})"
+                            "Downloaded file empty or missing: %s (sound_id: %s)",
+                            file_path,
+                            sound_id,
                         )
                         return None
 
             except (TimeoutError, aiohttp.ServerTimeoutError):
                 logger.warning(
-                    f"OAuth2 download timed out after {timeout_sec}s "
-                    f"(attempt {attempt + 1}/{max_retries}, sound_id: {sound_id})"
+                    "OAuth2 download timed out after %ss (attempt %s/%s, sound_id: %s)",
+                    timeout_sec,
+                    attempt + 1,
+                    max_retries,
+                    sound_id,
                 )
                 if attempt == max_retries - 1:
                     logger.error(
-                        f"OAuth2 download failed - all attempts timed out "
-                        f"(sound_id: {sound_id})"
+                        "OAuth2 download failed - all attempts timed out (sound_id: "
+                        "%s)",
+                        sound_id,
                     )
                     return None
                 await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientConnectorError as e:
                 logger.warning(
-                    f"OAuth2 download network error: {e} "
-                    f"(attempt {attempt + 1}/{max_retries}, sound_id: {sound_id})"
+                    "OAuth2 download network error: %s (attempt %s/%s, sound_id: %s)",
+                    e,
+                    attempt + 1,
+                    max_retries,
+                    sound_id,
                 )
                 if attempt == max_retries - 1:
                     logger.error(
-                        f"OAuth2 download failed - network unreachable "
-                        f"(sound_id: {sound_id})"
+                        "OAuth2 download failed - network unreachable (sound_id: %s)",
+                        sound_id,
                     )
                     return None
                 await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
                 logger.error(
-                    f"OAuth2 download HTTP error {e.status}: {e.message} "
-                    f"(attempt {attempt + 1}/{max_retries}, sound_id: {sound_id})"
+                    "OAuth2 download HTTP error %s: %s (attempt %s/%s, sound_id: %s)",
+                    e.status,
+                    e.message,
+                    attempt + 1,
+                    max_retries,
+                    sound_id,
                 )
                 if attempt == max_retries - 1:
                     return None
@@ -693,8 +750,10 @@ class FreesoundClient:
             except RuntimeError as e:
                 if "Session is closed" in str(e) and attempt < max_retries - 1:
                     logger.warning(
-                        f"Session closed on attempt {attempt + 1} - "
-                        f"acquiring new session (sound_id: {sound_id})"
+                        "Session closed on attempt %s - acquiring new session "
+                        "(sound_id: %s)",
+                        attempt + 1,
+                        sound_id,
                     )
                     from src.utils.connection_pool import get_http_session
 
@@ -702,15 +761,20 @@ class FreesoundClient:
                     continue
                 else:
                     logger.error(
-                        f"OAuth2 download runtime error: {e} "
-                        f"(attempt {attempt + 1}/{max_retries}, sound_id: {sound_id})"
+                        "OAuth2 download runtime error: %s (attempt %s/%s, sound_id: "
+                        "%s)",
+                        e,
+                        attempt + 1,
+                        max_retries,
+                        sound_id,
                     )
                     if attempt == max_retries - 1:
                         return None
                     await asyncio.sleep(1.0 * (2**attempt))
 
         logger.error(
-            f"OAuth2 download failed after {max_retries} attempts "
-            f"(sound_id: {sound_id})"
+            "OAuth2 download failed after %s attempts (sound_id: %s)",
+            max_retries,
+            sound_id,
         )
         return None
