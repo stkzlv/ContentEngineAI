@@ -185,9 +185,12 @@ def extract_product_data_from_page(
             ],
         )
 
+        # Break on text, not on the element: the page carries `productTitle`
+        # twice, once as the span that holds the title and once as a hidden
+        # input whose text is empty (see docs/notes/scraper.md).
         for selector in title_selectors:
             title_element = driver.select(selector)
-            if title_element:
+            if title_element and title_element.text.strip():
                 title = title_element.text.strip()
                 break
 
@@ -226,15 +229,18 @@ def extract_product_data_from_page(
                 )
 
         # Extract description
+        # The last one is scoped: unscoped it matches any vertical list on the
+        # page, which falling through an empty first match now makes reachable,
+        # and this text becomes narration.
         desc_selectors = [
             "#feature-bullets ul",
             "#productDescription",
-            ".a-unordered-list.a-vertical",
+            "#feature-bullets .a-unordered-list.a-vertical",
         ]
 
         for selector in desc_selectors:
             desc_element = driver.select(selector)
-            if desc_element:
+            if desc_element and desc_element.text.strip():
                 description = desc_element.text.strip()
                 break
 
@@ -261,14 +267,16 @@ def extract_product_data_from_page(
                 title_preview_length = (
                     get_settings().global_settings.debug_config.title_preview_length
                 )
+                # Both of these used to be `"" if x else ""`, so the one line
+                # that explains a rejection printed nothing either way.
                 logger.warning(
                     "Invalid product data for %s: title='%s...', price='%s', "
                     "description=%s, rating=%s - SKIPPING MEDIA EXTRACTION",
                     asin,
                     title[:title_preview_length],
                     price,
-                    "" if description else "",
-                    "" if rating else "",
+                    "present" if description else "MISSING",
+                    "present" if rating else "MISSING",
                 )
             return None
 

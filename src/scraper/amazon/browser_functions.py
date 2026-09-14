@@ -1247,9 +1247,12 @@ def scrape_single_product(
         ],
     )
 
+    # Guarded on the text, like the live extractor: this copy has no caller
+    # today, and wiring one up to a break-on-presence loop would reintroduce
+    # the empty-`productTitle` defect (docs/notes/scraper.md).
     for selector in title_selectors:
         title_element = driver.select(selector)
-        if title_element:
+        if title_element and title_element.text.strip():
             title = title_element.text.strip()
             if DEBUG_MODE:
                 logger.info("Found title: %s...", title[:50])
@@ -1279,13 +1282,13 @@ def scrape_single_product(
     desc_selectors = [
         "#feature-bullets ul",
         "#productDescription",
-        ".a-unordered-list.a-vertical",
+        "#feature-bullets .a-unordered-list.a-vertical",
         "#featurebullets_feature_div",
     ]
 
     for selector in desc_selectors:
         desc_element = driver.select(selector)
-        if desc_element:
+        if desc_element and desc_element.text.strip():
             description = desc_element.text.strip()
             if DEBUG_MODE:
                 logger.info("Found description: %d chars", len(description))
