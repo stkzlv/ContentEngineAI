@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.scraper.amazon.utils import is_valid_product_data
 
 
@@ -33,8 +35,9 @@ class FakeDriver:
     is the case this file is about; one absent from the map matches nothing.
     """
 
-    def __init__(self, texts: dict[str, str]):
+    def __init__(self, texts: dict[str, str], current_url: str = ""):
         self.texts = texts
+        self.current_url = current_url
         self.queried: list[str] = []
 
     def select(self, selector: str, wait=None):
@@ -103,7 +106,14 @@ class TestTheShippedLoopsActuallyCheckTheText:
     module read an element and guard it, and the guard has to reach `.text`.
     """
 
-    def test_both_selector_loops_guard_on_text(self):
+    @pytest.mark.parametrize("iterator", ["title_selectors", "desc_selectors"])
+    def test_the_named_loop_guards_on_text(self, iterator: str):
+        """Identified by the list it walks, not counted.
+
+        Counting text-checking guards across the module passes for the wrong
+        reason: tidying an unrelated loop into a text guard restores the count
+        while this loop regresses to breaking on presence.
+        """
         import ast
 
         from src.utils.outputs_paths import get_project_root
@@ -111,24 +121,63 @@ class TestTheShippedLoopsActuallyCheckTheText:
         source = (
             get_project_root() / "src/scraper/amazon/product_extractor.py"
         ).read_text(encoding="utf-8")
-        tree = ast.parse(source)
 
-        guards_reaching_text = 0
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.For):
-                continue
-            for statement in node.body:
-                if not isinstance(statement, ast.If):
-                    continue
-                test_src = ast.unparse(statement.test)
-                if "element" in test_src and ".text" in test_src:
-                    guards_reaching_text += 1
+        loops = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.For)
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == iterator
+        ]
 
-        assert guards_reaching_text >= 2, (
-            "a selector loop breaks on the element being present rather than on "
-            "it having text; a duplicate id then ends the fallback chain on an "
-            f"empty match (found {guards_reaching_text} text-checking guards)"
+        assert len(loops) == 1, f"expected one loop over {iterator}, found {len(loops)}"
+        guard = next(s for s in loops[0].body if isinstance(s, ast.If))
+        assert ".text" in ast.unparse(guard.test), (
+            f"the loop over {iterator} breaks on the element being present "
+            "rather than on it having text; a duplicate id then ends the "
+            "fallback chain on an empty match"
         )
+
+
+class TestTheRealExtractorRecoversTheTitle:
+    """The end-to-end case, so the fix is pinned by behaviour and not only by shape."""
+
+    def test_a_page_with_an_empty_productTitle_still_yields_a_product(
+        self, monkeypatch
+    ):
+        from src.scraper.amazon import product_extractor
+
+        monkeypatch.setattr(
+            product_extractor, "extract_high_res_images_botasaurus", lambda *a, **k: []
+        )
+        monkeypatch.setattr(
+            product_extractor,
+            "extract_functional_videos_with_validation",
+            lambda *a, **k: [],
+        )
+
+        driver = FakeDriver(
+            {
+                # The hidden input the duplicate id can resolve to.
+                "#productTitle": "",
+                "h1.a-size-large": "EIGHTREE Smart Plug WiFi Outlet",
+                "#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen": (
+                    "$12.59"
+                ),
+                "#feature-bullets ul": "Works with Alexa",
+            }
+        )
+        driver.get_text = lambda _selector: ""
+
+        result = product_extractor.extract_product_data_from_page(
+            driver, "B0B6VPH24K", "https://www.amazon.com/dp/B0B6VPH24K"
+        )
+
+        assert result is not None, (
+            "the product was dropped as titleless while the real title sat in "
+            "the next selector"
+        )
+        assert result["title"] == "EIGHTREE Smart Plug WiFi Outlet"
 
 
 class TestWhyAnEmptyTitleCostsTheWholeProduct:

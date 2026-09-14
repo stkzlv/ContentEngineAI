@@ -229,10 +229,13 @@ def extract_product_data_from_page(
                 )
 
         # Extract description
+        # The last one is scoped: unscoped it matches any vertical list on the
+        # page, which falling through an empty first match now makes reachable,
+        # and this text becomes narration.
         desc_selectors = [
             "#feature-bullets ul",
             "#productDescription",
-            ".a-unordered-list.a-vertical",
+            "#feature-bullets .a-unordered-list.a-vertical",
         ]
 
         for selector in desc_selectors:
