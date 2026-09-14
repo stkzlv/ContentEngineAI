@@ -403,6 +403,6 @@ if __name__ == "__main__":
 # `get_config_value` lived here: a dotted-string reader over the merged video
 # dict, and a third way to read config beside the typed models and the
 # per-module loaders. It is gone because a string key is unchecked -- one of
-# its three call sites asked the video config for `system_timeouts.*`, which
-# only the scraper config has, so it returned its hardcoded default on every
-# run and nothing said so. Read the typed model.
+# a key is only as good as the model behind it: `system_timeouts.*` lives in
+# `config/core.yaml` and was reachable *only* this way, because `VideoConfig`
+# did not declare it. Declare the field and read the typed model.

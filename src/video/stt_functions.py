@@ -28,11 +28,6 @@ from src.video.config import (
 
 logger = logging.getLogger(__name__)
 
-# Reading one duration out of a local file. Not configurable, and never was:
-# the removed lookup asked the video config for a scraper-only key, so it
-# returned this number on every run whatever any YAML said.
-FFPROBE_DURATION_TIMEOUT_SEC = 10
-
 # Check for library availability
 WHISPER_AVAILABLE = False
 try:
@@ -478,6 +473,8 @@ def _get_audio_duration(audio_path: Path) -> float:
     """Get audio duration using FFprobe."""
     import subprocess
 
+    from src.video.config import config
+
     try:
         result = subprocess.run(
             [
@@ -493,7 +490,9 @@ def _get_audio_duration(audio_path: Path) -> float:
             capture_output=True,
             text=True,
             check=True,
-            timeout=FFPROBE_DURATION_TIMEOUT_SEC,
+            # `config/core.yaml` has carried this since it shipped; it was
+            # read by a dotted string until this became a declared field.
+            timeout=config.system_timeouts.ffprobe_timeout,
         )
         return float(result.stdout.strip())
     except (subprocess.SubprocessError, ValueError) as e:

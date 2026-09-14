@@ -61,13 +61,28 @@ class TestNoSubstituteConfig:
         )
 
     def test_the_dotted_string_reader_is_gone(self):
-        """`get_config_value` was the third way to read config, and unchecked:
-        one call site asked the video config for a scraper-only key and got
-        its own default on every run.
-        """
+        """`get_config_value` was the third way to read config, and unchecked."""
         import src.config_manager as manager
 
         assert not hasattr(manager, "get_config_value")
+
+    def test_the_key_it_read_is_a_declared_field_now(self):
+        """Removing an unchecked reader removes the settings only it could see.
+
+        `system_timeouts` is in `config/core.yaml` and merged into the video
+        config, but `VideoConfig` never declared it, so the dotted reader was
+        the one thing that could reach it -- and the value it returned equalled
+        the call site's own default, which is what made the knob look dead.
+        """
+        from src.video.config import config
+        from src.video.config_adapter import ModularConfigAdapter
+
+        merged = ModularConfigAdapter().get_merged_config_dict()
+        assert "system_timeouts" in merged, "core.yaml stopped carrying the block"
+        assert (
+            config.system_timeouts.ffprobe_timeout
+            == merged["system_timeouts"]["ffprobe_timeout"]
+        ), "the YAML value no longer reaches the model"
 
 
 class TestTheDefaultsHaveOneDeclaration:

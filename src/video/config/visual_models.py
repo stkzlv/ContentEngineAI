@@ -75,6 +75,22 @@ class CTADetectionSettings(BaseModel):
     )
 
 
+class SystemTimeouts(BaseModel):
+    """Timeouts for local system commands, in seconds.
+
+    The scraper has a model of the same name over its own YAML block; this
+    one covers `config/core.yaml`, which the video config merges.
+    """
+
+    ffprobe_timeout: int = Field(
+        10, gt=0, description="Reading media metadata from a local file"
+    )
+    system_profiler_timeout: int = Field(
+        10, gt=0, description="System info lookup (macOS)"
+    )
+    head_request_timeout: int = Field(10, gt=0, description="URL validation requests")
+
+
 class DisclosureSettings(BaseModel):
     """On-frame disclosure overlay (FTC `#ad`, Spain `#publi`, etc.).
 
