@@ -65,11 +65,18 @@ def literal_of(node: ast.AST) -> str | None:
 
 
 def _receiver(node: ast.AST) -> str:
-    """The dotted name a method was called on, as far as it is static."""
+    """The dotted name a method was called on, as far as it is static.
+
+    Looks through a call, so `logging.getLogger(__name__).info(...)` -- ten
+    converted sites in `src/` -- resolves to `logging.getLogger` rather than
+    to nothing and being skipped.
+    """
     if isinstance(node, ast.Name):
         return node.id
     if isinstance(node, ast.Attribute):
         return f"{_receiver(node.value)}.{node.attr}"
+    if isinstance(node, ast.Call):
+        return _receiver(node.func)
     return ""
 
 
