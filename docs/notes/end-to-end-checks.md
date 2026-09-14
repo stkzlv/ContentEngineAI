@@ -7,7 +7,7 @@ these are the three worked invocations and the caveats they are built
 from.
 -->
 
-The full-pipeline cases below are one instance. Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see Module/Batch Alignment Rule).
+The full-pipeline cases below are one instance. Manual full-pipeline checks (scrape -> produce -> publish) for one random config product, random profile. The scrape, produce, and publish paths each have a standalone module CLI and a `global_batch` variant that re-implement the same logic, so all three cases below exercise different code (see the Module/Batch Alignment Rule in `CLAUDE.md`, and [batch-alignment.md](batch-alignment.md) for the cases).
 
 **`xvfb-run -a` is optional for producer runs, kept in the examples as the fallback.** The CSS pycaps renderer (bundled default) used to hang on its per-word screenshots without an X display; re-measured on 2026-09-02 with Playwright 1.58.0 and the bundled Chromium, the burn succeeds with no display reachable at all (`DISPLAY`, `WAYLAND_DISPLAY` and `XDG_SESSION_TYPE` unset, empty `XDG_RUNTIME_DIR`), and no faster under Xvfb: 33s at 466 MB peak against 37s at the same peak. If `Page.screenshot: Timeout 30000ms exceeded` appears, the wrapper is the fix. `poetry.lock` has pinned Playwright 1.58.0 since before the hang was recorded, and 1.58.0 pins Chromium revision 1208 (145), the same build the June hang was recorded on, so neither the Playwright version nor the Chromium revision moved. The browser binaries under `~/.cache/ms-playwright` were reinstalled on 2026-07-30, after the entry was written, as that same revision 1208; the reinstall is the only dated change and is unconfirmed as the cause. `pictex` never needed a display, but **`pictex` is preview-only and must not be used for published output**: it renders words with no gaps between them (`Likemyphonewentfrom`), silently and without error. See [subtitles.md](subtitles.md) and issues #174 and #349.
 
@@ -28,7 +28,7 @@ xvfb-run -a make produce-lowpri ARGS="--batch --random-profile --product-ids <AS
 make publish ARGS="single <ASIN> --debug"                                    # add --force to republish an already-published product
 ```
 
-**Case 3 — separate modules, no makefile (bare, normal mode):** bypasses the lowpri memory cap (see Resource discipline), so only when the machine is otherwise idle.
+**Case 3 — separate modules, no makefile (bare, normal mode):** bypasses the lowpri memory cap (see Resource discipline in `CLAUDE.md`), so only when the machine is otherwise idle.
 ```bash
 poetry run python -m src.scraper.amazon.scraper --keywords "$KW" --max-products 1
 xvfb-run -a poetry run python -m src.video.producer --batch --random-profile --product-ids <ASIN>
