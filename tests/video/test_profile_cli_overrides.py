@@ -175,8 +175,8 @@ class TestMergedProfileSettings:
         """Profile-level first_frame_pre_motion + pre_motion_peak_zoom flow
         through _collect_overrides to merged video_settings.
 
-        Regression guard for the CLAUDE.md "profile-level field gating
-        triple" gotcha: a new VideoSettings field has to be declared on
+        Regression guard for the docs/notes/video.md "profile-level field
+        gating triple" gotcha: a new VideoSettings field has to be declared on
         VideoSettings, mirrored as `| None` on VideoProfile, AND listed
         in the _collect_overrides field map. Miss any one and the
         profile YAML is silently dropped.

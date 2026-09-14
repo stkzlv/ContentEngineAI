@@ -11,7 +11,7 @@ These tests drive the impl directly with a mock Driver so the body actually runs
 cover all three input branches (search keyword, URL, ASIN) on the non-debug path, which
 is where the time bug fired and where the shared `count_products_with_media` /
 `products_with_media_count` / `max_products` variables are read after the branch (the
-"initialize before the branch" footgun documented in CLAUDE.md).
+"initialize before the branch" footgun documented in docs/notes/scraper.md).
 """
 
 from unittest.mock import MagicMock

@@ -58,7 +58,7 @@ class TestTheFilterCarriesTheDarkening:
 
         A hardcoded 0.6 satisfies the presence check above, so the config
         field would reach the assembler and do nothing -- the silent-drop
-        class `CLAUDE.md` records for profile-level fields.
+        class `docs/notes/video.md` records for profile-level fields.
         """
         chain = _placement(blur_darken=0.35)
 
