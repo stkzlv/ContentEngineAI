@@ -102,10 +102,10 @@ class TestDryRunDeletesNothing:
         # `main` reads the developer's real `.env`, which is not under test.
         # Its logging setup is neutralised by the autouse fixture in
         # tests/conftest.py -- do not re-patch it here with a variadic lambda:
-        # these are the only tests that drive the batch's `main()`, so that
-        # lambda is the batch's whole arity check, and swallowing a renamed
-        # keyword leaves every real batch run dying at startup with the suite
-        # green.
+        # this test and `TestTheBatchVerdictMatchesItsExitCode` are the only
+        # ones that drive the batch's `main()`, so they are the whole arity
+        # check on its logging call, and a lambda swallowing a renamed keyword
+        # leaves every real batch run dying at startup with the suite green.
         monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
         with pytest.raises(SystemExit) as exit_info:
@@ -239,9 +239,6 @@ class TestTheBatchVerdictMatchesItsExitCode:
         if strict:
             argv.append("--strict")
         monkeypatch.setattr(sys, "argv", argv)
-        monkeypatch.setattr(
-            "src.utils.logging_setup.setup_debug_logging", lambda **kwargs: None
-        )
         monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
         orchestrator = MagicMock()

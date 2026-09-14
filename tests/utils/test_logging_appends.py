@@ -60,26 +60,27 @@ def _logging_setup_calls(node: ast.AST) -> list[ast.Call]:
     ]
 
 
-def _binds_at_module_scope(tree: ast.Module) -> bool:
-    """Does the module import the helper somewhere that runs at import?
+def _module_scope_imports(tree: ast.Module) -> list[ast.alias]:
+    """Every `setup_debug_logging` alias bound while the module imports.
 
-    Anything nested in a module-scope `try:` or `if:` binds the name just as
-    a top-level import does; anything inside a function or a class does not,
-    and function-local imports deliberately resolve through the patched
-    source module at call time.
+    Anything nested in a module-scope `try:`, `if:`, `match:` or class body
+    binds the name just as a top-level import does. A function body does not:
+    a function-local import deliberately resolves through the patched source
+    module at call time.
     """
+    found: list[ast.alias] = []
     stack: list[ast.AST] = list(tree.body)
     while stack:
         node = stack.pop()
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        if isinstance(node, ast.ImportFrom) and any(
-            alias.name == "setup_debug_logging" for alias in node.names
-        ):
-            return True
-        for field in ("body", "orelse", "finalbody", "handlers"):
+        if isinstance(node, ast.ImportFrom):
+            found.extend(
+                alias for alias in node.names if alias.name == "setup_debug_logging"
+            )
+        for field in ("body", "orelse", "finalbody", "handlers", "cases"):
             stack.extend(getattr(node, field, None) or [])
-    return False
+    return found
 
 
 def _dotted_name(path: Path) -> str:
@@ -363,15 +364,25 @@ class TestOnlyAnEntryPointConfiguresLogging:
         from tests.conftest import _LOGGING_SETUP_SITES
 
         bound: set[str] = set()
+        renamed: set[str] = set()
         for path in (REPO / "src").rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))
-            if _binds_at_module_scope(tree):
+            for alias in _module_scope_imports(tree):
                 bound.add(_dotted_name(path))
+                if alias.asname:
+                    renamed.add(f"{_dotted_name(path)}:{alias.asname}")
 
         missing = sorted(bound - set(_LOGGING_SETUP_SITES))
         assert not missing, (
             f"modules bind setup_debug_logging but tests do not neutralise "
             f"it there: {missing}; add them to _LOGGING_SETUP_SITES"
+        )
+        # An `as` name is bound to the real helper and the fixture patches the
+        # attribute by its own name, so listing the module would not save it:
+        # the guard would go green while the entry point wrote to the log.
+        assert not renamed, (
+            f"setup_debug_logging is imported under another name, which the "
+            f"test stand-in cannot replace: {sorted(renamed)}"
         )
 
     def test_a_module_imported_during_a_test_picks_up_the_stand_in(self):
