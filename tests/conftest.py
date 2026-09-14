@@ -1,7 +1,9 @@
 """Pytest configuration and shared fixtures for ContentEngineAI tests."""
 
+import inspect
 import json
 import logging
+import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -14,6 +16,7 @@ from aioresponses import aioresponses
 
 from src.scraper.amazon.scraper import ProductData
 from src.scraper.base.models import Platform
+from src.utils import logging_setup
 from src.video.config import VideoConfig, VideoProfile, load_video_config
 
 
@@ -508,17 +511,17 @@ def isolate_root_logging():
     root.setLevel(saved_level)
 
 
-# Every module that binds `setup_debug_logging` at import; patching the
-# source module alone reaches only the one call site that imports it
-# function-locally.
+# Every module that binds `setup_debug_logging` at import. Patching the
+# source module reaches the function-local import and every module imported
+# after the patch, but not one that bound the name before it.
 _LOGGING_SETUP_SITES = (
-    "src.utils.logging_setup",
     "src.scraper.amazon.scraper",
     "src.publisher.late.cli",
     "src.video.producer.cli",
     "src.video.producer.orchestration",
     "src.video.producer.utils",
 )
+_SETUP_DEBUG_LOGGING_SIGNATURE = inspect.signature(logging_setup.setup_debug_logging)
 
 
 @pytest.fixture(autouse=True)
@@ -534,10 +537,22 @@ def no_production_log_files(monkeypatch):
     """
 
     def _noop(*args, **kwargs):
+        # Bound against the real signature, because a variadic stand-in
+        # accepts a renamed or dropped keyword: those `main()` tests are the
+        # only coverage the call site has, and a break there kills every real
+        # run while the suite stays green.
+        _SETUP_DEBUG_LOGGING_SIGNATURE.bind(*args, **kwargs)
         return None
 
-    for module in _LOGGING_SETUP_SITES:
-        monkeypatch.setattr(f"{module}.setup_debug_logging", _noop, raising=False)
+    # Only what is already imported: a module imported later binds the name
+    # from the patched source module at its own import, and eagerly resolving
+    # these five pulls the scraper, publisher and producer stacks into every
+    # session, which costs a targeted single-file run seconds.
+    monkeypatch.setattr(logging_setup, "setup_debug_logging", _noop)
+    for name in _LOGGING_SETUP_SITES:
+        module = sys.modules.get(name)
+        if module is not None:
+            monkeypatch.setattr(module, "setup_debug_logging", _noop, raising=False)
 
 
 @pytest.fixture(autouse=True)

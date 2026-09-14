@@ -336,6 +336,25 @@ class TestOnlyAnEntryPointConfiguresLogging:
             f"it there: {missing}; add them to _LOGGING_SETUP_SITES"
         )
 
+    def test_a_module_imported_during_a_test_picks_up_the_stand_in(self):
+        """Why the fixture may patch only what `sys.modules` already holds.
+
+        Resolving all five eagerly imports the scraper, publisher and
+        producer stacks into every session and costs a single-file run
+        seconds. Anything imported later reads the name off the patched
+        source module, which is the half this asserts.
+        """
+        latecomer: dict = {}
+        exec(  # noqa: S102 - the point is to bind the name the way a module does
+            "from src.utils.logging_setup import setup_debug_logging",
+            latecomer,
+        )
+
+        assert latecomer["setup_debug_logging"] is not setup_debug_logging, (
+            "a module imported mid-test bound the real helper, so the first "
+            "entry point imported that late writes to outputs/logs/"
+        )
+
     def test_the_producer_fallback_forces_its_configuration(self):
         """The one line that branch exists to emit must not be swallowed by
         a root logger something else already configured.
