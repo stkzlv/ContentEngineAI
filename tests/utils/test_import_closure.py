@@ -93,6 +93,38 @@ def test_the_batch_closure_stays_small():
     assert count < 1100, f"import closure grew to {count} modules"
 
 
+@pytest.mark.parametrize(
+    "module",
+    ["src.ai.description_generator", "src.video.producer.steps"],
+)
+def test_a_first_import_of_the_cycle_succeeds(module: str):
+    """Each of these was the head of an import cycle.
+
+    `core_models` imports `PlatformMetadataSettings` from the
+    platform-metadata package, whose `__init__` imported `base`, which imports
+    `description_generator`, which imports the video config. Either module
+    imported first died on a partially initialised module -- on main
+    `description_generator` already did, and the producer's eager `__init__`
+    was ordering around it for `steps`.
+
+    A fresh interpreter is the whole point: the suite's conftest imports this
+    tree before any test runs, so in-process nothing can reproduce it. These
+    two cannot ride on the heavy-stack test above, which they legitimately
+    fail.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", f"import {module}"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, (
+        f"importing {module} first fails; an eager re-export in a package "
+        f"__init__ has closed the cycle again:\n{result.stderr[-1500:]}"
+    )
+
+
 def test_the_lazy_re_exports_still_resolve():
     """The names have to keep working, or this is a breaking change."""
     import src.scraper.amazon as amazon
@@ -106,16 +138,24 @@ def test_the_lazy_re_exports_still_resolve():
         getattr(amazon, "no_such_name")  # noqa: B009 - the point is the lookup
 
 
-@pytest.mark.parametrize("package", ["src.scraper.amazon", "src.video.producer"])
+LAZY_PACKAGES = [
+    "src.scraper.amazon",
+    "src.video.producer",
+    "src.ai.platform_metadata",
+]
+
+
+@pytest.mark.parametrize("package", LAZY_PACKAGES)
 def test_every_mapped_name_resolves(package: str):
-    """The map is the only new machinery here, and no gate reads it.
+    """The maps are the only new machinery here, and no gate reads them.
 
     mypy reads the `TYPE_CHECKING` block instead and ruff does not look, so a
     name pointed at a module that does not provide it passes lint, types and
-    the rest of the suite, then raises `AttributeError` on the one runtime
-    path that uses it. Nothing in the repo imports any name *through* either
-    package -- every in-repo import names a submodule -- so a wrong entry is
-    invisible until an outside consumer reaches it.
+    the rest of the suite, then raises `ImportError` on the one runtime path
+    that uses it. For the two package-level maps nothing in the repo imports
+    through them at all, so a wrong entry waits for an outside consumer; the
+    platform-metadata map is reached on a render, by `steps.py` and by the
+    batch generator, after the script, voiceover and assembly are paid for.
 
     An entry pointed at a module that merely re-imports the name is not
     caught here: it serves the identical object, and the maps legitimately

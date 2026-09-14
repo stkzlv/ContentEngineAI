@@ -221,11 +221,13 @@ class PlatformMetadataFactory:
                 f"Supported platforms: {known_platforms}"
             )
 
-        import importlib
+        import sys
 
+        # Resolved through this package's own lazy lookup rather than by
+        # deriving a module name from the platform key: one map decides where
+        # a name lives, and the test that walks it then covers this path too.
         name = PlatformMetadataFactory._PLATFORM_GENERATORS[platform]
-        module = importlib.import_module(f"{__name__}.{platform}")
-        generator_class = getattr(module, name)
+        generator_class = getattr(sys.modules[__name__], name)
         return generator_class(platform_settings)  # type: ignore[no-any-return]
 
     @staticmethod
