@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The producer and Amazon-scraper packages resolve their re-exported names on first access rather than at import. A package's `__init__` runs whenever any submodule is imported, so the eager re-exports loaded Whisper, torch, Botasaurus and its Chromium driver into every process that touched a leaf module, including `--help` and a dry run. Importing the batch pipeline now loads 703 modules in 0.5 s rather than 2,487 in 3.0 s, and `--help` returns in 0.6 s rather than 3.8 s. The names themselves are unchanged.
 - Seventeen modules imported `ProductData` from the scraper module, which imports the browser stack, rather than from the module that defines it; they now import it from `src.scraper.amazon.models`. Playwright's `Page` is imported for annotations only.
-- A test asserts the import closure in subprocesses, failing if torch, Whisper, Botasaurus, Playwright or the Google Cloud SDK returns to it.
+- The platform-metadata package resolves its re-exports the same way, which breaks a real import cycle: importing `src.ai.description_generator` or `src.video.producer.steps` before anything else raised `ImportError` on a partially initialised module. Both import standalone now; neither did before.
+- A test asserts the import closure in subprocesses, failing if torch, Whisper, Botasaurus, Playwright or the Google Cloud SDK returns to it, and walks the export maps, which no other gate reads.
 
 ## [0.118.3] - 2026-09-14
 
