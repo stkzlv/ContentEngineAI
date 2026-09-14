@@ -132,11 +132,44 @@ class TestTheShippedLoopsActuallyCheckTheText:
 
         assert len(loops) == 1, f"expected one loop over {iterator}, found {len(loops)}"
         guard = next(s for s in loops[0].body if isinstance(s, ast.If))
-        assert ".text" in ast.unparse(guard.test), (
+        assert ".text.strip()" in ast.unparse(guard.test), (
             f"the loop over {iterator} breaks on the element being present "
             "rather than on it having text; a duplicate id then ends the "
-            "fallback chain on an empty match"
+            "fallback chain on an empty match. `.text is not None` is the near "
+            "miss: it reads the text and still stops on an empty string"
         )
+
+    def test_every_description_selector_is_scoped(self):
+        """The chain may not end somewhere page-wide.
+
+        Falling through an empty first match is what makes the last entry
+        reachable at all, so an unscoped one puts the first vertical list on
+        the page -- nav, customer questions, a footer -- into the narration.
+        """
+        import ast
+
+        from src.utils.outputs_paths import get_project_root
+
+        source = (
+            get_project_root() / "src/scraper/amazon/product_extractor.py"
+        ).read_text(encoding="utf-8")
+
+        selectors = [
+            element.value
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(t, ast.Name) and t.id == "desc_selectors"
+                for t in node.targets
+            )
+            for element in node.value.elts
+        ]
+
+        assert selectors, "did not find the description selector list"
+        unscoped = [s for s in selectors if not s.startswith("#")]
+        assert (
+            not unscoped
+        ), f"description selectors that match anywhere on the page: {unscoped}"
 
 
 class TestTheRealExtractorRecoversTheTitle:
@@ -178,6 +211,45 @@ class TestTheRealExtractorRecoversTheTitle:
             "the next selector"
         )
         assert result["title"] == "EIGHTREE Smart Plug WiFi Outlet"
+
+    def test_an_empty_feature_bullet_block_falls_through_to_the_description(
+        self, monkeypatch
+    ):
+        """The description half of the same change.
+
+        It loses no product, since description is not a validation field, so
+        nothing fails when it regresses: the video is simply narrated from a
+        field that arrived empty.
+        """
+        from src.scraper.amazon import product_extractor
+
+        monkeypatch.setattr(
+            product_extractor, "extract_high_res_images_botasaurus", lambda *a, **k: []
+        )
+        monkeypatch.setattr(
+            product_extractor,
+            "extract_functional_videos_with_validation",
+            lambda *a, **k: [],
+        )
+
+        driver = FakeDriver(
+            {
+                "#productTitle": "EIGHTREE Smart Plug",
+                "#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen": (
+                    "$12.59"
+                ),
+                "#feature-bullets ul": "",
+                "#productDescription": "Real product copy",
+            }
+        )
+        driver.get_text = lambda _selector: ""
+
+        result = product_extractor.extract_product_data_from_page(
+            driver, "B0B6VPH24K", "https://www.amazon.com/dp/B0B6VPH24K"
+        )
+
+        assert result is not None
+        assert result["description"] == "Real product copy"
 
 
 class TestWhyAnEmptyTitleCostsTheWholeProduct:
