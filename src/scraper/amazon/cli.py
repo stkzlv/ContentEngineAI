@@ -526,11 +526,13 @@ def _build_search_params(
     search_params = get_default_search_parameters()
 
     cli_overrides: dict[str, Any] = {}
-    for name in ("min_price", "max_price", "min_rating", "category"):
+    # Two groups, as before the split: a numeric filter of 0 is a real bound,
+    # while an empty string or list means the flag was not really given.
+    for name in ("min_price", "max_price", "min_rating"):
         value = getattr(args, name)
         if value is not None:
             cli_overrides[name] = value
-    for name in ("prime_only", "free_shipping", "brands"):
+    for name in ("prime_only", "free_shipping", "brands", "category"):
         value = getattr(args, name)
         if value:
             cli_overrides[name] = value
@@ -787,6 +789,15 @@ def main() -> None:
     search_params, cli_overrides = built
     if args.debug:
         _log_search_params(search_params, cli_overrides)
+
+    if args.profile_uses_videos is not None:
+        # The `--profile NAME` path this replaces logged which profile it had
+        # aligned with; an operator reading scraper.log still needs to see
+        # which validation rule a run used.
+        logger.info(
+            "Media validation aligned with the flag: videos %s",
+            "enabled" if args.profile_uses_videos else "disabled",
+        )
 
     try:
         scraper = BotasaurusAmazonScraper(

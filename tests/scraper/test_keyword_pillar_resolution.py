@@ -227,6 +227,7 @@ class TestTheNoFlagRunSearchesKeywords:
         import sys
         from unittest.mock import MagicMock
 
+        from src.scraper.amazon import cli as scraper_cli
         from src.scraper.amazon import scraper as scraper_mod
 
         seen: dict = {}
@@ -249,7 +250,7 @@ class TestTheNoFlagRunSearchesKeywords:
             seen["keywords"] = list(kw.get("cli_keywords") or [])
             raise SystemExit(0)
 
-        monkeypatch.setattr(scraper_mod, "BotasaurusAmazonScraper", _Stub)
+        monkeypatch.setattr(scraper_cli, "BotasaurusAmazonScraper", _Stub)
         # Imported inside the function, so patch it at its source module.
         from src.scraper.amazon import config as scraper_config
 

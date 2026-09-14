@@ -156,6 +156,7 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
         import sys
         from unittest.mock import MagicMock
 
+        from src.scraper.amazon import cli as scraper_cli
         from src.scraper.amazon import scraper as scraper_module
 
         seen: dict[str, object] = {}
@@ -174,7 +175,7 @@ class TestTheCliRotatesOnlyTheConfiguredPool:
 
         with (
             patch.object(sys, "argv", ["scraper", *argv]),
-            patch.object(scraper_module, "BotasaurusAmazonScraper", MagicMock()),
+            patch.object(scraper_cli, "BotasaurusAmazonScraper", MagicMock()),
             patch.object(scraper_module.yaml, "safe_load", return_value=yaml_config),
             patch("src.scraper.base.keyword_pillars.date", _frozen_at(day)),
             patch(

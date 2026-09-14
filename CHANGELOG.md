@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.121.0] - 2026-09-14
 
 ### Changed
-- The Amazon scraper's command line lives in `src/scraper/amazon/cli.py`, split out of a 580-line `main()` that mixed argument parsing, input resolution, debug wiring and the batch-versus-single dispatch. `python -m src.scraper.amazon.scraper` is unchanged. No function in the entry point exceeds 100 lines.
+- The Amazon scraper's command line lives in `src/scraper/amazon/cli.py`, split out of a 580-line `main()` that mixed argument parsing, input resolution, debug wiring and the batch-versus-single dispatch. `python -m src.scraper.amazon.scraper` is unchanged. No function in the entry point exceeds 150 lines, which a test enforces.
 - **Breaking (CLI)**: the scraper's `--profile NAME` is replaced by `--profile-uses-videos` / `--no-profile-uses-videos`. Resolving a profile name meant loading the video config, a different package's five YAML files read for one boolean, and it was the only place the scraper reached into the video package; the batch, where profiles live, already computes the value itself. The batch pipeline's own `--profile` is unaffected.
 
 ## [0.120.0] - 2026-09-14

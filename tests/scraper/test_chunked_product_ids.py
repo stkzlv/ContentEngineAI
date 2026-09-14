@@ -94,6 +94,7 @@ def test_a_chunked_run_searches_no_keywords_after_the_first_chunk(
     import dotenv
 
     from src.scraper.amazon import batch_controller as batch_mod
+    from src.scraper.amazon import cli as scraper_cli
     from src.scraper.amazon import config as scraper_config
     from src.scraper.amazon import scraper as scraper_mod
 
@@ -130,7 +131,7 @@ def test_a_chunked_run_searches_no_keywords_after_the_first_chunk(
             )
 
     monkeypatch.setattr(scraper_config, "load_batch_config", recording_loader)
-    monkeypatch.setattr(scraper_mod, "BotasaurusAmazonScraper", _Scraper)
+    monkeypatch.setattr(scraper_cli, "BotasaurusAmazonScraper", _Scraper)
     # Both are imported inside `main`, so patch them at their source module.
     monkeypatch.setattr(batch_mod, "BatchController", _Controller)
     monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **kw: None)
