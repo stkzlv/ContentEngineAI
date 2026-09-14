@@ -30,11 +30,15 @@ def _imports_of(path) -> set[str]:
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.ImportFrom):
             if node.level == 0:
-                if node.module:
-                    names.add(node.module)
-                continue
-            base = package[: len(package) - (node.level - 1)]
-            names.add(".".join([*base, node.module] if node.module else base))
+                resolved = node.module or ""
+            else:
+                base = package[: len(package) - (node.level - 1)]
+                resolved = ".".join([*base, node.module] if node.module else base)
+            names.add(resolved)
+            # Each imported name may itself be a submodule: `from src import
+            # video` records only `src` otherwise, and reaches the package the
+            # guard is about.
+            names.update(f"{resolved}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
             names.update(alias.name for alias in node.names)
     return names
