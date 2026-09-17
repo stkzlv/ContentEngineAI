@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.4] - 2026-09-17
+
+### Removed
+- **Breaking (import path)**: `LLMSettings` is no longer re-exported from `src.video.config`; import it from `src.ai.llm_settings`, where it has lived since 0.119.1. The re-export was meant to last one release, and it hid three modules that still used the old path. A test now fails on any module that imports the name from the old package.
+
 ## [0.121.3] - 2026-09-14
 
 ### Fixed

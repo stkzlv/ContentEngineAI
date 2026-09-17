@@ -32,7 +32,7 @@ from aiohttp.client_exceptions import ClientError
 if TYPE_CHECKING:
     import aiohttp
 
-    from src.video.config import LLMSettings
+    from src.ai.llm_settings import LLMSettings
 
 logger = logging.getLogger(__name__)
 

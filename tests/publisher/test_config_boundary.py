@@ -11,6 +11,7 @@ The constants live in `src/publisher/constants.py` now.
 from __future__ import annotations
 
 import ast
+from pathlib import Path
 
 from src.utils.outputs_paths import get_project_root
 
@@ -95,9 +96,44 @@ class TestLLMSettingsLivesBesideItsReaders:
         }
         assert not video, f"src/ai/llm_settings.py imports {sorted(video)}"
 
-    def test_the_old_import_path_still_works(self):
-        """The shim carries it for one release."""
-        import src.video.config as video_config
-        from src.ai.llm_settings import LLMSettings
+    def test_the_old_import_path_is_gone(self):
+        """The shim carried it for one release, and that release has passed.
 
-        assert video_config.LLMSettings is LLMSettings
+        While it existed, four modules kept importing from the old path,
+        which the shim made invisible: the issue that removed it said there
+        were no consumers left, and a grep for the one-line form found three
+        of the four. Only the AST sweep below saw the multi-name import.
+        """
+        import src.video.config as video_config
+
+        assert not hasattr(video_config, "LLMSettings")
+        assert "LLMSettings" not in video_config.__all__
+
+    def test_nothing_spells_the_old_import_path(self):
+        """An import that resolves through the shim looks like any other.
+
+        The only way to see one is to look at the source, so this walks every
+        module for an import of `LLMSettings` from `src.video.config` or an
+        attribute read off that package.
+        """
+        offenders = []
+        for root in ("src", "tests", "tools"):
+            for path in (REPO / root).rglob("*.py"):
+                if path == Path(__file__).resolve():
+                    continue
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                for node in ast.walk(tree):
+                    if (
+                        isinstance(node, ast.ImportFrom)
+                        and node.module == "src.video.config"
+                        and any(a.name == "LLMSettings" for a in node.names)
+                    ) or (
+                        isinstance(node, ast.Attribute)
+                        and node.attr == "LLMSettings"
+                        and "video" in ast.unparse(node.value)
+                    ):
+                        offenders.append(f"{path.relative_to(REPO)}:{node.lineno}")
+
+        assert (
+            not offenders
+        ), f"still import LLMSettings from src.video.config: {offenders}"
