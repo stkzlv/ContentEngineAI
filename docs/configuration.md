@@ -1300,7 +1300,7 @@ llm_settings:
 3. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged. On a topic render the intersection is always empty by design, because `pillars` lists product templates and the pool is the topic family, so that case logs at debug and the pillar acts through its preamble and audience only.
 4. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).
 
-**Pillar resolution order:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/global_batch.py`, then the pillar a previous run of the same product recorded, then the product record's own value, which the scraper attaches from the source keyword's configured group. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes.
+**Pillar resolution order:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/cli.py`, then the pillar a previous run of the same product recorded, then the product record's own value, which the scraper attaches from the source keyword's configured group. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes.
 
 See [Requirements](requirements.md) "Content Pillars" for the behavior contract.
 

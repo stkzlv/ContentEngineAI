@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.pipeline.global_batch import create_argument_parser
+from src.pipeline.cli import create_argument_parser
 
 
 @pytest.fixture

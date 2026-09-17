@@ -56,7 +56,7 @@ Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 20
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
-Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
+Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/cli.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
 
 ### 2.2 Non-affiliate pillar mode (educational / how-to track)
 

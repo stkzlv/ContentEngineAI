@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.6] - 2026-09-17
+
+### Changed
+- The global batch's argument parser and entry point live in `src/pipeline/cli.py` and its dry-run plan printer in `src/pipeline/plan.py`; `python -m src.pipeline.global_batch` still runs the same command. A test now pins the split, both module entry points, that every patched name still exists on the module a test patches it on, and that no test driving `main` patches on `global_batch` a name `main` now reads from `cli`, which is the form of stale patch that passes against the real object without raising. Batch log lines are attributed to `src.pipeline.cli` and `src.pipeline.global_batch` instead of `__main__`, since the entry block no longer runs the whole module as the script.
+
 ## [0.121.5] - 2026-09-17
 
 ### Fixed

@@ -106,13 +106,13 @@ class TestBothEntryPointsOfferIt:
     """Module/Batch Alignment: the scraper re-implements this reporting."""
 
     def test_the_batch_accepts_strict(self):
-        from src.pipeline.global_batch import create_argument_parser
+        from src.pipeline.cli import create_argument_parser
 
         args = create_argument_parser().parse_args(["--keywords", "a", "--strict"])
         assert args.strict is True
 
     def test_the_batch_defaults_to_lenient(self):
-        from src.pipeline.global_batch import create_argument_parser
+        from src.pipeline.cli import create_argument_parser
 
         assert create_argument_parser().parse_args(["--keywords", "a"]).strict is False
 

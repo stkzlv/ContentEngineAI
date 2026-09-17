@@ -357,7 +357,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 
 ### Pipeline Behavior
 - `--pillar <name>` filters a run to one pillar; without the flag, batch runs balance across all pillars.
-- The flag is present on both `src/video/producer/cli.py` and `src/pipeline/global_batch.py` (Module/Batch Alignment Rule).
+- The flag is present on both `src/video/producer/cli.py` and `src/pipeline/cli.py` (Module/Batch Alignment Rule).
 - Each script prompt is built by stacking three layers, in order: (1) a channel-wide narrator profile (`script_templates.narrator_profile`) that anchors voice, persona, and the anti-AI-tells rules; (2) a per-pillar preamble (`script_templates.pillar_preambles`, or `pillar_preambles_topic` on a topic render) when a pillar is set, nudging the LLM toward that pillar's framing angle; (3) the chosen template's hook structure plus product data. Templates themselves stay pillar-agnostic and channel-agnostic so the same template can serve multiple pillars and personas.
 - Platform caption generators (YouTube, TikTok, Instagram) receive the same narrator profile and pillar preamble so captions adopt the video's conversational voice rather than defaulting to SEO copy.
 - When a pillar is set, the `{AUDIENCE}` placeholder substitutes the per-pillar audience hint (`script_templates.pillar_audiences[pillar]`, or `pillar_audiences_topic[pillar]` on a topic render) instead of the global `target_audience`. Falls back to the global value when the entry is missing or empty.

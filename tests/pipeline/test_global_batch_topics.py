@@ -559,10 +559,13 @@ class TestTheCleanCallSitesAreWired:
         import ast
         from pathlib import Path
 
-        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        # The dry-run plan is in `plan.py`, the deletion in `cli.py`'s `main`.
         calls = [
             node
-            for node in ast.walk(tree)
+            for module in ("plan", "cli")
+            for node in ast.walk(
+                ast.parse(Path(f"src/pipeline/{module}.py").read_text())
+            )
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "_clean_targets"
@@ -797,7 +800,7 @@ class TestRecognisingAResumedTopicsRun:
         import ast
         from pathlib import Path
 
-        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        tree = ast.parse(Path("src/pipeline/cli.py").read_text())
         # `main` is async; matching only FunctionDef finds nothing and the
         # assertions below would then pass vacuously on an empty search.
         main = next(
