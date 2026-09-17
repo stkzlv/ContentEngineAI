@@ -384,6 +384,20 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
             "Each product should get a unique slot."
         )
 
+        # Both posts reach the local schedule, so `calendar` sees them (#485).
+        # The batch used to record only the history file, and the schedule
+        # file stayed at whatever the `schedule` command last wrote.
+        from src.publisher.schedule import ScheduleManager
+
+        written = ScheduleManager(
+            schedule_path=temp_outputs_dir / "state" / "schedule.json"
+        ).entries
+        assert [(e.product_id, e.scheduled_time, e.slot_index) for e in written] == [
+            ("B0TEST1", times[0], 0),
+            ("B0TEST2", times[1], 1),
+        ]
+        assert all(e.status == "scheduled" for e in written)
+
 
 # ============================================================================
 # CLEANUP TESTS

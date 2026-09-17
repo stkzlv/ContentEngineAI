@@ -273,6 +273,13 @@ python -m src.publisher.late calendar list [options]
 | `--date-from DATE` | No | Start date filter (YYYY-MM-DD) |
 | `--date-to DATE` | No | End date filter (YYYY-MM-DD) |
 
+The list comes from the local schedule (`outputs/state/schedule.json`),
+which every scheduling path writes: `single`, `schedule`, and the global
+batch pipeline. Before listing, the command reads the provider's own count of
+upcoming posts and warns when local state holds fewer, naming the gap; posts
+scheduled before 0.121.5 through `single` or the batch were never written
+locally and show up only in that warning.
+
 ### Command: `cleanup`
 
 ```

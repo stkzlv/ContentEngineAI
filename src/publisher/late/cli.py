@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+from aiohttp.client_exceptions import ClientError
 from dotenv import load_dotenv
 
 from src.publisher import PublisherProvider, create_publisher
@@ -35,6 +36,7 @@ from src.publisher.analytics import (
     summarize_post,
     timeline_resource,
 )
+from src.publisher.base import PublisherError
 from src.publisher.batch import BatchPublisher
 from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
@@ -53,7 +55,7 @@ from src.publisher.product_registry import (
     rebuild_registry,
     summarize_by_content_format,
 )
-from src.publisher.schedule import ScheduleManager
+from src.publisher.schedule import ScheduleManager, record_scheduled_posts
 from src.publisher.tracking import is_already_published, record_publish
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
@@ -101,6 +103,41 @@ def _record_publish_results(
                     e,
                 )
     return recorded
+
+
+async def _provider_upcoming_count(publisher: Any) -> int | None:
+    """How many posts the provider holds from now on, or None if unreachable.
+
+    `calendar` reads local state, which only the paths that write it can
+    keep current. Putting the provider's own count beside the local one
+    turns a silent gap into a visible one. `PublisherError` is the base of
+    the client's exceptions: a rotated key raises `AuthenticationError`,
+    which is not a `PublishError`, and the command listed fine before the
+    provider was consulted, so it must keep listing.
+    """
+    try:
+        posts = await publisher.list_posts()
+    except (PublisherError, OSError, TimeoutError, ClientError) as e:
+        logger.warning("Could not read the provider's posts: %s", e)
+        return None
+    now = datetime.now(UTC)
+    upcoming = 0
+    for post in posts:
+        scheduled_for = post.get("scheduledFor")
+        if not scheduled_for:
+            continue
+        if isinstance(scheduled_for, str):
+            try:
+                scheduled_dt = datetime.fromisoformat(scheduled_for)
+            except ValueError:
+                continue
+        else:
+            scheduled_dt = scheduled_for
+        if scheduled_dt.tzinfo is None:
+            scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
+        if scheduled_dt >= now:
+            upcoming += 1
+    return upcoming
 
 
 def _create_publisher_from_config(config, session: aiohttp.ClientSession):
@@ -574,6 +611,8 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         # Auto-discover next slot if --schedule not provided (and not --immediate)
         schedule_time = args.schedule
+        slot_index: int | None = None
+        schedule_mgr: ScheduleManager | None = None
         if not schedule_time and not args.immediate:
             logger.info("Auto-discovering next available schedule slot...")
             schedule_mgr = ScheduleManager(config=config.schedule_config)
@@ -624,6 +663,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
                 if normalized not in occupied_slot_times:
                     schedule_time = next_time
+                    slot_index = current_slot
                     logger.info("Found available slot: %s", schedule_time.isoformat())
                     break
 
@@ -718,6 +758,20 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             product_id, publish_results, platforms_to_publish, outputs_dir
         )
 
+        # A scheduled post also goes into the local schedule, so `calendar`
+        # sees it. An explicit --schedule reaches here with no manager yet.
+        if schedule_time:
+            if schedule_mgr is None:
+                schedule_mgr = ScheduleManager(config=config.schedule_config)
+            record_scheduled_posts(
+                product_id,
+                publish_results,
+                platforms_to_publish,
+                schedule_time,
+                slot_index,
+                schedule_mgr,
+            )
+
         logger.info("Single video publishing complete")
 
         # Add to published products registry
@@ -796,6 +850,32 @@ async def cmd_calendar(
 
     # Create schedule manager
     schedule_mgr = ScheduleManager()
+
+    # The local file is only as current as the paths that write it. Show
+    # the provider's own count beside it so a gap is visible rather than
+    # reported as "nothing scheduled".
+    now = datetime.now(UTC)
+    local_upcoming = len(schedule_mgr.list_scheduled(date_from=now))
+    publisher = _create_publisher_from_config(config, session)
+    provider_upcoming = await _provider_upcoming_count(publisher)
+    if provider_upcoming is None:
+        logger.warning(
+            "Provider unreachable; the %d upcoming post(s) below are local "
+            "state only and may be incomplete",
+            local_upcoming,
+        )
+    elif provider_upcoming != local_upcoming:
+        logger.warning(
+            "Provider holds %d upcoming post(s); local state holds %d. The "
+            "list below is local state and is missing %d",
+            provider_upcoming,
+            local_upcoming,
+            max(provider_upcoming - local_upcoming, 0),
+        )
+    else:
+        logger.info(
+            "Provider and local state agree: %d upcoming post(s)", provider_upcoming
+        )
 
     # Parse date filters if provided
     date_from = None

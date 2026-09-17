@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.5] - 2026-09-17
+
+### Fixed
+- A post scheduled through `single` or the global batch is written to the local schedule, so `calendar` lists it. Only the `schedule` command wrote that file; the other two paths published and recorded the history file alone, so the newest local entry was from June while the account had published daily since, and `calendar` answered "nothing scheduled" with a week queued on the provider.
+- `calendar` reads the provider's count of upcoming posts and warns when local state holds fewer, naming the gap, instead of presenting the local list as the whole schedule.
+
 ## [0.121.4] - 2026-09-17
 
 ### Removed
