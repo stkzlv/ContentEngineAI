@@ -7,6 +7,7 @@ Architecture:
     - global_batch: Main orchestrator coordinating scraping and video production
     - cli: Argument parser and the `main` entry point
     - plan: The dry-run plan printer
+    - phases: The scraping and production phases, one function each
     - config: Configuration models and loading with CLI > YAML > defaults precedence
 
 Three-Phase Pipeline:

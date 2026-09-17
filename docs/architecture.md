@@ -217,6 +217,9 @@ src/
     ├── cli.py                # Argument parser and entry point
     ├── config.py             # Pipeline configuration
     ├── global_batch.py       # Unified scrape + produce pipeline
+    ├── phases/               # One module per phase, called by the orchestrator
+    │   ├── production.py     # Render each ready product
+    │   └── scraping.py       # One browser session across every input
     └── plan.py               # Dry-run plan printer
 ```
 

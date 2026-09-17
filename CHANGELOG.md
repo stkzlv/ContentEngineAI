@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.7] - 2026-09-17
+
+### Changed
+- The global batch's scraping and production phases live in `src/pipeline/phases/scraping.py` and `src/pipeline/phases/production.py` as functions returning their existing summaries; the orchestrator keeps a delegating method per phase, so `run_pipeline` and every test that stubs a phase on the instance are unchanged. Tests that patched the profile selector, the profile tracker or the video-config loader for the production phase now patch them on the phase module, and the split guard covers the phase modules too.
+
 ## [0.121.6] - 2026-09-17
 
 ### Changed

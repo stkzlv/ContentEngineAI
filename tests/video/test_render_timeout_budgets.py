@@ -179,7 +179,7 @@ class TestTheDeadlineIsSetWhereTheTimeoutIsApplied:
 
     @pytest.mark.parametrize(
         "module",
-        ["src/video/producer/cli.py", "src/pipeline/global_batch.py"],
+        ["src/video/producer/cli.py", "src/pipeline/phases/production.py"],
     )
     def test_the_call_site_starts_the_clock(self, module):
         tree = ast.parse(Path(module).read_text())

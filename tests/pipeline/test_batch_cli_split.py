@@ -1,11 +1,13 @@
-"""The batch CLI and plan printer live outside global_batch.py (#450, PR 1).
+"""The batch CLI, plan printer and phases live outside global_batch.py (#450).
 
 `global_batch.py` was 2,792 lines: the orchestrator, a 279-line argument
-parser, a 248-line `main` and a 226-line plan printer in one module, the
-heaviest single context load for any question about the batch. The parser
-and `main` are in `src/pipeline/cli.py`, the plan printer in
-`src/pipeline/plan.py`, and `python -m src.pipeline.global_batch` still runs
-`main` through the module's own entry block.
+parser, a 248-line `main`, a 226-line plan printer and three phases of 240
+to 560 lines in one module, the heaviest single context load for any
+question about the batch. The parser and `main` are in
+`src/pipeline/cli.py`, the plan printer in `src/pipeline/plan.py`, the
+scraping and production phases in `src/pipeline/phases/`, and
+`python -m src.pipeline.global_batch` still runs `main` through the module's
+own entry block.
 
 Three things a move like this breaks quietly, each pinned below: a test that
 patches a name on the module the code used to read it from (the scraper's
@@ -32,25 +34,41 @@ REPO = get_project_root()
 BATCH = REPO / "src/pipeline/global_batch.py"
 CLI = REPO / "src/pipeline/cli.py"
 PLAN = REPO / "src/pipeline/plan.py"
+SCRAPING = REPO / "src/pipeline/phases/scraping.py"
+PRODUCTION = REPO / "src/pipeline/phases/production.py"
 
-# The file came out of the split at about 2,000 lines. The issue's target is
-# 1,000 after the phases move out (PRs 2 and 3); this ratchet only says it
-# must not grow back in the meantime.
-MAX_BATCH_LINES = 2_100
+# The file came out of the CLI split at about 2,000 lines and the phase split
+# at about 1,600. The issue's target is 1,000 after the publishing phase
+# moves out (PR 3); this ratchet only says it must not grow back meanwhile.
+MAX_BATCH_LINES = 1_650
 
+MODULES = {
+    "global_batch": "src.pipeline.global_batch",
+    "cli": "src.pipeline.cli",
+    "plan": "src.pipeline.plan",
+    "scraping": "src.pipeline.phases.scraping",
+    "production": "src.pipeline.phases.production",
+}
 PATCH_TARGET = re.compile(
-    r"""["'](src\.pipeline\.(global_batch|cli|plan))\.([A-Za-z_][A-Za-z0-9_]*)["']"""
-)
-# A test drives `main` as `cli.main()`, or as a bare `main()` after importing
-# it from `cli`, possibly under another name.
-DRIVES_MAIN = re.compile(
-    r"cli\.main\(|from src\.pipeline\.cli import[^\n]*\bmain\b|\bmain\(\)"
+    r"""["'](src\.pipeline\.(global_batch|cli|plan|phases\.scraping|phases\.production))"""
+    r"""\.([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
 # `patch.object(global_batch, "name")` after `from src.pipeline import global_batch`
 # names the same target without the dotted string.
 PATCH_OBJECT = re.compile(
-    r"""patch\.object\(\s*(global_batch|cli|plan)\s*,\s*["']([A-Za-z_][A-Za-z0-9_]*)["']"""
+    r"""patch\.object\(\s*(global_batch|cli|plan|scraping|production)\s*,"""
+    r"""\s*["']([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
+# What a test function does that makes it read a moved body: it drives `main`
+# (as `cli.main()`, or a bare `main()` after importing it from `cli`, possibly
+# under another name), or it runs a phase, directly or through `run_pipeline`.
+DRIVERS = {
+    CLI: re.compile(
+        r"cli\.main\(|from src\.pipeline\.cli import[^\n]*\bmain\b|\bmain\(\)"
+    ),
+    SCRAPING: re.compile(r"_execute_scraping_phase\(|run_pipeline\("),
+    PRODUCTION: re.compile(r"_execute_production_phase\(|run_pipeline\("),
+}
 
 
 def _defs(path: Path) -> set[str]:
@@ -80,22 +98,35 @@ class TestTheMoveIsAMove:
         assert {"create_argument_parser", "main"} <= cli
         assert not {"create_argument_parser", "main"} & _defs(BATCH)
 
-    def test_the_plan_printer_is_a_function_the_orchestrator_delegates_to(self):
-        assert "display_execution_plan" in _defs(PLAN)
+    @pytest.mark.parametrize(
+        ("method", "module", "function"),
+        [
+            ("display_execution_plan", PLAN, "display_execution_plan"),
+            ("_execute_scraping_phase", SCRAPING, "run_scraping_phase"),
+            ("_execute_production_phase", PRODUCTION, "run_production_phase"),
+        ],
+        ids=["plan", "scraping", "production"],
+    )
+    def test_the_body_is_a_function_the_orchestrator_delegates_to(
+        self, method: str, module: Path, function: str
+    ):
+        assert function in _defs(module)
+        assert function not in _defs(BATCH)
         tree = ast.parse(BATCH.read_text(encoding="utf-8"))
         cls = next(
             n
             for n in tree.body
             if isinstance(n, ast.ClassDef) and n.name == "GlobalPipelineOrchestrator"
         )
-        method = next(
+        node = next(
             n
             for n in cls.body
-            if isinstance(n, ast.FunctionDef) and n.name == "display_execution_plan"
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == method
         )
-        # A delegator: a docstring, an import, one call. Anything longer means
-        # the body is growing back where it was moved from.
-        assert len(method.body) <= 3, ast.unparse(method)
+        # A delegator: a docstring, at most an import, one call. Anything
+        # longer means the body is growing back where it was moved from.
+        assert len(node.body) <= 3, ast.unparse(node)
 
     def test_global_batch_is_not_growing_back(self):
         lines = len(BATCH.read_text(encoding="utf-8").splitlines())
@@ -147,7 +178,7 @@ class TestPatchTargetsStillResolve:
             for module, _, name in PATCH_TARGET.findall(text):
                 hits.append((path, module, name))
             for short, name in PATCH_OBJECT.findall(text):
-                hits.append((path, f"src.pipeline.{short}", name))
+                hits.append((path, MODULES[short], name))
         return hits
 
     def test_the_sweep_finds_something(self):
@@ -164,8 +195,8 @@ class TestPatchTargetsStillResolve:
         ), f"tests patch {module}.{name}, which it does not have"
 
     def test_no_test_patches_a_moved_name_on_global_batch(self):
-        """The names `main` and the parser read are now bound in `cli`."""
-        moved = _defs(CLI) | _defs(PLAN)
+        """The names the moved bodies define are bound in their new modules."""
+        moved = _defs(CLI) | _defs(PLAN) | _defs(SCRAPING) | _defs(PRODUCTION)
         offenders = [
             f"{path.relative_to(REPO)}: {name}"
             for path, module, name in self._patch_targets()
@@ -173,19 +204,26 @@ class TestPatchTargetsStillResolve:
         ]
         assert not offenders, f"patched on the old module: {offenders}"
 
-    def test_no_main_driver_patches_what_main_reads_on_global_batch(self):
-        """The inert form: `main` reads a name from `cli`'s own namespace.
+    def test_no_driver_patches_what_a_moved_body_reads_on_global_batch(self):
+        """The inert form: a moved body reads a name from its own namespace.
 
-        `cli` binds `GlobalPipelineOrchestrator`, `load_pipeline_state`,
-        `load_video_config_modular` and the rest at module scope. A test that
-        patches one of those on `src.pipeline.global_batch` and then drives
-        `cli.main()` patches a name `main` never looks up; `global_batch`
-        still has the attribute, so nothing raises, and the test runs the
-        real object. Only the test function that drives `main` is held to
-        this; an orchestrator test in the same file patching `global_batch`
-        is patching what it reads.
+        `cli` binds `GlobalPipelineOrchestrator` and `load_pipeline_state` at
+        module scope; `phases.production` binds `select_profile_for_product`
+        and `load_video_config_modular`. A test that patches one of those on
+        `src.pipeline.global_batch` and then drives the body that moved
+        patches a name it never looks up; when `global_batch` still has the
+        attribute nothing raises, and the test runs the real object. Only
+        the test function that drives the moved body is held to this, and
+        only for names it does not also patch on the new module; a sibling
+        test patching `global_batch` for what the orchestrator itself reads
+        is patching the right place.
         """
-        reads = _module_scope_names(CLI)
+        reads = {module: _module_scope_names(module) for module in DRIVERS}
+        dotted = {
+            CLI: MODULES["cli"],
+            SCRAPING: MODULES["scraping"],
+            PRODUCTION: MODULES["production"],
+        }
         offenders = []
         for path in sorted((REPO / "tests").rglob("*.py")):
             if path == Path(__file__).resolve():
@@ -193,22 +231,23 @@ class TestPatchTargetsStillResolve:
             text = path.read_text(encoding="utf-8")
             if "global_batch" not in text:
                 continue
-            tree = ast.parse(text)
-            for fn in ast.walk(tree):
+            for fn in ast.walk(ast.parse(text)):
                 if not isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef):
                     continue
                 segment = ast.get_source_segment(text, fn) or ""
-                if not DRIVES_MAIN.search(segment):
-                    continue
-                patched = {
-                    name
-                    for module, _, name in PATCH_TARGET.findall(segment)
-                    if module == "src.pipeline.global_batch"
-                } | {
-                    name
-                    for short, name in PATCH_OBJECT.findall(segment)
-                    if short == "global_batch"
-                }
-                for name in sorted(patched & reads):
-                    offenders.append(f"{path.relative_to(REPO)}::{fn.name}: {name}")
-        assert not offenders, f"patched on global_batch but read by cli: {offenders}"
+                patched: dict[str, set[str]] = {}
+                for module, _, name in PATCH_TARGET.findall(segment):
+                    patched.setdefault(module, set()).add(name)
+                for short, name in PATCH_OBJECT.findall(segment):
+                    patched.setdefault(MODULES[short], set()).add(name)
+                on_old = patched.get(MODULES["global_batch"], set())
+                for module, driver in DRIVERS.items():
+                    if not driver.search(segment):
+                        continue
+                    also_on_new = patched.get(dotted[module], set())
+                    for name in sorted((on_old & reads[module]) - also_on_new):
+                        offenders.append(
+                            f"{path.relative_to(REPO)}::{fn.name}: {name} "
+                            f"(read by {dotted[module]})"
+                        )
+        assert not offenders, f"patched on global_batch but read elsewhere: {offenders}"
