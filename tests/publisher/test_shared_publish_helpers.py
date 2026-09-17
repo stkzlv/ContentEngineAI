@@ -12,6 +12,7 @@ scattered.
 from __future__ import annotations
 
 import ast
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -154,3 +155,69 @@ class TestThePhaseCallsThePackage:
     def test_it_no_longer_restates(self, name: str):
         """Each of these was the phase doing the package's job by hand."""
         assert name not in self._calls()
+
+
+class TestTheOccupancyReadDegradesOnePostAtATime:
+    """`build_occupancy` feeds every scheduling path's slot search.
+
+    A read that fails part-way used to abort `schedule` (the exception
+    escaped) and, once the batch called it, would have returned a set with
+    neither the provider's posts nor the local file's, so the first slot
+    after now, already held locally, was offered again.
+    """
+
+    class _Posts:
+        def __init__(self, posts):
+            self.posts = posts
+
+        async def list_posts(self):
+            return self.posts
+
+    class _Rejected:
+        async def list_posts(self):
+            from src.publisher.base import AuthenticationError
+
+            raise AuthenticationError("[401] Invalid API key")
+
+    @staticmethod
+    def _manager(tmp_path: Path, local: datetime):
+        from src.publisher.models import ScheduleEntry
+        from src.publisher.schedule import ScheduleManager
+
+        manager = ScheduleManager(schedule_path=tmp_path / "schedule.json")
+        manager.record_entry(
+            ScheduleEntry(
+                product_id="B0LOCAL",
+                scheduled_time=local,
+                platforms=[Platform.YOUTUBE],
+                post_id="p-local",
+                status="scheduled",
+            )
+        )
+        return manager
+
+    @pytest.mark.asyncio
+    async def test_one_unreadable_timestamp_drops_that_post_only(self, tmp_path):
+        now = datetime(2026, 9, 17, 12, 0, tzinfo=UTC)
+        local = now + timedelta(days=2)
+        good = now + timedelta(days=1)
+        manager = self._manager(tmp_path, local)
+
+        occupied = await manager.build_occupancy(
+            self._Posts(
+                [{"scheduledFor": "not a date"}, {"scheduledFor": good.isoformat()}]
+            ),
+            now,
+        )
+
+        assert occupied == {good, local}
+
+    @pytest.mark.asyncio
+    async def test_a_rejected_read_still_counts_the_local_entries(self, tmp_path):
+        now = datetime(2026, 9, 17, 12, 0, tzinfo=UTC)
+        local = now + timedelta(days=2)
+        manager = self._manager(tmp_path, local)
+
+        occupied = await manager.build_occupancy(self._Rejected(), now)
+
+        assert occupied == {local}
