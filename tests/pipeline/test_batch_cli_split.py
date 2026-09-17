@@ -1,7 +1,7 @@
 """The batch CLI and plan printer live outside global_batch.py (#450, PR 1).
 
-`global_batch.py` was 2,792 lines: the orchestrator, a 287-line argument
-parser, a 250-line `main` and a 226-line plan printer in one module, the
+`global_batch.py` was 2,792 lines: the orchestrator, a 279-line argument
+parser, a 248-line `main` and a 226-line plan printer in one module, the
 heaviest single context load for any question about the batch. The parser
 and `main` are in `src/pipeline/cli.py`, the plan printer in
 `src/pipeline/plan.py`, and `python -m src.pipeline.global_batch` still runs
@@ -40,6 +40,11 @@ MAX_BATCH_LINES = 2_100
 
 PATCH_TARGET = re.compile(
     r"""["'](src\.pipeline\.(global_batch|cli|plan))\.([A-Za-z_][A-Za-z0-9_]*)["']"""
+)
+# A test drives `main` as `cli.main()`, or as a bare `main()` after importing
+# it from `cli`, possibly under another name.
+DRIVES_MAIN = re.compile(
+    r"cli\.main\(|from src\.pipeline\.cli import[^\n]*\bmain\b|\bmain\(\)"
 )
 # `patch.object(global_batch, "name")` after `from src.pipeline import global_batch`
 # names the same target without the dotted string.
@@ -176,15 +181,34 @@ class TestPatchTargetsStillResolve:
         patches one of those on `src.pipeline.global_batch` and then drives
         `cli.main()` patches a name `main` never looks up; `global_batch`
         still has the attribute, so nothing raises, and the test runs the
-        real object. Only tests that drive `main` are held to this; an
-        orchestrator test patching `global_batch` is patching what it reads.
+        real object. Only the test function that drives `main` is held to
+        this; an orchestrator test in the same file patching `global_batch`
+        is patching what it reads.
         """
         reads = _module_scope_names(CLI)
         offenders = []
-        for path, module, name in self._patch_targets():
-            if module != "src.pipeline.global_batch" or name not in reads:
+        for path in sorted((REPO / "tests").rglob("*.py")):
+            if path == Path(__file__).resolve():
                 continue
             text = path.read_text(encoding="utf-8")
-            if "cli.main()" in text or "from src.pipeline.cli import main" in text:
-                offenders.append(f"{path.relative_to(REPO)}: {name}")
+            if "global_batch" not in text:
+                continue
+            tree = ast.parse(text)
+            for fn in ast.walk(tree):
+                if not isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef):
+                    continue
+                segment = ast.get_source_segment(text, fn) or ""
+                if not DRIVES_MAIN.search(segment):
+                    continue
+                patched = {
+                    name
+                    for module, _, name in PATCH_TARGET.findall(segment)
+                    if module == "src.pipeline.global_batch"
+                } | {
+                    name
+                    for short, name in PATCH_OBJECT.findall(segment)
+                    if short == "global_batch"
+                }
+                for name in sorted(patched & reads):
+                    offenders.append(f"{path.relative_to(REPO)}::{fn.name}: {name}")
         assert not offenders, f"patched on global_batch but read by cli: {offenders}"
