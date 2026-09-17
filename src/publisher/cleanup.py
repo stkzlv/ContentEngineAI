@@ -795,3 +795,35 @@ class CleanupManager:
         )
 
         return {"cleaned": cleaned, "skipped": skipped, "disk_freed": disk_freed}
+
+
+def remove_published_product_dir(
+    outputs_dir: Path, product_id: str, config: CleanupConfig
+) -> bool:
+    """Remove a product directory right after a fully successful publish.
+
+    This is the global batch's cleanup, and it is deliberately not
+    `CleanupManager.cleanup`: that path checks the product's age against
+    `keep_published_days` and, with `verify_before_delete`, asks the provider
+    whether every leg is live, which a post scheduled a day out never is. The
+    batch instead removes the directory as soon as every targeted platform
+    accepted the post, on the grounds that the media is uploaded and the
+    tracking files under `outputs/state/` survive. The two policies differ
+    on purpose; which one the batch should follow is #491, not a defect in
+    either.
+
+    Returns True when the directory was removed.
+    """
+    if not (config.enabled and config.require_all_platforms):
+        return False
+    product_dir = outputs_dir / product_id
+    if not product_dir.exists():
+        return False
+    try:
+        logger.info("Cleaning up product directory: %s", product_dir)
+        shutil.rmtree(product_dir)
+        logger.info("Removed %s", product_dir)
+    except OSError as e:
+        logger.warning("Failed to cleanup %s: %s", product_dir, e)
+        return False
+    return True

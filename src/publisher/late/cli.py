@@ -27,7 +27,6 @@ import aiohttp
 from aiohttp.client_exceptions import ClientError
 from dotenv import load_dotenv
 
-from src.publisher import PublisherProvider, create_publisher
 from src.publisher.analytics import (
     load_metrics,
     publish_time,
@@ -55,8 +54,10 @@ from src.publisher.product_registry import (
     rebuild_registry,
     summarize_by_content_format,
 )
+from src.publisher.publish_modes import accounts_for_platforms
+from src.publisher.registry import create_publisher_from_config
 from src.publisher.schedule import ScheduleManager, record_scheduled_posts
-from src.publisher.tracking import is_already_published, record_publish
+from src.publisher.tracking import is_already_published, record_publish_results
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
 from src.utils.outputs_paths import get_project_root
@@ -64,45 +65,17 @@ from src.utils.outputs_paths import get_project_root
 logger = logging.getLogger(__name__)
 
 
-def _record_publish_results(
-    product_id: str,
-    publish_results: list[dict],
-    platforms_to_publish: list[dict],
-    outputs_dir: Path,
-) -> int:
-    """Write each publish result to publish_history.json.
+# Both live in the publisher package now, shared with the global batch; the
+# underscore names stay bound here because tests patch and import them on
+# this module.
+_record_publish_results = record_publish_results
 
-    Each call is wrapped so a tracking write that fails for one platform
-    doesn't drop the others. Returns the number of platforms recorded
-    successfully.
+
+def _create_publisher_from_config(config, session: aiohttp.ClientSession):
+    """The shared factory; untyped here so the commands that hand the result
+    to Late-only helpers keep type-checking as they did.
     """
-    recorded = 0
-    for pub_result in publish_results:
-        result_data = pub_result["result"]
-        post_id = str(result_data.get("post_id", ""))
-        logger.info(
-            "Published: post_id=%s, status=%s",
-            post_id,
-            result_data.get("status"),
-        )
-
-        targets = (
-            [p["platform"] for p in platforms_to_publish]
-            if pub_result["platform"] == "all"
-            else [pub_result["platform"]]
-        )
-        for plat in targets:
-            try:
-                record_publish(product_id, plat, post_id, outputs_dir)
-                recorded += 1
-            except OSError as e:
-                logger.error(
-                    "Failed to record publish %s:%s to history: %s",
-                    product_id,
-                    plat,
-                    e,
-                )
-    return recorded
+    return create_publisher_from_config(config, session)
 
 
 async def _provider_upcoming_count(publisher: Any) -> int | None:
@@ -138,32 +111,6 @@ async def _provider_upcoming_count(publisher: Any) -> int | None:
         if scheduled_dt >= now:
             upcoming += 1
     return upcoming
-
-
-def _create_publisher_from_config(config, session: aiohttp.ClientSession):
-    """Create a publisher instance from loaded config.
-
-    Args:
-    ----
-        config: PublisherConfig instance
-        session: aiohttp ClientSession
-
-    Returns:
-    -------
-        Configured publisher instance
-
-    """
-    return create_publisher(
-        provider=PublisherProvider(config.provider),
-        api_key=config.api_key,
-        session=session,
-        vercel_token=config.vercel_token,
-        timeout=config.timeout,
-        max_retries=config.max_retries,
-        tiktok_settings=config.tiktok_settings,
-        first_comment_config=config.first_comment_config,
-        synthetic_media_disclosure=config.synthetic_media_disclosure,
-    )
 
 
 def parse_datetime(datetime_str: str) -> datetime:
@@ -687,7 +634,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         logger.info("Upload complete: %s", media_url)
 
         # Build platforms list (filter duplicates and validate accounts)
-        platforms_to_publish = []
+        wanted: list[Platform] = []
         skipped_already_published = False
         for platform in args.platforms:
             # Check for duplicates (unless --force)
@@ -701,23 +648,11 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 )
                 skipped_already_published = True
                 continue
+            wanted.append(platform)
 
-            # Find account for this platform
-            platform_account = next(
-                (acc for acc in accounts if acc["platform"].lower() == platform.value),
-                None,
-            )
-
-            if not platform_account:
-                logger.warning("No connected account for %s, skipping", platform.value)
-                continue
-
-            platforms_to_publish.append(
-                {
-                    "platform": platform.value,
-                    "account_id": platform_account["account_id"],
-                }
-            )
+        platforms_to_publish, missing = accounts_for_platforms(wanted, accounts)
+        for platform in missing:
+            logger.warning("No connected account for %s, skipping", platform.value)
 
         if not platforms_to_publish:
             logger.warning("No platforms to publish to after filtering")

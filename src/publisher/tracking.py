@@ -229,3 +229,46 @@ def get_retry_queue_count(outputs_dir: Path = DEFAULT_OUTPUTS_DIR) -> int:
     """
     tracking = load_tracking(outputs_dir)
     return len(tracking.get("retry_queue", {}))
+
+
+def record_publish_results(
+    product_id: str,
+    publish_results: list[dict],
+    platforms_to_publish: list[dict],
+    outputs_dir: Path,
+) -> int:
+    """Write each publish result to publish_history.json.
+
+    A unified-mode result (`platform == "all"`) is one post carrying every
+    target platform, so it is recorded once per target; a platform-specific
+    result is recorded for its own platform. Each write is wrapped so a
+    tracking write that fails for one platform doesn't drop the others.
+    Returns the number of platforms recorded successfully.
+    """
+    recorded = 0
+    for pub_result in publish_results:
+        result_data = pub_result["result"]
+        post_id = str(result_data.get("post_id", ""))
+        logger.info(
+            "Published: post_id=%s, status=%s",
+            post_id,
+            result_data.get("status"),
+        )
+
+        targets = (
+            [p["platform"] for p in platforms_to_publish]
+            if pub_result["platform"] == "all"
+            else [pub_result["platform"]]
+        )
+        for plat in targets:
+            try:
+                record_publish(product_id, plat, post_id, outputs_dir)
+                recorded += 1
+            except OSError as e:
+                logger.error(
+                    "Failed to record publish %s:%s to history: %s",
+                    product_id,
+                    plat,
+                    e,
+                )
+    return recorded

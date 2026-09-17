@@ -267,7 +267,11 @@ class TestRecordPublishResults:
             {"result": {"post_id": "abc", "status": "scheduled"}, "platform": "all"}
         ]
 
-        original = cli_mod.record_publish
+        from src.publisher import tracking as tracking_mod
+
+        # The recorder lives in `tracking` now and reads `record_publish`
+        # from there; a patch on the CLI module would go unread.
+        original = tracking_mod.record_publish
         calls: list[str] = []
 
         def flaky(product_id, platform, post_id, outputs_dir):
@@ -276,7 +280,7 @@ class TestRecordPublishResults:
                 raise OSError("disk full simulation")
             return original(product_id, platform, post_id, outputs_dir)
 
-        monkeypatch.setattr(cli_mod, "record_publish", flaky)
+        monkeypatch.setattr(tracking_mod, "record_publish", flaky)
 
         count = cli_mod._record_publish_results(
             "B0TEST003", publish_results, platforms, outputs_dir

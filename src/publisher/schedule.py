@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from src.publisher.base import PublishError
+from src.publisher.base import PublisherError, PublishError
 from src.publisher.constants import (
     DEFAULT_OUTPUTS_DIR,
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
@@ -665,7 +665,7 @@ class ScheduleManager:
 
         return filtered
 
-    async def _build_occupancy(
+    async def build_occupancy(
         self, publisher: "BasePublisher", current_time: datetime
     ) -> set[datetime]:
         """Slot times already taken, from the API and the local schedule.
@@ -674,7 +674,12 @@ class ScheduleManager:
         the product id, and entries with placeholder ids broke duplicate
         detection. Only the times are tracked.
         """
-        occupied_slot_times: set[datetime] = set()
+        # The local entries count whatever the provider read does; they are
+        # added first so a failed read cannot skip them.
+        occupied_slot_times: set[datetime] = {
+            entry.scheduled_time.replace(second=0, microsecond=0)
+            for entry in self.entries
+        }
         try:
             logger.debug("Fetching existing posts from API (all statuses)...")
             # Scheduled and published alike, or a published post's slot is
@@ -682,6 +687,7 @@ class ScheduleManager:
             api_posts = await publisher.list_posts()
             logger.debug("Found %d posts on API", len(api_posts))
 
+            from_api = 0
             for api_post in api_posts:
                 scheduled_time = api_post.get("scheduledFor")
                 if not scheduled_time:
@@ -689,7 +695,13 @@ class ScheduleManager:
 
                 if isinstance(scheduled_time, str):
                     time_str = scheduled_time.replace("+00:00", "")
-                    scheduled_dt = datetime.fromisoformat(time_str)
+                    try:
+                        scheduled_dt = datetime.fromisoformat(time_str)
+                    except ValueError:
+                        # One post in a shape this cannot parse drops that
+                        # post, not the read.
+                        logger.warning("Unreadable scheduledFor: %r", scheduled_time)
+                        continue
                 else:
                     scheduled_dt = scheduled_time
 
@@ -697,14 +709,9 @@ class ScheduleManager:
                     scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
 
                 occupied_slot_times.add(scheduled_dt.replace(second=0, microsecond=0))
+                from_api += 1
 
-            logger.info("Found %d occupied slots from API", len(occupied_slot_times))
-
-            for entry in self.entries:
-                occupied_slot_times.add(
-                    entry.scheduled_time.replace(second=0, microsecond=0)
-                )
-
+            logger.info("Found %d occupied slots from API", from_api)
             logger.info(
                 "Total %d occupied slots (API + local)", len(occupied_slot_times)
             )
@@ -720,12 +727,16 @@ class ScheduleManager:
                     len(occupied_slot_times),
                 )
 
-        except (PublishError, OSError, TimeoutError) as e:
+        # Any provider error, not only a publish failure: a credential
+        # revoked between authenticate() and this read leaves the run
+        # scheduling around the local entries, which is what the batch did
+        # before it called this.
+        except (PublisherError, OSError, TimeoutError) as e:
             logger.warning("Failed to check API schedule: %s", e)
 
         return occupied_slot_times
 
-    def _next_free_slot(
+    def next_free_slot(
         self,
         product_id: str,
         current_time: datetime,
@@ -1293,7 +1304,7 @@ class ScheduleManager:
                 return _VideoOutcome("skipped")
 
         try:
-            next_time, next_idx = self._next_free_slot(
+            next_time, next_idx = self.next_free_slot(
                 product_id, current_time, current_slot, occupied_slot_times
             )
         except (ValueError, KeyError) as e:
@@ -1438,7 +1449,7 @@ class ScheduleManager:
         logger.info("Start slot: %d, Dry run: %s", start_slot, dry_run)
 
         current_time = datetime.now(UTC)
-        occupied_slot_times = await self._build_occupancy(publisher, current_time)
+        occupied_slot_times = await self.build_occupancy(publisher, current_time)
 
         scheduled_count = 0
         skipped_count = 0

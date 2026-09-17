@@ -219,6 +219,7 @@ src/
     ├── global_batch.py       # Unified scrape + produce pipeline
     ├── phases/               # One module per phase, called by the orchestrator
     │   ├── production.py     # Render each ready product
+    │   ├── publishing.py     # Post each render, calling the publisher package
     │   └── scraping.py       # One browser session across every input
     └── plan.py               # Dry-run plan printer
 ```

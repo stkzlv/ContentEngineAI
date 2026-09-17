@@ -4,10 +4,9 @@
 parser, a 248-line `main`, a 226-line plan printer and three phases of 230
 to 560 lines in one module, the heaviest single context load for any
 question about the batch. The parser and `main` are in
-`src/pipeline/cli.py`, the plan printer in `src/pipeline/plan.py`, the
-scraping and production phases in `src/pipeline/phases/`, and
-`python -m src.pipeline.global_batch` still runs `main` through the module's
-own entry block.
+`src/pipeline/cli.py`, the plan printer in `src/pipeline/plan.py`, the three
+phases in `src/pipeline/phases/`, and `python -m src.pipeline.global_batch`
+still runs `main` through the module's own entry block.
 
 Three things a move like this breaks quietly, each pinned below: a test that
 patches a name on the module the code used to read it from (the scraper's
@@ -36,11 +35,12 @@ CLI = REPO / "src/pipeline/cli.py"
 PLAN = REPO / "src/pipeline/plan.py"
 SCRAPING = REPO / "src/pipeline/phases/scraping.py"
 PRODUCTION = REPO / "src/pipeline/phases/production.py"
+PUBLISHING = REPO / "src/pipeline/phases/publishing.py"
 
-# The file came out of the CLI split at about 2,000 lines and the phase split
-# at about 1,600. The issue's target is 1,000 after the publishing phase
-# moves out (PR 3); this ratchet only says it must not grow back meanwhile.
-MAX_BATCH_LINES = 1_650
+# The file came out of the CLI split at about 2,000 lines, the first phase
+# split at about 1,600 and the publishing split at about 1,000, which was
+# the issue's target; this ratchet says it must not grow back.
+MAX_BATCH_LINES = 1_100
 
 MODULES = {
     "global_batch": "src.pipeline.global_batch",
@@ -48,17 +48,18 @@ MODULES = {
     "plan": "src.pipeline.plan",
     "scraping": "src.pipeline.phases.scraping",
     "production": "src.pipeline.phases.production",
+    "publishing": "src.pipeline.phases.publishing",
 }
 PATCH_TARGET = re.compile(
-    r"""["'](src\.pipeline\.(global_batch|cli|plan|phases\.scraping|phases\.production))"""
-    r"""\.([A-Za-z_][A-Za-z0-9_]*)["']"""
+    r"""["'](src\.pipeline\.(global_batch|cli|plan|phases\.scraping"""
+    r"""|phases\.production|phases\.publishing))\.([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
 # `patch.object(global_batch, "name")` or `monkeypatch.setattr(global_batch,
 # "name", ...)` after `from src.pipeline import global_batch` names the same
 # target without the dotted string.
 PATCH_OBJECT = re.compile(
     r"""(?:patch\.object|monkeypatch\.setattr)\(\s*"""
-    r"""(global_batch|cli|plan|scraping|production)\s*,"""
+    r"""(global_batch|cli|plan|scraping|production|publishing)\s*,"""
     r"""\s*["']([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
 # What a test function does that makes it read a moved body: it drives `main`
@@ -70,6 +71,7 @@ DRIVERS = {
     ),
     SCRAPING: re.compile(r"_execute_scraping_phase\(|run_pipeline\("),
     PRODUCTION: re.compile(r"_execute_production_phase\(|run_pipeline\("),
+    PUBLISHING: re.compile(r"_execute_publishing_phase\(|run_pipeline\("),
 }
 
 
@@ -106,8 +108,9 @@ class TestTheMoveIsAMove:
             ("display_execution_plan", PLAN, "display_execution_plan"),
             ("_execute_scraping_phase", SCRAPING, "run_scraping_phase"),
             ("_execute_production_phase", PRODUCTION, "run_production_phase"),
+            ("_execute_publishing_phase", PUBLISHING, "run_publishing_phase"),
         ],
-        ids=["plan", "scraping", "production"],
+        ids=["plan", "scraping", "production", "publishing"],
     )
     def test_the_body_is_a_function_the_orchestrator_delegates_to(
         self, method: str, module: Path, function: str
@@ -198,7 +201,13 @@ class TestPatchTargetsStillResolve:
 
     def test_no_test_patches_a_moved_name_on_global_batch(self):
         """The names the moved bodies define are bound in their new modules."""
-        moved = _defs(CLI) | _defs(PLAN) | _defs(SCRAPING) | _defs(PRODUCTION)
+        moved = (
+            _defs(CLI)
+            | _defs(PLAN)
+            | _defs(SCRAPING)
+            | _defs(PRODUCTION)
+            | _defs(PUBLISHING)
+        )
         offenders = [
             f"{path.relative_to(REPO)}: {name}"
             for path, module, name in self._patch_targets()
@@ -231,6 +240,7 @@ class TestPatchTargetsStillResolve:
             CLI: MODULES["cli"],
             SCRAPING: MODULES["scraping"],
             PRODUCTION: MODULES["production"],
+            PUBLISHING: MODULES["publishing"],
         }
         offenders = []
         for path in sorted((REPO / "tests").rglob("*.py")):

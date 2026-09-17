@@ -293,3 +293,29 @@ async def _publish_platform_specific(
         results.append({"result": result, "platform": platform_name})
 
     return results
+
+
+def accounts_for_platforms(
+    platforms: list[Platform], accounts: list[dict[str, Any]]
+) -> tuple[list[dict[str, str]], list[Platform]]:
+    """Pair each target platform with the connected account for it.
+
+    Returns the `{"platform", "account_id"}` targets a publish call takes,
+    and the platforms with no connected account, which the caller reports
+    the way its own path does (the CLI warns and goes on; the batch counts
+    the platform as failed for that product).
+    """
+    targets: list[dict[str, str]] = []
+    missing: list[Platform] = []
+    for platform in platforms:
+        account = next(
+            (acc for acc in accounts if acc["platform"].lower() == platform.value),
+            None,
+        )
+        if account is None:
+            missing.append(platform)
+            continue
+        targets.append(
+            {"platform": platform.value, "account_id": account["account_id"]}
+        )
+    return targets, missing
