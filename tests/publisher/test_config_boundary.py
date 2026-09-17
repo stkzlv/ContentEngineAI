@@ -13,6 +13,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 from src.utils.outputs_paths import get_project_root
 
 REPO = get_project_root()
@@ -43,6 +45,45 @@ def _imports_of(path) -> set[str]:
         elif isinstance(node, ast.Import):
             names.update(alias.name for alias in node.names)
     return names
+
+
+OLD_PACKAGE = "src.video.config"
+
+
+def _old_path_reads(source: str) -> list[int]:
+    """Lines that reach `LLMSettings` through the old package, by any spelling.
+
+    Aliases are resolved per file: `import src.video.config as cfg` binds
+    `cfg`, `from src.video import config as vc` binds `vc`, and a plain
+    `import src.video.config` binds the dotted name itself. An attribute read
+    of `LLMSettings` off any of those is a hit.
+    """
+    tree = ast.parse(source)
+    aliases = {OLD_PACKAGE}
+    lines: list[int] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == OLD_PACKAGE:
+                    aliases.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module == "src.video":
+                for alias in node.names:
+                    if alias.name == "config":
+                        aliases.add(alias.asname or alias.name)
+            if (module == OLD_PACKAGE or module.startswith(OLD_PACKAGE + ".")) and any(
+                alias.name == "LLMSettings" for alias in node.names
+            ):
+                lines.append(node.lineno)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Attribute)
+            and node.attr == "LLMSettings"
+            and ast.unparse(node.value) in aliases
+        ):
+            lines.append(node.lineno)
+    return sorted(set(lines))
 
 
 class TestThePublisherOwnsItsConstants:
@@ -113,27 +154,61 @@ class TestLLMSettingsLivesBesideItsReaders:
         """An import that resolves through the shim looks like any other.
 
         The only way to see one is to look at the source, so this walks every
-        module for an import of `LLMSettings` from `src.video.config` or an
-        attribute read off that package.
+        module for the name reached through the old package, in every form
+        that resolves at runtime: `from src.video.config import LLMSettings`,
+        the multi-name block, the submodule path
+        (`src.video.config.core_models` imports the model too), and an
+        attribute read off the package under whatever alias the file bound
+        it to. mypy catches none of these: the package's module `__getattr__`
+        types an unknown attribute as `Any`.
         """
         offenders = []
         for root in ("src", "tests", "tools"):
             for path in (REPO / root).rglob("*.py"):
                 if path == Path(__file__).resolve():
                     continue
-                tree = ast.parse(path.read_text(encoding="utf-8"))
-                for node in ast.walk(tree):
-                    if (
-                        isinstance(node, ast.ImportFrom)
-                        and node.module == "src.video.config"
-                        and any(a.name == "LLMSettings" for a in node.names)
-                    ) or (
-                        isinstance(node, ast.Attribute)
-                        and node.attr == "LLMSettings"
-                        and "video" in ast.unparse(node.value)
-                    ):
-                        offenders.append(f"{path.relative_to(REPO)}:{node.lineno}")
+                offenders += [
+                    f"{path.relative_to(REPO)}:{line}"
+                    for line in _old_path_reads(path.read_text(encoding="utf-8"))
+                ]
 
         assert (
             not offenders
-        ), f"still import LLMSettings from src.video.config: {offenders}"
+        ), f"still reach LLMSettings through src.video.config: {offenders}"
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "from src.video.config import LLMSettings\n",
+            "from src.video.config import (\n    AudioSettings,\n    LLMSettings,\n)\n",
+            "from src.video.config.core_models import LLMSettings\n",
+            "import src.video.config as cfg\nx = cfg.LLMSettings\n",
+            "import src.video.config\nx = src.video.config.LLMSettings\n",
+            "from src.video import config\nx = config.LLMSettings\n",
+            "from src.video import config as vc\nx = vc.LLMSettings\n",
+        ],
+        ids=[
+            "direct",
+            "multi-name",
+            "submodule",
+            "import-as",
+            "dotted",
+            "from-package",
+            "from-package-as",
+        ],
+    )
+    def test_the_sweep_sees_every_spelling(self, source: str):
+        """The first version matched two of these; review found the other five."""
+        assert _old_path_reads(source), f"not flagged: {source!r}"
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "from src.ai.llm_settings import LLMSettings\n",
+            "import src.video.config as cfg\nx = cfg.VideoConfig\n",
+            "settings = object()\nx = settings.LLMSettings\n",
+        ],
+        ids=["new-home", "other-name-off-package", "unrelated-attribute"],
+    )
+    def test_the_sweep_leaves_the_rest_alone(self, source: str):
+        assert not _old_path_reads(source)
