@@ -815,3 +815,74 @@ async def test_the_batch_does_not_promote_the_product_pillar_to_an_override(
 
     assert "cli_overrides" in seen, "the producer was never called"
     assert "pillar" not in (seen["cli_overrides"] or {})
+
+
+@pytest.mark.asyncio
+async def test_a_failed_history_write_is_a_partial_failure_and_keeps_the_directory(
+    temp_outputs_dir, mock_publisher_config
+):
+    """The recorder swallows a failed write; the batch must not.
+
+    `publish_history.json` is the batch's only dedup record. Counting the
+    product successful with the write lost, and then cleaning up, leaves
+    nothing behind that says it went out, so the next run re-scrapes,
+    re-renders and posts it again.
+    """
+    config = GlobalBatchConfig(
+        product_ids=["B0TEST1"],
+        keywords=[],
+        max_products=1,
+        scraper_filters=SearchParameters(),
+        profile="slideshow_images1",
+        outputs_dir=temp_outputs_dir,
+        skip_publish=False,
+        platforms=["youtube"],
+    )
+    product_dir = temp_outputs_dir / "B0TEST1"
+    product_dir.mkdir(parents=True)
+    video_path = product_dir / "video.mp4"
+    video_path.write_text("fake video")
+    (product_dir / "metadata.json").write_text('{"title": "Test"}')
+
+    orchestrator = GlobalPipelineOrchestrator(config)
+
+    with (
+        patch(
+            "src.pipeline.global_batch._publisher_settings",
+            return_value=as_publisher_config(mock_publisher_config),
+        ),
+        patch.dict("os.environ", {"LATE_API_KEY": "test_key"}),
+        patch("src.publisher.registry.create_publisher") as mock_create_publisher,
+        patch(
+            "src.publisher.publish_modes.load_platform_metadata"
+        ) as mock_load_metadata,
+        patch(
+            "src.publisher.tracking.record_publish", side_effect=OSError("disk full")
+        ),
+    ):
+        publisher = AsyncMock()
+        publisher.authenticate = AsyncMock()
+        publisher.first_comment_config = FirstCommentConfig(enabled=False)
+        publisher.get_accounts = AsyncMock(
+            return_value=[{"platform": "youtube", "account_id": "acc1"}]
+        )
+        publisher.upload_media = AsyncMock(return_value="media_123")
+        publisher.publish = AsyncMock(
+            return_value={"post_id": "post-1", "status": "scheduled"}
+        )
+        mock_create_publisher.return_value = publisher
+
+        mock_metadata = Mock()
+        mock_metadata.format_content = Mock(return_value="Test")
+        mock_metadata.clamp_to_limits = Mock(return_value=())
+        mock_metadata.clamp_for_platforms = Mock(return_value=())
+        mock_load_metadata.return_value = mock_metadata
+
+        summary = await orchestrator._execute_publishing_phase(
+            [(video_path, "B0TEST1")]
+        )
+
+    assert summary.successful == 0
+    assert summary.failed == 1
+    assert "history write failed for 1 platform(s)" in summary.errors[0]["error"]
+    assert product_dir.exists()

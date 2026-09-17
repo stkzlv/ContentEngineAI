@@ -157,6 +157,17 @@ class TestABadConfigIsNotSwallowed:
             and isinstance(node.ctx, ast.Load)
         ]
         assert mentions, "the placeholder constant is gone; update this test"
+        # The phase must not import it either: binding it to `api_key` there
+        # and passing that name through is the same defeat one file over.
+        assert not [
+            node
+            for node in ast.walk(phase)
+            if (isinstance(node, ast.Name) and node.id == "_NO_CREDENTIAL")
+            or (
+                isinstance(node, ast.ImportFrom)
+                and any(a.name == "_NO_CREDENTIAL" for a in node.names)
+            )
+        ], "the publishing phase mentions the placeholder credential"
         for node in mentions:
             assert settings_fn.lineno <= node.lineno <= (settings_fn.end_lineno or 0), (
                 f"_NO_CREDENTIAL is referenced at line {node.lineno}, outside "

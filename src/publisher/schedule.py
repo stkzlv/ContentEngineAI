@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from src.publisher.base import PublishError
+from src.publisher.base import PublisherError, PublishError
 from src.publisher.constants import (
     DEFAULT_OUTPUTS_DIR,
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
@@ -720,7 +720,12 @@ class ScheduleManager:
                     len(occupied_slot_times),
                 )
 
-        except (PublishError, OSError, TimeoutError) as e:
+        # Any provider error, not only a publish failure: a credential
+        # revoked between authenticate() and this read, or a timestamp the
+        # provider returns in a shape fromisoformat rejects, leaves the
+        # occupied set incomplete and the run scheduling, which is what
+        # the batch did before it called this.
+        except (PublisherError, OSError, TimeoutError, ValueError) as e:
             logger.warning("Failed to check API schedule: %s", e)
 
         return occupied_slot_times

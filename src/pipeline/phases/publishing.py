@@ -274,9 +274,22 @@ async def run_publishing_phase(
 
             from src.publisher.tracking import record_publish_results
 
-            record_publish_results(
+            # The recorder swallows a failed write so the other platforms
+            # still land; the batch treats the shortfall as a partial failure,
+            # because the history file is its only dedup record and cleanup
+            # below would otherwise remove the directory as well.
+            expected = sum(
+                len(pub_platforms) if r["platform"] == "all" else 1
+                for r in publish_results
+            )
+            recorded = record_publish_results(
                 product_id, publish_results, pub_platforms, batch_config.outputs_dir
             )
+            if recorded < expected:
+                video_successful = False
+                video_errors.append(
+                    f"history write failed for {expected - recorded} platform(s)"
+                )
 
             # A scheduled post also goes into the local schedule, so
             # `calendar` sees it. Same write as `single` (#485).
