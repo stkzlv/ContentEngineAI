@@ -113,6 +113,50 @@ def metadata_from_file(
         )
 
 
+def record_scheduled_posts(
+    product_id: str,
+    publish_results: list[dict],
+    platforms: list[dict],
+    schedule_time: datetime,
+    slot_index: int | None,
+    schedule_mgr: "ScheduleManager",
+) -> int:
+    """Write each scheduled post to the local schedule, as `auto_schedule` does.
+
+    Shared by the `single` command and the global batch: both used to
+    publish a scheduled post and record only `publish_history.json`, so
+    `calendar`, which reads `schedule.json` and nothing else, never saw it.
+    One entry per publish result: the unified mode's single post carries
+    every platform, the platform-specific mode's posts carry one each.
+    Returns the number recorded; a write failure is logged and does not fail
+    the publish, since the post already exists on the provider.
+    """
+    recorded = 0
+    for pub_result in publish_results:
+        result_data = pub_result["result"]
+        post_id = result_data.get("post_id")
+        entry_platforms = (
+            [Platform(p["platform"]) for p in platforms]
+            if pub_result["platform"] == "all"
+            else [Platform(pub_result["platform"])]
+        )
+        entry = ScheduleEntry(
+            product_id=product_id,
+            scheduled_time=schedule_time,
+            platforms=entry_platforms,
+            post_id=str(post_id) if post_id else None,
+            status="scheduled",
+            created_at=datetime.now(UTC),
+            slot_index=slot_index,
+        )
+        try:
+            schedule_mgr.record_entry(entry)
+            recorded += 1
+        except OSError as e:
+            logger.error("Failed to record %s in the local schedule: %s", product_id, e)
+    return recorded
+
+
 class _VideoOutcome(NamedTuple):
     """What happened to one video, for the caller to tally.
 

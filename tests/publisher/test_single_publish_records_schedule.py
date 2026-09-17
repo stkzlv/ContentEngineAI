@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-from src.publisher.late.cli import _provider_upcoming_count, _record_schedule_entries
+from src.publisher.late.cli import _provider_upcoming_count
 from src.publisher.models import Platform, ScheduleConfig, ScheduleEntry
-from src.publisher.schedule import ScheduleManager
+from src.publisher.schedule import ScheduleManager, record_scheduled_posts
 from src.utils.outputs_paths import get_project_root
 
 REPO = get_project_root()
@@ -86,7 +86,7 @@ class TestTheSinglePathRecordsWhatItScheduled:
         ]
         results = [{"platform": "all", "result": {"post_id": "post-1"}}]
 
-        recorded = _record_schedule_entries(
+        recorded = record_scheduled_posts(
             "B0UNI", results, platforms, when, slot_index=3, schedule_mgr=manager
         )
 
@@ -110,7 +110,7 @@ class TestTheSinglePathRecordsWhatItScheduled:
             {"platform": "instagram", "result": {"post_id": "i1"}},
         ]
 
-        recorded = _record_schedule_entries(
+        recorded = record_scheduled_posts(
             "B0SPLIT", results, platforms, when, slot_index=None, schedule_mgr=manager
         )
 
@@ -125,7 +125,7 @@ class TestTheSinglePathRecordsWhatItScheduled:
         """The point is what `calendar` reads next time, not this process."""
         path = tmp_path / "schedule.json"
         when = datetime(2026, 9, 22, 8, 0, tzinfo=UTC)
-        _record_schedule_entries(
+        record_scheduled_posts(
             "B0DUR",
             [{"platform": "all", "result": {"post_id": "d1"}}],
             [{"platform": "youtube", "account_id": "a"}],
@@ -144,7 +144,7 @@ class TestTheSinglePathRecordsWhatItScheduled:
             raise OSError("disk full")
 
         monkeypatch.setattr(manager, "record_entry", boom)
-        recorded = _record_schedule_entries(
+        recorded = record_scheduled_posts(
             "B0X",
             [{"platform": "all", "result": {"post_id": "x"}}],
             [{"platform": "youtube", "account_id": "a"}],
@@ -167,6 +167,21 @@ class TestCalendarSeesTheProvider:
         async def list_posts(self, status=None):
             raise OSError("no network")
 
+    class ExpiredKeyPublisher:
+        async def list_posts(self, status=None):
+            from src.publisher.base import AuthenticationError
+
+            raise AuthenticationError("Authentication expired: 401")
+
+    @pytest.mark.asyncio
+    async def test_a_rotated_key_is_none_not_a_crash(self):
+        """`AuthenticationError` is a `PublisherError`, not a `PublishError`.
+
+        The command listed fine offline before it consulted the provider; a
+        rotated key must leave it listing, with a warning, not a traceback.
+        """
+        assert await _provider_upcoming_count(self.ExpiredKeyPublisher()) is None
+
     @pytest.mark.asyncio
     async def test_it_counts_only_future_posts_with_a_time(self):
         now = datetime.now(UTC)
@@ -187,11 +202,16 @@ class TestCalendarSeesTheProvider:
 
 
 class TestTheCallSitesAreWired:
-    """Both fixes are calls inside long CLI functions nobody drives in tests."""
+    """The fixes are calls inside long functions nobody drives in tests.
+
+    Three call sites: `single`, `calendar`, and the batch's publishing
+    phase, which had the same missing write and which the Module/Batch
+    Alignment Rule exists to catch.
+    """
 
     @staticmethod
-    def _calls_in(function: str) -> set[str]:
-        tree = ast.parse(CLI.read_text(encoding="utf-8"))
+    def _calls_in(function: str, path: Path = CLI) -> set[str]:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
@@ -205,7 +225,12 @@ class TestTheCallSitesAreWired:
         raise AssertionError(f"{function} not found")
 
     def test_single_records_its_schedule_entries(self):
-        assert "_record_schedule_entries" in self._calls_in("cmd_single")
+        assert "record_scheduled_posts" in self._calls_in("cmd_single")
 
     def test_calendar_reads_the_provider(self):
         assert "_provider_upcoming_count" in self._calls_in("cmd_calendar")
+
+    def test_the_batch_records_its_schedule_entries_too(self):
+        assert "record_scheduled_posts" in self._calls_in(
+            "_execute_publishing_phase", REPO / "src/pipeline/global_batch.py"
+        )

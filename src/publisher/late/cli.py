@@ -36,7 +36,7 @@ from src.publisher.analytics import (
     summarize_post,
     timeline_resource,
 )
-from src.publisher.base import PublishError
+from src.publisher.base import PublisherError
 from src.publisher.batch import BatchPublisher
 from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
@@ -44,12 +44,7 @@ from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
-from src.publisher.models import (
-    DEFAULT_PLATFORMS,
-    Platform,
-    PublisherConfig,
-    ScheduleEntry,
-)
+from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
 from src.publisher.partial_post_sweep import (
     run_delivery_sweep,
     sweep_partial_posts,
@@ -60,7 +55,7 @@ from src.publisher.product_registry import (
     rebuild_registry,
     summarize_by_content_format,
 )
-from src.publisher.schedule import ScheduleManager
+from src.publisher.schedule import ScheduleManager, record_scheduled_posts
 from src.publisher.tracking import is_already_published, record_publish
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import setup_debug_logging
@@ -110,60 +105,19 @@ def _record_publish_results(
     return recorded
 
 
-def _record_schedule_entries(
-    product_id: str,
-    publish_results: list[dict],
-    platforms_to_publish: list[dict],
-    schedule_time: datetime,
-    slot_index: int | None,
-    schedule_mgr: ScheduleManager,
-) -> int:
-    """Write each scheduled post to the local schedule, as `auto_schedule` does.
-
-    Only `auto_schedule` used to write `schedule.json`, so a post scheduled
-    through `single` never reached `calendar`: it listed a June entry as the
-    newest while the provider held the current week. One entry per publish
-    result: the unified mode's single post carries every platform, the
-    platform-specific mode's posts carry one each. Returns the number
-    recorded; a write failure is logged and does not fail the publish, since
-    the post already exists on the provider.
-    """
-    recorded = 0
-    for pub_result in publish_results:
-        result_data = pub_result["result"]
-        post_id = result_data.get("post_id")
-        platforms = (
-            [Platform(p["platform"]) for p in platforms_to_publish]
-            if pub_result["platform"] == "all"
-            else [Platform(pub_result["platform"])]
-        )
-        entry = ScheduleEntry(
-            product_id=product_id,
-            scheduled_time=schedule_time,
-            platforms=platforms,
-            post_id=str(post_id) if post_id else None,
-            status="scheduled",
-            created_at=datetime.now(UTC),
-            slot_index=slot_index,
-        )
-        try:
-            schedule_mgr.record_entry(entry)
-            recorded += 1
-        except OSError as e:
-            logger.error("Failed to record %s in the local schedule: %s", product_id, e)
-    return recorded
-
-
 async def _provider_upcoming_count(publisher: Any) -> int | None:
     """How many posts the provider holds from now on, or None if unreachable.
 
     `calendar` reads local state, which only the paths that write it can
     keep current. Putting the provider's own count beside the local one
-    turns a silent gap into a visible one.
+    turns a silent gap into a visible one. `PublisherError` is the base of
+    the client's exceptions: a rotated key raises `AuthenticationError`,
+    which is not a `PublishError`, and the command listed fine before the
+    provider was consulted, so it must keep listing.
     """
     try:
         posts = await publisher.list_posts()
-    except (PublishError, OSError, TimeoutError, ClientError) as e:
+    except (PublisherError, OSError, TimeoutError, ClientError) as e:
         logger.warning("Could not read the provider's posts: %s", e)
         return None
     now = datetime.now(UTC)
@@ -809,7 +763,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         if schedule_time:
             if schedule_mgr is None:
                 schedule_mgr = ScheduleManager(config=config.schedule_config)
-            _record_schedule_entries(
+            record_scheduled_posts(
                 product_id,
                 publish_results,
                 platforms_to_publish,

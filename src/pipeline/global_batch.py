@@ -2201,6 +2201,7 @@ class GlobalPipelineOrchestrator:
 
                 # Find per-product schedule slot if auto-scheduling
                 product_schedule_time = schedule_time
+                product_slot_index: int | None = None
                 if auto_schedule_ctx is not None:
                     ctx_slots = auto_schedule_ctx["slots"]
                     ctx_mgr = auto_schedule_ctx["schedule_manager"]
@@ -2219,6 +2220,7 @@ class GlobalPipelineOrchestrator:
                         )
                         if normalized_slot not in ctx_occupied:
                             product_schedule_time = next_slot_time
+                            product_slot_index = slot_index
                             ctx_occupied.add(normalized_slot)
                             logger.info(
                                 "Auto-scheduled %s to slot #%s: %s",
@@ -2297,6 +2299,33 @@ class GlobalPipelineOrchestrator:
                             post_id,
                             self.config.outputs_dir,
                         )
+
+                # A scheduled post also goes into the local schedule, so
+                # `calendar` sees it. Same write as `single` (#485); the
+                # batch had the same gap and the alignment rule caught it.
+                if product_schedule_time is not None:
+                    from src.publisher.schedule import (
+                        ScheduleManager,
+                        record_scheduled_posts,
+                    )
+
+                    schedule_writer = (
+                        auto_schedule_ctx["schedule_manager"]
+                        if auto_schedule_ctx is not None
+                        else ScheduleManager(
+                            schedule_path=durable_state_path(
+                                self.config.outputs_dir, "schedule.json"
+                            )
+                        )
+                    )
+                    record_scheduled_posts(
+                        product_id,
+                        publish_results,
+                        pub_platforms,
+                        product_schedule_time,
+                        product_slot_index,
+                        schedule_writer,
+                    )
 
                 # Add to product registry
                 try:
