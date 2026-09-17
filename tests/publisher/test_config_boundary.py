@@ -54,28 +54,50 @@ def _old_path_reads(source: str) -> list[int]:
     """Lines that reach `LLMSettings` through the old package, by any spelling.
 
     Aliases are resolved per file: `import src.video.config as cfg` binds
-    `cfg`, `from src.video import config as vc` binds `vc`, and a plain
-    `import src.video.config` binds the dotted name itself. An attribute read
-    of `LLMSettings` off any of those is a hit.
+    `cfg`, `from src.video import config as vc` binds `vc`, a plain
+    `import src.video.config` binds the dotted name itself, and the same
+    holds for the package's submodules (`core_models` imports the model too)
+    and for `from src import video`, which binds `video.config`. An attribute
+    read of `LLMSettings` off any of those is a hit.
+
+    Absolute spellings only. `src/video` uses no relative imports and the
+    sweep runs on source text, so `from .config import LLMSettings` inside
+    that package would pass; the sibling `_imports_of` resolves relative
+    imports for the publisher boundary, where they do occur.
     """
     tree = ast.parse(source)
     aliases = {OLD_PACKAGE}
     lines: list[int] = []
+
+    def in_old_package(module: str) -> bool:
+        return module == OLD_PACKAGE or module.startswith(OLD_PACKAGE + ".")
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == OLD_PACKAGE:
+                if in_old_package(alias.name):
                     aliases.add(alias.asname or alias.name)
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
+            if module == "src":
+                aliases.update(
+                    f"{alias.asname or alias.name}.config"
+                    for alias in node.names
+                    if alias.name == "video"
+                )
             if module == "src.video":
-                for alias in node.names:
-                    if alias.name == "config":
-                        aliases.add(alias.asname or alias.name)
-            if (module == OLD_PACKAGE or module.startswith(OLD_PACKAGE + ".")) and any(
-                alias.name == "LLMSettings" for alias in node.names
-            ):
-                lines.append(node.lineno)
+                aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "config"
+                )
+            if in_old_package(module):
+                # A submodule bound by name (`from src.video.config import
+                # core_models`) carries the attribute too; a class bound this
+                # way has no `LLMSettings` attribute, so it adds no false hit.
+                aliases.update(alias.asname or alias.name for alias in node.names)
+                if any(alias.name == "LLMSettings" for alias in node.names):
+                    lines.append(node.lineno)
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Attribute)
@@ -186,6 +208,12 @@ class TestLLMSettingsLivesBesideItsReaders:
             "import src.video.config\nx = src.video.config.LLMSettings\n",
             "from src.video import config\nx = config.LLMSettings\n",
             "from src.video import config as vc\nx = vc.LLMSettings\n",
+            "import src.video.config.core_models as cm\nx = cm.LLMSettings\n",
+            "from src.video.config import core_models\nx = core_models.LLMSettings\n",
+            "import src.video.config.core_models\n"
+            "x = src.video.config.core_models.LLMSettings\n",
+            "from src import video\nx = video.config.LLMSettings\n",
+            "import src.video\nx = src.video.config.LLMSettings\n",
         ],
         ids=[
             "direct",
@@ -195,10 +223,18 @@ class TestLLMSettingsLivesBesideItsReaders:
             "dotted",
             "from-package",
             "from-package-as",
+            "submodule-as",
+            "submodule-from",
+            "submodule-dotted",
+            "from-src",
+            "import-src-video",
         ],
     )
     def test_the_sweep_sees_every_spelling(self, source: str):
-        """The first version matched two of these; review found the other five."""
+        """The first version matched three of these; two review passes found
+        the other nine, four per pass and one more that only the seed alias
+        covers.
+        """
         assert _old_path_reads(source), f"not flagged: {source!r}"
 
     @pytest.mark.parametrize(
