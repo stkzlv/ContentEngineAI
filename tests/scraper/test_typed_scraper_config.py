@@ -261,7 +261,7 @@ class TestTheBatchsPerRunLimitReachesTheBrowser:
         assert self._items_sent(scraper)[0]["max_products"] == 3
 
     def test_the_batch_sets_the_attribute_not_the_dict(self) -> None:
-        source = (REPO / "src" / "pipeline" / "global_batch.py").read_text()
+        source = (REPO / "src" / "pipeline" / "phases" / "scraping.py").read_text()
         assert 'amazon_config["max_products"]' not in source
         assert source.count("scraper.run_max_products = ") == 2
 

@@ -645,9 +645,11 @@ async def test_pipeline_with_random_profile_selection(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
         patch(
-            "src.pipeline.global_batch.select_profile_for_product"
+            "src.pipeline.phases.production.select_profile_for_product"
         ) as mock_select_profile,
-        patch("src.pipeline.global_batch.ProfileUsageTracker") as mock_tracker_class,
+        patch(
+            "src.pipeline.phases.production.ProfileUsageTracker"
+        ) as mock_tracker_class,
     ):
         # Mock scraper (two-phase approach)
         _setup_scraper_mock(
@@ -784,7 +786,7 @@ async def test_pipeline_retries_next_page_on_validation_failure(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
         patch(
-            "src.pipeline.global_batch.load_video_config_modular"
+            "src.pipeline.phases.production.load_video_config_modular"
         ) as mock_load_config,
         patch(
             "src.video.producer.orchestration.create_video_for_product"
@@ -850,7 +852,7 @@ async def test_pipeline_skips_retry_for_asin_inputs(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
         patch(
-            "src.pipeline.global_batch.load_video_config_modular"
+            "src.pipeline.phases.production.load_video_config_modular"
         ) as mock_load_config,
     ):
         mock_load_config.return_value = mock_video_config
@@ -902,7 +904,7 @@ async def test_pipeline_skips_retry_for_url_inputs(
             "src.scraper.amazon.scraper.BotasaurusAmazonScraper"
         ) as mock_scraper_class,
         patch(
-            "src.pipeline.global_batch.load_video_config_modular"
+            "src.pipeline.phases.production.load_video_config_modular"
         ) as mock_load_config,
     ):
         mock_load_config.return_value = mock_video_config
