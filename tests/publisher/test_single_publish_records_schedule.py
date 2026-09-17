@@ -202,11 +202,15 @@ class TestCalendarSeesTheProvider:
 
 
 class TestTheCallSitesAreWired:
-    """The fixes are calls inside long functions nobody drives in tests.
+    """The fixes are calls inside long functions.
 
     Three call sites: `single`, `calendar`, and the batch's publishing
     phase, which had the same missing write and which the Module/Batch
-    Alignment Rule exists to catch.
+    Alignment Rule exists to catch. Nothing drives `cmd_single` or
+    `cmd_calendar` end to end, so those two are pinned here by reading the
+    source; the batch phase is driven by
+    `tests/pipeline/test_global_batch_publishing.py`, which also asserts on
+    the file it writes.
     """
 
     @staticmethod
