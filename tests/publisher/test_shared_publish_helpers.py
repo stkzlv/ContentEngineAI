@@ -221,3 +221,44 @@ class TestTheOccupancyReadDegradesOnePostAtATime:
         occupied = await manager.build_occupancy(self._Rejected(), now)
 
         assert occupied == {local}
+
+
+class TestEveryPathTakesItsSlotsFromTheSchedulemanager:
+    """One occupancy read and one slot search, called from three places.
+
+    `single` kept its own loop over the provider's posts after `schedule`
+    and the batch had moved to the shared read, so it alone did not count
+    the local schedule (#493).
+    """
+
+    @staticmethod
+    def _calls_in(path: str, function: str) -> set[str]:
+        tree = ast.parse((REPO / path).read_text(encoding="utf-8"))
+        node = next(
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+            and n.name == function
+        )
+        names = set()
+        for n in ast.walk(node):
+            if isinstance(n, ast.Call):
+                if isinstance(n.func, ast.Name):
+                    names.add(n.func.id)
+                elif isinstance(n.func, ast.Attribute):
+                    names.add(n.func.attr)
+        return names
+
+    @pytest.mark.parametrize(
+        ("path", "function"),
+        [
+            ("src/publisher/late/cli.py", "cmd_single"),
+            ("src/pipeline/phases/publishing.py", "run_publishing_phase"),
+            ("src/publisher/schedule.py", "auto_schedule"),
+        ],
+    )
+    def test_the_path_calls_the_shared_read(self, path: str, function: str):
+        calls = self._calls_in(path, function)
+        assert "build_occupancy" in calls, f"{function} does not call build_occupancy"
+        assert "list_posts" not in calls, f"{function} reads the provider itself"
+        assert "get_next_slot" not in calls, f"{function} walks the slots itself"

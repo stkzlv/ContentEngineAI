@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.9] - 2026-09-17
+
+### Fixed
+- `single` takes its occupied slots and its next free slot from the schedule manager, as `schedule` and the global batch do, so a slot the local schedule already holds is no longer offered to it; it kept a loop of its own over the provider's posts only. A test fails if any of the three paths grows such a loop again.
+
 ## [0.121.8] - 2026-09-17
 
 ### Changed
