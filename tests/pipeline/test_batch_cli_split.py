@@ -1,7 +1,7 @@
 """The batch CLI, plan printer and phases live outside global_batch.py (#450).
 
 `global_batch.py` was 2,792 lines: the orchestrator, a 279-line argument
-parser, a 248-line `main`, a 226-line plan printer and three phases of 240
+parser, a 248-line `main`, a 226-line plan printer and three phases of 230
 to 560 lines in one module, the heaviest single context load for any
 question about the batch. The parser and `main` are in
 `src/pipeline/cli.py`, the plan printer in `src/pipeline/plan.py`, the
@@ -53,10 +53,12 @@ PATCH_TARGET = re.compile(
     r"""["'](src\.pipeline\.(global_batch|cli|plan|phases\.scraping|phases\.production))"""
     r"""\.([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
-# `patch.object(global_batch, "name")` after `from src.pipeline import global_batch`
-# names the same target without the dotted string.
+# `patch.object(global_batch, "name")` or `monkeypatch.setattr(global_batch,
+# "name", ...)` after `from src.pipeline import global_batch` names the same
+# target without the dotted string.
 PATCH_OBJECT = re.compile(
-    r"""patch\.object\(\s*(global_batch|cli|plan|scraping|production)\s*,"""
+    r"""(?:patch\.object|monkeypatch\.setattr)\(\s*"""
+    r"""(global_batch|cli|plan|scraping|production)\s*,"""
     r"""\s*["']([A-Za-z_][A-Za-z0-9_]*)["']"""
 )
 # What a test function does that makes it read a moved body: it drives `main`
@@ -217,6 +219,12 @@ class TestPatchTargetsStillResolve:
         only for names it does not also patch on the new module; a sibling
         test patching `global_batch` for what the orchestrator itself reads
         is patching the right place.
+
+        One over-reach is accepted: a `run_pipeline` driver that stubs the
+        production phase on the instance and patches
+        `global_batch.load_video_config_modular` for the topics phase is
+        named too. The advice it gets, to patch `phases.production` as well,
+        is harmless, since that patch simply goes unread.
         """
         reads = {module: _module_scope_names(module) for module in DRIVERS}
         dotted = {
