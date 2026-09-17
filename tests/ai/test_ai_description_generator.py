@@ -14,8 +14,8 @@ from src.ai.description_generator import (
     save_debug_prompt,
     validate_description_completeness,
 )
+from src.ai.llm_settings import LLMSettings
 from src.scraper.amazon.models import ProductData
-from src.video.config import LLMSettings
 
 
 class TestLoadPromptTemplate:

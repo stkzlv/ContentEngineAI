@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import aiohttp
 import pytest
 
+from src.ai.llm_settings import LLMSettings
 from src.ai.script_generator import (
     ScriptGenerationError,
     _normalize_for_llm,
@@ -18,7 +19,6 @@ from src.ai.script_generator import (
     save_debug_prompt,
 )
 from src.scraper.amazon.models import ProductData
-from src.video.config import LLMSettings
 
 
 class TestLoadPromptTemplate:

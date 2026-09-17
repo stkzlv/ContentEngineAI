@@ -4,8 +4,9 @@
 Lives beside the generators that read it rather than under the video config
 package: ten `src/ai` modules and the pipeline import it, none of them for a
 video setting, and importing it from there ran that package's `__init__` and
-everything it reaches. `src/video/config` re-exports `LLMSettings` for the
-old import path.
+everything it reaches. The old import path under `src/video/config` is gone;
+a test in `tests/publisher/test_config_boundary.py` fails on any module that
+spells it.
 """
 
 from __future__ import annotations
