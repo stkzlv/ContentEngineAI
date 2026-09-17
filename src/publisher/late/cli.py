@@ -568,60 +568,18 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 logger.error("No recurring slots configured for auto-discovery")
                 sys.exit(1)
 
-            # Build set of occupied slot times from ALL posts (scheduled + published)
-            occupied_slot_times: set[datetime] = set()
+            # The same read `schedule` and the batch make: the provider's
+            # posts and the local schedule, as one set.
+            now = datetime.now(UTC)
+            occupied_slot_times = await schedule_mgr.build_occupancy(publisher, now)
             try:
-                logger.debug("Fetching all posts from Late.dev...")
-                api_posts = await publisher.list_posts()
-                logger.debug("Found %d posts on Late.dev", len(api_posts))
-
-                for api_post in api_posts:
-                    scheduled_for = api_post.get("scheduledFor")
-                    if not scheduled_for:
-                        continue
-                    # Parse datetime
-                    if isinstance(scheduled_for, str):
-                        scheduled_dt = datetime.fromisoformat(
-                            scheduled_for.replace("+00:00", "+00:00")
-                        )
-                    else:
-                        scheduled_dt = scheduled_for
-                    # Ensure timezone-aware
-                    if scheduled_dt.tzinfo is None:
-                        scheduled_dt = scheduled_dt.replace(tzinfo=UTC)
-                    # Normalize to minute precision for comparison
-                    normalized = scheduled_dt.replace(second=0, microsecond=0)
-                    occupied_slot_times.add(normalized)
-                logger.debug("Occupied slots: %d times", len(occupied_slot_times))
-            except Exception as e:
-                logger.warning("Failed to fetch existing posts: %s", e)
-
-            # Find first available slot (gap detection)
-            search_time = datetime.now(UTC)
-            max_attempts = 365  # Search up to a year ahead
-            attempts = 0
-            current_slot = 0
-
-            while attempts < max_attempts:
-                next_time, current_slot = schedule_mgr.get_next_slot(
-                    slots, search_time, slot_index=current_slot
+                schedule_time, slot_index = schedule_mgr.next_free_slot(
+                    product_id, now, 0, occupied_slot_times
                 )
-                normalized = next_time.replace(second=0, microsecond=0)
-
-                if normalized not in occupied_slot_times:
-                    schedule_time = next_time
-                    slot_index = current_slot
-                    logger.info("Found available slot: %s", schedule_time.isoformat())
-                    break
-
-                # Slot is occupied, try next
-                search_time = next_time
-                attempts += 1
-                logger.debug("Slot %s occupied, trying next...", normalized)
-
-            if not schedule_time:
+            except ValueError:
                 logger.error("Could not find available slot within search range")
                 sys.exit(1)
+            logger.info("Found available slot: %s", schedule_time.isoformat())
 
         if schedule_time:
             logger.info("Scheduled time: %s", schedule_time)

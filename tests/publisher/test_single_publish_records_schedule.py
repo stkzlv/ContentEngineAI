@@ -3,7 +3,7 @@
 Only `auto_schedule` wrote `outputs/state/schedule.json`, so `calendar`,
 which reads nothing else, listed a June entry as the newest while the
 provider held the current week. Slot selection was unaffected, because
-`single` reads the provider's own posts before choosing a slot (the local file too, once #493 lands); the wrong
+`single` unions the provider's posts with the local file before choosing a slot; the wrong
 number was only ever read by a person, which is why it stayed quiet.
 
 Two changes: the single path records each scheduled post the way the batch
