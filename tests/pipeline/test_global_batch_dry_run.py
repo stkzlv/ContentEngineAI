@@ -75,7 +75,7 @@ class TestDryRunDeletesNothing:
         import asyncio
         import sys
 
-        from src.pipeline import global_batch
+        from src.pipeline import cli
 
         outputs = tmp_path / "outputs"
         product = outputs / "B0DRYRUN001"
@@ -109,7 +109,7 @@ class TestDryRunDeletesNothing:
         monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
         with pytest.raises(SystemExit) as exit_info:
-            asyncio.run(global_batch.main())
+            asyncio.run(cli.main())
 
         assert exit_info.value.code == 0
         assert product.exists(), "--dry-run --clean removed the product directory"
@@ -213,7 +213,7 @@ class TestTheBatchVerdictMatchesItsExitCode:
         import sys
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from src.pipeline import global_batch
+        from src.pipeline import cli
         from src.pipeline.config import PipelineSummary
 
         summary = PipelineSummary(
@@ -245,14 +245,12 @@ class TestTheBatchVerdictMatchesItsExitCode:
         orchestrator.run_pipeline = AsyncMock(return_value=summary)
 
         with (
-            patch.object(
-                global_batch, "GlobalPipelineOrchestrator", return_value=orchestrator
-            ),
-            patch.object(global_batch, "load_pipeline_state", return_value=None),
+            patch.object(cli, "GlobalPipelineOrchestrator", return_value=orchestrator),
+            patch.object(cli, "load_pipeline_state", return_value=None),
             caplog.at_level(logging.INFO),
             pytest.raises(SystemExit) as exit_info,
         ):
-            asyncio.run(global_batch.main())
+            asyncio.run(cli.main())
         return exit_info.value.code, caplog.text
 
     def test_a_skip_only_loss_is_not_reported_as_success(

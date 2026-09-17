@@ -263,9 +263,10 @@ class TestBothEntryPointsCarryTheOverride:
         inert flag lived.
         """
         from src.pipeline import global_batch
+        from src.pipeline.cli import create_argument_parser
         from src.pipeline.config import load_global_batch_config
 
-        args = global_batch.create_argument_parser().parse_args(
+        args = create_argument_parser().parse_args(
             [
                 "--product-ids",
                 "B0X",

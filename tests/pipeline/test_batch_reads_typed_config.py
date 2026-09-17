@@ -420,16 +420,21 @@ class TestDefaultPlatformsFlowFromYaml:
 class TestThePublishPhaseUsesTheTypedObject:
     """A shared loader existing is not the guard; the call site is."""
 
-    @staticmethod
-    def _function(name: str) -> ast.AST:
-        tree = ast.parse(BATCH.read_text())
+    # The plan printer moved to its own module; the orchestrator keeps a
+    # delegating method of the same name whose body reads nothing.
+    _HOMES = {"display_execution_plan": REPO / "src" / "pipeline" / "plan.py"}
+
+    @classmethod
+    def _function(cls, name: str) -> ast.AST:
+        path = cls._HOMES.get(name, BATCH)
+        tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef)
                 and node.name == name
             ):
                 return node
-        raise AssertionError(f"{name} not found in {BATCH.name}")
+        raise AssertionError(f"{name} not found in {path.name}")
 
     @pytest.mark.parametrize(
         "function",
@@ -474,12 +479,14 @@ class TestThePublishPhaseUsesTheTypedObject:
 @pytest.mark.unit
 class TestTheWebhookComesFromTheLoadedConfig:
     def test_main_does_not_reopen_the_pipeline_file(self) -> None:
-        source = BATCH.read_text()
+        # `main` builds the notifier, and it lives in the CLI module.
+        source = (REPO / "src" / "pipeline" / "cli.py").read_text()
 
         assert (
             "webhook_yaml" in source
         ), "the webhook slice is not carried on the config"
         assert 'open("config/pipeline.yaml")' not in source
+        assert 'open("config/pipeline.yaml")' not in BATCH.read_text()
 
     def test_a_configured_url_survives_the_round_trip(self, tmp_path: Path) -> None:
         """YAML -> loader -> the object `main` hands to the notifier.

@@ -294,7 +294,7 @@ class TestBatchCheckOrdering:
     def _positions(self):
         from pathlib import Path
 
-        source = Path("src/pipeline/global_batch.py").read_text(encoding="utf-8")
+        source = Path("src/pipeline/cli.py").read_text(encoding="utf-8")
         return (
             source.index("# Same pre-flight the producer runs:"),
             source.index("if config.clean:"),
@@ -316,6 +316,6 @@ class TestBatchCheckOrdering:
     def test_the_check_is_guarded_by_the_dry_run_flag(self):
         from pathlib import Path
 
-        source = Path("src/pipeline/global_batch.py").read_text(encoding="utf-8")
+        source = Path("src/pipeline/cli.py").read_text(encoding="utf-8")
         check = source.index("# Same pre-flight the producer runs:")
         assert "if not config.dry_run:" in source[check : check + 800]

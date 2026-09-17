@@ -394,7 +394,7 @@ class TestTheForceFlagExists:
     """The filter needs an escape hatch, and the other paths already have one."""
 
     def test_the_batch_parser_accepts_force(self):
-        from src.pipeline.global_batch import create_argument_parser
+        from src.pipeline.cli import create_argument_parser
 
         args = create_argument_parser().parse_args(["--force"])
 

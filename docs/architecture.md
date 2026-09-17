@@ -214,8 +214,10 @@ src/
 │       └── manager.py        # Orchestration and fallback logic
 │
 └── pipeline/                  # Batch processing orchestration
+    ├── cli.py                # Argument parser and entry point
     ├── config.py             # Pipeline configuration
-    └── global_batch.py       # Unified scrape + produce pipeline
+    ├── global_batch.py       # Unified scrape + produce pipeline
+    └── plan.py               # Dry-run plan printer
 ```
 
 </details>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.6] - 2026-09-17
+
+### Changed
+- The global batch's argument parser and entry point live in `src/pipeline/cli.py` and its dry-run plan printer in `src/pipeline/plan.py`; `python -m src.pipeline.global_batch` still runs the same command. A test now pins the split, the module entry point, and that every patched name still exists on the module a test patches it on, so a name moved out from under a test cannot leave that test passing against the real object.
+
 ## [0.121.5] - 2026-09-17
 
 ### Fixed
