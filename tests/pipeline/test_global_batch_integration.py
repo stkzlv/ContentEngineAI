@@ -224,7 +224,7 @@ async def test_pipeline_with_product_ids_only(
         patch(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
-        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch("src.publisher.registry.create_publisher") as mock_create_publisher,
         patch(
             "src.publisher.publish_modes.load_platform_metadata",
             side_effect=mock_metadata_factory,

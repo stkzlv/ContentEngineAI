@@ -665,7 +665,7 @@ class ScheduleManager:
 
         return filtered
 
-    async def _build_occupancy(
+    async def build_occupancy(
         self, publisher: "BasePublisher", current_time: datetime
     ) -> set[datetime]:
         """Slot times already taken, from the API and the local schedule.
@@ -725,7 +725,7 @@ class ScheduleManager:
 
         return occupied_slot_times
 
-    def _next_free_slot(
+    def next_free_slot(
         self,
         product_id: str,
         current_time: datetime,
@@ -1293,7 +1293,7 @@ class ScheduleManager:
                 return _VideoOutcome("skipped")
 
         try:
-            next_time, next_idx = self._next_free_slot(
+            next_time, next_idx = self.next_free_slot(
                 product_id, current_time, current_slot, occupied_slot_times
             )
         except (ValueError, KeyError) as e:
@@ -1438,7 +1438,7 @@ class ScheduleManager:
         logger.info("Start slot: %d, Dry run: %s", start_slot, dry_run)
 
         current_time = datetime.now(UTC)
-        occupied_slot_times = await self._build_occupancy(publisher, current_time)
+        occupied_slot_times = await self.build_occupancy(publisher, current_time)
 
         scheduled_count = 0
         skipped_count = 0

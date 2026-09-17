@@ -641,7 +641,7 @@ async def test_complete_pipeline_success(orchestrator, mock_video_config):
         patch(
             "src.video.producer.orchestration.create_video_for_product"
         ) as mock_create_video,
-        patch("src.publisher.create_publisher") as mock_create_publisher,
+        patch("src.publisher.registry.create_publisher") as mock_create_publisher,
         patch.dict("os.environ", {"LATE_API_KEY": "test-key"}),
     ):
         # Mock scraping phase (two-phase approach)

@@ -155,3 +155,43 @@ def create_publisher(
         )
 
     return publisher_class(api_key=api_key, session=session, **kwargs)  # type: ignore[call-arg]
+
+
+def create_publisher_from_config(
+    config: Any,
+    session: aiohttp.ClientSession | None = None,
+    *,
+    api_key: str | None = None,
+    vercel_token: str | None = None,
+) -> BasePublisher:
+    """A publisher carrying every setting the loaded config names.
+
+    The one place the settings are handed to the provider. The publisher CLI
+    and the global batch each built their own publisher, and the batch's
+    copy stopped short: `tiktok_settings` was missing from it for several
+    releases, and `timeout` and `max_retries` never reached it at all, so the
+    same config file produced different payloads and different retry
+    behaviour on the two paths.
+
+    Args:
+    ----
+        config: A loaded `PublisherConfig`.
+        session: An aiohttp session to reuse, or None for the provider's own.
+        api_key: A credential read at publish time, in place of the one on
+            the config. The batch reads its settings before the run and its
+            key from the environment when it publishes, so the config it
+            holds may carry a placeholder.
+        vercel_token: Likewise for the upload token.
+
+    """
+    return create_publisher(
+        provider=PublisherProvider(config.provider),
+        api_key=api_key if api_key is not None else config.api_key,
+        session=session,
+        vercel_token=vercel_token if vercel_token is not None else config.vercel_token,
+        timeout=config.timeout,
+        max_retries=config.max_retries,
+        tiktok_settings=config.tiktok_settings,
+        first_comment_config=config.first_comment_config,
+        synthetic_media_disclosure=config.synthetic_media_disclosure,
+    )

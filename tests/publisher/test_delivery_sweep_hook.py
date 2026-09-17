@@ -159,7 +159,7 @@ class TestEveryPublishPathCallsIt:
     @pytest.mark.parametrize(
         ("path", "function"),
         [
-            ("src/pipeline/global_batch.py", "_execute_publishing_phase"),
+            ("src/pipeline/phases/publishing.py", "run_publishing_phase"),
             ("src/publisher/late/cli.py", "cmd_single"),
             ("src/publisher/late/cli.py", "_run_immediate_batch"),
             ("src/publisher/late/cli.py", "cmd_schedule_auto"),

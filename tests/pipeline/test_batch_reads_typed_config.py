@@ -120,17 +120,22 @@ class TestABadConfigIsNotSwallowed:
         import ast
 
         tree = ast.parse(BATCH.read_text())
+        # The phase builds its publisher through the shared factory, and
+        # hands it the key it read from the environment at publish time.
+        phase = ast.parse(
+            (REPO / "src" / "pipeline" / "phases" / "publishing.py").read_text()
+        )
         keys = [
             keyword.value
-            for node in ast.walk(tree)
+            for node in ast.walk(phase)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "create_publisher"
+            and node.func.id == "create_publisher_from_config"
             for keyword in node.keywords
             if keyword.arg == "api_key"
         ]
 
-        assert keys, "no create_publisher call passes an api_key"
+        assert keys, "the phase's factory call does not pass an api_key"
 
         # Reading the call site alone is not enough: assigning the
         # placeholder to `api_key` a few lines above and passing that name
@@ -420,21 +425,31 @@ class TestDefaultPlatformsFlowFromYaml:
 class TestThePublishPhaseUsesTheTypedObject:
     """A shared loader existing is not the guard; the call site is."""
 
-    # The plan printer moved to its own module; the orchestrator keeps a
-    # delegating method of the same name whose body reads nothing.
-    _HOMES = {"display_execution_plan": REPO / "src" / "pipeline" / "plan.py"}
+    # The plan printer and the publishing phase moved to their own modules;
+    # the orchestrator keeps a delegating method of the old name whose body
+    # reads nothing.
+    _HOMES = {
+        "display_execution_plan": (
+            REPO / "src" / "pipeline" / "plan.py",
+            "display_execution_plan",
+        ),
+        "_execute_publishing_phase": (
+            REPO / "src" / "pipeline" / "phases" / "publishing.py",
+            "run_publishing_phase",
+        ),
+    }
 
     @classmethod
     def _function(cls, name: str) -> ast.AST:
-        path = cls._HOMES.get(name, BATCH)
+        path, target = cls._HOMES.get(name, (BATCH, name))
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef)
-                and node.name == name
+                and node.name == target
             ):
                 return node
-        raise AssertionError(f"{name} not found in {path.name}")
+        raise AssertionError(f"{target} not found in {path.name}")
 
     @pytest.mark.parametrize(
         "function",

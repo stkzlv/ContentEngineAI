@@ -109,32 +109,40 @@ class TestBothPathsHonourTheConfiguredSettings:
         assert cli_settings.to_platform_data() == {"videoMadeWithAi": False}
 
     def test_the_batch_passes_what_the_yaml_section_says(self):
-        """Reads the call site, because nothing else proves it is wired.
+        """Reads the call sites, because nothing else proves it is wired.
 
         The parser being shared is not the fix on its own -- the defect was a
-        call site that never called any parser at all.
-
-        Pinned to the call that also carries `synthetic_media_disclosure`, so
-        moving the kwarg onto the slot-occupancy publisher a few lines above
-        fails here rather than keeping a bare count at one.
+        call site that never called any parser at all. The batch now builds
+        its publisher through the same factory as the CLI, so the check is
+        in two halves: the batch's phase calls that factory and nothing
+        else, and the factory is the one call that carries the settings.
         """
         import ast
         from pathlib import Path
 
-        tree = ast.parse(Path("src/pipeline/global_batch.py").read_text())
+        phase = ast.parse(Path("src/pipeline/phases/publishing.py").read_text())
+        called = {
+            node.func.id
+            for node in ast.walk(phase)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        assert "create_publisher_from_config" in called
+        assert "create_publisher" not in called, (
+            "the batch must not build its own publisher; a hand-built one is "
+            "how tiktok_settings went missing from this path"
+        )
+
+        factory = ast.parse(Path("src/publisher/registry.py").read_text())
         wired = [
             node
-            for node in ast.walk(tree)
+            for node in ast.walk(factory)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "create_publisher"
             and {"tiktok_settings", "synthetic_media_disclosure"}
             <= {kw.arg for kw in node.keywords}
         ]
-        assert len(wired) == 1, (
-            "the batch's publishing publisher must pass tiktok_settings; the "
-            "slot-occupancy publisher never publishes and must not need it"
-        )
+        assert len(wired) == 1, "the shared factory must pass tiktok_settings"
 
 
 class TestTheConfiguredValueSurvivesIntoThePayload:

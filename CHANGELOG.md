@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.8] - 2026-09-17
+
+### Changed
+- The global batch's publishing phase lives in `src/pipeline/phases/publishing.py` and calls the publisher package instead of restating it: the publisher comes from the factory the CLI uses, the occupied slots and the next free one from the schedule manager, the history writes from the shared recorder, and the account pairing from a shared helper. `global_batch.py` is 1,017 lines, under the target the decomposition set.
+- The batch's post-publish cleanup is a named function in the publisher package with the behaviour it always had; that it differs from the CLI's verify-first cleanup is now written down rather than implied.
+
+### Fixed
+- The batch's publisher receives the configured `timeout` and `max_retries`; it used to run on the provider's defaults while `single` ran on the configured values.
+- The batch's slot search treats slots held in the local schedule as occupied, as `single` and `schedule` already did, so a slot recorded locally but not yet visible on the provider is not offered twice.
+
 ## [0.121.7] - 2026-09-17
 
 ### Changed

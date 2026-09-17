@@ -3,7 +3,7 @@
 Only `auto_schedule` wrote `outputs/state/schedule.json`, so `calendar`,
 which reads nothing else, listed a June entry as the newest while the
 provider held the current week. Slot selection was unaffected, because
-`_build_occupancy` unions the provider's posts with the local file; the wrong
+`build_occupancy` unions the provider's posts with the local file; the wrong
 number was only ever read by a person, which is why it stayed quiet.
 
 Two changes: the single path records each scheduled post the way the batch
@@ -236,5 +236,5 @@ class TestTheCallSitesAreWired:
 
     def test_the_batch_records_its_schedule_entries_too(self):
         assert "record_scheduled_posts" in self._calls_in(
-            "_execute_publishing_phase", REPO / "src/pipeline/global_batch.py"
+            "run_publishing_phase", REPO / "src/pipeline/phases/publishing.py"
         )
