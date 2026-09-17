@@ -20,14 +20,12 @@ Usage:
     summary = await orchestrator.run_pipeline()
 """
 
-import argparse
 import asyncio
 import logging
 import os
 import random
 import re
 import shutil
-import sys
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -54,7 +52,6 @@ from src.utils.outputs_paths import durable_state_path
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
 from src.video.producer.shared_cli import (
-    add_shared_render_args,
     subtitle_render_overrides,
 )
 from src.video.producer.topic_input import (

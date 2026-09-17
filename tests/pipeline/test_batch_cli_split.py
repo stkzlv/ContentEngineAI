@@ -1,6 +1,6 @@
 """The batch CLI and plan printer live outside global_batch.py (#450, PR 1).
 
-`global_batch.py` was 2,763 lines: the orchestrator, a 287-line argument
+`global_batch.py` was 2,792 lines: the orchestrator, a 287-line argument
 parser, a 250-line `main` and a 226-line plan printer in one module, the
 heaviest single context load for any question about the batch. The parser
 and `main` are in `src/pipeline/cli.py`, the plan printer in
@@ -57,6 +57,18 @@ def _defs(path: Path) -> set[str]:
     }
 
 
+def _module_scope_names(path: Path) -> set[str]:
+    """Every name bound at module scope: definitions and imports alike."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    names = _defs(path)
+    for n in tree.body:
+        if isinstance(n, ast.ImportFrom):
+            names |= {a.asname or a.name for a in n.names}
+        elif isinstance(n, ast.Import):
+            names |= {(a.asname or a.name).split(".")[0] for a in n.names}
+    return names
+
+
 class TestTheMoveIsAMove:
     def test_the_cli_owns_the_parser_and_main(self):
         cli = _defs(CLI)
@@ -89,10 +101,15 @@ class TestTheMoveIsAMove:
 
 
 class TestTheEntryPointStillRuns:
-    def test_python_m_global_batch_help(self):
-        """Nothing imports the entry block, so only running it proves it."""
+    @pytest.mark.parametrize("module", ["src.pipeline", "src.pipeline.global_batch"])
+    def test_python_m_help(self, module: str):
+        """Nothing imports either entry block, so only running them proves it.
+
+        The package form is the one the parser's own epilog prints; it
+        imported `main` from `global_batch` and was the one the split broke.
+        """
         result = subprocess.run(
-            [sys.executable, "-m", "src.pipeline.global_batch", "--help"],
+            [sys.executable, "-m", module, "--help"],
             cwd=REPO,
             capture_output=True,
             text=True,
@@ -150,3 +167,24 @@ class TestPatchTargetsStillResolve:
             if module == "src.pipeline.global_batch" and name in moved
         ]
         assert not offenders, f"patched on the old module: {offenders}"
+
+    def test_no_main_driver_patches_what_main_reads_on_global_batch(self):
+        """The inert form: `main` reads a name from `cli`'s own namespace.
+
+        `cli` binds `GlobalPipelineOrchestrator`, `load_pipeline_state`,
+        `load_video_config_modular` and the rest at module scope. A test that
+        patches one of those on `src.pipeline.global_batch` and then drives
+        `cli.main()` patches a name `main` never looks up; `global_batch`
+        still has the attribute, so nothing raises, and the test runs the
+        real object. Only tests that drive `main` are held to this; an
+        orchestrator test patching `global_batch` is patching what it reads.
+        """
+        reads = _module_scope_names(CLI)
+        offenders = []
+        for path, module, name in self._patch_targets():
+            if module != "src.pipeline.global_batch" or name not in reads:
+                continue
+            text = path.read_text(encoding="utf-8")
+            if "cli.main()" in text or "from src.pipeline.cli import main" in text:
+                offenders.append(f"{path.relative_to(REPO)}: {name}")
+        assert not offenders, f"patched on global_batch but read by cli: {offenders}"

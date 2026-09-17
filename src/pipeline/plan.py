@@ -17,10 +17,9 @@ from src.video.producer.utils import eligible_random_profiles
 def _batch_helpers():
     """The three orchestrator-module helpers the plan reads.
 
-    Imported at call time rather than at module scope: `global_batch`
-    imports this module for its delegating method, so a module-scope
-    import here would be a cycle, and nine tests patch these names on
-    `src.pipeline.global_batch`, which a call-time import still honours.
+    Imported at call time rather than at module scope because nine tests
+    patch these names on `src.pipeline.global_batch`, which a call-time
+    import still honours and a module-scope binding would not.
     """
     from src.pipeline.global_batch import (
         _clean_targets,

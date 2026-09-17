@@ -1,7 +1,7 @@
 """Command line for the global batch pipeline.
 
 Moved out of `global_batch.py` (#450): the parser and `main` were a
-third of a 2,700-line module whose other two thirds are the orchestrator.
+third of a 2,800-line module whose other two thirds are the orchestrator.
 `python -m src.pipeline.global_batch` still runs this `main`.
 """
 
