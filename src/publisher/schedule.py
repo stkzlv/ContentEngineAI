@@ -1538,6 +1538,35 @@ class ScheduleManager:
             logger.error("Failed to save schedule after adding entry: %s", e)
             raise OSError(f"Failed to save schedule: {e}") from e
 
+    def record_entry(self, entry: ScheduleEntry) -> None:
+        """Record a post that already exists on the provider, without validation.
+
+        `add_entry` runs the pre-flight validator (spacing, duplicates, daily
+        limit) and refuses what it would not have scheduled. That is the
+        wrong check for a post the provider has already accepted: refusing
+        to record it leaves local state blind to a real post, which is how
+        `calendar` came to report nothing while the provider held a week.
+        This is the path `auto_schedule` uses for its own entries.
+
+        Raises
+        ------
+            OSError: If the schedule file write fails; the entry is rolled back.
+
+        """
+        self.entries.append(entry)
+        try:
+            self._save_schedule()
+        except OSError as e:
+            self.entries.pop()
+            logger.error("Failed to save schedule after recording entry: %s", e)
+            raise OSError(f"Failed to save schedule: {e}") from e
+        logger.info(
+            "Recorded %s scheduled for %s (total entries: %d)",
+            entry.product_id,
+            entry.scheduled_time.isoformat(),
+            len(self.entries),
+        )
+
     def remove_entries(
         self,
         product_id: str,
