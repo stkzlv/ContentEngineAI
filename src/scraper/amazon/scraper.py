@@ -22,6 +22,7 @@ from src.scraper.base.keyword_pillars import (
     read_keyword_pillars,
 )
 from src.scraper.config_models import ScraperConfig
+from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import get_project_root
 
 from ...utils.url_shortener import load_url_shortener_settings
@@ -647,16 +648,19 @@ class BotasaurusAmazonScraper(BaseScraper):
             # Download per product individually to avoid batching issues
             download_results = []
             for task in media_download_tasks:
-                if self.debug_mode:
-                    self.logger.info(
-                        "[INDIVIDUAL DOWNLOAD] Processing ASIN: %s",
-                        task["asin"],
-                    )
-                dl_result = download_media_files([task])
-                if isinstance(dl_result, list):
-                    download_results.extend(dl_result)
-                else:
-                    download_results.append(dl_result)
+                # Both entry points reach the downloader through here, so
+                # this is where its records get their product id.
+                with log_context(product_id=task["asin"]):
+                    if self.debug_mode:
+                        self.logger.info(
+                            "[INDIVIDUAL DOWNLOAD] Processing ASIN: %s",
+                            task["asin"],
+                        )
+                    dl_result = download_media_files([task])
+                    if isinstance(dl_result, list):
+                        download_results.extend(dl_result)
+                    else:
+                        download_results.append(dl_result)
 
             if self.debug_mode:
                 self.logger.debug("=== BOTASAURUS DOWNLOAD RESULTS DEBUG ===")

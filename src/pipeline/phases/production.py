@@ -16,6 +16,7 @@ from typing import Any
 
 from src.pipeline.config import GlobalBatchConfig, ProductionPhaseSummary
 from src.scraper.amazon.models import ProductData
+from src.utils.logging_setup import log_context
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
 from src.video.producer.utils import (
@@ -90,164 +91,167 @@ async def run_production_phase(
     async with aiohttp.ClientSession() as session:
         for idx, (_product_dir, product) in enumerate(products, 1):
             product_id = product.asin or product.title or f"product_{idx}"
-
-            # Select profile for this product. A topic draws from its own
-            # pool: it has no product photography, so a profile that
-            # sources only scraped media gathers nothing and the render
-            # fails outright. On a topics-only run the two pools are the
-            # same list; on a mixed run they are close to complements.
-            is_topic = bool(getattr(product, "topic", None))
-            pool = (
-                batch_config.topic_profile_pool
-                if is_topic and batch_config.topic_profile_pool
-                else batch_config.profile_pool
-            )
-            if batch_config.random_profile:
-                # Random profile selection (deterministic by product ID)
-                assert pool is not None
-                assert profile_tracker is not None
-                current_profile = select_profile_for_product(
-                    product_id=product_id,
-                    profile_pool=pool,
-                    config=config,
+            with log_context(product_id=product_id):
+                # Select profile for this product. A topic draws from its own
+                # pool: it has no product photography, so a profile that
+                # sources only scraped media gathers nothing and the render
+                # fails outright. On a topics-only run the two pools are the
+                # same list; on a mixed run they are close to complements.
+                is_topic = bool(getattr(product, "topic", None))
+                pool = (
+                    batch_config.topic_profile_pool
+                    if is_topic and batch_config.topic_profile_pool
+                    else batch_config.profile_pool
                 )
-                profile_tracker.record_usage(current_profile)
-                logger.info(
-                    "[%s/%s] Processing %s with profile '%s'",
-                    idx,
-                    total_products,
-                    product_id,
-                    current_profile,
-                )
-            else:
-                # Fixed profile mode
-                assert batch_config.profile is not None
-                current_profile = batch_config.profile
-                logger.info(
-                    "[%s/%s] Processing product: %s",
-                    idx,
-                    total_products,
-                    product_id,
-                )
-
-            try:
-                # The product's own pillar is NOT promoted into
-                # `cli_overrides` here. The producer reads it as the last
-                # term of its own resolution, and putting it in the CLI
-                # slot would rank it above a pillar a previous run
-                # recorded -- so a resumed batch would file the row under
-                # the scraped arm while reusing a script written for the
-                # overridden one.
-                cli_overrides = build_cli_overrides()
-
-                # Call video producer with timeout
-                # See the producer CLI: an inner limit must not exceed
-                # the budget this `wait_for` enforces (#398).
-                set_pipeline_deadline(config.pipeline_timeout_sec)
-                result_path = await asyncio.wait_for(
-                    create_video_for_product(
+                if batch_config.random_profile:
+                    # Random profile selection (deterministic by product ID)
+                    assert pool is not None
+                    assert profile_tracker is not None
+                    current_profile = select_profile_for_product(
+                        product_id=product_id,
+                        profile_pool=pool,
                         config=config,
-                        product=product,
-                        profile_name=current_profile,
-                        secrets=secrets,
-                        session=session,
-                        debug_mode=batch_config.debug,
-                        clean_run=False,
-                        debug_step_target=None,
-                        cli_overrides=cli_overrides,
-                    ),
-                    timeout=config.pipeline_timeout_sec,
-                )
-
-                failed_step = failed_step_from_result(result_path)
-                if result_path == "SKIPPED":
-                    skipped += 1
-                    skipped_products.append(product_id)
-                    logger.warning(
-                        "[%d/%d] Skipped %s (insufficient media)",
-                        idx,
-                        total_products,
-                        product_id,
                     )
-                elif failed_step is not None:
-                    failed += 1
-                    failed_products.append(product_id)
-                    logger.error(
-                        "[%d/%d] Failed to produce %s: " "pipeline step '%s' failed",
-                        idx,
-                        total_products,
-                        product_id,
-                        failed_step,
-                    )
-                    if batch_config.fail_fast:
-                        logger.error("Fail-fast enabled, stopping production phase")
-                        break
-                elif result_path:
-                    successful += 1
-                    produced_videos.append((result_path, product_id))
+                    profile_tracker.record_usage(current_profile)
                     logger.info(
-                        "[%s/%s] Successfully created video for %s",
+                        "[%s/%s] Processing %s with profile '%s'",
                         idx,
                         total_products,
                         product_id,
+                        current_profile,
                     )
                 else:
-                    # The producer never returns None; a None here means
-                    # the result contract was broken. Count as failed so
-                    # the run doesn't underreport.
-                    failed += 1
-                    failed_products.append(product_id)
-                    logger.error(
-                        "[%d/%d] Failed to produce %s: " "producer returned no result",
+                    # Fixed profile mode
+                    assert batch_config.profile is not None
+                    current_profile = batch_config.profile
+                    logger.info(
+                        "[%s/%s] Processing product: %s",
                         idx,
                         total_products,
                         product_id,
                     )
+
+                try:
+                    # The product's own pillar is NOT promoted into
+                    # `cli_overrides` here. The producer reads it as the last
+                    # term of its own resolution, and putting it in the CLI
+                    # slot would rank it above a pillar a previous run
+                    # recorded -- so a resumed batch would file the row under
+                    # the scraped arm while reusing a script written for the
+                    # overridden one.
+                    cli_overrides = build_cli_overrides()
+
+                    # Call video producer with timeout
+                    # See the producer CLI: an inner limit must not exceed
+                    # the budget this `wait_for` enforces (#398).
+                    set_pipeline_deadline(config.pipeline_timeout_sec)
+                    result_path = await asyncio.wait_for(
+                        create_video_for_product(
+                            config=config,
+                            product=product,
+                            profile_name=current_profile,
+                            secrets=secrets,
+                            session=session,
+                            debug_mode=batch_config.debug,
+                            clean_run=False,
+                            debug_step_target=None,
+                            cli_overrides=cli_overrides,
+                        ),
+                        timeout=config.pipeline_timeout_sec,
+                    )
+
+                    failed_step = failed_step_from_result(result_path)
+                    if result_path == "SKIPPED":
+                        skipped += 1
+                        skipped_products.append(product_id)
+                        logger.warning(
+                            "[%d/%d] Skipped %s (insufficient media)",
+                            idx,
+                            total_products,
+                            product_id,
+                        )
+                    elif failed_step is not None:
+                        failed += 1
+                        failed_products.append(product_id)
+                        logger.error(
+                            "[%d/%d] Failed to produce %s: "
+                            "pipeline step '%s' failed",
+                            idx,
+                            total_products,
+                            product_id,
+                            failed_step,
+                        )
+                        if batch_config.fail_fast:
+                            logger.error("Fail-fast enabled, stopping production phase")
+                            break
+                    elif result_path:
+                        successful += 1
+                        produced_videos.append((result_path, product_id))
+                        logger.info(
+                            "[%s/%s] Successfully created video for %s",
+                            idx,
+                            total_products,
+                            product_id,
+                        )
+                    else:
+                        # The producer never returns None; a None here means
+                        # the result contract was broken. Count as failed so
+                        # the run doesn't underreport.
+                        failed += 1
+                        failed_products.append(product_id)
+                        logger.error(
+                            "[%d/%d] Failed to produce %s: "
+                            "producer returned no result",
+                            idx,
+                            total_products,
+                            product_id,
+                        )
+                        if batch_config.fail_fast:
+                            logger.error("Fail-fast enabled, stopping production phase")
+                            break
+
+                except TimeoutError:
+                    failed += 1
+                    failed_products.append(product_id)
+                    logger.error(
+                        "[%s/%s] Pipeline timed out after %ss for %s",
+                        idx,
+                        total_products,
+                        config.pipeline_timeout_sec,
+                        product_id,
+                    )
+
                     if batch_config.fail_fast:
                         logger.error("Fail-fast enabled, stopping production phase")
                         break
 
-            except TimeoutError:
-                failed += 1
-                failed_products.append(product_id)
-                logger.error(
-                    "[%s/%s] Pipeline timed out after %ss for %s",
-                    idx,
-                    total_products,
-                    config.pipeline_timeout_sec,
-                    product_id,
-                )
+                except Exception as e:
+                    failed += 1
+                    failed_products.append(product_id)
+                    logger.exception(
+                        "[%s/%s] Failed to process %s: %s",
+                        idx,
+                        total_products,
+                        product_id,
+                        e,
+                    )
 
-                if batch_config.fail_fast:
-                    logger.error("Fail-fast enabled, stopping production phase")
-                    break
+                    if batch_config.fail_fast:
+                        logger.error("Fail-fast enabled, stopping production phase")
+                        raise
 
-            except Exception as e:
-                failed += 1
-                failed_products.append(product_id)
-                logger.exception(
-                    "[%s/%s] Failed to process %s: %s",
-                    idx,
-                    total_products,
-                    product_id,
-                    e,
-                )
+        # Generate summary
+        duration = time.time() - phase_start
+        profile_distribution = profile_tracker.get_counts() if profile_tracker else None
 
-                if batch_config.fail_fast:
-                    logger.error("Fail-fast enabled, stopping production phase")
-                    raise
-
-    # Generate summary
-    duration = time.time() - phase_start
-    profile_distribution = profile_tracker.get_counts() if profile_tracker else None
-
-    logger.info(
-        "Production phase complete: %s successful, %s failed, " "%s skipped in %.1fs",
-        successful,
-        failed,
-        skipped,
-        duration,
-    )
+        logger.info(
+            "Production phase complete: %s successful, %s failed, "
+            "%s skipped in %.1fs",
+            successful,
+            failed,
+            skipped,
+            duration,
+        )
 
     # Carried from the handoff drop so the summary says why a run that
     # rendered nothing rendered nothing. Without it the verdict is

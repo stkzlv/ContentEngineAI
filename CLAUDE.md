@@ -58,6 +58,8 @@ Pipeline logs are in `outputs/logs/`:
 - `producer.log` — standalone video production
 - `publisher.log` — standalone publishing
 
+Every file line carries the run id and the product id (`-` when none is bound): `time - run - product - logger - LEVEL - func:line - message`, with an ISO 8601 timestamp and the local UTC offset. `grep ' B0ASIN '` on a log returns one product's whole story across phases; `grep 'run starting'` lists the runs with their ids. A new per-product loop binds the id with `log_context(product_id=...)` from `src/utils/logging_setup.py`.
+
 ## Resource discipline (read before running anything below)
 
 The scraper and the producer are the heavy commands. The producer pipeline peaks around 2-2.5 GB RSS per render (Whisper STT, FFmpeg encoding, pycaps Chromium) and runs for 3-6 minutes on a single 30-45s output. The scraper drives Botasaurus + Chromium and holds RAM for the duration of a search. Running either bare while the user is working on the same machine causes systemd-oomd to kill unrelated session apps (Chrome, VSCode) — see the 0.44.0 changelog for why we now ship `MemorySwapMax=0` in the lowpri cgroup.

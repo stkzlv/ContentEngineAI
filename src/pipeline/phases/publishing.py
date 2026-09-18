@@ -23,6 +23,7 @@ from pathlib import Path
 
 from src.pipeline.config import GlobalBatchConfig, PublishingPhaseSummary
 from src.publisher.models import Platform
+from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
@@ -187,224 +188,233 @@ async def run_publishing_phase(
 
     # Publish each video
     for idx, (video_path, product_id) in enumerate(produced_videos, 1):
-        logger.info("[%s/%s] Publishing video for %s", idx, total_attempted, product_id)
-
-        video_successful = True
-        video_errors: list[str] = []
-
-        try:
-            # Upload video once
-            logger.info("[%s/%s] Uploading video...", idx, total_attempted)
-            media_id = await publisher.upload_media(video_path)
-            logger.info("[%s/%s] Upload complete: %s", idx, total_attempted, media_id)
-
-            # Build platforms list (validate accounts upfront)
-            from src.publisher.publish_modes import accounts_for_platforms
-
-            pub_platforms, missing = accounts_for_platforms(platforms, accounts)
-            for platform in missing:
-                logger.warning(
-                    "[%d/%d] No account for %s, skipping",
-                    idx,
-                    total_attempted,
-                    platform.value,
-                )
-                platform_results[platform.value]["failed"] += 1
-
-            if not pub_platforms:
-                raise ValueError("No valid platform accounts found")
-
-            # Find per-product schedule slot if auto-scheduling
-            product_schedule_time = schedule_time
-            product_slot_index: int | None = None
-            if schedule_manager is not None and occupied_slot_times is not None:
-                try:
-                    product_schedule_time, product_slot_index = (
-                        schedule_manager.next_free_slot(
-                            product_id, datetime.now(UTC), 0, occupied_slot_times
-                        )
-                    )
-                except ValueError:
-                    logger.warning(
-                        "All slots occupied for %s. Publishing immediately.",
-                        product_id,
-                    )
-                    product_schedule_time = None
-                else:
-                    occupied_slot_times.add(
-                        product_schedule_time.replace(second=0, microsecond=0)
-                    )
-                    logger.info(
-                        "Auto-scheduled %s to slot #%s: %s",
-                        product_id,
-                        product_slot_index,
-                        product_schedule_time.strftime("%A, %Y-%m-%d %H:%M:%S %Z"),
-                    )
-
-            # Publish (unified or platform-specific mode)
-            from src.publisher.publish_modes import publish_product
-
-            platform_specific = (
-                batch_config.platform_specific_content
-                or published.use_platform_specific_content
-            )
-
-            affiliate_cfg = published.affiliate_disclosure_config
-            disclosure_phrase = affiliate_cfg.phrase if affiliate_cfg.enabled else None
-            publish_results = await publish_product(
-                publisher=publisher,
-                media_id=media_id,
-                product_id=product_id,
-                platforms=pub_platforms,
-                outputs_dir=batch_config.outputs_dir,
-                platform_specific=platform_specific,
-                schedule_time=product_schedule_time,
-                disclosure_phrase=disclosure_phrase,
-            )
-
-            # Tally per platform, then record the way `single` records
-            for pub_result in publish_results:
-                published_to = (
-                    [p["platform"] for p in pub_platforms]
-                    if pub_result["platform"] == "all"
-                    else [pub_result["platform"]]
-                )
-                for p_name in published_to:
-                    platform_results[p_name]["successful"] += 1
-
-            from src.publisher.tracking import record_publish_results
-
-            # The recorder swallows a failed write so the other platforms
-            # still land; the batch treats the shortfall as a partial failure,
-            # because the history file is its only dedup record and cleanup
-            # below would otherwise remove the directory as well.
-            expected = sum(
-                len(pub_platforms) if r["platform"] == "all" else 1
-                for r in publish_results
-            )
-            recorded = record_publish_results(
-                product_id, publish_results, pub_platforms, batch_config.outputs_dir
-            )
-            if recorded < expected:
-                video_successful = False
-                video_errors.append(
-                    f"history write failed for {expected - recorded} platform(s)"
-                )
-
-            # A scheduled post also goes into the local schedule, so
-            # `calendar` sees it. Same write as `single` (#485).
-            if product_schedule_time is not None:
-                from src.publisher.schedule import record_scheduled_posts
-
-                schedule_writer = schedule_manager or ScheduleManager(
-                    schedule_path=durable_state_path(
-                        batch_config.outputs_dir, "schedule.json"
-                    ),
-                    config=published.schedule_config,
-                )
-                record_scheduled_posts(
-                    product_id,
-                    publish_results,
-                    pub_platforms,
-                    product_schedule_time,
-                    product_slot_index,
-                    schedule_writer,
-                )
-
-            # Add to product registry
-            try:
-                from src.publisher.product_registry import add_to_registry
-
-                add_to_registry(product_id, batch_config.outputs_dir)
-            except Exception as reg_exc:
-                logger.warning("Failed to update product registry: %s", reg_exc)
-
-            # Check if all platforms were published
-            if len(pub_platforms) < len(platforms):
-                video_successful = False
-                video_errors.append("Some platforms skipped (no account)")
-
-            # Check fail-fast after publish
-            if not video_successful and batch_config.fail_fast_publish:
-                logger.error("Fail-fast enabled, stopping publishing phase")
-                failed += 1
-                failed_videos.append(product_id)
-                errors.append(
-                    {"product_id": product_id, "error": "; ".join(video_errors)}
-                )
-                break
-
-            # Track video-level success/failure
-            if video_successful:
-                successful += 1
-                logger.info(
-                    "[%s/%s] Successfully published %s to all platforms",
-                    idx,
-                    total_attempted,
-                    product_id,
-                )
-
-                # Link-in-bio (non-blocking, before cleanup, default ON to
-                # match the LinkInBioConfig dataclass and the other paths)
-                from src.publisher.link_in_bio.manager import update_link_in_bio_safe
-
-                await update_link_in_bio_safe(
-                    product_id,
-                    batch_config.outputs_dir,
-                    published.link_in_bio_config,
-                )
-
-                # Cleanup through the manager, the same policy as `single`
-                # and `schedule`: age and verification before removal.
-                from src.publisher.cleanup import cleanup_after_publish
-
-                await cleanup_after_publish(
-                    batch_config.outputs_dir,
-                    product_id,
-                    platforms,
-                    published.cleanup_config,
-                    publisher,
-                )
-            else:
-                failed += 1
-                failed_videos.append(product_id)
-                errors.append(
-                    {"product_id": product_id, "error": "; ".join(video_errors)}
-                )
-                logger.warning(
-                    "[%s/%s] Partially failed for %s",
-                    idx,
-                    total_attempted,
-                    product_id,
-                )
-
-        except Exception as e:
-            failed += 1
-            failed_videos.append(product_id)
-            errors.append({"product_id": product_id, "error": str(e)})
-            logger.exception(
-                "[%s/%s] Failed to process %s: %s",
-                idx,
-                total_attempted,
-                product_id,
-                e,
-            )
-
-            if batch_config.fail_fast_publish:
-                logger.error("Fail-fast enabled, stopping publishing phase")
-                break
-
-        # Apply staggered delay (except after last video)
-        if idx < total_attempted:
-            # Non-cryptographic random is acceptable for stagger delay
-            delay = random.randint(stagger_min, stagger_max)  # noqa: S311
+        with log_context(product_id=product_id):
             logger.info(
-                "[%s/%s] Waiting %ss before next publish...",
-                idx,
-                total_attempted,
-                delay,
+                "[%s/%s] Publishing video for %s", idx, total_attempted, product_id
             )
-            await asyncio.sleep(delay)
+
+            video_successful = True
+            video_errors: list[str] = []
+
+            try:
+                # Upload video once
+                logger.info("[%s/%s] Uploading video...", idx, total_attempted)
+                media_id = await publisher.upload_media(video_path)
+                logger.info(
+                    "[%s/%s] Upload complete: %s", idx, total_attempted, media_id
+                )
+
+                # Build platforms list (validate accounts upfront)
+                from src.publisher.publish_modes import accounts_for_platforms
+
+                pub_platforms, missing = accounts_for_platforms(platforms, accounts)
+                for platform in missing:
+                    logger.warning(
+                        "[%d/%d] No account for %s, skipping",
+                        idx,
+                        total_attempted,
+                        platform.value,
+                    )
+                    platform_results[platform.value]["failed"] += 1
+
+                if not pub_platforms:
+                    raise ValueError("No valid platform accounts found")
+
+                # Find per-product schedule slot if auto-scheduling
+                product_schedule_time = schedule_time
+                product_slot_index: int | None = None
+                if schedule_manager is not None and occupied_slot_times is not None:
+                    try:
+                        product_schedule_time, product_slot_index = (
+                            schedule_manager.next_free_slot(
+                                product_id, datetime.now(UTC), 0, occupied_slot_times
+                            )
+                        )
+                    except ValueError:
+                        logger.warning(
+                            "All slots occupied for %s. Publishing immediately.",
+                            product_id,
+                        )
+                        product_schedule_time = None
+                    else:
+                        occupied_slot_times.add(
+                            product_schedule_time.replace(second=0, microsecond=0)
+                        )
+                        logger.info(
+                            "Auto-scheduled %s to slot #%s: %s",
+                            product_id,
+                            product_slot_index,
+                            product_schedule_time.strftime("%A, %Y-%m-%d %H:%M:%S %Z"),
+                        )
+
+                # Publish (unified or platform-specific mode)
+                from src.publisher.publish_modes import publish_product
+
+                platform_specific = (
+                    batch_config.platform_specific_content
+                    or published.use_platform_specific_content
+                )
+
+                affiliate_cfg = published.affiliate_disclosure_config
+                disclosure_phrase = (
+                    affiliate_cfg.phrase if affiliate_cfg.enabled else None
+                )
+                publish_results = await publish_product(
+                    publisher=publisher,
+                    media_id=media_id,
+                    product_id=product_id,
+                    platforms=pub_platforms,
+                    outputs_dir=batch_config.outputs_dir,
+                    platform_specific=platform_specific,
+                    schedule_time=product_schedule_time,
+                    disclosure_phrase=disclosure_phrase,
+                )
+
+                # Tally per platform, then record the way `single` records
+                for pub_result in publish_results:
+                    published_to = (
+                        [p["platform"] for p in pub_platforms]
+                        if pub_result["platform"] == "all"
+                        else [pub_result["platform"]]
+                    )
+                    for p_name in published_to:
+                        platform_results[p_name]["successful"] += 1
+
+                from src.publisher.tracking import record_publish_results
+
+                # The recorder swallows a failed write so the other platforms
+                # still land; the batch treats the shortfall as a partial failure,
+                # because the history file is its only dedup record and cleanup
+                # below would otherwise remove the directory as well.
+                expected = sum(
+                    len(pub_platforms) if r["platform"] == "all" else 1
+                    for r in publish_results
+                )
+                recorded = record_publish_results(
+                    product_id, publish_results, pub_platforms, batch_config.outputs_dir
+                )
+                if recorded < expected:
+                    video_successful = False
+                    video_errors.append(
+                        f"history write failed for {expected - recorded} platform(s)"
+                    )
+
+                # A scheduled post also goes into the local schedule, so
+                # `calendar` sees it. Same write as `single` (#485).
+                if product_schedule_time is not None:
+                    from src.publisher.schedule import record_scheduled_posts
+
+                    schedule_writer = schedule_manager or ScheduleManager(
+                        schedule_path=durable_state_path(
+                            batch_config.outputs_dir, "schedule.json"
+                        ),
+                        config=published.schedule_config,
+                    )
+                    record_scheduled_posts(
+                        product_id,
+                        publish_results,
+                        pub_platforms,
+                        product_schedule_time,
+                        product_slot_index,
+                        schedule_writer,
+                    )
+
+                # Add to product registry
+                try:
+                    from src.publisher.product_registry import add_to_registry
+
+                    add_to_registry(product_id, batch_config.outputs_dir)
+                except Exception as reg_exc:
+                    logger.warning("Failed to update product registry: %s", reg_exc)
+
+                # Check if all platforms were published
+                if len(pub_platforms) < len(platforms):
+                    video_successful = False
+                    video_errors.append("Some platforms skipped (no account)")
+
+                # Check fail-fast after publish
+                if not video_successful and batch_config.fail_fast_publish:
+                    logger.error("Fail-fast enabled, stopping publishing phase")
+                    failed += 1
+                    failed_videos.append(product_id)
+                    errors.append(
+                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                    )
+                    break
+
+                # Track video-level success/failure
+                if video_successful:
+                    successful += 1
+                    logger.info(
+                        "[%s/%s] Successfully published %s to all platforms",
+                        idx,
+                        total_attempted,
+                        product_id,
+                    )
+
+                    # Link-in-bio (non-blocking, before cleanup, default ON to
+                    # match the LinkInBioConfig dataclass and the other paths)
+                    from src.publisher.link_in_bio.manager import (
+                        update_link_in_bio_safe,
+                    )
+
+                    await update_link_in_bio_safe(
+                        product_id,
+                        batch_config.outputs_dir,
+                        published.link_in_bio_config,
+                    )
+
+                    # Cleanup through the manager, the same policy as `single`
+                    # and `schedule`: age and verification before removal.
+                    from src.publisher.cleanup import cleanup_after_publish
+
+                    await cleanup_after_publish(
+                        batch_config.outputs_dir,
+                        product_id,
+                        platforms,
+                        published.cleanup_config,
+                        publisher,
+                    )
+                else:
+                    failed += 1
+                    failed_videos.append(product_id)
+                    errors.append(
+                        {"product_id": product_id, "error": "; ".join(video_errors)}
+                    )
+                    logger.warning(
+                        "[%s/%s] Partially failed for %s",
+                        idx,
+                        total_attempted,
+                        product_id,
+                    )
+
+            except Exception as e:
+                failed += 1
+                failed_videos.append(product_id)
+                errors.append({"product_id": product_id, "error": str(e)})
+                logger.exception(
+                    "[%s/%s] Failed to process %s: %s",
+                    idx,
+                    total_attempted,
+                    product_id,
+                    e,
+                )
+
+                if batch_config.fail_fast_publish:
+                    logger.error("Fail-fast enabled, stopping publishing phase")
+                    break
+
+            # Apply staggered delay (except after last video)
+            if idx < total_attempted:
+                # Non-cryptographic random is acceptable for stagger delay
+                delay = random.randint(stagger_min, stagger_max)  # noqa: S311
+                logger.info(
+                    "[%s/%s] Waiting %ss before next publish...",
+                    idx,
+                    total_attempted,
+                    delay,
+                )
+                await asyncio.sleep(delay)
 
     # Trim the Vercel Blob upload store (non-blocking)
     if successful > 0:

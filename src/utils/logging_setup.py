@@ -5,11 +5,15 @@ producer, scraper, and other components. Includes automatic secret masking
 to prevent accidental credential exposure in logs.
 """
 
+import contextvars
 import logging
 import logging.handlers
 import re
 import sys
-from collections.abc import Mapping
+import uuid
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from .secrets import SECRET_KEY_PATTERNS, mask_secret
@@ -159,6 +163,82 @@ class SecretMaskingFilter(logging.Filter):
 LOG_MAX_BYTES = 10 * 1024 * 1024
 LOG_BACKUP_COUNT = 3
 
+# The run and product a record belongs to. Context variables rather than
+# globals so an awaited step logs under the product that awaited it, and a
+# value bound inside `log_context` is gone when the block ends.
+UNBOUND = "-"
+RUN_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "log_run_id", default=UNBOUND
+)
+PRODUCT_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "log_product_id", default=UNBOUND
+)
+
+
+# A thread started by an executor begins with an empty context, so the run
+# id also lives process-wide: a record from such a thread still names the
+# run. The product id has no such fallback; a thread that should carry it
+# is handed `contextvars.copy_context().run` as its callable.
+_process_run_id: str | None = None
+
+
+def new_run_id() -> str:
+    return uuid.uuid4().hex[:8]
+
+
+def current_run_id() -> str | None:
+    """The run id bound by the entry point, or None before one is."""
+    bound = RUN_ID.get()
+    return _process_run_id if bound == UNBOUND else bound
+
+
+@contextmanager
+def log_context(
+    *, run_id: str | None = None, product_id: str | None = None
+) -> Iterator[None]:
+    """Bind ids to every record logged inside the block; restored on exit."""
+    tokens = []
+    if run_id is not None:
+        tokens.append((RUN_ID, RUN_ID.set(run_id)))
+    if product_id is not None:
+        tokens.append((PRODUCT_ID, PRODUCT_ID.set(product_id)))
+    try:
+        yield
+    finally:
+        for var, token in reversed(tokens):
+            var.reset(token)
+
+
+class ContextFilter(logging.Filter):
+    """Stamp the bound run and product ids onto each record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.run_id = current_run_id() or UNBOUND
+        record.product_id = PRODUCT_ID.get()
+        return True
+
+
+class IsoFormatter(logging.Formatter):
+    """ISO 8601 timestamps with milliseconds and the local UTC offset.
+
+    The schedule is in the publisher's configured zone and the provider
+    reports UTC, so the offset belongs on every line; `datefmt` alone
+    would drop the milliseconds.
+    """
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        stamp = datetime.fromtimestamp(record.created).astimezone()
+        return stamp.isoformat(timespec="milliseconds")
+
+
+FILE_FORMAT = (
+    "%(asctime)s - %(run_id)s - %(product_id)s - %(name)s - %(levelname)s"
+    " - %(funcName)s:%(lineno)d - %(message)s"
+)
+VERBOSE_CONSOLE_FORMAT = (
+    "%(asctime)s - %(product_id)s - %(name)s - %(levelname)s - %(message)s"
+)
+
 # Third-party loggers held at WARNING in every mode. The list used to apply
 # only outside debug mode, and every documented command passes --debug, so it
 # never applied in practice: Pillow's PNG plugin logs each chunk at DEBUG
@@ -185,6 +265,7 @@ def setup_debug_logging(
     verbose: bool = False,
     component_name: str = "ContentEngineAI",
     mark_run: bool = True,
+    run_id: str | None = None,
 ) -> None:
     """Configure standardized logging with console and file handlers.
 
@@ -201,6 +282,9 @@ def setup_debug_logging(
     mark_run : bool, optional
         Write an INFO run marker (default: True). Pass False when configuring
         logging at import rather than at the start of a run.
+    run_id : str, optional
+        The id bound to this run's records; a fresh one is made when marking
+        a run without one. Not bound when `mark_run` is False.
 
     Notes
     -----
@@ -225,9 +309,7 @@ def setup_debug_logging(
     # Console handler configuration
     console_handler = logging.StreamHandler(sys.stdout)
     if verbose:
-        console_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        console_formatter: logging.Formatter = IsoFormatter(VERBOSE_CONSOLE_FORMAT)
     else:
         console_formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
 
@@ -245,18 +327,17 @@ def setup_debug_logging(
         backupCount=LOG_BACKUP_COUNT,
         encoding="utf-8",
     )
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-    )
-    file_handler.setFormatter(file_formatter)
+    file_handler.setFormatter(IsoFormatter(FILE_FORMAT))
     file_handler.setLevel(log_level)
 
     # Create shared secret masking filter
     secret_filter = SecretMaskingFilter()
 
-    # Apply filter to both handlers
-    console_handler.addFilter(secret_filter)
-    file_handler.addFilter(secret_filter)
+    # Apply the filters to both handlers
+    context_filter = ContextFilter()
+    for handler in (console_handler, file_handler):
+        handler.addFilter(context_filter)
+        handler.addFilter(secret_filter)
 
     # Configure root logger
     root_logger.setLevel(log_level)
@@ -283,7 +364,10 @@ def setup_debug_logging(
     # operator would trust.
     logger = logging.getLogger(component_name)
     if mark_run:
-        logger.info("=== %s run starting ===", component_name)
+        global _process_run_id
+        _process_run_id = run_id or new_run_id()
+        RUN_ID.set(_process_run_id)
+        logger.info("=== %s run starting (run %s) ===", component_name, RUN_ID.get())
     logger.debug(
         "Logging initialized: level=%s, log_file=%s, verbose=%s",
         logging.getLevelName(log_level),

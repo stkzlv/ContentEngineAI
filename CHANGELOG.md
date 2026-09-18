@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.123.0] - 2026-09-18
+
+### Added
+- Every log file line carries the run id and the product id it belongs to, so one grep returns a product's whole story through a batch run; the scraper, the producer, the publisher and the batch phases bind the product around each per-product step, and the run marker names the run id.
+
+### Changed
+- Log timestamps are ISO 8601 with milliseconds and the local UTC offset, so a line reads against the publisher's schedule and the provider's UTC times without conversion.
+
 ## [0.122.2] - 2026-09-18
 
 ### Fixed

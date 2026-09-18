@@ -28,6 +28,7 @@ from src.publisher.tracking import (
     remove_from_retry_queue,
 )
 from src.publisher.video_selector import sole_render_for_product
+from src.utils.logging_setup import log_context
 
 logger = logging.getLogger(__name__)
 
@@ -203,59 +204,75 @@ class BatchPublisher:
         for idx, video_info in enumerate(videos, 1):
             video_path = video_info["path"]
             product_id = video_info["product_id"]
-            # Get scheduled_time from retry queue item (if any) to preserve scheduling
-            scheduled_time = video_info.get("scheduled_time")
+            with log_context(product_id=product_id):
+                # The retry queue item carries scheduled_time; keep the slot
+                scheduled_time = video_info.get("scheduled_time")
 
-            logger.info("[%d/%d] Processing: %s", idx, len(videos), video_path.name)
-            logger.info("Product ID: %s", product_id)
-            if self.retry_failed:
-                retry_count = video_info.get("retry_count", 1)
-                logger.info("Retry attempt: %d", retry_count)
+                logger.info("[%d/%d] Processing: %s", idx, len(videos), video_path.name)
+                logger.info("Product ID: %s", product_id)
+                if self.retry_failed:
+                    retry_count = video_info.get("retry_count", 1)
+                    logger.info("Retry attempt: %d", retry_count)
 
-            try:
-                # Publish video to all target platforms
-                publish_result = await self._publish_single_video(
-                    video_path, product_id, idx, len(videos), accounts
-                )
-
-                if publish_result["status"] == "success":
-                    successful += 1
-                    summary.successful += 1
-                    # Track platform-specific results
-                    for platform in self.platforms:
-                        summary.add_platform_result(platform, success=True)
-                    # Remove from retry queue on success (idempotent)
-                    remove_from_retry_queue(product_id, self.outputs_dir)
-                    # Add to published products registry
-                    try:
-                        from src.publisher.product_registry import add_to_registry
-
-                        add_to_registry(product_id, self.outputs_dir)
-                    except (OSError, ValueError) as exc:
-                        logger.warning("Failed to update product registry: %s", exc)
-                    # Link-in-bio after publish (non-blocking, default enabled)
-                    await update_link_in_bio_safe(
-                        product_id, self.outputs_dir, self.link_in_bio_config
+                try:
+                    # Publish video to all target platforms
+                    publish_result = await self._publish_single_video(
+                        video_path, product_id, idx, len(videos), accounts
                     )
 
-                elif publish_result["status"] == "skipped":
-                    skipped += 1
-                    summary.skipped += 1
-                    error_msg = publish_result.get("error", "Unknown skip reason")
-                    summary.add_error(product_id, error_msg)
-                    # Add to retry queue for skipped items (missing metadata, etc.)
-                    self._add_failed_to_retry_queue(
-                        product_id, error_msg, scheduled_time
-                    )
+                    if publish_result["status"] == "success":
+                        successful += 1
+                        summary.successful += 1
+                        # Track platform-specific results
+                        for platform in self.platforms:
+                            summary.add_platform_result(platform, success=True)
+                        # Remove from retry queue on success (idempotent)
+                        remove_from_retry_queue(product_id, self.outputs_dir)
+                        # Add to published products registry
+                        try:
+                            from src.publisher.product_registry import add_to_registry
 
-                else:
+                            add_to_registry(product_id, self.outputs_dir)
+                        except (OSError, ValueError) as exc:
+                            logger.warning("Failed to update product registry: %s", exc)
+                        # Link-in-bio after publish (non-blocking, default enabled)
+                        await update_link_in_bio_safe(
+                            product_id, self.outputs_dir, self.link_in_bio_config
+                        )
+
+                    elif publish_result["status"] == "skipped":
+                        skipped += 1
+                        summary.skipped += 1
+                        error_msg = publish_result.get("error", "Unknown skip reason")
+                        summary.add_error(product_id, error_msg)
+                        # Add to retry queue for skipped items (missing metadata, etc.)
+                        self._add_failed_to_retry_queue(
+                            product_id, error_msg, scheduled_time
+                        )
+
+                    else:
+                        failed += 1
+                        summary.failed += 1
+                        error_msg = publish_result.get("error", "Unknown error")
+                        summary.add_error(product_id, error_msg)
+                        # Track platform-specific failures
+                        for platform in self.platforms:
+                            summary.add_platform_result(platform, success=False)
+                        # Add to retry queue for later retry
+                        self._add_failed_to_retry_queue(
+                            product_id, error_msg, scheduled_time
+                        )
+
+                        if self.fail_fast:
+                            logger.error("Fail-fast enabled, stopping batch processing")
+                            break
+
+                except Exception as e:  # Per-video boundary
                     failed += 1
                     summary.failed += 1
-                    error_msg = publish_result.get("error", "Unknown error")
+                    error_msg = f"Unexpected error: {e}"
+                    logger.error("[%d/%d] %s", idx, len(videos), error_msg)
                     summary.add_error(product_id, error_msg)
-                    # Track platform-specific failures
-                    for platform in self.platforms:
-                        summary.add_platform_result(platform, success=False)
                     # Add to retry queue for later retry
                     self._add_failed_to_retry_queue(
                         product_id, error_msg, scheduled_time
@@ -265,22 +282,9 @@ class BatchPublisher:
                         logger.error("Fail-fast enabled, stopping batch processing")
                         break
 
-            except Exception as e:  # Per-video boundary
-                failed += 1
-                summary.failed += 1
-                error_msg = f"Unexpected error: {e}"
-                logger.error("[%d/%d] %s", idx, len(videos), error_msg)
-                summary.add_error(product_id, error_msg)
-                # Add to retry queue for later retry
-                self._add_failed_to_retry_queue(product_id, error_msg, scheduled_time)
-
-                if self.fail_fast:
-                    logger.error("Fail-fast enabled, stopping batch processing")
-                    break
-
-            # Apply staggered delay (except for last video)
-            if idx < len(videos):
-                await self._apply_staggered_delay(idx, len(videos))
+                # Apply staggered delay (except for last video)
+                if idx < len(videos):
+                    await self._apply_staggered_delay(idx, len(videos))
 
         # Finalize summary
         batch_duration = time.time() - batch_start

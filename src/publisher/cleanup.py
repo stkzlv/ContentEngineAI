@@ -18,6 +18,7 @@ from src.publisher.base import PublisherError
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR, MAX_CONCURRENT_CLEANUPS
 from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
+from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import durable_state_path, is_product_directory
 
 logger = logging.getLogger(__name__)
@@ -548,6 +549,13 @@ class CleanupManager:
             return False
 
     async def cleanup(
+        self, product_id: str, platforms: list[Platform], dry_run: bool = False
+    ) -> dict[str, bool | str | int]:
+        """Clean up one product, with its id on every log record."""
+        with log_context(product_id=product_id):
+            return await self._cleanup(product_id, platforms, dry_run)
+
+    async def _cleanup(
         self, product_id: str, platforms: list[Platform], dry_run: bool = False
     ) -> dict[str, bool | str | int]:
         """Cleanup published product directory with safety checks.
