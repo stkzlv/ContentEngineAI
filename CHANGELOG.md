@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.10] - 2026-09-18
+
+### Changed
+- The global batch cleans up a published product's directory through the same manager as `single` and `schedule`: the product's age is checked against `keep_published_days` and, with `verify_before_delete`, every leg has to be live or scheduled before the directory goes. The batch used to remove the directory the moment every platform accepted the post; a refusal is now logged and the directory kept for a later `cleanup` run.
+
 ## [0.121.9] - 2026-09-17
 
 ### Fixed

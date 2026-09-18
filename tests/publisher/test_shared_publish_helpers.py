@@ -4,9 +4,8 @@ The batch's publishing phase used to restate the CLI: its own publisher
 construction (which never passed `timeout` or `max_retries`, and for several
 releases not `tiktok_settings`), its own account pairing, its own history
 writes, its own occupancy read. Each now lives once, here, and both paths
-call it. The batch's cleanup is also here, on purpose a different policy
-from `CleanupManager`, so the difference is written down rather than
-scattered.
+call it. The batch's cleanup goes through `CleanupManager` like the
+CLI's, so one policy holds on every publish path.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.publisher.cleanup import remove_published_product_dir
+from src.publisher.cleanup import cleanup_after_publish
 from src.publisher.models import CleanupConfig, Platform, PublisherConfig
 from src.publisher.publish_modes import accounts_for_platforms
 from src.publisher.registry import create_publisher_from_config
@@ -83,35 +82,57 @@ class TestAccountPairing:
         assert missing == [Platform.YOUTUBE]
 
 
-class TestTheBatchCleanup:
-    def test_it_removes_the_directory_when_every_platform_was_required(
-        self, tmp_path: Path
-    ):
-        (tmp_path / "B0X").mkdir()
-        (tmp_path / "B0X" / "video.mp4").write_text("x")
-        removed = remove_published_product_dir(
-            tmp_path, "B0X", CleanupConfig(enabled=True, require_all_platforms=True)
-        )
+class TestTheBatchCleanupIsTheManagers:
+    """One policy on every publish path (#491).
+
+    The batch removed a directory the moment every platform accepted the
+    post. It now goes through `CleanupManager.cleanup`, so the age check and
+    the verification `single` and `schedule` apply hold for it too, and a
+    refusal or an error is logged rather than raised.
+    """
+
+    @pytest.mark.asyncio
+    async def test_it_runs_the_manager_and_reports_its_verdict(self, tmp_path: Path):
+        with patch(
+            "src.publisher.cleanup.CleanupManager.cleanup",
+            return_value={"success": True, "message": "ok", "disk_freed": 1},
+        ) as cleanup:
+            removed = await cleanup_after_publish(
+                tmp_path, "B0X", [Platform.YOUTUBE], CleanupConfig(enabled=True), None
+            )
         assert removed
-        assert not (tmp_path / "B0X").exists()
-
-    @pytest.mark.parametrize(
-        "config",
-        [
-            CleanupConfig(enabled=False, require_all_platforms=True),
-            CleanupConfig(enabled=True, require_all_platforms=False),
-        ],
-        ids=["disabled", "not-all-platforms"],
-    )
-    def test_it_leaves_the_directory_otherwise(self, tmp_path: Path, config):
-        (tmp_path / "B0X").mkdir()
-        assert not remove_published_product_dir(tmp_path, "B0X", config)
-        assert (tmp_path / "B0X").exists()
-
-    def test_a_missing_directory_is_not_an_error(self, tmp_path: Path):
-        assert not remove_published_product_dir(
-            tmp_path, "B0NONE", CleanupConfig(enabled=True)
+        cleanup.assert_awaited_once_with(
+            product_id="B0X", platforms=[Platform.YOUTUBE], dry_run=False
         )
+
+    @pytest.mark.asyncio
+    async def test_a_refusal_keeps_the_directory(self, tmp_path: Path):
+        with patch(
+            "src.publisher.cleanup.CleanupManager.cleanup",
+            return_value={"success": False, "message": "not live", "disk_freed": 0},
+        ):
+            assert not await cleanup_after_publish(
+                tmp_path, "B0X", [Platform.YOUTUBE], CleanupConfig(enabled=True), None
+            )
+
+    @pytest.mark.asyncio
+    async def test_disabled_never_reaches_the_manager(self, tmp_path: Path):
+        with patch("src.publisher.cleanup.CleanupManager.cleanup") as cleanup:
+            assert not await cleanup_after_publish(
+                tmp_path, "B0X", [Platform.YOUTUBE], CleanupConfig(enabled=False), None
+            )
+        cleanup.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_an_error_is_logged_not_raised(self, tmp_path: Path):
+        """The post exists either way."""
+        with patch(
+            "src.publisher.cleanup.CleanupManager.cleanup",
+            side_effect=OSError("read-only"),
+        ):
+            assert not await cleanup_after_publish(
+                tmp_path, "B0X", [Platform.YOUTUBE], CleanupConfig(enabled=True), None
+            )
 
 
 class TestThePhaseCallsThePackage:
@@ -141,7 +162,7 @@ class TestThePhaseCallsThePackage:
             "publish_product",
             "record_publish_results",
             "record_scheduled_posts",
-            "remove_published_product_dir",
+            "cleanup_after_publish",
             "run_blob_retention",
             "run_delivery_sweep",
         ],

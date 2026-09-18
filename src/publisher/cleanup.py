@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from src.publisher.base import PublisherError
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR, MAX_CONCURRENT_CLEANUPS
 from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
@@ -797,33 +798,39 @@ class CleanupManager:
         return {"cleaned": cleaned, "skipped": skipped, "disk_freed": disk_freed}
 
 
-def remove_published_product_dir(
-    outputs_dir: Path, product_id: str, config: CleanupConfig
+async def cleanup_after_publish(
+    outputs_dir: Path,
+    product_id: str,
+    platforms: list[Platform],
+    config: CleanupConfig,
+    publisher: Any,
 ) -> bool:
-    """Remove a product directory right after a fully successful publish.
+    """Run the manager's cleanup for one product a path has just published.
 
-    This is the global batch's cleanup, and it is deliberately not
-    `CleanupManager.cleanup`: that path checks the product's age against
-    `keep_published_days` and, with `verify_before_delete`, asks the provider
-    whether every leg is live, which a post scheduled a day out never is. The
-    batch instead removes the directory as soon as every targeted platform
-    accepted the post, on the grounds that the media is uploaded and the
-    tracking files under `outputs/state/` survive. The two policies differ
-    on purpose; which one the batch should follow is #491, not a defect in
-    either.
+    One policy on every publish path: `CleanupManager.cleanup` checks the
+    product's age against `keep_published_days` and, with
+    `verify_before_delete`, that every leg is live or scheduled before the
+    directory goes. The global batch used to remove the directory the moment
+    every platform accepted the post; that was a second policy, and this
+    wrapper is the decision to retire it (#491). A refusal or an error is
+    logged and returned, never raised: the post exists either way.
 
     Returns True when the directory was removed.
     """
-    if not (config.enabled and config.require_all_platforms):
-        return False
-    product_dir = outputs_dir / product_id
-    if not product_dir.exists():
+    if not config.enabled:
+        logger.debug("Cleanup not configured; keeping %s", product_id)
         return False
     try:
-        logger.info("Cleaning up product directory: %s", product_dir)
-        shutil.rmtree(product_dir)
-        logger.info("Removed %s", product_dir)
-    except OSError as e:
-        logger.warning("Failed to cleanup %s: %s", product_dir, e)
+        result = await CleanupManager(
+            outputs_dir=outputs_dir, config=config, publisher=publisher
+        ).cleanup(product_id=product_id, platforms=platforms, dry_run=False)
+    except (OSError, ValueError, PublisherError) as e:
+        logger.warning("Cleanup failed for %s: %s", product_id, e)
         return False
-    return True
+    if result.get("success"):
+        logger.info("Cleaned up %s: %s", product_id, result.get("message", "success"))
+        return True
+    logger.warning(
+        "Cleanup skipped for %s: %s", product_id, result.get("message", "unknown")
+    )
+    return False

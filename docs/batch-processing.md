@@ -500,7 +500,7 @@ poetry run python -m src.pipeline.global_batch \
 **Publishing Behavior**:
 - **Auto-Scheduling** (default): Finds first available unoccupied slot in `config/publisher.yaml` recurring schedule
 - **Explicit Scheduling**: Use `--schedule-time` with ISO 8601 format to override auto-scheduling
-- **Cleanup**: Removes product directories after successful multi-platform publish (configurable in `config/publisher.yaml`)
+- **Cleanup**: Removes product directories after a successful multi-platform publish, through the same age and verification checks as the publisher CLI (configurable in `config/publisher.yaml`)
 
 ### YAML Configuration
 
@@ -572,7 +572,7 @@ A run that names its inputs removes only those, and a run carrying both kinds re
 **Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](publisher.md) for details):
 - `immediate_publish: false` enables auto-scheduling
 - `recurring_schedule.slots` defines available time slots
-- `cleanup.enabled: true` removes product directories after successful publish
+- `cleanup.enabled: true` removes product directories after successful publish, once `keep_published_days` has passed and, with `verify_before_delete`, every leg is live or scheduled
 - `link_in_bio.enabled: true` adds affiliate link to bio page after each publish
 
 ### Configuration Precedence
@@ -681,7 +681,7 @@ Total Pipeline Duration: 158.2s
 - **JSON Output**: Machine-readable summaries with `--output-format json` for automation
 - **Webhook Notifications**: Non-blocking POST to configured URL on phase/pipeline events
 - **Auto-Scheduling**: Finds first available unoccupied slot in recurring schedule by querying the Zernio API
-- **Smart Cleanup**: Removes product directories after successful multi-platform publish
+- **Smart Cleanup**: Removes product directories after a verified multi-platform publish
 - **Comprehensive Reporting**: Detailed phase-by-phase statistics with end-to-end metrics
 - **Error Resilience**: Graceful failure handling with optional fail-fast mode per phase
 - **Low-Priority Mode**: `make batch-lowpri` runs with reduced CPU, I/O, and memory priority
