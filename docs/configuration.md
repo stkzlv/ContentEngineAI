@@ -450,8 +450,8 @@ outputs/
 ├── cache/                         # Global cache
 │   └── botasaurus/               # Browser cache
 ├── logs/                          # Global logs
-│   ├── producer.log
-│   ├── scraper.log
+│   ├── producer-YYYY-MM-DD.log
+│   ├── scraper-YYYY-MM-DD.log
 │   └── debug/
 └── reports/                       # Global reports
 ```

@@ -336,7 +336,6 @@ async def main():
     from src.utils.outputs_paths import get_logs_directory
 
     log_file = dated_log_path(get_logs_directory() / "global_pipeline.log")
-    log_file.parent.mkdir(parents=True, exist_ok=True)
 
     setup_debug_logging(
         log_file=log_file,

@@ -808,7 +808,7 @@ If a batch fails midway:
    poetry run python -m src.pipeline.global_batch --resume
    ```
 2. **Check outputs directory** - Successfully processed products are saved
-3. **Review error logs** - Identify specific failures in `outputs/logs/global_pipeline.log`
+3. **Review error logs** - Identify specific failures in `outputs/logs/global_pipeline-<date>.log`
 4. **Use fail-fast for debugging** - Isolate issues quickly
 
 The pipeline automatically saves state to `outputs/.pipeline_state.json` after each phase. On successful completion, the state file is cleared.

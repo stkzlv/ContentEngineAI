@@ -8,7 +8,7 @@ which file to upload for a given platform from `PublisherConfig.profiles`.
 When `profiles` is empty or the routed profile has no matching render on
 disk, the helper falls back to the first `video_<asin>_*.mp4` match — the
 pre-1.3 behaviour. Logged at INFO when fallback fires so a missing
-per-platform render is visible in `outputs/logs/publisher.log`.
+per-platform render is visible in `outputs/logs/publisher-<date>.log`.
 """
 
 from __future__ import annotations

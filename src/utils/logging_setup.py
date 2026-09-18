@@ -7,7 +7,6 @@ to prevent accidental credential exposure in logs.
 
 import contextvars
 import logging
-import logging.handlers
 import re
 import sys
 import uuid

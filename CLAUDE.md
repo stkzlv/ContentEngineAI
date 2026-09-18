@@ -52,7 +52,7 @@ This pattern is generic. Any contributor can create `docs/<public-doc>.private.m
 
 ## Logs
 
-Pipeline logs are in `outputs/logs/`, one file per component per day, kept 45 days:
+Pipeline logs are in `outputs/logs/`, one file per component per day (named for the day the run started; a run that crosses midnight stays in its file), kept 45 days:
 - `global_pipeline-YYYY-MM-DD.log` — batch pipeline (scrape + produce + publish)
 - `scraper-YYYY-MM-DD.log` — standalone scraper runs
 - `producer-YYYY-MM-DD.log` — standalone video production

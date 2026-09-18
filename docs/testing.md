@@ -287,7 +287,7 @@ Match the change to the check:
 
 | Change touches | Run | Inspect |
 |---|---|---|
-| Scraper (`src/scraper/`) | `make scrape-lowpri` on a keyword, plus an ASIN and a URL | `data.json` fields, image count vs the media-validation floor, `outputs/logs/scraper.log` warnings |
+| Scraper (`src/scraper/`) | `make scrape-lowpri` on a keyword, plus an ASIN and a URL | `data.json` fields, image count vs the media-validation floor, `outputs/logs/scraper-<date>.log` warnings |
 | Producer / assembler (`src/video/`) | `xvfb-run -a make produce-lowpri` on an existing ASIN | `ffprobe` the video (codec/resolution/duration), eyeball a frame, `producer.log` step summaries and threshold warnings |
 | Subtitles / pycaps (`src/video/pycaps_engine/`, `subtitle_*`) | produce with the affected `--subtitle-engine` / `--pycaps-renderer` | captions on a sampled frame; no `overlay skipped` or pycaps burn-fail warnings |
 | Audio (`src/audio/`, `audio_builder`) | produce | `ffprobe`/loudness on the output audio; no provider-chain errors |
