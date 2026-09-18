@@ -177,7 +177,7 @@ def _net_memory_delta(metrics: list[PerformanceMetrics]) -> float:
 
 
 class PerformanceHistoryManager:
-    """One JSONL file of run rows, capped at `max_runs`, newest kept."""
+    """One JSONL file of run rows, the newest `max_runs` of each kind kept."""
 
     def __init__(self, history_dir: Path, max_runs: int = 100):
         self.history_dir = Path(history_dir)
@@ -298,7 +298,7 @@ class _PeakSampler:
             except psutil.Error as e:
                 logger.warning("Memory sampling error: %s", e)
                 return
-            except Exception:  # noqa: BLE001 - the thread would die silently
+            except Exception:  # anything else would kill the thread silently
                 logger.exception("Memory sampler stopped; peak frozen at last sample")
                 return
 

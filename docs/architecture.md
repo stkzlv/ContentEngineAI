@@ -762,9 +762,9 @@ ContentEngineAI implements five optimization categories: pipeline parallelizatio
   renderer's Chromium and the STT subprocess included), with the peak
   sampled from a thread so a step that blocks the event loop is still read
 - CPU is the process tree's CPU time over the step's wall time
-- Historical data persistence (JSONL format), one row per run, capped at
-  `optimization_settings.performance_history_max_runs` and trimmed on every
-  save
+- Historical data persistence (JSONL format), one row per run, keeping the
+  newest `optimization_settings.performance_history_max_runs` rows of each
+  kind (render, step), trimmed on every save
 
 **Monitoring Components:**
 - `PerformanceMonitor`: Real-time metrics collection
