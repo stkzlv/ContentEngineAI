@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The summary's success rate leaves out products skipped for insufficient media and reports them on their own line, with a count of failures per failing step; the detailed report and CSV carry each run's kind, skip flag and failing step.
 
 ### Changed
-- The per-step memory warning threshold defaults to 5000 MB instead of 3000: peak memory now covers the whole process tree, and a stock render passes 4 GB while the STT and subtitle subprocesses are both alive, so the old value warned on every render.
+- The per-step memory warning threshold defaults to 5000 MB instead of 3000: peak memory now covers the whole process tree, and a stock render passes 4 GB while the STT and subtitle subprocesses are both alive, so the old value warned on every stock render.
 - The performance monitor is built once per render and carried on the pipeline context; the steps measure themselves against `ctx.performance` instead of a module global that every render reset in place. `--include-steps` on the report tool counts `--step` debug runs, which the reports leave out by default.
 
 ## [0.121.11] - 2026-09-18
