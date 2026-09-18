@@ -232,6 +232,7 @@ class TestEveryPerProductPathBindsTheProduct:
         "rel",
         [
             "src/scraper/amazon/batch_controller.py",
+            "src/scraper/amazon/scraper.py",
             "src/pipeline/phases/production.py",
             "src/pipeline/phases/publishing.py",
             "src/publisher/batch.py",
