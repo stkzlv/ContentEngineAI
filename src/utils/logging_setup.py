@@ -155,10 +155,7 @@ class SecretMaskingFilter(logging.Filter):
         )
 
 
-# A run appends, so the file is a history rather than only the last run. Left
-# unbounded that grows forever, which is what the previous overwrite-per-run
-# avoided; rotation keeps the bound without making a run destructive. Ten
-# megabytes is roughly a hundred debug runs at the sizes these produce.
+# A run appends, so the file is a history rather than only the last run.
 # One file per component per day, kept this long. Size rotation gave
 # `scraper.log.2` with no idea what dates it covered, and the pipeline runs
 # on a daily cadence, so the questions are by date. A dated file opened in

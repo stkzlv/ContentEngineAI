@@ -793,7 +793,7 @@ def main() -> None:
 
     if args.profile_uses_videos is not None:
         # The `--profile NAME` path this replaces logged which profile it had
-        # aligned with; an operator reading scraper.log still needs to see
+        # aligned with; an operator reading the scraper log still needs to see
         # which rule a run used. Only the false side changes anything: the
         # one consumer tests `is False` (scraper.py, `effective_vid_count`),
         # so the true side restates the configured requirements, as naming a
