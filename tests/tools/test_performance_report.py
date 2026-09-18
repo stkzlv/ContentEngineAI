@@ -504,11 +504,12 @@ class TestRendersOnlyByDefault:
 class TestTheDefaultDirectoryIsTheRepositorys:
     def test_default_history_dir_is_anchored_on_the_project_root(self, monkeypatch):
         """Run from any directory, the tool reads the repository's history;
-        a CWD-relative default read an empty directory from anywhere else,
-        and building the reader created that directory.
+        a CWD-relative default read an empty directory from anywhere else.
+        And a read creates nothing: the `outputs_paths` helpers make the
+        directories they name, so the default is composed from the project
+        root instead.
         """
         import tools.performance_report as tool
-        from src.utils.outputs_paths import get_project_root
 
         seen: dict[str, Path] = {}
 
@@ -519,15 +520,20 @@ class TestTheDefaultDirectoryIsTheRepositorys:
             def get_run_history(self, limit=None, kind="render"):
                 return []
 
-        with tempfile.TemporaryDirectory() as tmp:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as root,
+        ):
             monkeypatch.chdir(tmp)
+            monkeypatch.setattr(tool, "get_project_root", lambda: Path(root))
             monkeypatch.setattr(
                 sys, "argv", ["performance_report.py", "--format", "json"]
             )
             monkeypatch.setattr(tool, "PerformanceHistoryManager", Reader)
             tool.main()
             assert not (Path(tmp) / "outputs").exists()
-        assert seen["dir"].is_relative_to(get_project_root())
+            assert not (Path(root) / "outputs").exists()
+            assert seen["dir"] == Path(root) / "outputs" / "performance_history"
 
 
 class TestStepGrouping:

@@ -424,9 +424,9 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 ### Performance Profiling
 
 ```python
-# Add performance tracking to your code
-async def my_function():
-    async with performance_monitor.measure_step('my_operation'):
+# Add performance tracking to your code; the monitor rides on the context
+async def my_function(ctx: PipelineContext):
+    async with ctx.performance.measure_step('my_operation'):
         # Your code here
         pass
 ```

@@ -28,7 +28,7 @@ from typing import Any
 # (package-mode = false), so `src` is importable only once the root is added.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.utils.outputs_paths import get_performance_history_directory  # noqa: E402
+from src.utils.outputs_paths import get_project_root  # noqa: E402
 from src.utils.performance import (  # noqa: E402
     PerformanceHistoryManager,
     PipelineRunMetrics,
@@ -662,10 +662,12 @@ Examples:
         help="Window size for regression detection (compares last N vs previous N)",
     )
 
+    # Composed from the project root rather than through `outputs_paths`'s
+    # directory helpers, which create what they name; a report must not.
     parser.add_argument(
         "--history-dir",
         type=Path,
-        default=get_performance_history_directory(),
+        default=get_project_root() / "outputs" / "performance_history",
         help=(
             "Directory containing performance history data (default: the "
             "repository's outputs/performance_history, from any working directory)"

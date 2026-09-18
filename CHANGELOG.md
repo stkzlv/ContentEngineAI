@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.121.12] - 2026-09-18
 
 ### Fixed
-- `tools/performance_report.py` reads the repository's history from any working directory; its default was relative to wherever it was run, and building its reader created the directory as a side effect.
+- `tools/performance_report.py` reads the repository's history from any working directory; its default was relative to wherever it was run.
 - The summary's success rate leaves out products skipped for insufficient media and reports them on their own line, with a count of failures per failing step; the detailed report and CSV carry each run's kind, skip flag and failing step.
 
 ### Changed
