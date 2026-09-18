@@ -394,7 +394,11 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
 async def test_cleanup_removes_directory_after_successful_publish(
     temp_outputs_dir, mock_publisher_config
 ):
-    """Test cleanup removes product directory after successful multi-platform publish."""
+    """Cleanup removes the directory once the manager verifies every leg.
+
+    The batch used to delete on acceptance; it now goes through
+    `CleanupManager`, so the provider is asked first (#491).
+    """
     config = GlobalBatchConfig(
         product_ids=["B0TEST1"],
         keywords=[],
@@ -437,7 +441,12 @@ async def test_cleanup_removes_directory_after_successful_publish(
             ]
         )
         publisher.upload_media = AsyncMock(return_value="media_123")
-        publisher.publish = AsyncMock()  # Succeeds for all platforms
+        publisher.publish = AsyncMock(
+            return_value={"post_id": "post-1", "status": "published"}
+        )
+        # The manager verifies every leg before removal; the provider
+        # reports each one live.
+        publisher.get_status = AsyncMock(return_value={"status": "published"})
 
         mock_create_publisher.return_value = publisher
 

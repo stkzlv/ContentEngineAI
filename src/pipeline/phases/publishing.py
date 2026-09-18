@@ -6,7 +6,7 @@ package already does is called rather than restated. The publisher comes
 from `create_publisher_from_config`, the occupied slots and the next free
 one from `ScheduleManager`, the history writes from
 `record_publish_results`, the account pairing from `accounts_for_platforms`
-and the cleanup from `remove_published_product_dir`. What stays here is the
+and the cleanup from `cleanup_after_publish`. What stays here is the
 batch's own loop: the stagger between posts, fail-fast, and the per-platform
 tallies the summary reports.
 """
@@ -354,11 +354,16 @@ async def run_publishing_phase(
                     published.link_in_bio_config,
                 )
 
-                # Cleanup product directory if configured
-                from src.publisher.cleanup import remove_published_product_dir
+                # Cleanup through the manager, the same policy as `single`
+                # and `schedule`: age and verification before removal.
+                from src.publisher.cleanup import cleanup_after_publish
 
-                remove_published_product_dir(
-                    batch_config.outputs_dir, product_id, published.cleanup_config
+                await cleanup_after_publish(
+                    batch_config.outputs_dir,
+                    product_id,
+                    platforms,
+                    published.cleanup_config,
+                    publisher,
                 )
             else:
                 failed += 1
