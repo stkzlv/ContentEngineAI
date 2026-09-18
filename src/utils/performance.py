@@ -149,12 +149,18 @@ class PipelineRunMetrics:
         """
         known = {f.name for f in dataclasses.fields(cls)}
         data = {k: v for k, v in row.items() if k in known}
-        if "kind" not in data:
-            steps = {s.get("step_name") for s in data.get("step_metrics") or []}
-            data["kind"] = (
-                RUN_KIND_RENDER if _RENDER_MARKER_STEP in steps else RUN_KIND_STEP
-            )
+        data["kind"] = _row_kind(row)
         return cls(**data)
+
+
+def _row_kind(row: dict[str, Any]) -> str:
+    """A row's kind, classifying a legacy row (no `kind`) by its steps."""
+    kind = row.get("kind")
+    if isinstance(kind, str) and kind:
+        return kind
+    steps = row.get("step_metrics") or []
+    names = {s.get("step_name") for s in steps if isinstance(s, dict)}
+    return RUN_KIND_RENDER if _RENDER_MARKER_STEP in names else RUN_KIND_STEP
 
 
 def _net_memory_delta(metrics: list[PerformanceMetrics]) -> float:
@@ -199,19 +205,30 @@ class PerformanceHistoryManager:
                     logger.warning("Skipping corrupt history line: %s", e)
 
     def _trim(self) -> None:
-        """Keep only the newest `max_runs` rows, by start timestamp."""
+        """Keep the newest `max_runs` rows of each kind, by start timestamp.
+
+        Per kind, not overall: `--step` debug runs are frequent and short,
+        and under one shared cap they evicted the renders, which are the
+        rows the reports exist for.
+        """
         if not self.history_file.exists():
             return
         try:
             rows = list(self._rows())
-            if len(rows) <= self.max_runs:
+            by_kind: dict[str, list[dict[str, Any]]] = {}
+            for row in rows:
+                by_kind.setdefault(_row_kind(row), []).append(row)
+            if all(len(group) <= self.max_runs for group in by_kind.values()):
                 return
-            rows.sort(key=lambda x: x.get("start_timestamp", ""), reverse=True)
-            rows = rows[: self.max_runs]
+            kept: list[dict[str, Any]] = []
+            for group in by_kind.values():
+                group.sort(key=lambda x: x.get("start_timestamp", ""), reverse=True)
+                kept.extend(group[: self.max_runs])
+            kept.sort(key=lambda x: x.get("start_timestamp", ""), reverse=True)
             with open(self.history_file, "w") as f:
-                for row in rows:
+                for row in kept:
                     f.write(json.dumps(row) + "\n")
-            logger.debug("Trimmed history to the %d most recent runs", len(rows))
+            logger.debug("Trimmed history to %d rows", len(kept))
         except OSError as e:
             logger.error("Failed to trim run history: %s", e)
 

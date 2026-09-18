@@ -566,3 +566,31 @@ class TestPipelineRunMetrics:
 class TestGlobalMonitor:
     def test_global_monitor_exists(self):
         assert isinstance(performance_monitor, PerformanceMonitor)
+
+
+class TestTheCapIsPerKind:
+    def test_step_rows_do_not_evict_renders(self):
+        """Seen on the real file: the first trim kept the newest 100 rows of
+        any kind, 71 of them --step runs, and 29 renders survived.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp), max_runs=3)
+            for i in range(3):
+                hm.save_run_metrics(
+                    _run(
+                        run_id=f"render{i}",
+                        timestamp=f"2025-01-0{i + 1}T10:00:00+00:00",
+                    )
+                )
+            for i in range(5):
+                hm.save_run_metrics(
+                    _run(
+                        run_id=f"step{i}",
+                        kind=RUN_KIND_STEP,
+                        timestamp=f"2025-02-0{i + 1}T10:00:00+00:00",
+                    )
+                )
+            renders = hm.get_run_history()
+            steps = hm.get_run_history(kind=RUN_KIND_STEP)
+        assert {r.run_id for r in renders} == {"render0", "render1", "render2"}
+        assert {r.run_id for r in steps} == {"step2", "step3", "step4"}
