@@ -344,7 +344,11 @@ class DebugSettings(BaseModel):
     cleanup_on_failure: bool = Field(False)
     cleanup_whisper_files: bool = Field(False)
     operation_timing_threshold_sec: float = Field(180.0)
-    memory_usage_warning_mb: int = Field(3000)
+    # Peak memory is the whole process tree since 0.121.11, and a stock
+    # render's tree passes 4 GB while Whisper and the subtitle renderer's
+    # Chromium are both alive; the warning sits just under the 6 GB
+    # cgroup cap the lowpri targets impose, where it means something.
+    memory_usage_warning_mb: int = Field(5000)
 
 
 class ProductFiles(BaseModel):

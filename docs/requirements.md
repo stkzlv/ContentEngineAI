@@ -82,7 +82,7 @@ High-level requirements for ContentEngineAI.
 - Corrupt history entries skipped gracefully on load
 
 #### Threshold Warnings
-- Configurable per-step timing threshold (default 180s) and memory ceiling (default 3000MB)
+- Configurable per-step timing threshold (default 180s) and memory ceiling (default 5000MB, measured over the whole process tree)
 - Warnings logged after pipeline completion for any step exceeding thresholds
 
 #### Reporting
@@ -97,7 +97,7 @@ High-level requirements for ContentEngineAI.
 - **Cleanup interval**: how often to check retention limit (default every 10 saves)
 - **Memory sampling interval**: peak memory polling frequency (default 0.1s)
 - **Timing threshold**: warn if a step exceeds this duration (default 180s)
-- **Memory threshold**: warn if peak memory exceeds this value (default 3000MB)
+- **Memory threshold**: warn if a step's process-tree peak memory exceeds this value (default 5000MB)
 - **Report defaults**: summary limit (50), detailed limit (20), trends window (30 days), recent window (10 runs)
 
 ---
