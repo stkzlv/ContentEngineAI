@@ -19,8 +19,18 @@ from src.utils.background_processing import (
 )
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
-from src.utils.performance import PerformanceHistoryManager, performance_monitor
-from src.video.config import VideoConfig, VideoProfile
+from src.utils.performance import (
+    RUN_KIND_RENDER,
+    RUN_KIND_STEP,
+    PerformanceHistoryManager,
+    performance_monitor,
+)
+from src.video.config import (
+    DebugSettings,
+    OptimizationSettings,
+    VideoConfig,
+    VideoProfile,
+)
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.pipeline_graph import PipelineGraph, StepStatus
@@ -343,23 +353,18 @@ async def create_video_for_product(
         "--- Starting video for '%s' profile '%s' ---", product_id, profile_name
     )
 
-    # Initialize performance history manager with configurable retention
-    max_runs = 100
-    if config.optimization_settings:
-        max_runs = config.optimization_settings.performance_history_max_runs
-
+    # The settings models carry the defaults; an absent section means the
+    # model's own values, not a second copy of them here.
+    # `model_validate({})` rather than `Model()`: the fields declare their
+    # defaults positionally, which mypy's plugin reads as required.
+    opt = config.optimization_settings or OptimizationSettings.model_validate({})
     history_manager = PerformanceHistoryManager(
         history_dir=config.global_output_root_path / "performance_history",
-        max_runs=max_runs,
+        max_runs=opt.performance_history_max_runs,
     )
-
-    # Reset the global performance monitor with fresh state
-    monitor_interval = 0.1
-    if config.optimization_settings:
-        opt = config.optimization_settings
-        monitor_interval = opt.performance_monitoring_interval_sec
     performance_monitor.reset(
-        history_manager=history_manager, memory_monitor_interval=monitor_interval
+        history_manager=history_manager,
+        memory_monitor_interval=opt.performance_monitoring_interval_sec,
     )
 
     # Generate run ID for this pipeline execution
@@ -367,9 +372,13 @@ async def create_video_for_product(
 
     run_id = str(uuid.uuid4())[:8]  # Short ID for readability
 
-    # Start performance monitoring for the entire pipeline
+    # A `--step` run records only that step; the history marks it so the
+    # reports can keep it out of the render averages.
     performance_monitor.start_pipeline(
-        run_id=run_id, product_id=product_id, profile_name=profile_name
+        run_id=run_id,
+        product_id=product_id,
+        profile_name=profile_name,
+        kind=RUN_KIND_STEP if debug_step_target else RUN_KIND_RENDER,
     )
 
     step = ""
@@ -548,15 +557,10 @@ async def create_video_for_product(
         performance_monitor.finish_pipeline(success=True)
 
         # Check performance thresholds and log warnings
-        if config.debug_settings:
-            timing_threshold = config.debug_settings.operation_timing_threshold_sec
-            memory_warning = config.debug_settings.memory_usage_warning_mb
-        else:
-            timing_threshold = 180.0
-            memory_warning = 3000
+        debug_settings = config.debug_settings or DebugSettings.model_validate({})
         threshold_warnings = performance_monitor.check_thresholds(
-            timing_threshold_sec=timing_threshold,
-            memory_warning_mb=memory_warning,
+            timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
+            memory_warning_mb=debug_settings.memory_usage_warning_mb,
         )
         for warning in threshold_warnings:
             logger.warning("Performance threshold exceeded: %s", warning)
@@ -573,7 +577,9 @@ async def create_video_for_product(
         skipped_run = True
         logger.warning("Product skipped due to insufficient media: %s", e)
         # Mark as skipped, not failed - this is expected for some products
-        performance_monitor.finish_pipeline(success=False, error_message=str(e))
+        performance_monitor.finish_pipeline(
+            success=False, error_message=str(e), skipped=True
+        )
         # Clean up background processing on skip
         await cleanup_global_background_processor()
         # Return special value to indicate skip

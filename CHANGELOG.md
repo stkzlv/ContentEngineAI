@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.11] - 2026-09-18
+
+### Fixed
+- A render's peak memory now covers the whole process tree, not the Python process alone: ffmpeg, the subtitle renderer's Chromium and the STT subprocess are where a render's memory goes and were never counted, and the peak is sampled from a thread so a step that blocks the event loop is still read.
+- The performance history file is trimmed on every save to its configured cap per kind of row; a per-instance counter meant the trim never ran and the file held three times the cap.
+- A `--step` debug run is recorded as its own kind of row and left out of the render averages; half the file's rows were single-step runs, many of them seconds long, that dragged every figure down.
+- A product skipped for insufficient media is recorded as skipped, not failed, and a failed run names the step that raised instead of only the generic message.
+- A step's CPU figure is the process tree's CPU time over the step's wall time, and a run's memory delta means the same thing in the log line and in the history row.
+
+### Changed
+- `OptimizationSettings` loses seven performance fields nothing read; the history cap and the sampler interval remain, and the report tool's limits come from its command line.
+
 ## [0.121.10] - 2026-09-18
 
 ### Changed
