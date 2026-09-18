@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from src.utils import logging_setup
 from src.utils.logging_setup import (
     PRODUCT_ID,
     RUN_ID,
@@ -63,7 +64,12 @@ def _fresh(fn, *args):
         PRODUCT_ID.set(UNBOUND)
         return fn(*args)
 
-    return contextvars.copy_context().run(run)
+    saved = logging_setup._process_run_id
+    logging_setup._process_run_id = None
+    try:
+        return contextvars.copy_context().run(run)
+    finally:
+        logging_setup._process_run_id = saved
 
 
 @pytest.fixture
@@ -132,6 +138,26 @@ class TestLogContext:
 
         asyncio.run(main())
         assert seen == {"B0AAA00001": "B0AAA00001", "B0BBB00002": "B0BBB00002"}
+
+
+class TestAWorkerThreadStillNamesTheRun:
+    """An executor thread starts with an empty context."""
+
+    def test_the_run_id_reaches_a_thread_and_the_product_needs_a_copied_context(
+        self, tmp_path: Path, clean_root: None
+    ):
+        from concurrent.futures import ThreadPoolExecutor
+
+        def body():
+            setup_debug_logging(tmp_path / "t.log", mark_run=True, run_id="runthread")
+            with log_context(product_id="B0THREAD01"), ThreadPoolExecutor() as pool:
+                bare = pool.submit(_record, "bare").result()
+                carried = pool.submit(contextvars.copy_context().run, _record).result()
+            return bare, carried
+
+        bare, carried = _fresh(body)
+        assert (bare.run_id, bare.product_id) == ("runthread", UNBOUND)
+        assert (carried.run_id, carried.product_id) == ("runthread", "B0THREAD01")
 
 
 class TestCurrentRunId:
@@ -207,6 +233,7 @@ class TestEveryPerProductPathBindsTheProduct:
         [
             "src/scraper/amazon/batch_controller.py",
             "src/pipeline/phases/production.py",
+            "src/pipeline/phases/publishing.py",
             "src/publisher/batch.py",
             "src/publisher/late/cli.py",
             "src/publisher/cleanup.py",

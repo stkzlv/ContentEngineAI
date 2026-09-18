@@ -175,6 +175,13 @@ PRODUCT_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
 )
 
 
+# A thread started by an executor begins with an empty context, so the run
+# id also lives process-wide: a record from such a thread still names the
+# run. The product id has no such fallback; a thread that should carry it
+# is handed `contextvars.copy_context().run` as its callable.
+_process_run_id: str | None = None
+
+
 def new_run_id() -> str:
     return uuid.uuid4().hex[:8]
 
@@ -182,7 +189,7 @@ def new_run_id() -> str:
 def current_run_id() -> str | None:
     """The run id bound by the entry point, or None before one is."""
     bound = RUN_ID.get()
-    return None if bound == UNBOUND else bound
+    return _process_run_id if bound == UNBOUND else bound
 
 
 @contextmanager
@@ -206,7 +213,7 @@ class ContextFilter(logging.Filter):
     """Stamp the bound run and product ids onto each record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.run_id = RUN_ID.get()
+        record.run_id = current_run_id() or UNBOUND
         record.product_id = PRODUCT_ID.get()
         return True
 
@@ -357,7 +364,9 @@ def setup_debug_logging(
     # operator would trust.
     logger = logging.getLogger(component_name)
     if mark_run:
-        RUN_ID.set(run_id or new_run_id())
+        global _process_run_id
+        _process_run_id = run_id or new_run_id()
+        RUN_ID.set(_process_run_id)
         logger.info("=== %s run starting (run %s) ===", component_name, RUN_ID.get())
     logger.debug(
         "Logging initialized: level=%s, log_file=%s, verbose=%s",

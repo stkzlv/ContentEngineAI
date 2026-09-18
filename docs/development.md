@@ -474,7 +474,11 @@ for product_id in product_ids:
 ```
 
 The ids are context variables, so an awaited step logs under the product
-that awaited it, and the previous value returns when the block ends. Read
+that awaited it, and the previous value returns when the block ends. A
+thread started through an executor begins with an empty context: its
+records still carry the run id, which also lives process-wide, but the
+product only if the job is submitted as `contextvars.copy_context().run`
+with the callable as its argument, as the media downloader does. Read
 them back with `grep ' <product id> ' outputs/logs/<component>.log`.
 
 ## Configuration Development

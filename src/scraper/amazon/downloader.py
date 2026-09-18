@@ -6,6 +6,7 @@ with proper error handling and file management.
 
 import asyncio
 import contextlib
+import contextvars
 import logging
 from pathlib import Path
 from typing import Any
@@ -101,7 +102,10 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
+                # The pool thread starts with an empty context; run the job
+                # in a copy of ours so its records carry the product id.
                 future = executor.submit(
+                    contextvars.copy_context().run,
                     lambda: asyncio.run(
                         _download_media_async(
                             asin,
@@ -111,7 +115,7 @@ def download_media_files(data: dict[str, Any]) -> dict[str, Any]:
                             debug_mode,
                             output_dir=output_dir,
                         )
-                    )
+                    ),
                 )
                 download_result = future.result()
         except RuntimeError:

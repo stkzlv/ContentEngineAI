@@ -14,6 +14,7 @@ Key features:
 """
 
 import asyncio
+import contextvars
 import logging
 import time
 from collections.abc import Callable
@@ -526,7 +527,9 @@ class TTSWarmer:
                     return False
 
             success = await loop.run_in_executor(
-                self.bg_processor.thread_pool, load_model
+                self.bg_processor.thread_pool,
+                contextvars.copy_context().run,
+                load_model,
             )
 
             if success:
