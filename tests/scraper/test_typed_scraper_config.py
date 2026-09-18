@@ -286,7 +286,7 @@ class TestDefaultsLiveInTheModel:
         assert gs.rate_limiting.debug_pause_duration == 5
         assert gs.browser_config.max_products_per_search == 5
         assert cfg.batch.products_per_keyword == 2
-        assert cfg.batch.logging.separator_width == 60
+        assert cfg.batch.logging.duration_decimal_places == 2
         assert cfg.amazon.filter_parameters.price_to_cents_multiplier == 100
 
     def test_the_validation_timeout_follows_the_head_timeout_when_unset(self) -> None:

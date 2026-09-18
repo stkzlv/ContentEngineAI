@@ -384,21 +384,15 @@ def get_batch_logging_config() -> dict[str, str | int]:
     Returns
     -------
         Dictionary with batch logging settings:
-        - separator_char: str
-        - separator_width: int
         - duration_decimal_places: int
         - media_stats_decimal_places: int
 
     """
     logging_config = SETTINGS.batch.logging
-    separator_char: str = logging_config.separator_char
-    separator_width: int = logging_config.separator_width
     duration_decimal: int = logging_config.duration_decimal_places
     media_stats_decimal: int = logging_config.media_stats_decimal_places
 
     return {
-        "separator_char": separator_char,
-        "separator_width": separator_width,
         "duration_decimal_places": duration_decimal,
         "media_stats_decimal_places": media_stats_decimal,
     }

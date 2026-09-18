@@ -45,9 +45,6 @@ class BatchController:
 
         # Load logging configuration from YAML
         self.log_config = get_batch_logging_config()
-        separator_char = str(self.log_config["separator_char"])
-        separator_width = int(self.log_config["separator_width"])
-        self.separator = separator_char * separator_width
 
     def run_batch(self) -> BatchSummary:
         """Execute complete batch processing workflow.
@@ -62,12 +59,12 @@ class BatchController:
         """
         start_time = time.time()
 
-        self.logger.info(self.separator)
-        self.logger.info("STARTING BATCH SCRAPING")
-        self.logger.info("Product IDs: %d", len(self.config.product_ids))
-        self.logger.info("Keywords: %d", len(self.config.keywords))
-        self.logger.info("Fail-fast: %s", self.config.fail_fast)
-        self.logger.info(self.separator)
+        self.logger.info(
+            "Starting batch scraping: %d product ids, %d keywords, fail-fast=%s",
+            len(self.config.product_ids),
+            len(self.config.keywords),
+            self.config.fail_fast,
+        )
 
         # Process product IDs first
         product_id_results = self._process_product_ids()
@@ -107,10 +104,7 @@ class BatchController:
             return results
 
         self.logger.info(
-            "\n%s\nPROCESSING PRODUCT IDS (%d total)\n%s",
-            self.separator,
-            len(self.config.product_ids),
-            self.separator,
+            "Processing product ids (%d total)", len(self.config.product_ids)
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
@@ -242,12 +236,7 @@ class BatchController:
         if not self.config.keywords:
             return results
 
-        self.logger.info(
-            "\n%s\nPROCESSING KEYWORDS (%d total)\n%s",
-            self.separator,
-            len(self.config.keywords),
-            self.separator,
-        )
+        self.logger.info("Processing keywords (%d total)", len(self.config.keywords))
 
         for i, keyword in enumerate(self.config.keywords, 1):
             # Pace consecutive inputs, as the batch pipeline's single-session
@@ -470,9 +459,7 @@ class BatchController:
         """
         duration_places = int(self.log_config["duration_decimal_places"])
 
-        self.logger.info("\n%s", self.separator)
-        self.logger.info("BATCH SCRAPING SUMMARY")
-        self.logger.info(self.separator)
+        self.logger.info("Batch scraping summary")
         self.logger.info("Total Attempted: %d", summary.total_attempted)
         self.logger.info("  - Product IDs: %d", summary.product_ids_attempted)
         self.logger.info("  - Keywords: %d", summary.keywords_attempted)
@@ -489,11 +476,10 @@ class BatchController:
         for line in summary_lines_for(summary.dead_queries, summary.throttled_inputs):
             self.logger.warning("%s", line)
 
-        self.logger.info("\nMedia Collection Statistics:")
+        self.logger.info("Media Collection Statistics:")
         for key, value in summary.media_stats.items():
             self.logger.info("  - %s: %s", key, value)
 
         self.logger.info(
-            "\nDuration: %.*f seconds", duration_places, summary.duration_sec
+            "Duration: %.*f seconds", duration_places, summary.duration_sec
         )
-        self.logger.info(self.separator)

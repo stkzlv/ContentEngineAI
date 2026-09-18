@@ -792,7 +792,7 @@ def _build_browser_config(debug_mode=False):
             display_info = resolve_debug_display()
             if on_wayland or display_info.source == "none":
                 if on_wayland:
-                    logger.warning(
+                    logger.info(
                         "Live Wayland session (WAYLAND_DISPLAY=%s): a headful window "
                         "freezes Chromium's CDP, so running on a virtual Xvfb display "
                         "(no visible window). Use `make scrape-watch` to watch "

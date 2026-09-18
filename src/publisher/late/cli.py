@@ -186,13 +186,11 @@ async def cmd_list_accounts(
             return
 
         logger.info("Found %d connected account(s):", len(accounts))
-        logger.info("-" * 80)
 
         for account in accounts:
             logger.info("Platform: %s", account["platform"])
             logger.info("Account ID: %s", account["account_id"])
             logger.info("Username: %s", account.get("username", "N/A"))
-            logger.info("-" * 80)
 
     except Exception as e:
         logger.error("Failed to list accounts: %s", e, exc_info=args.debug)
@@ -805,7 +803,6 @@ async def cmd_calendar(
         return
 
     logger.info("Found %d scheduled post(s):", len(entries))
-    logger.info("=" * 80)
 
     for entry in entries:
         logger.info("Product: %s", entry.product_id)
@@ -816,7 +813,6 @@ async def cmd_calendar(
             logger.info("Post ID: %s", entry.post_id)
         if entry.slot_index is not None:
             logger.info("Slot Index: %d", entry.slot_index)
-        logger.info("-" * 80)
 
 
 async def cmd_schedule_auto(
@@ -838,9 +834,7 @@ async def cmd_schedule_auto(
     immediate = getattr(args, "immediate", False)
     mode = "IMMEDIATE PUBLISH" if immediate else "AUTO-SCHEDULING"
 
-    logger.info("=" * 80)
-    logger.info("%s MODE", mode)
-    logger.info("=" * 80)
+    logger.info("%s mode", mode)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
     logger.info("Outputs directory: %s", args.outputs_dir)
     if getattr(args, "dry_run", False) and not immediate:
@@ -1049,7 +1043,6 @@ async def _run_immediate_batch(
 
     # Automatic cleanup if enabled
     if config.cleanup_config.enabled and not args.no_cleanup and summary.successful > 0:
-        logger.info("=" * 80)
         logger.info("Running automatic cleanup for successfully published products...")
 
         try:
@@ -1126,9 +1119,7 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         session: aiohttp ClientSession
 
     """
-    logger.info("=" * 80)
-    logger.info("CLEANUP MODE")
-    logger.info("=" * 80)
+    logger.info("Cleanup mode")
 
     # Validate --all requires --confirm (unless dry-run)
     if args.all and not args.confirm and not args.dry_run:
@@ -1177,7 +1168,6 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         if args.product_id:
             # Single product cleanup
             logger.info("Cleaning up product: %s", args.product_id)
-            logger.info("-" * 80)
 
             result = await cleanup_mgr.cleanup(
                 product_id=args.product_id,
@@ -1197,7 +1187,6 @@ async def cmd_cleanup(args: argparse.Namespace, config, session: aiohttp.ClientS
         elif args.all:
             # Batch cleanup
             logger.info("Cleaning up all successfully published products...")
-            logger.info("-" * 80)
 
             summary = await cleanup_mgr.cleanup_all(
                 platforms=platforms,

@@ -427,9 +427,7 @@ class GlobalPipelineOrchestrator:
 
         # Phase 1: Scraping
         if self.state.is_phase_completed(PipelinePhase.SCRAPING):
-            logger.info("=" * 80)
             logger.info("SCRAPING PHASE (SKIPPED - Already completed)")
-            logger.info("=" * 80)
             # Reconstruct summary from state
             scraping_summary = ScrapingPhaseSummary(
                 **self.state.scraping_summary  # type: ignore[arg-type]
@@ -440,9 +438,7 @@ class GlobalPipelineOrchestrator:
                 scraping_summary.failed,
             )
         else:
-            logger.info("=" * 80)
             logger.info("SCRAPING PHASE")
-            logger.info("=" * 80)
             self.state.advance_phase(PipelinePhase.SCRAPING)
             self._save_state()
 
@@ -517,9 +513,7 @@ class GlobalPipelineOrchestrator:
         else:
             # Phase 3: Video Production
             if self.state.is_phase_completed(PipelinePhase.PRODUCTION):
-                logger.info("=" * 80)
                 logger.info("VIDEO PRODUCTION PHASE (SKIPPED - Already completed)")
-                logger.info("=" * 80)
                 # Reconstruct summary from state
                 production_summary = ProductionPhaseSummary(
                     **self.state.production_summary  # type: ignore[arg-type]
@@ -601,9 +595,7 @@ class GlobalPipelineOrchestrator:
                     production_summary.already_published = len(dropped)
                     production_summary.already_published_products = list(dropped)
             else:
-                logger.info("=" * 80)
                 logger.info("VIDEO PRODUCTION PHASE")
-                logger.info("=" * 80)
                 self.state.advance_phase(PipelinePhase.PRODUCTION)
                 self._save_state()
 
@@ -636,9 +628,7 @@ class GlobalPipelineOrchestrator:
         publishing_summary = None
         if not self.config.skip_publish and produced_videos:
             if self.state.is_phase_completed(PipelinePhase.PUBLISHING):
-                logger.info("=" * 80)
                 logger.info("PUBLISHING PHASE (SKIPPED - Already completed)")
-                logger.info("=" * 80)
                 # Reconstruct summary from state
                 publishing_summary = PublishingPhaseSummary(
                     **self.state.publishing_summary  # type: ignore[arg-type]
@@ -650,9 +640,7 @@ class GlobalPipelineOrchestrator:
                 )
                 logger.info(msg)
             else:
-                logger.info("=" * 80)
                 logger.info("PUBLISHING PHASE")
-                logger.info("=" * 80)
                 self.state.advance_phase(PipelinePhase.PUBLISHING)
                 self._save_state()
 

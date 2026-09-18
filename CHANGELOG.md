@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.122.0] - 2026-09-18
+
+### Fixed
+- Third-party loggers are held at WARNING under `--debug` too. The quiet list applied only outside debug mode, which every documented command passes, so Pillow's PNG plugin was 45% of a producer log and the Gemini SDK's per-call "AFC is enabled" line another 4,600 rows.
+
+### Changed
+- Log output is one event per line: the separator-only rows the publisher, the scraper batch and the publish summary printed around their headers are gone, and each header is a single line carrying its values. **Breaking**: the scraper's `batch.logging.separator_char` and `separator_width` keys are removed; a config that still sets them fails validation.
+- Two warnings that fired on every healthy run are informational now: the scraper's note that it runs on a virtual display under Wayland, and the TTS module's note at import that the Coqui provider is absent.
+
 ## [0.121.13] - 2026-09-18
 
 ### Fixed

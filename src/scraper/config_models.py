@@ -264,8 +264,6 @@ class BatchLoggingConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    separator_char: str = Field(default="=")
-    separator_width: int = Field(default=60, gt=0)
     duration_decimal_places: int = Field(default=2, ge=0)
     media_stats_decimal_places: int = Field(default=2, ge=0)
 
