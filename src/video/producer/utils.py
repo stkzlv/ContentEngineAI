@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from src.utils import ensure_dirs_exist
-from src.utils.logging_setup import setup_debug_logging
+from src.utils.logging_setup import dated_log_path, setup_debug_logging
 from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
@@ -115,9 +115,8 @@ def setup_logging(config: VideoConfig, debug_mode: bool = False) -> Path:
     log_dir = config.general_video_producer_log_dir_path
     ensure_dirs_exist(log_dir)
 
-    # Fixed filename; the handler appends and rotates (see LOG_MAX_BYTES),
-    # so this holds a history and each run opens with a marker line.
-    log_file = log_dir / "producer.log"
+    # One file per day, appended; each run opens with a marker line.
+    log_file = dated_log_path(log_dir / "producer.log")
 
     # Use centralized logging setup
     setup_debug_logging(

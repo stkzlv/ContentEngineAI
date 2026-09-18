@@ -22,7 +22,7 @@ summary="analytics sweep failed (result=${result:-unknown} exit=${status:-?})"
 printf '%s\n' "$summary" |
     systemd-cat -t contentengineai-analytics -p err 2>/dev/null
 
-# 2. A file beside publisher.log. This is the copy still there tomorrow
+# 2. A file beside the publisher's dated logs. This is the copy still there tomorrow
 #    morning, so a sweep that failed weeks ago while nobody was at the machine
 #    is not invisible. outputs/ is gitignored, so it never enters the tree.
 if mkdir -p "$LOG_DIR" 2>/dev/null; then

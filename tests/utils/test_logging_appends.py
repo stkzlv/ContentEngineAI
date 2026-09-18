@@ -8,8 +8,8 @@ running the scraper at all, because an editable install resolved the import to
 the working tree.
 
 Appending alone would grow the file forever, which is what the overwrite was
-buying. Rotation keeps the bound, so the fix does not trade one problem for
-another.
+buying. A file per component per day, pruned by age, keeps the bound, so the
+fix does not trade one problem for another.
 """
 
 from __future__ import annotations
@@ -20,9 +20,11 @@ from pathlib import Path
 
 import pytest
 
+from src.utils import logging_setup
 from src.utils.logging_setup import (
-    LOG_BACKUP_COUNT,
-    LOG_MAX_BYTES,
+    LOG_RETENTION_DAYS,
+    dated_log_path,
+    prune_old_logs,
     setup_debug_logging,
 )
 from src.utils.outputs_paths import get_project_root
@@ -156,36 +158,82 @@ class TestAnEarlierRunSurvives:
         assert "first line" in log_file.read_text(encoding="utf-8")
 
 
-class TestTheSizeStaysBounded:
-    """Appending without a bound is what the overwrite was avoiding."""
+class TestTheFilesAreDatedAndPruned:
+    """Appending without a bound is what the overwrite was avoiding.
 
-    def test_the_handler_rotates(self, tmp_path: Path):
-        log_file = tmp_path / "run.log"
+    Size rotation gave `scraper.log.2` with no idea what dates it covered,
+    and two processes with a rotating handler each (the analytics timer and
+    a manual publisher run) rename the same file from under each other. A
+    file per day in append mode has neither problem.
+    """
 
-        setup_debug_logging(log_file)
-        handler = next(
-            h
-            for h in logging.getLogger().handlers
-            if isinstance(h, logging.handlers.RotatingFileHandler)
+    def test_the_entry_points_name_the_file_by_the_day(self, monkeypatch):
+        import datetime as dt
+
+        monkeypatch.setattr(logging_setup, "_today", lambda: dt.date(2026, 9, 19))
+        assert dated_log_path(Path("logs/producer.log")) == Path(
+            "logs/producer-2026-09-19.log"
         )
 
-        assert handler.maxBytes == LOG_MAX_BYTES
-        assert handler.backupCount == LOG_BACKUP_COUNT
+    def test_a_dated_name_is_left_alone(self):
+        """The scraper configures twice for one run; the second call must not
+        stack a second date onto the name.
+        """
+        already = Path("logs/scraper-2026-09-19.log")
+        assert dated_log_path(already) == already
 
-    def test_it_actually_rolls_over(self, tmp_path: Path, monkeypatch):
-        """Asserting the attributes is not the same as the file being bounded."""
-        import src.utils.logging_setup as module
+    def test_old_dated_files_go_and_everything_else_stays(
+        self, tmp_path: Path, monkeypatch
+    ):
+        import datetime as dt
 
-        monkeypatch.setattr(module, "LOG_MAX_BYTES", 2048)
-        log_file = tmp_path / "run.log"
+        today = dt.date(2026, 9, 19)
+        monkeypatch.setattr(logging_setup, "_today", lambda: today)
+        old = (
+            tmp_path
+            / f"producer-{today - dt.timedelta(days=LOG_RETENTION_DAYS + 1):%Y-%m-%d}.log"
+        )
+        edge = (
+            tmp_path
+            / f"producer-{today - dt.timedelta(days=LOG_RETENTION_DAYS):%Y-%m-%d}.log"
+        )
+        recent = tmp_path / "producer-2026-09-18.log"
+        legacy = tmp_path / "scraper.log.1"
+        other = tmp_path / "analytics-failures.log"
+        for path in (old, edge, recent, legacy, other):
+            path.write_text("x", encoding="utf-8")
 
-        setup_debug_logging(log_file)
-        logger = logging.getLogger("probe")
-        for index in range(200):
-            logger.warning("a line that takes up some room %d", index)
+        removed = prune_old_logs(tmp_path)
 
-        assert log_file.stat().st_size <= 4096, "the live file grew past the cap"
-        assert (tmp_path / "run.log.1").exists(), "nothing rotated"
+        assert removed == [old]
+        assert not old.exists()
+        for path in (edge, recent, legacy, other):
+            assert path.exists(), path.name
+
+    def test_setup_prunes_the_directory_it_writes_to(self, tmp_path: Path, monkeypatch):
+        import datetime as dt
+
+        monkeypatch.setattr(logging_setup, "_today", lambda: dt.date(2026, 9, 19))
+        stale = tmp_path / "run-2020-01-01.log"
+        stale.write_text("x", encoding="utf-8")
+
+        written = setup_debug_logging(tmp_path / "run-2026-09-19.log", mark_run=False)
+
+        assert written == tmp_path / "run-2026-09-19.log"
+        assert not stale.exists()
+
+    @pytest.mark.parametrize(
+        "rel, base",
+        [
+            ("src/pipeline/cli.py", "global_pipeline.log"),
+            ("src/scraper/amazon/cli.py", "scraper.log"),
+            ("src/video/producer/utils.py", "producer.log"),
+            ("src/publisher/late/cli.py", "publisher.log"),
+        ],
+    )
+    def test_each_entry_point_builds_a_dated_path(self, rel: str, base: str):
+        source = (REPO / rel).read_text(encoding="utf-8")
+        assert "dated_log_path(" in source and f'"{base}"' in source, rel
 
 
 class TestEachRunIsFindable:
@@ -332,7 +380,7 @@ class TestOnlyAnEntryPointConfiguresLogging:
         import subprocess
         import sys
 
-        production_log = REPO / "outputs/logs/scraper.log"
+        production_log = dated_log_path(REPO / "outputs/logs/scraper.log")
         before = (
             (production_log.stat().st_size, production_log.stat().st_mtime_ns)
             if production_log.exists()

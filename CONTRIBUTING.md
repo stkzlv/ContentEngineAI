@@ -216,7 +216,7 @@ The project includes comprehensive performance monitoring:
 ### Debugging
 
 - Use `--debug` flag for detailed logging
-- Check `outputs/logs/producer.log` for file logs
+- Check `outputs/logs/producer-<date>.log` for file logs
 - Use `--step` to run specific pipeline steps
 - Enable debug mode in configuration for intermediate file saving
 

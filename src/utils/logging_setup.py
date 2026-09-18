@@ -13,7 +13,7 @@ import sys
 import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from .secrets import SECRET_KEY_PATTERNS, mask_secret
@@ -160,8 +160,56 @@ class SecretMaskingFilter(logging.Filter):
 # unbounded that grows forever, which is what the previous overwrite-per-run
 # avoided; rotation keeps the bound without making a run destructive. Ten
 # megabytes is roughly a hundred debug runs at the sizes these produce.
-LOG_MAX_BYTES = 10 * 1024 * 1024
-LOG_BACKUP_COUNT = 3
+# One file per component per day, kept this long. Size rotation gave
+# `scraper.log.2` with no idea what dates it covered, and the pipeline runs
+# on a daily cadence, so the questions are by date. A dated file opened in
+# append mode is also safe for two processes at once (the analytics timer
+# and a manual publisher run), where a rotating handler in each would
+# rename the same file from under the other.
+LOG_RETENTION_DAYS = 45
+_DATED_LOG = re.compile(r"^(?P<stem>[A-Za-z0-9_]+)-(?P<date>\d{4}-\d{2}-\d{2})\.log$")
+
+
+def _today() -> date:
+    return date.today()
+
+
+def dated_log_path(log_file: Path) -> Path:
+    """`logs/producer.log` -> `logs/producer-2026-09-19.log`; a dated name stays."""
+    if _DATED_LOG.match(log_file.name):
+        return log_file
+    return log_file.with_name(
+        f"{log_file.stem}-{_today().isoformat()}{log_file.suffix}"
+    )
+
+
+def prune_old_logs(log_dir: Path, keep_days: int = LOG_RETENTION_DAYS) -> list[Path]:
+    """Remove dated log files older than `keep_days`, by the date in the name.
+
+    Only `<stem>-YYYY-MM-DD.log` names are candidates; the size-rotated
+    files of earlier releases and anything else in the directory stay.
+    """
+    removed: list[Path] = []
+    if not log_dir.is_dir():
+        return removed
+    today = _today()
+    for path in log_dir.iterdir():
+        match = _DATED_LOG.match(path.name)
+        if not match or not path.is_file():
+            continue
+        try:
+            written = date.fromisoformat(match["date"])
+        except ValueError:
+            continue
+        if (today - written).days > keep_days:
+            try:
+                path.unlink()
+            except OSError as error:
+                logging.getLogger(__name__).debug("Could not prune %s: %s", path, error)
+                continue
+            removed.append(path)
+    return removed
+
 
 # The run and product a record belongs to. Context variables rather than
 # globals so an awaited step logs under the product that awaited it, and a
@@ -266,13 +314,14 @@ def setup_debug_logging(
     component_name: str = "ContentEngineAI",
     mark_run: bool = True,
     run_id: str | None = None,
-) -> None:
+) -> Path:
     """Configure standardized logging with console and file handlers.
 
     Parameters
     ----------
     log_file : Path
-        Path to the log file for persistent logging
+        The file records go to, appended. Entry points pass
+        `dated_log_path(<logs dir>/<component>.log)`, one file per day.
     debug_mode : bool, optional
         Enable DEBUG level logging (default: False = INFO level)
     verbose : bool, optional
@@ -290,8 +339,9 @@ def setup_debug_logging(
     -----
     - Console output uses simplified format by default, detailed format when verbose
     - File output always uses detailed format with function names and line numbers
-    - Log file is appended to and rotated at LOG_MAX_BYTES, so importing a
-      module that configures logging cannot destroy an earlier run's log
+    - The file is appended to, so importing a module that configures logging
+      cannot destroy an earlier run's log; dated files in its directory
+      older than LOG_RETENTION_DAYS are removed here
     - A run marker is written at INFO unless `mark_run` is False. Pass False
       when configuring logging at import rather than at the start of a run,
       or the marker records the import and misleads whoever reads it
@@ -320,13 +370,9 @@ def setup_debug_logging(
     # handler was constructed, so anything that merely imported a module which
     # configures logging destroyed the previous run's log before writing a
     # line -- which is how a scraper log was lost to a tool that only meant to
-    # read the source. Rotation keeps the size bound the overwrite provided.
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=LOG_MAX_BYTES,
-        backupCount=LOG_BACKUP_COUNT,
-        encoding="utf-8",
-    )
+    # read the source. The day in the file name is the size bound now.
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
     file_handler.setFormatter(IsoFormatter(FILE_FORMAT))
     file_handler.setLevel(log_level)
 
@@ -374,3 +420,6 @@ def setup_debug_logging(
         log_file,
         verbose,
     )
+    for path in prune_old_logs(log_file.parent):
+        logger.debug("Pruned log older than %d days: %s", LOG_RETENTION_DAYS, path)
+    return log_file

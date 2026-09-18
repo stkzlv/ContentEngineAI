@@ -322,7 +322,7 @@ async def main():
         load_global_batch_config,
         validate_global_batch_config,
     )
-    from src.utils.logging_setup import setup_debug_logging
+    from src.utils.logging_setup import dated_log_path, setup_debug_logging
     from src.video.config import load_video_config
 
     # Load environment variables from .env file
@@ -335,7 +335,7 @@ async def main():
     # Set up logging early
     from src.utils.outputs_paths import get_logs_directory
 
-    log_file = get_logs_directory() / "global_pipeline.log"
+    log_file = dated_log_path(get_logs_directory() / "global_pipeline.log")
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     setup_debug_logging(

@@ -814,12 +814,13 @@ poetry run python -m src.video.producer products.json profile \
   --debug \
   --product-index 0
 
-# One product's whole story across a batch run (every line carries its id)
-grep ' B0ASIN123 ' outputs/logs/global_pipeline.log
+# One product's whole story across batch runs (every line carries its id;
+# one file per day, so a question that spans days is a glob)
+grep ' B0ASIN123 ' outputs/logs/global_pipeline-*.log
 
-# The runs in a log, with their ids; then everything from one run
-grep 'run starting' outputs/logs/producer.log
-grep ' 1a2b3c4d ' outputs/logs/producer.log
+# The runs in a day's log, with their ids; then everything from one run
+grep 'run starting' outputs/logs/producer-2026-09-19.log
+grep ' 1a2b3c4d ' outputs/logs/producer-2026-09-19.log
 ```
 
 ### Collect System Information
