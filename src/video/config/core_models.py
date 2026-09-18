@@ -489,16 +489,11 @@ class OptimizationSettings(BaseModel):
     stock_keyword_min_length: int = Field(3)
     stock_max_descriptive_words: int = Field(3)
 
-    # Performance Monitoring Configuration
+    # Performance Monitoring Configuration: the history cap and the peak
+    # sampler's interval. The report tool takes its limits from its own
+    # command line, so nothing else about reporting lives here.
     performance_history_max_runs: int = Field(100)
-    performance_history_cleanup_interval: int = Field(10)
     performance_monitoring_interval_sec: float = Field(0.1)
-    memory_mb_conversion_factor: int = Field(1048576)
-    performance_report_summary_limit: int = Field(50)
-    performance_report_detailed_limit: int = Field(20)
-    performance_report_trends_days: int = Field(30)
-    performance_report_recent_runs: int = Field(10)
-    performance_report_max_runs: int = Field(1000)
 
     # Connection Pooling Configuration
     connection_pool_total_limit: int = Field(100)

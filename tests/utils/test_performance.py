@@ -1,575 +1,521 @@
-"""Tests for performance monitoring utilities."""
+"""Tests for performance monitoring utilities.
+
+The history used to say less than it claimed: peak memory was the Python
+process alone, the trim never ran, a `--step` debug run looked like a
+render, and a skip counted as a failure. Each of those is pinned here
+against the real shapes the file holds.
+"""
 
 import asyncio
 import json
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
 
 from src.utils.performance import (
+    RUN_KIND_RENDER,
+    RUN_KIND_STEP,
     PerformanceHistoryManager,
     PerformanceMetrics,
     PerformanceMonitor,
     PipelineRunMetrics,
-    async_timer,
     performance_monitor,
-    timer,
 )
 
 
+def _metric(
+    name: str = "step",
+    duration: float = 1.0,
+    memory_start: float = 100.0,
+    memory_peak: float = 120.0,
+    memory_end: float = 110.0,
+    cpu_percent: float = 25.0,
+    errors: list[str] | None = None,
+) -> PerformanceMetrics:
+    return PerformanceMetrics(
+        step_name=name,
+        start_time=1000.0,
+        end_time=1000.0 + duration,
+        duration=duration,
+        memory_start=memory_start,
+        memory_peak=memory_peak,
+        memory_end=memory_end,
+        cpu_percent=cpu_percent,
+        errors=errors or [],
+    )
+
+
+def _process(rss_mb: float = 100.0, children_mb: tuple[float, ...] = ()) -> Mock:
+    """A psutil.Process stand-in with a process tree and CPU times."""
+    proc = Mock()
+    proc.memory_info.return_value.rss = int(rss_mb * 1024 * 1024)
+    kids = []
+    for mb in children_mb:
+        kid = Mock()
+        kid.memory_info.return_value.rss = int(mb * 1024 * 1024)
+        kids.append(kid)
+    proc.children.return_value = kids
+    proc.cpu_times.return_value = SimpleNamespace(
+        user=1.0, system=0.5, children_user=2.0, children_system=0.5
+    )
+    proc.io_counters.return_value.read_bytes = 1000
+    proc.io_counters.return_value.write_bytes = 2000
+    return proc
+
+
 class TestPerformanceMetrics:
-    """Test performance metrics data container."""
-
     def test_metrics_creation(self):
-        """Test creating performance metrics."""
-        metrics = PerformanceMetrics(
-            step_name="test_step",
-            start_time=1000.0,
-            end_time=1002.5,
-            duration=2.5,
-            memory_start=100.0,
-            memory_peak=150.0,
-            memory_end=120.0,
-            cpu_percent=45.5,
-        )
-
-        assert metrics.step_name == "test_step"
-        assert metrics.duration == 2.5
+        metrics = _metric(duration=2.5, memory_start=100.0, memory_end=120.0)
         assert metrics.duration_ms == 2500.0
         assert metrics.memory_delta == 20.0
 
     def test_metrics_with_defaults(self):
-        """Test metrics with default values."""
-        metrics = PerformanceMetrics(
-            step_name="test",
-            start_time=1000.0,
-            end_time=1001.0,
-            duration=1.0,
-            memory_start=100.0,
-            memory_peak=100.0,
-            memory_end=100.0,
-            cpu_percent=10.0,
-        )
-
+        metrics = _metric()
         assert metrics.io_read_bytes == 0
         assert metrics.io_write_bytes == 0
         assert metrics.errors == []
         assert metrics.metadata == {}
 
 
-class TestPerformanceMonitor:
-    """Test performance monitoring functionality."""
-
-    def test_monitor_initialization(self):
-        """Test monitor initialization."""
-        monitor = PerformanceMonitor()
-        assert monitor.metrics == []
-        assert monitor.current_step is None
-        assert monitor.pipeline_start is None
-
-    def test_monitor_custom_interval(self):
-        """Test monitor with custom memory_monitor_interval."""
-        monitor = PerformanceMonitor(memory_monitor_interval=0.5)
-        assert monitor.memory_monitor_interval == 0.5
-
-    def test_start_pipeline(self):
-        """Test pipeline start tracking."""
-        monitor = PerformanceMonitor()
-        monitor.start_pipeline()
-
-        assert monitor.pipeline_start is not None
-        assert monitor.metrics == []
+class TestMemoryIsTheWholeProcessTree:
+    """ffmpeg, Chromium and the STT subprocess are where a render's memory
+    goes; the Python process alone was a fraction of what the OOM entries
+    in the notes describe.
+    """
 
     @patch("src.utils.performance.psutil.Process")
-    def test_reset_clears_state(self, mock_process_class):
-        """Test reset() clears all pipeline state."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
-
+    def test_children_are_counted(self, mock_process_class):
+        mock_process_class.return_value = _process(100.0, (1500.0, 400.0))
         monitor = PerformanceMonitor()
-        monitor.start_pipeline(
-            run_id="test-run", product_id="P1", profile_name="profile1"
-        )
-        monitor.metrics.append(
-            PerformanceMetrics(
-                step_name="s",
-                start_time=0,
-                end_time=1,
-                duration=1,
-                memory_start=0,
-                memory_peak=0,
-                memory_end=0,
-                cpu_percent=0,
-            )
-        )
-
-        monitor.reset()
-
-        assert monitor.metrics == []
-        assert monitor.pipeline_start is None
-        assert monitor.current_step is None
-        assert monitor.current_run_id is None
-        assert monitor.current_product_id is None
-        assert monitor.current_profile_name is None
+        assert monitor.get_memory_usage() == 2000.0
 
     @patch("src.utils.performance.psutil.Process")
-    def test_reset_sets_history_manager(self, mock_process_class):
-        """Test reset() can set a new history manager."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
+    def test_a_child_that_exits_mid_read_is_skipped(self, mock_process_class):
+        import psutil
 
-        monitor = PerformanceMonitor()
-        assert monitor.history_manager is None
-
-        with tempfile.TemporaryDirectory() as tmp:
-            hm = PerformanceHistoryManager(history_dir=Path(tmp))
-            monitor.reset(history_manager=hm)
-            assert monitor.history_manager is hm
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_get_memory_usage(self, mock_process_class):
-        """Test memory usage measurement."""
-        mock_process = Mock()
-        mock_process.memory_info.return_value.rss = 1024 * 1024 * 100  # 100 MB
-        mock_process_class.return_value = mock_process
-
-        monitor = PerformanceMonitor()
-        memory_usage = monitor.get_memory_usage()
-        assert memory_usage == 100.0
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_get_cpu_percent(self, mock_process_class):
-        """Test CPU usage measurement."""
-        mock_process = Mock()
-        mock_process.cpu_percent.return_value = 25.5
-        mock_process_class.return_value = mock_process
-
-        monitor = PerformanceMonitor()
-        cpu_usage = monitor.get_cpu_percent()
-        assert cpu_usage == 25.5
+        proc = _process(100.0, (300.0,))
+        gone = Mock()
+        gone.memory_info.side_effect = psutil.NoSuchProcess(pid=1)
+        proc.children.return_value.append(gone)
+        mock_process_class.return_value = proc
+        assert PerformanceMonitor().get_memory_usage() == 400.0
 
     @patch("src.utils.performance.psutil.Process")
     def test_get_io_stats(self, mock_process_class):
-        """Test I/O statistics measurement."""
-        mock_process = Mock()
-        mock_process.io_counters.return_value.read_bytes = 1000
-        mock_process.io_counters.return_value.write_bytes = 2000
-        mock_process_class.return_value = mock_process
+        mock_process_class.return_value = _process()
+        assert PerformanceMonitor().get_io_stats() == (1000, 2000)
 
-        monitor = PerformanceMonitor()
-        read_bytes, write_bytes = monitor.get_io_stats()
-        assert read_bytes == 1000
-        assert write_bytes == 2000
 
+class TestMeasureStep:
     @pytest.mark.asyncio
     @patch("src.utils.performance.psutil.Process")
-    async def test_measure_step_context_manager(self, mock_process_class):
-        """Test step measurement context manager."""
-        mock_process = Mock()
-        mock_process.memory_info.return_value.rss = 1024 * 1024 * 100  # 100 MB
-        mock_process.cpu_percent.return_value = 30.0
-        mock_process.io_counters.return_value.read_bytes = 1000
-        mock_process.io_counters.return_value.write_bytes = 2000
-        mock_process_class.return_value = mock_process
-
+    async def test_records_the_step_with_metadata(self, mock_process_class):
+        mock_process_class.return_value = _process()
         monitor = PerformanceMonitor()
 
         async with monitor.measure_step("test_step", test_metadata="value"):
-            await asyncio.sleep(0.01)  # Simulate work
+            await asyncio.sleep(0.01)
 
-        assert len(monitor.metrics) == 1
-        metric = monitor.metrics[0]
+        (metric,) = monitor.metrics
         assert metric.step_name == "test_step"
         assert metric.duration > 0
         assert metric.metadata == {"test_metadata": "value"}
 
     @pytest.mark.asyncio
     @patch("src.utils.performance.psutil.Process")
-    async def test_measure_step_with_exception(self, mock_process_class):
-        """Test step measurement with exception handling."""
-        mock_process = Mock()
-        mock_process.memory_info.return_value.rss = 1024 * 1024 * 100
-        mock_process.cpu_percent.return_value = 30.0
-        mock_process.io_counters.return_value.read_bytes = 1000
-        mock_process.io_counters.return_value.write_bytes = 2000
-        mock_process_class.return_value = mock_process
+    async def test_cpu_is_tree_cpu_time_over_wall_time(self, mock_process_class):
+        """4 CPU-seconds of process tree over a 2s step is 200%, whatever a
+        sample of "CPU since the last sample" would have said.
+        """
+        proc = _process()
+        proc.cpu_times.side_effect = [
+            SimpleNamespace(
+                user=1.0, system=0.0, children_user=0.0, children_system=0.0
+            ),
+            SimpleNamespace(
+                user=2.0, system=1.0, children_user=2.0, children_system=0.0
+            ),
+        ]
+        mock_process_class.return_value = proc
+        monitor = PerformanceMonitor()
+        with patch("src.utils.performance.time.time", side_effect=[1000.0, 1002.0]):
+            async with monitor.measure_step("busy"):
+                pass
+        assert monitor.metrics[0].cpu_percent == pytest.approx(200.0)
 
+    @pytest.mark.asyncio
+    @patch("src.utils.performance.psutil.Process")
+    async def test_peak_is_sampled_while_the_loop_is_blocked(self, mock_process_class):
+        """The sampler is a thread: a step that never yields still gets its
+        peak read, which an asyncio sampler could not do.
+        """
+        proc = _process(100.0)
+        readings = iter([100.0, 900.0, 900.0, 900.0, 900.0, 100.0])
+
+        def rss():
+            mb = next(readings, 100.0)
+            return int(mb * 1024 * 1024)
+
+        proc.memory_info.side_effect = lambda: SimpleNamespace(rss=rss())
+        mock_process_class.return_value = proc
+        monitor = PerformanceMonitor(memory_monitor_interval=0.01)
+
+        async with monitor.measure_step("blocking"):
+            import time
+
+            time.sleep(0.15)  # blocks the event loop on purpose
+
+        assert monitor.metrics[0].memory_peak == 900.0
+
+    @pytest.mark.asyncio
+    @patch("src.utils.performance.psutil.Process")
+    async def test_an_exception_is_recorded_and_re_raised(self, mock_process_class):
+        mock_process_class.return_value = _process()
         monitor = PerformanceMonitor()
 
         with pytest.raises(ValueError):
             async with monitor.measure_step("test_step"):
                 raise ValueError("Test error")
 
-        assert len(monitor.metrics) == 1
-        metric = monitor.metrics[0]
-        assert len(metric.errors) == 1
-        assert "Test error" in metric.errors[0]
+        (metric,) = monitor.metrics
+        assert metric.errors == ["Test error"]
 
-    def test_get_pipeline_summary_empty(self):
-        """Test pipeline summary with no metrics."""
+
+class TestPerformanceMonitor:
+    def test_monitor_initialization(self):
         monitor = PerformanceMonitor()
-        summary = monitor.get_pipeline_summary()
-        assert summary == {}
+        assert monitor.metrics == []
+        assert monitor.current_step is None
+        assert monitor.pipeline_start is None
+        assert monitor.current_kind == RUN_KIND_RENDER
+
+    def test_start_pipeline_records_the_kind(self):
+        monitor = PerformanceMonitor()
+        monitor.start_pipeline(kind=RUN_KIND_STEP)
+        assert monitor.pipeline_start is not None
+        assert monitor.current_kind == RUN_KIND_STEP
 
     @patch("src.utils.performance.psutil.Process")
-    def test_get_pipeline_summary_with_metrics(self, mock_process_class):
-        """Test pipeline summary with metrics."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
+    def test_reset_clears_state(self, mock_process_class):
+        mock_process_class.return_value = _process()
+        monitor = PerformanceMonitor()
+        monitor.start_pipeline(
+            run_id="r", product_id="P1", profile_name="p", kind=RUN_KIND_STEP
+        )
+        monitor.metrics.append(_metric())
 
+        monitor.reset()
+
+        assert monitor.metrics == []
+        assert monitor.pipeline_start is None
+        assert monitor.current_run_id is None
+        assert monitor.current_kind == RUN_KIND_RENDER
+
+    def test_reset_sets_history_manager(self):
+        monitor = PerformanceMonitor()
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            monitor.reset(history_manager=hm)
+            assert monitor.history_manager is hm
+
+    def test_get_pipeline_summary_empty(self):
+        assert PerformanceMonitor().get_pipeline_summary() == {}
+
+    def test_summary_memory_delta_is_net_not_a_sum(self):
+        """The file's row and the log line used to disagree: the row was
+        net first-to-last, the summary a sum of per-step deltas.
+        """
         monitor = PerformanceMonitor()
         monitor.start_pipeline()
-
-        # Add mock metrics
-        metric1 = PerformanceMetrics(
-            step_name="step1",
-            start_time=1000,
-            end_time=1002,
-            duration=2.0,
-            memory_start=100,
-            memory_peak=120,
-            memory_end=110,
-            cpu_percent=25.0,
-        )
-        metric2 = PerformanceMetrics(
-            step_name="step2",
-            start_time=1002,
-            end_time=1005,
-            duration=3.0,
-            memory_start=110,
-            memory_peak=130,
-            memory_end=115,
-            cpu_percent=35.0,
-        )
-        monitor.metrics = [metric1, metric2]
-
+        monitor.metrics = [
+            _metric("step1", 2.0, memory_start=100, memory_peak=120, memory_end=110),
+            _metric("step2", 3.0, memory_start=110, memory_peak=130, memory_end=115),
+        ]
         summary = monitor.get_pipeline_summary()
-
-        assert "total_duration" in summary
-        assert (
-            summary["total_memory_delta_mb"] == 15.0
-        )  # (110-100) + (115-110) = 10 + 5
-        assert summary["average_cpu_percent"] == 30.0  # (25 + 35) / 2
-        assert summary["steps_completed"] == 2
+        assert summary["total_memory_delta_mb"] == 15.0
+        assert summary["peak_memory_mb"] == 130
+        assert summary["average_cpu_percent"] == 25.0
         assert summary["longest_step"]["name"] == "step2"
+        assert summary["steps_completed"] == 2
 
     def test_save_metrics(self):
-        """Test saving metrics to file."""
         monitor = PerformanceMonitor()
         monitor.start_pipeline()
-
-        # Add mock metric
-        metric = PerformanceMetrics(
-            step_name="test_step",
-            start_time=1000,
-            end_time=1002,
-            duration=2.0,
-            memory_start=100,
-            memory_peak=120,
-            memory_end=110,
-            cpu_percent=25.0,
-        )
-        monitor.metrics = [metric]
-
+        monitor.metrics = [_metric()]
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "metrics.json"
             monitor.save_metrics(output_path)
+            data = json.loads(output_path.read_text())
+        assert "pipeline_summary" in data
+        assert len(data["step_metrics"]) == 1
 
-            assert output_path.exists()
-
-            with output_path.open() as f:
-                data = json.load(f)
-
-            assert "pipeline_summary" in data
-            assert "step_metrics" in data
-            assert len(data["step_metrics"]) == 1
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_check_thresholds_no_warnings(self, mock_process_class):
-        """Test check_thresholds when everything is within limits."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
-
+    @pytest.mark.parametrize(
+        ("metric", "fragment"),
+        [
+            (_metric("slow_step", duration=10.0), "10.0s"),
+            (_metric("hungry_step", memory_peak=1500), "1500"),
+        ],
+        ids=["timing", "memory"],
+    )
+    def test_check_thresholds_warns(self, metric, fragment):
         monitor = PerformanceMonitor()
-        monitor.metrics = [
-            PerformanceMetrics(
-                step_name="fast_step",
-                start_time=0,
-                end_time=1,
-                duration=1.0,
-                memory_start=100,
-                memory_peak=200,
-                memory_end=150,
-                cpu_percent=50,
-            )
-        ]
-
-        warnings = monitor.check_thresholds(
-            timing_threshold_sec=5.0, memory_warning_mb=1000
-        )
-        assert warnings == []
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_check_thresholds_timing_exceeded(self, mock_process_class):
-        """Test check_thresholds warns on slow steps."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
-
-        monitor = PerformanceMonitor()
-        monitor.metrics = [
-            PerformanceMetrics(
-                step_name="slow_step",
-                start_time=0,
-                end_time=10,
-                duration=10.0,
-                memory_start=100,
-                memory_peak=200,
-                memory_end=150,
-                cpu_percent=50,
-            )
-        ]
-
+        monitor.metrics = [metric]
         warnings = monitor.check_thresholds(
             timing_threshold_sec=5.0, memory_warning_mb=1000
         )
         assert len(warnings) == 1
-        assert "slow_step" in warnings[0]
-        assert "10.0s" in warnings[0]
+        assert metric.step_name in warnings[0]
+        assert fragment in warnings[0]
 
-    @patch("src.utils.performance.psutil.Process")
-    def test_check_thresholds_memory_exceeded(self, mock_process_class):
-        """Test check_thresholds warns on high memory."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
-
+    def test_check_thresholds_quiet_within_limits(self):
         monitor = PerformanceMonitor()
-        monitor.metrics = [
-            PerformanceMetrics(
-                step_name="hungry_step",
-                start_time=0,
-                end_time=1,
-                duration=1.0,
-                memory_start=100,
-                memory_peak=1500,
-                memory_end=150,
-                cpu_percent=50,
-            )
-        ]
-
-        warnings = monitor.check_thresholds(
-            timing_threshold_sec=5.0, memory_warning_mb=1000
+        monitor.metrics = [_metric("fast", duration=1.0, memory_peak=200)]
+        assert (
+            monitor.check_thresholds(timing_threshold_sec=5.0, memory_warning_mb=1000)
+            == []
         )
-        assert len(warnings) == 1
-        assert "hungry_step" in warnings[0]
-        assert "1500" in warnings[0]
 
-    @patch("src.utils.performance.psutil.Process")
-    def test_finish_pipeline_saves_to_history(self, mock_process_class):
-        """Test finish_pipeline writes to history manager."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
 
+class TestFinishPipeline:
+    def _monitor(
+        self, tmp: str
+    ) -> tuple[PerformanceMonitor, PerformanceHistoryManager]:
+        hm = PerformanceHistoryManager(history_dir=Path(tmp))
+        monitor = PerformanceMonitor(history_manager=hm)
+        monitor.start_pipeline(run_id="run-1", product_id="P1", profile_name="prof")
+        monitor.metrics = [_metric("s1")]
+        return monitor, hm
+
+    def test_saves_a_render_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            monitor, hm = self._monitor(tmp)
+            monitor.finish_pipeline(success=True)
+            (run,) = hm.get_run_history()
+        assert run.run_id == "run-1"
+        assert run.success is True
+        assert run.kind == RUN_KIND_RENDER
+        assert run.skipped is False
+        assert run.failed_step is None
+
+    def test_a_skip_is_not_a_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            monitor, hm = self._monitor(tmp)
+            monitor.finish_pipeline(
+                success=False, error_message="not enough media", skipped=True
+            )
+            (run,) = hm.get_run_history()
+        assert run.success is False
+        assert run.skipped is True
+
+    def test_a_failure_names_its_step(self):
+        """25 rows in the real file say only "Parallel pipeline execution
+        failed"; the step that raised was in the step metrics all along.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            monitor, hm = self._monitor(tmp)
+            monitor.metrics = [
+                _metric("generate_script"),
+                _metric("create_voiceover", errors=["TTS quota"]),
+            ]
+            monitor.finish_pipeline(
+                success=False, error_message="Parallel pipeline execution failed"
+            )
+            (run,) = hm.get_run_history()
+        assert run.failed_step == "create_voiceover"
+
+    def test_a_step_run_is_marked_as_one(self):
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
             monitor = PerformanceMonitor(history_manager=hm)
             monitor.start_pipeline(
-                run_id="run-1", product_id="P1", profile_name="profile1"
+                run_id="dbg", product_id="P1", profile_name="prof", kind=RUN_KIND_STEP
             )
-            monitor.metrics = [
-                PerformanceMetrics(
-                    step_name="s1",
-                    start_time=1000,
-                    end_time=1002,
-                    duration=2.0,
-                    memory_start=100,
-                    memory_peak=120,
-                    memory_end=110,
-                    cpu_percent=25,
-                )
-            ]
-
+            monitor.metrics = [_metric("gather_visuals")]
             monitor.finish_pipeline(success=True)
+            assert hm.get_run_history() == []
+            (run,) = hm.get_run_history(kind=None)
+        assert run.kind == RUN_KIND_STEP
 
-            runs = hm.get_run_history()
-            assert len(runs) == 1
-            assert runs[0].run_id == "run-1"
-            assert runs[0].success is True
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_finish_pipeline_no_history_manager(self, mock_process_class):
-        """Test finish_pipeline is a no-op without history manager."""
-        mock_process = Mock()
-        mock_process_class.return_value = mock_process
-
-        monitor = PerformanceMonitor()  # no history_manager
-        monitor.start_pipeline(run_id="run-1", product_id="P1", profile_name="profile1")
-        # Should not raise
+    def test_no_history_manager_is_a_no_op(self):
+        monitor = PerformanceMonitor()
+        monitor.start_pipeline(run_id="r", product_id="P1", profile_name="p")
         monitor.finish_pipeline(success=True)
 
 
+def _run(
+    run_id: str = "r1",
+    product_id: str = "P1",
+    profile_name: str = "prof1",
+    duration: float = 10.0,
+    success: bool = True,
+    timestamp: str = "2025-01-15T10:00:00+00:00",
+    kind: str = RUN_KIND_RENDER,
+) -> PipelineRunMetrics:
+    return PipelineRunMetrics(
+        run_id=run_id,
+        product_id=product_id,
+        profile_name=profile_name,
+        start_timestamp=timestamp,
+        end_timestamp=timestamp,
+        total_duration=duration,
+        total_memory_delta=5.0,
+        peak_memory=200.0,
+        total_cpu_percent=30.0,
+        step_metrics=[
+            {
+                "step_name": "gather_visuals",
+                "start_time": 1000,
+                "end_time": 1005,
+                "duration": duration / 2,
+                "memory_start": 100,
+                "memory_peak": 150,
+                "memory_end": 120,
+                "cpu_percent": 30,
+                "io_read_bytes": 0,
+                "io_write_bytes": 0,
+                "errors": [],
+                "metadata": {},
+            }
+        ],
+        success=success,
+        kind=kind,
+    )
+
+
 class TestPerformanceHistoryManager:
-    """Test performance history storage and retrieval."""
-
-    def _make_run(
-        self,
-        run_id: str = "r1",
-        product_id: str = "P1",
-        profile_name: str = "prof1",
-        duration: float = 10.0,
-        success: bool = True,
-        timestamp: str = "2025-01-15T10:00:00+00:00",
-    ) -> PipelineRunMetrics:
-        return PipelineRunMetrics(
-            run_id=run_id,
-            product_id=product_id,
-            profile_name=profile_name,
-            start_timestamp=timestamp,
-            end_timestamp=timestamp,
-            total_duration=duration,
-            total_memory_delta=5.0,
-            peak_memory=200.0,
-            total_cpu_percent=30.0,
-            step_metrics=[
-                {
-                    "step_name": "gather_visuals",
-                    "start_time": 1000,
-                    "end_time": 1005,
-                    "duration": duration / 2,
-                    "memory_start": 100,
-                    "memory_peak": 150,
-                    "memory_end": 120,
-                    "cpu_percent": 30,
-                    "io_read_bytes": 0,
-                    "io_write_bytes": 0,
-                    "errors": [],
-                    "metadata": {},
-                }
-            ],
-            success=success,
-        )
-
     def test_save_and_load_round_trip(self):
-        """Test saving and loading metrics preserves data."""
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
-            run = self._make_run(run_id="round-trip")
-            hm.save_run_metrics(run)
+            hm.save_run_metrics(_run(run_id="round-trip"))
+            (loaded,) = hm.get_run_history()
+        assert loaded.run_id == "round-trip"
+        assert loaded.total_duration == 10.0
 
-            loaded = hm.get_run_history()
-            assert len(loaded) == 1
-            assert loaded[0].run_id == "round-trip"
-            assert loaded[0].total_duration == 10.0
-            assert loaded[0].success is True
-
-    def test_cleanup_enforces_max_runs(self):
-        """Test that cleanup keeps only max_runs entries."""
+    def test_the_file_never_exceeds_max_runs(self):
+        """Trimmed on every save. The orchestrator builds a new manager per
+        render, so a per-instance every-Nth counter never fired and the
+        real file sat at 310 rows against a cap of 100.
+        """
         with tempfile.TemporaryDirectory() as tmp:
-            hm = PerformanceHistoryManager(history_dir=Path(tmp), max_runs=3)
-
-            # Save 5 runs (cleanup runs every 10 saves, so force it)
             for i in range(5):
-                run = self._make_run(
-                    run_id=f"r{i}",
-                    timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00",
+                hm = PerformanceHistoryManager(history_dir=Path(tmp), max_runs=3)
+                hm.save_run_metrics(
+                    _run(
+                        run_id=f"r{i}", timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00"
+                    )
                 )
-                hm.save_run_metrics(run)
-
-            hm.force_cleanup()
-
+            lines = hm.history_file.read_text().splitlines()
             loaded = hm.get_run_history()
-            assert len(loaded) == 3
-            # Should keep the 3 newest
-            run_ids = {r.run_id for r in loaded}
-            assert "r4" in run_ids
-            assert "r3" in run_ids
-            assert "r2" in run_ids
+        assert len(lines) == 3
+        assert {r.run_id for r in loaded} == {"r2", "r3", "r4"}
+
+    def test_reading_does_not_create_the_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "never"
+            hm = PerformanceHistoryManager(history_dir=target)
+            assert hm.get_run_history() == []
+            assert not target.exists()
+
+    def test_renders_only_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.save_run_metrics(_run(run_id="full"))
+            hm.save_run_metrics(_run(run_id="dbg", kind=RUN_KIND_STEP))
+            assert [r.run_id for r in hm.get_run_history()] == ["full"]
+            assert len(hm.get_run_history(kind=None)) == 2
+
+    def test_a_legacy_row_is_classified_by_its_steps(self):
+        """Rows written before `kind` existed: reaching assembly means a
+        render; a lone gather_visuals means a --step run.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            render = _run(run_id="old-render")
+            render.step_metrics.append(
+                dict(render.step_metrics[0], step_name="assemble_video")
+            )
+            probe = _run(run_id="old-probe")
+            hm.history_dir.mkdir(exist_ok=True)
+            with open(hm.history_file, "w") as f:
+                for row in (render, probe):
+                    data = {k: v for k, v in row.__dict__.items() if k != "kind"}
+                    data.pop("skipped")
+                    data.pop("failed_step")
+                    f.write(json.dumps(data) + "\n")
+            by_id = {r.run_id: r for r in hm.get_run_history(kind=None)}
+        assert by_id["old-render"].kind == RUN_KIND_RENDER
+        assert by_id["old-probe"].kind == RUN_KIND_STEP
+        assert by_id["old-render"].skipped is False
+
+    def test_unknown_keys_do_not_lose_the_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.history_dir.mkdir(exist_ok=True)
+            data = _run(run_id="future").__dict__ | {"some_new_field": 1}
+            hm.history_file.write_text(json.dumps(data) + "\n")
+            (loaded,) = hm.get_run_history()
+        assert loaded.run_id == "future"
 
     def test_product_filtering(self):
-        """Test get_metrics_for_product returns only matching runs."""
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
-            hm.save_run_metrics(self._make_run(run_id="r1", product_id="A"))
-            hm.save_run_metrics(self._make_run(run_id="r2", product_id="B"))
-            hm.save_run_metrics(self._make_run(run_id="r3", product_id="A"))
-
-            a_runs = hm.get_metrics_for_product("A")
-            assert len(a_runs) == 2
-            assert all(r.product_id == "A" for r in a_runs)
-
-            b_runs = hm.get_metrics_for_product("B")
-            assert len(b_runs) == 1
+            hm.save_run_metrics(_run(run_id="r1", product_id="A"))
+            hm.save_run_metrics(_run(run_id="r2", product_id="B"))
+            hm.save_run_metrics(_run(run_id="r3", product_id="A"))
+            assert len(hm.get_metrics_for_product("A")) == 2
+            assert len(hm.get_metrics_for_product("B")) == 1
 
     def test_empty_history(self):
-        """Test loading from nonexistent history file returns empty."""
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
             assert hm.get_run_history() == []
             assert hm.get_metrics_for_product("X") == []
 
     def test_corrupt_jsonl_handling(self):
-        """Test that corrupt lines are skipped gracefully."""
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
-
-            # Write one good and one bad line
-            good_run = self._make_run(run_id="good")
-            hm.save_run_metrics(good_run)
-
-            # Append a corrupt line
+            hm.save_run_metrics(_run(run_id="good"))
             with open(hm.history_file, "a") as f:
                 f.write("{this is not valid json}\n")
                 f.write('{"run_id": "bad", "missing_fields": true}\n')
-
-            loaded = hm.get_run_history()
-            assert len(loaded) == 1
-            assert loaded[0].run_id == "good"
+            (loaded,) = hm.get_run_history()
+        assert loaded.run_id == "good"
 
     def test_limit_on_get_run_history(self):
-        """Test limit parameter on get_run_history."""
         with tempfile.TemporaryDirectory() as tmp:
             hm = PerformanceHistoryManager(history_dir=Path(tmp))
             for i in range(5):
                 hm.save_run_metrics(
-                    self._make_run(
-                        run_id=f"r{i}",
-                        timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00",
+                    _run(
+                        run_id=f"r{i}", timestamp=f"2025-01-{15 + i:02d}T10:00:00+00:00"
                     )
                 )
-
-            loaded = hm.get_run_history(limit=2)
-            assert len(loaded) == 2
+            assert len(hm.get_run_history(limit=2)) == 2
 
 
 class TestPipelineRunMetrics:
-    """Test PipelineRunMetrics creation and factory methods."""
-
     def test_from_pipeline_summary_with_metrics(self):
-        """Test creating run metrics from pipeline summary."""
         metrics = [
-            PerformanceMetrics(
-                step_name="step1",
-                start_time=1000,
-                end_time=1005,
-                duration=5.0,
+            _metric(
+                "step1",
+                5.0,
                 memory_start=100,
                 memory_peak=200,
                 memory_end=150,
                 cpu_percent=40,
             ),
-            PerformanceMetrics(
-                step_name="step2",
-                start_time=1005,
-                end_time=1008,
-                duration=3.0,
+            _metric(
+                "step2",
+                3.0,
                 memory_start=150,
                 memory_peak=300,
                 memory_end=180,
                 cpu_percent=60,
             ),
         ]
-
         run = PipelineRunMetrics.from_pipeline_summary(
             run_id="test-run",
             product_id="PROD1",
@@ -578,17 +524,15 @@ class TestPipelineRunMetrics:
             end_time=1008.0,
             metrics=metrics,
         )
-
-        assert run.run_id == "test-run"
         assert run.total_duration == 8.0
-        assert run.peak_memory == 300  # max of 200 and 300
+        assert run.peak_memory == 300
         assert run.total_memory_delta == 80  # 180 - 100
-        assert run.total_cpu_percent == 50.0  # (40 + 60) / 2
+        assert run.total_cpu_percent == 50.0
         assert run.success is True
+        assert run.kind == RUN_KIND_RENDER
         assert len(run.step_metrics) == 2
 
     def test_from_pipeline_summary_empty_metrics(self):
-        """Test creating run metrics with no step metrics."""
         run = PipelineRunMetrics.from_pipeline_summary(
             run_id="empty",
             product_id="P1",
@@ -597,7 +541,6 @@ class TestPipelineRunMetrics:
             end_time=1005.0,
             metrics=[],
         )
-
         assert run.total_duration == 5.0
         assert run.peak_memory == 0
         assert run.total_memory_delta == 0
@@ -605,80 +548,21 @@ class TestPipelineRunMetrics:
         assert run.step_metrics == []
 
     def test_from_pipeline_summary_with_error(self):
-        """Test creating run metrics with error message."""
         run = PipelineRunMetrics.from_pipeline_summary(
             run_id="fail",
             product_id="P1",
             profile_name="prof",
             start_time=1000.0,
             end_time=1002.0,
-            metrics=[],
+            metrics=[_metric("assemble_video", errors=["ffmpeg exit 1"])],
             success=False,
             error_message="Something broke",
         )
-
         assert run.success is False
         assert run.error_message == "Something broke"
-
-
-class TestTimingDecorators:
-    """Test timing decorator functionality."""
-
-    @pytest.mark.asyncio
-    async def test_async_timer_decorator(self):
-        """Test async timing decorator."""
-
-        @async_timer
-        async def test_async_function():
-            await asyncio.sleep(0.01)
-            return "result"
-
-        result = await test_async_function()
-        assert result == "result"
-
-    @pytest.mark.asyncio
-    async def test_async_timer_with_exception(self):
-        """Test async timer with exception."""
-
-        @async_timer
-        async def test_async_function():
-            await asyncio.sleep(0.01)
-            raise ValueError("Test error")
-
-        with pytest.raises(ValueError):
-            await test_async_function()
-
-    def test_timer_decorator(self):
-        """Test synchronous timing decorator."""
-
-        @timer
-        def test_function():
-            import time
-
-            time.sleep(0.01)
-            return "result"
-
-        result = test_function()
-        assert result == "result"
-
-    def test_timer_with_exception(self):
-        """Test timer with exception."""
-
-        @timer
-        def test_function():
-            import time
-
-            time.sleep(0.01)
-            raise ValueError("Test error")
-
-        with pytest.raises(ValueError):
-            test_function()
+        assert run.failed_step == "assemble_video"
 
 
 class TestGlobalMonitor:
-    """Test global performance monitor instance."""
-
     def test_global_monitor_exists(self):
-        """Test that global monitor instance exists."""
-        assert performance_monitor is not None
         assert isinstance(performance_monitor, PerformanceMonitor)

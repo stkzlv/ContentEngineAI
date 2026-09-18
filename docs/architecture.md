@@ -758,12 +758,20 @@ ContentEngineAI implements five optimization categories: pipeline parallelizatio
 
 **Real-Time Tracking:**
 - Step-by-step timing and resource usage
-- Memory usage and CPU utilization monitoring
-- Historical data persistence (JSONL format)
+- Memory is the RSS of the whole process tree (ffmpeg, the subtitle
+  renderer's Chromium and the STT subprocess included), with the peak
+  sampled from a thread so a step that blocks the event loop is still read
+- CPU is the process tree's CPU time over the step's wall time
+- Historical data persistence (JSONL format), one row per run, capped at
+  `optimization_settings.performance_history_max_runs` and trimmed on every
+  save
 
 **Monitoring Components:**
 - `PerformanceMonitor`: Real-time metrics collection
-- `PerformanceHistoryManager`: Historical data management
+- `PerformanceHistoryManager`: Historical data management. Each row carries
+  a `kind` (`render` for a full pipeline, `step` for a `--step` debug run),
+  `skipped` for a product dropped for insufficient media, and `failed_step`
+  for a failed run; reports read renders only
 - Cross-session analysis and trend detection
 
 **Reporting Tools:**

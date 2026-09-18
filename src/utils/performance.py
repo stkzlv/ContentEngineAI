@@ -1,16 +1,32 @@
 """Performance measurement and monitoring utilities.
 
-This module provides tools for measuring and tracking performance metrics
-during video production pipeline execution. It includes timing utilities,
-memory monitoring, and pipeline profiling capabilities.
+Measures each render step (wall time, memory, CPU, I/O) and keeps one JSONL
+row per pipeline run under `outputs/performance_history/`, which
+`tools/performance_report.py` reads.
+
+What the numbers mean, because two of them used to mean less than they said:
+
+- Memory is the RSS of the whole process tree: this process plus every
+  child (ffmpeg, the subtitle renderer's Chromium, the STT subprocess). The
+  children are where a render's memory goes, and the notes' OOM entries are
+  about them; the Python process alone is a fraction of it. The peak is
+  sampled from a thread, so it is read even while a step blocks the event
+  loop.
+- `cpu_percent` on a step is the process tree's CPU time during the step
+  over the step's wall time, times 100. It is well-defined under parallel
+  steps, where a sample of "CPU since the last sample" was not.
+- A run's `kind` says what kind of invocation wrote it: `render` for a full
+  pipeline, `step` for a `--step` debug run. The report tool reads renders
+  only, since a two-second single-step run in the same file used to drag
+  every average down.
 """
 
-import asyncio
-import functools
+import dataclasses
 import json
 import logging
+import threading
 import time
-from collections.abc import Callable
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -21,10 +37,17 @@ import psutil
 
 logger = logging.getLogger(__name__)
 
+RUN_KIND_RENDER = "render"
+RUN_KIND_STEP = "step"
+
+# The step every full render ends on. A legacy row (no `kind`) that recorded
+# it was a render; one that did not was a single-step debug run.
+_RENDER_MARKER_STEP = "assemble_video"
+
 
 @dataclass
 class PerformanceMetrics:
-    """Container for performance measurement data."""
+    """Measurements for one pipeline step."""
 
     step_name: str
     start_time: float
@@ -52,7 +75,7 @@ class PerformanceMetrics:
 
 @dataclass
 class PipelineRunMetrics:
-    """Complete metrics for a single pipeline run."""
+    """Complete metrics for a single pipeline run: one history row."""
 
     run_id: str
     product_id: str
@@ -66,6 +89,9 @@ class PipelineRunMetrics:
     step_metrics: list[dict[str, Any]]  # Serialized PerformanceMetrics
     success: bool
     error_message: str | None = None
+    kind: str = RUN_KIND_RENDER
+    skipped: bool = False
+    failed_step: str | None = None
 
     @classmethod
     def from_pipeline_summary(
@@ -78,17 +104,21 @@ class PipelineRunMetrics:
         metrics: list[PerformanceMetrics],
         success: bool = True,
         error_message: str | None = None,
+        kind: str = RUN_KIND_RENDER,
+        skipped: bool = False,
     ) -> "PipelineRunMetrics":
-        """Create from pipeline summary data."""
+        """Build a row from a run's step metrics.
+
+        `total_memory_delta` is the net change from the first step's start
+        to the last step's end, the one definition `get_pipeline_summary`
+        also uses. `failed_step` is the first step that recorded an error.
+        """
         start_timestamp = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
         end_timestamp = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
 
-        # Calculate aggregate metrics
-        total_duration = end_time - start_time
-        memory_start = metrics[0].memory_start if metrics else 0
-        memory_end = metrics[-1].memory_end if metrics else 0
-        peak_memory = max(m.memory_peak for m in metrics) if metrics else 0
+        peak_memory = max((m.memory_peak for m in metrics), default=0.0)
         avg_cpu = sum(m.cpu_percent for m in metrics) / len(metrics) if metrics else 0
+        failed_step = next((m.step_name for m in metrics if m.errors), None)
 
         return cls(
             run_id=run_id,
@@ -96,117 +126,157 @@ class PipelineRunMetrics:
             profile_name=profile_name,
             start_timestamp=start_timestamp,
             end_timestamp=end_timestamp,
-            total_duration=total_duration,
-            total_memory_delta=memory_end - memory_start,
+            total_duration=end_time - start_time,
+            total_memory_delta=_net_memory_delta(metrics),
             peak_memory=peak_memory,
             total_cpu_percent=avg_cpu,
             step_metrics=[asdict(m) for m in metrics],
             success=success,
             error_message=error_message,
+            kind=kind,
+            skipped=skipped,
+            failed_step=failed_step,
         )
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> "PipelineRunMetrics":
+        """Load a history row, tolerating fields added or dropped since.
+
+        Unknown keys are ignored rather than failing the row, and a row
+        written before `kind` existed is classified by what it recorded: a
+        run that reached the assembly step was a render, anything else a
+        single-step debug run.
+        """
+        known = {f.name for f in dataclasses.fields(cls)}
+        data = {k: v for k, v in row.items() if k in known}
+        if "kind" not in data:
+            steps = {s.get("step_name") for s in data.get("step_metrics") or []}
+            data["kind"] = (
+                RUN_KIND_RENDER if _RENDER_MARKER_STEP in steps else RUN_KIND_STEP
+            )
+        return cls(**data)
+
+
+def _net_memory_delta(metrics: list[PerformanceMetrics]) -> float:
+    """Memory change across a run: last step's end minus first step's start."""
+    if not metrics:
+        return 0.0
+    return metrics[-1].memory_end - metrics[0].memory_start
 
 
 class PerformanceHistoryManager:
-    """Manages historical performance metrics storage and retrieval."""
+    """One JSONL file of run rows, capped at `max_runs`, newest kept."""
 
-    def __init__(
-        self, history_dir: Path, max_runs: int = 100, cleanup_interval: int = 10
-    ):
+    def __init__(self, history_dir: Path, max_runs: int = 100):
         self.history_dir = Path(history_dir)
         self.max_runs = max_runs
-        self.cleanup_interval = cleanup_interval
         self.history_file = self.history_dir / "performance_history.jsonl"
-        self._save_count = 0
-
-        # Ensure directory exists
-        self.history_dir.mkdir(parents=True, exist_ok=True)
 
     def save_run_metrics(self, run_metrics: PipelineRunMetrics) -> None:
-        """Save a pipeline run's metrics to history."""
+        """Append a run and trim the file to `max_runs`.
+
+        Trimmed on every save, not every Nth: the orchestrator builds a new
+        manager per render, so a per-instance counter never reached N and
+        the file grew without bound.
+        """
         try:
-            # Append to JSONL file
+            self.history_dir.mkdir(parents=True, exist_ok=True)
             with open(self.history_file, "a") as f:
                 f.write(json.dumps(asdict(run_metrics)) + "\n")
-
-            self._save_count += 1
-
-            if self._save_count % self.cleanup_interval == 0:
-                self._cleanup_old_runs()
-
+            self._trim()
             logger.debug("Saved run metrics for %s", run_metrics.run_id)
-
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.error("Failed to save run metrics: %s", e)
 
-    def _cleanup_old_runs(self) -> None:
-        """Remove old runs to maintain max_runs limit."""
+    def _rows(self) -> Iterator[dict[str, Any]]:
+        with open(self.history_file) as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError as e:
+                    logger.warning("Skipping corrupt history line: %s", e)
+
+    def _trim(self) -> None:
+        """Keep only the newest `max_runs` rows, by start timestamp."""
         if not self.history_file.exists():
             return
-
         try:
-            # Read all runs
-            runs = []
-            with open(self.history_file) as f:
-                for line in f:
-                    if line.strip():
-                        runs.append(json.loads(line))
+            rows = list(self._rows())
+            if len(rows) <= self.max_runs:
+                return
+            rows.sort(key=lambda x: x.get("start_timestamp", ""), reverse=True)
+            rows = rows[: self.max_runs]
+            with open(self.history_file, "w") as f:
+                for row in rows:
+                    f.write(json.dumps(row) + "\n")
+            logger.debug("Trimmed history to the %d most recent runs", len(rows))
+        except OSError as e:
+            logger.error("Failed to trim run history: %s", e)
 
-            # Keep only the most recent max_runs
-            if len(runs) > self.max_runs:
-                # Sort by start_timestamp and keep the newest
-                runs.sort(key=lambda x: x["start_timestamp"], reverse=True)
-                runs = runs[: self.max_runs]
-
-                # Rewrite the file
-                with open(self.history_file, "w") as f:
-                    for run in runs:
-                        f.write(json.dumps(run) + "\n")
-
-                logger.debug("Cleaned up old runs, keeping %d most recent", len(runs))
-
-        except Exception as e:
-            logger.error("Failed to cleanup old runs: %s", e)
-
-    def force_cleanup(self) -> None:
-        """Force a cleanup check regardless of save counter."""
-        self._cleanup_old_runs()
-
-    def get_run_history(self, limit: int | None = None) -> list[PipelineRunMetrics]:
-        """Get historical run metrics."""
+    def get_run_history(
+        self, limit: int | None = None, kind: str | None = RUN_KIND_RENDER
+    ) -> list[PipelineRunMetrics]:
+        """Runs newest first; `kind=None` returns every kind."""
         if not self.history_file.exists():
             return []
 
         runs = []
         try:
-            with open(self.history_file) as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            run_data = json.loads(line)
-                            runs.append(PipelineRunMetrics(**run_data))
-                        except (json.JSONDecodeError, TypeError) as e:
-                            logger.warning("Skipping corrupt history line: %s", e)
-                            continue
-
-            # Sort by timestamp (newest first)
-            runs.sort(key=lambda x: x.start_timestamp, reverse=True)
-
-            if limit:
-                runs = runs[:limit]
-
-            return runs
-
-        except Exception as e:
+            for row in self._rows():
+                try:
+                    runs.append(PipelineRunMetrics.from_row(row))
+                except TypeError as e:
+                    logger.warning("Skipping corrupt history line: %s", e)
+        except OSError as e:
             logger.error("Failed to load run history: %s", e)
             return []
+
+        if kind is not None:
+            runs = [r for r in runs if r.kind == kind]
+        runs.sort(key=lambda x: x.start_timestamp, reverse=True)
+        if limit:
+            runs = runs[:limit]
+        return runs
 
     def get_metrics_for_product(
         self, product_id: str, limit: int = 10
     ) -> list[PipelineRunMetrics]:
-        """Get metrics for a specific product."""
+        """Renders of one product, newest first."""
         all_runs = self.get_run_history()
         product_runs = [run for run in all_runs if run.product_id == product_id]
         return product_runs[:limit]
+
+
+class _PeakSampler:
+    """Samples a callable on a thread and keeps the maximum it saw.
+
+    A thread rather than an asyncio task so the peak is still read while a
+    step blocks the event loop, which the heavy steps do.
+    """
+
+    def __init__(self, read, interval: float, initial: float):
+        self._read = read
+        self._interval = max(interval, 0.01)
+        self.peak = initial
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval):
+            try:
+                self.peak = max(self.peak, self._read())
+            except psutil.Error as e:
+                logger.warning("Memory sampling error: %s", e)
+                return
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2.0)
 
 
 class PerformanceMonitor:
@@ -228,6 +298,7 @@ class PerformanceMonitor:
         self.current_run_id: str | None = None
         self.current_product_id: str | None = None
         self.current_profile_name: str | None = None
+        self.current_kind: str = RUN_KIND_RENDER
 
     def reset(
         self,
@@ -245,6 +316,7 @@ class PerformanceMonitor:
         self.current_run_id = None
         self.current_product_id = None
         self.current_profile_name = None
+        self.current_kind = RUN_KIND_RENDER
         if history_manager is not None:
             self.history_manager = history_manager
         if memory_monitor_interval is not None:
@@ -255,6 +327,7 @@ class PerformanceMonitor:
         run_id: str | None = None,
         product_id: str | None = None,
         profile_name: str | None = None,
+        kind: str = RUN_KIND_RENDER,
     ) -> None:
         """Mark the start of pipeline execution."""
         self.pipeline_start = time.time()
@@ -264,19 +337,32 @@ class PerformanceMonitor:
         self.current_run_id = run_id
         self.current_product_id = product_id
         self.current_profile_name = profile_name
+        self.current_kind = kind
 
         logger.debug("Pipeline performance monitoring started for run %s", run_id)
 
     def get_memory_usage(self) -> float:
-        """Get current memory usage in MB."""
-        memory_info = self.process.memory_info()
-        memory_mb: float = memory_info.rss / 1024 / 1024
-        return memory_mb
+        """RSS of this process and every child, in MB."""
+        rss = self.process.memory_info().rss
+        try:
+            for child in self.process.children(recursive=True):
+                try:
+                    rss += child.memory_info().rss
+                except psutil.Error:
+                    continue  # exited between listing and reading
+        except psutil.Error as e:
+            logger.debug("Could not list child processes: %s", e)
+        return rss / 1024 / 1024
 
-    def get_cpu_percent(self) -> float:
-        """Get current CPU usage percentage."""
-        cpu_percent: float = self.process.cpu_percent()
-        return cpu_percent
+    def _cpu_seconds(self) -> float:
+        """CPU time consumed so far by this process and its children."""
+        t = self.process.cpu_times()
+        return (
+            t.user
+            + t.system
+            + getattr(t, "children_user", 0.0)
+            + getattr(t, "children_system", 0.0)
+        )
 
     def get_io_stats(self) -> tuple[int, int]:
         """Get I/O read and write bytes."""
@@ -289,30 +375,13 @@ class PerformanceMonitor:
         start_time = time.time()
         memory_start = self.get_memory_usage()
         io_read_start, io_write_start = self.get_io_stats()
+        cpu_start = self._cpu_seconds()
 
-        # Start CPU monitoring
-        self.process.cpu_percent()  # Initialize CPU measurement
-
-        memory_peak = memory_start
-        errors = []
-
-        interval = self.memory_monitor_interval
-
-        # Memory monitoring task
-        async def monitor_memory():
-            nonlocal memory_peak
-            while True:
-                try:
-                    current_memory = self.get_memory_usage()
-                    memory_peak = max(memory_peak, current_memory)
-                    await asyncio.sleep(interval)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.warning("Memory monitoring error: %s", e)
-                    break
-
-        monitor_task = asyncio.create_task(monitor_memory())
+        sampler = _PeakSampler(
+            self.get_memory_usage, self.memory_monitor_interval, memory_start
+        )
+        sampler.start()
+        errors: list[str] = []
 
         try:
             self.current_step = step_name
@@ -322,22 +391,21 @@ class PerformanceMonitor:
             errors.append(str(e))
             raise
         finally:
-            monitor_task.cancel()
-            from contextlib import suppress
-
-            with suppress(asyncio.CancelledError):
-                await monitor_task
+            sampler.stop()
 
             end_time = time.time()
+            duration = end_time - start_time
             memory_end = self.get_memory_usage()
-            cpu_percent = self.get_cpu_percent()
+            memory_peak = max(sampler.peak, memory_start, memory_end)
+            cpu_seconds = self._cpu_seconds() - cpu_start
+            cpu_percent = (cpu_seconds / duration * 100) if duration > 0 else 0.0
             io_read_end, io_write_end = self.get_io_stats()
 
             metrics = PerformanceMetrics(
                 step_name=step_name,
                 start_time=start_time,
                 end_time=end_time,
-                duration=end_time - start_time,
+                duration=duration,
                 memory_start=memory_start,
                 memory_peak=memory_peak,
                 memory_end=memory_end,
@@ -368,7 +436,6 @@ class PerformanceMonitor:
             return {}
 
         total_duration = time.time() - self.pipeline_start
-        total_memory_delta = sum(m.memory_delta for m in self.metrics)
         total_io_read = sum(m.io_read_bytes for m in self.metrics)
         total_io_write = sum(m.io_write_bytes for m in self.metrics)
         avg_cpu = sum(m.cpu_percent for m in self.metrics) / len(self.metrics)
@@ -380,7 +447,8 @@ class PerformanceMonitor:
 
         return {
             "total_duration": total_duration,
-            "total_memory_delta_mb": total_memory_delta,
+            "total_memory_delta_mb": _net_memory_delta(self.metrics),
+            "peak_memory_mb": max(m.memory_peak for m in self.metrics),
             "total_io_read_mb": total_io_read / 1024 / 1024,
             "total_io_write_mb": total_io_write / 1024 / 1024,
             "average_cpu_percent": avg_cpu,
@@ -423,21 +491,12 @@ class PerformanceMonitor:
         logger.debug("Performance metrics saved to %s", output_path)
 
     def check_thresholds(
-        self,
-        timing_threshold_sec: float = 5.0,
-        memory_warning_mb: int = 1000,
+        self, timing_threshold_sec: float, memory_warning_mb: int
     ) -> list[str]:
-        """Check metrics against thresholds and return warnings.
+        """Warnings for steps over the timing or memory threshold.
 
-        Args:
-        ----
-            timing_threshold_sec: Warn if any step exceeds this duration.
-            memory_warning_mb: Warn if peak memory exceeds this value.
-
-        Returns:
-        -------
-            List of warning strings (empty if everything is within thresholds).
-
+        No defaults here: the thresholds live on `DebugSettings`, and a
+        second set of defaults in this method drifted from them.
         """
         warnings: list[str] = []
 
@@ -456,9 +515,17 @@ class PerformanceMonitor:
         return warnings
 
     def finish_pipeline(
-        self, success: bool = True, error_message: str | None = None
+        self,
+        success: bool = True,
+        error_message: str | None = None,
+        skipped: bool = False,
     ) -> None:
-        """Mark the end of pipeline execution and save to history if configured."""
+        """Mark the end of pipeline execution and save to history if configured.
+
+        A skip (insufficient media) is recorded as `skipped`, not as a
+        failure: it is an expected outcome for some products, and counting
+        it as failed made the success rate say something else.
+        """
         if not self.history_manager or not self.pipeline_start:
             return
 
@@ -471,7 +538,6 @@ class PerformanceMonitor:
             return
 
         try:
-            # Create pipeline run metrics
             run_metrics = PipelineRunMetrics.from_pipeline_summary(
                 run_id=self.current_run_id,
                 product_id=self.current_product_id,
@@ -481,56 +547,13 @@ class PerformanceMonitor:
                 metrics=self.metrics,
                 success=success,
                 error_message=error_message,
+                kind=self.current_kind,
+                skipped=skipped,
             )
-
-            # Save to history
             self.history_manager.save_run_metrics(run_metrics)
             logger.debug("Pipeline run %s saved to history", self.current_run_id)
-
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.error("Failed to save pipeline run to history: %s", e)
-
-    def get_history_manager(self) -> PerformanceHistoryManager | None:
-        """Get the associated history manager."""
-        return self.history_manager
-
-
-def async_timer(func: Callable) -> Callable:
-    """Decorator to time async function execution."""
-
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        try:
-            result = await func(*args, **kwargs)
-            duration = time.time() - start_time
-            logger.debug("%s completed in %.3fs", func.__name__, duration)
-            return result
-        except Exception as e:
-            duration = time.time() - start_time
-            logger.error("%s failed after %.3fs: %s", func.__name__, duration, e)
-            raise
-
-    return wrapper
-
-
-def timer(func: Callable) -> Callable:
-    """Decorator to time synchronous function execution."""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        try:
-            result = func(*args, **kwargs)
-            duration = time.time() - start_time
-            logger.debug("%s completed in %.3fs", func.__name__, duration)
-            return result
-        except Exception as e:
-            duration = time.time() - start_time
-            logger.error("%s failed after %.3fs: %s", func.__name__, duration, e)
-            raise
-
-    return wrapper
 
 
 # Global performance monitor instance
