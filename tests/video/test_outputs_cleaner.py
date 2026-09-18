@@ -116,3 +116,41 @@ class TestARealRunKeepsWhatIsNotItsToTake:
         _config_on(root).cleanup_outputs_directory(dry_run=False)
 
         assert not stray.exists()
+
+
+class TestTheToolsForceFlag:
+    def test_force_runs_a_cleaner_the_config_disabled(self, root: Path):
+        stray = root / "stray.dat"
+        stray.write_text("x")
+        _age(stray)
+        config = _config_on(root)
+        config.cleanup_settings.enabled = False
+
+        assert config.cleanup_outputs_directory(dry_run=False)["status"] == "disabled"
+        assert stray.exists()
+
+        report = config.cleanup_outputs_directory(dry_run=False, force=True)
+
+        assert report["statistics"]["files_removed"] == 1
+        assert not stray.exists()
+
+    def test_the_tool_passes_it_through(self):
+        """The flag proceeded past the tool's own check and stopped at the
+        cleaner's, so `--force` printed "disabled" and exited 1 regardless.
+        """
+        from src.utils.outputs_paths import get_project_root
+
+        source = (get_project_root() / "tools/cleanup_outputs.py").read_text()
+        assert "force=args.force" in source
+
+
+class TestADanglingSymlinkIsNotAnError:
+    def test_it_is_removed_and_the_run_reports_no_error(self, root: Path):
+        link = root / "dangling"
+        link.symlink_to(root / "missing")
+
+        report = _config_on(root).cleanup_outputs_directory(dry_run=False)
+
+        assert not link.is_symlink()
+        assert report["statistics"]["errors"] == 0
+        assert report["statistics"]["files_removed"] == 1

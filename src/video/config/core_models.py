@@ -1118,20 +1118,22 @@ class VideoConfig(BaseModel):
         """Legacy method - redirects to get_product_paths for backward compatibility."""
         return self.get_product_paths(product_id, profile_name, cli_overrides)
 
-    def cleanup_outputs_directory(self, dry_run: bool | None = None) -> dict[str, Any]:
+    def cleanup_outputs_directory(
+        self, dry_run: bool | None = None, *, force: bool = False
+    ) -> dict[str, Any]:
         """Clean up unexpected files and directories in outputs directory.
 
         Args:
         ----
             dry_run: Override config dry_run setting if provided
-
+            force: Run even when the config disables cleanup
 
         Returns:
         -------
             Dictionary with cleanup statistics and actions taken
 
         """
-        if not self.cleanup_settings.enabled:
+        if not self.cleanup_settings.enabled and not force:
             logger.info("Cleanup is disabled in configuration")
             return {"status": "disabled", "actions": []}
 
@@ -1322,6 +1324,25 @@ class VideoConfig(BaseModel):
                     logger.debug("Removed directory: %s", path)
                 else:
                     logger.debug("Would remove directory: %s", path)
+
+            elif path.is_symlink():
+                # A dangling link is neither a file nor a directory; it used
+                # to fall through with no action, and the caller's read of
+                # action["action"] raised and was counted as an error.
+                action.update(
+                    {
+                        "action": "removed_file"
+                        if not dry_run
+                        else "would_remove_file",
+                        "size": 0,
+                    }
+                )
+                if not dry_run:
+                    path.unlink()
+                    logger.debug("Removed dangling link: %s", path)
+
+            else:
+                return None
 
             return action
 
