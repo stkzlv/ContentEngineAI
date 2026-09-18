@@ -17,7 +17,7 @@ from src.ai.llm_settings import LLMSettings
 # Platform-specific metadata models (no circular import after extracting LLMSettings)
 from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
-from src.utils.outputs_paths import GLOBAL_DIR_NAMES
+from src.utils.outputs_paths import GLOBAL_DIR_NAMES, is_product_directory
 from src.video.config.audio_models import (
     AudioProcessingSettings,
     AudioSettings,
@@ -1098,13 +1098,14 @@ class VideoConfig(BaseModel):
         return product_dir / self.output_structure.product_files.scraped_data
 
     def get_expected_global_paths(self) -> set[Path]:
-        """Generate expected global directory paths."""
-        expected = set()
-        global_paths = self.get_global_paths()
+        """Directories under the outputs root the cleaner never touches.
 
-        for path in global_paths.values():
-            expected.add(path)
-
+        The configured global directories plus every shared global name, so
+        the performance history is not an "unexpected" directory.
+        """
+        root = self.global_output_root_path
+        expected = set(self.get_global_paths().values())
+        expected.update(root / name for name in GLOBAL_DIR_NAMES)
         return expected
 
     # Legacy method name for backward compatibility
@@ -1244,23 +1245,22 @@ class VideoConfig(BaseModel):
             except ValueError:
                 continue
 
-        # Check if path matches expected patterns
         rel_path = path.relative_to(self.global_output_root_path)
-
-        # Videos structure: videos/{product_id}/{profile_name}/...
-        if (
-            rel_path.parts
-            and rel_path.parts[0] == "videos"  # Static videos directory
-            and len(rel_path.parts) >= 3
-        ):  # Has product_id and profile_name
+        if not rel_path.parts:
             return True
+        top = self.global_output_root_path / rel_path.parts[0]
+        if not is_product_directory(top):
+            return False
 
-        # Scraper structure: data/{platform}/{run_id}/...
-        return bool(
-            rel_path.parts
-            and rel_path.parts[0] == "data"  # Static data directory
-            and len(rel_path.parts) >= 3
-        )  # Has platform and run_id
+        # A product directory is a container: the publisher's cleanup takes
+        # it once the product is published. This cleaner ages out only the
+        # files under its temp/ subdirectory (the empty-directory pass then
+        # takes the emptied temp/). Directories were removed regardless of
+        # age, so before this rule a fresh product directory was "unexpected"
+        # and went whole.
+        temp_name = self.output_structure.product_subdirs.temp
+        inside_temp = len(rel_path.parts) >= 3 and rel_path.parts[1] == temp_name
+        return not (inside_temp and path.is_file())
 
     def _should_preserve(self, path: Path) -> bool:
         """Check if path matches preserve patterns."""

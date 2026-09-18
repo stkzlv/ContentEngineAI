@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.122.2] - 2026-09-18
+
+### Fixed
+- `make clean-outputs` no longer removes product directories, topic directories or the performance history: the cleaner treated any directory it did not expect as removable whatever its age, and it expected only the four configured global directories. A product directory is now a container whose files under `temp/` age out individually, and every global directory is expected.
+
 ## [0.122.1] - 2026-09-18
 
 ### Fixed
