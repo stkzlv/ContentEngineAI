@@ -14,11 +14,14 @@ What the numbers mean, because two of them used to mean less than they said:
   loop.
 - `cpu_percent` on a step is the process tree's CPU time during the step
   over the step's wall time, times 100. It is well-defined under parallel
-  steps, where a sample of "CPU since the last sample" was not.
+  steps, where a sample of "CPU since the last sample" was not. A child's
+  time counts when the child is waited for, which for ffmpeg and the
+  subtitle renderer is inside the step that ran it; a child that outlives
+  its step is charged to the step that reaps it.
 - A run's `kind` says what kind of invocation wrote it: `render` for a full
   pipeline, `step` for a `--step` debug run. The report tool reads renders
-  only, since a two-second single-step run in the same file used to drag
-  every average down.
+  only, since single-step runs in the same file, many of them seconds
+  long, used to drag every average down.
 """
 
 import dataclasses
@@ -41,7 +44,8 @@ RUN_KIND_RENDER = "render"
 RUN_KIND_STEP = "step"
 
 # The step every full render ends on. A legacy row (no `kind`) that recorded
-# it was a render; one that did not was a single-step debug run.
+# it, and more than it, was a render; a row with one step was a `--step` run
+# whatever the step, `--step assemble_video` included.
 _RENDER_MARKER_STEP = "assemble_video"
 
 
@@ -144,8 +148,8 @@ class PipelineRunMetrics:
 
         Unknown keys are ignored rather than failing the row, and a row
         written before `kind` existed is classified by what it recorded: a
-        run that reached the assembly step was a render, anything else a
-        single-step debug run.
+        run of more than one step that reached assembly was a render,
+        anything else a single-step debug run.
         """
         known = {f.name for f in dataclasses.fields(cls)}
         data = {k: v for k, v in row.items() if k in known}
@@ -160,7 +164,9 @@ def _row_kind(row: dict[str, Any]) -> str:
         return kind
     steps = row.get("step_metrics") or []
     names = {s.get("step_name") for s in steps if isinstance(s, dict)}
-    return RUN_KIND_RENDER if _RENDER_MARKER_STEP in names else RUN_KIND_STEP
+    if len(names) > 1 and _RENDER_MARKER_STEP in names:
+        return RUN_KIND_RENDER
+    return RUN_KIND_STEP
 
 
 def _net_memory_delta(metrics: list[PerformanceMetrics]) -> float:
@@ -200,9 +206,14 @@ class PerformanceHistoryManager:
                 if not line.strip():
                     continue
                 try:
-                    yield json.loads(line)
+                    row = json.loads(line)
                 except json.JSONDecodeError as e:
                     logger.warning("Skipping corrupt history line: %s", e)
+                    continue
+                if not isinstance(row, dict):
+                    logger.warning("Skipping corrupt history line: not an object")
+                    continue
+                yield row
 
     def _trim(self) -> None:
         """Keep the newest `max_runs` rows of each kind, by start timestamp.
@@ -286,6 +297,9 @@ class _PeakSampler:
                 self.peak = max(self.peak, self._read())
             except psutil.Error as e:
                 logger.warning("Memory sampling error: %s", e)
+                return
+            except Exception:  # noqa: BLE001 - the thread would die silently
+                logger.exception("Memory sampler stopped; peak frozen at last sample")
                 return
 
     def start(self) -> None:

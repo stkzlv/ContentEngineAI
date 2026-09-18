@@ -594,3 +594,43 @@ class TestTheCapIsPerKind:
             steps = hm.get_run_history(kind=RUN_KIND_STEP)
         assert {r.run_id for r in renders} == {"render0", "render1", "render2"}
         assert {r.run_id for r in steps} == {"step2", "step3", "step4"}
+
+
+class TestCorruptLines:
+    def test_a_non_object_line_is_skipped_everywhere(self):
+        """`null`, `[]` or `"x"` decode fine and used to raise out of every
+        read; since the trim runs on each save, one such line turned every
+        later render into a reported failure.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp), max_runs=1)
+            hm.save_run_metrics(_run(run_id="good"))
+            with open(hm.history_file, "a") as f:
+                f.write('null\n[]\n"x"\n')
+            hm.save_run_metrics(
+                _run(run_id="newer", timestamp="2025-02-01T10:00:00+00:00")
+            )
+            (loaded,) = hm.get_run_history()
+        assert loaded.run_id == "newer"
+
+
+class TestALoneAssemblyStepIsAStepRun:
+    def test_legacy_single_assemble_video_row_is_not_a_render(self):
+        """19 rows in the real file were `--step assemble_video` runs from a
+        two-day assembly-debugging window; by step name alone they read as
+        renders, which is the shape the kind exists to exclude.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            row = _run(run_id="asm-only")
+            row.step_metrics[0]["step_name"] = "assemble_video"
+            hm.history_dir.mkdir(exist_ok=True)
+            data = {
+                k: v
+                for k, v in row.__dict__.items()
+                if k not in ("kind", "skipped", "failed_step")
+            }
+            hm.history_file.write_text(json.dumps(data) + "\n")
+            assert hm.get_run_history() == []
+            (loaded,) = hm.get_run_history(kind=None)
+        assert loaded.kind == RUN_KIND_STEP
