@@ -651,3 +651,34 @@ class TestCleanupAll:
         # First succeeds, second fails (no tracking)
         assert result["cleaned"] == 1
         assert result["skipped"] == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_all_leaves_the_global_directories_alone(
+    temp_outputs_dir, mock_publisher, caplog
+):
+    """The state, log and cache directories are not products.
+
+    Cleanup kept its own short skip list, so these went through the
+    per-product path and each logged a missing-record warning per platform.
+    """
+    config = CleanupConfig(enabled=True, verify_before_delete=False)
+    product_dir = temp_outputs_dir / "B0TEST001"
+    product_dir.mkdir()
+    (product_dir / "video.mp4").write_text("video")
+    create_tracking_file(temp_outputs_dir, "B0TEST001", "youtube", "post1")
+    globals_present = ("state", "logs", "cache", "videos", "performance_history")
+    for name in globals_present:
+        (temp_outputs_dir / name).mkdir(exist_ok=True)
+
+    manager = CleanupManager(temp_outputs_dir, config, mock_publisher)
+    with caplog.at_level("WARNING"):
+        result = await manager.cleanup_all([Platform.YOUTUBE])
+
+    assert result["cleaned"] == 1
+    assert result["skipped"] == 0
+    for name in globals_present:
+        assert (temp_outputs_dir / name).exists()
+        assert not any(
+            f"record found for {name} " in r.message for r in caplog.records
+        ), name

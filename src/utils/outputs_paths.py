@@ -20,6 +20,42 @@ logger = logging.getLogger(__name__)
 # provider's retention and are then unrecoverable at any price.
 STATE_DIR_NAME = "state"
 
+# Directories under the outputs root that are not products. Four scans kept
+# their own lists (batch cleanup, the producer's batch discovery, the
+# structure validator, the empty-directory sweep) and disagreed: cleanup's
+# was the shortest, so the
+# state, log and cache directories went through per-product cleanup and
+# warned for each on every platform, and the validator counted the state
+# directory as unexpected, which strict cleanup removes.
+GLOBAL_DIR_NAMES: frozenset[str] = frozenset(
+    {
+        "cache",
+        "logs",
+        "reports",
+        "temp",
+        "performance_history",
+        STATE_DIR_NAME,
+        "data",
+        "videos",
+        "coverage",
+        "error_logs",
+        "output",
+        "outputs",
+        "archive",
+        "unknown_product",
+        "__pycache__",
+    }
+)
+
+
+def is_product_directory(path: Path) -> bool:
+    """A directory under the outputs root that a per-product scan should visit."""
+    return (
+        path.is_dir()
+        and not path.name.startswith(".")
+        and path.name not in GLOBAL_DIR_NAMES
+    )
+
 
 def durable_state_path(outputs_dir: Path, filename: str) -> Path:
     """The path of a durable tracking file, under ``outputs/state/``.
@@ -325,7 +361,7 @@ def validate_outputs_structure(
         "errors": [],
     }
 
-    expected_global_dirs = {"cache", "logs", "reports"}
+    required_global_dirs = {"cache", "logs", "reports"}
     expected_product_subdirs = {"images", "videos"}
 
     try:
@@ -340,11 +376,7 @@ def validate_outputs_structure(
                 # Files in outputs root are unexpected
                 results["unexpected_items"].append(str(item.name))
             elif item.is_dir():
-                if item.name in expected_global_dirs:
-                    # This is a valid global directory
-                    continue
-                elif item.name in {"temp", "performance_history"}:
-                    # These are optional global directories
+                if item.name in GLOBAL_DIR_NAMES:
                     continue
                 elif _is_valid_product_id(item.name):
                     # This looks like a product directory
@@ -358,7 +390,7 @@ def validate_outputs_structure(
                         results["unexpected_items"].append(str(item.name))
 
         # Check for missing global directories
-        for global_dir in expected_global_dirs:
+        for global_dir in required_global_dirs:
             if not (outputs_root / global_dir).exists():
                 results["missing_global_dirs"].append(global_dir)
 

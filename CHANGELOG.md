@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.122.1] - 2026-09-18
+
+### Fixed
+- Batch cleanup no longer runs the per-product path over the global output directories (state, logs, cache and the rest), which logged a missing-record warning for each of them on every platform; the four scans of the outputs root share one list of those names; the structure validator counts the state directory as expected instead of removable under strict cleanup, and the empty-directory sweep no longer removes an empty reports directory that the validator then reported missing.
+
 ## [0.122.0] - 2026-09-18
 
 ### Fixed

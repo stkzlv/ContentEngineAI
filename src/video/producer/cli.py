@@ -21,6 +21,7 @@ from src.utils import cleanup_temp_dirs
 from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
+from src.utils.outputs_paths import is_product_directory
 from src.utils.performance import PerformanceHistoryManager
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config import VideoConfig
@@ -127,21 +128,7 @@ def discover_products_for_batch(
         return products
 
     for product_dir in outputs_dir.iterdir():
-        if not product_dir.is_dir():
-            continue
-
-        # Skip global directories (cache, logs, reports, etc.)
-        if product_dir.name in {
-            "cache",
-            "logs",
-            "reports",
-            "coverage",
-            "error_logs",
-            "output",
-            "outputs",
-            "performance_history",
-            "unknown_product",
-        }:
+        if not is_product_directory(product_dir):
             continue
 
         data_file = product_dir / "data.json"
