@@ -18,7 +18,7 @@ from src.utils.background_processing import (
     get_background_processor,
 )
 from src.utils.connection_pool import get_http_session
-from src.utils.logging_setup import setup_debug_logging
+from src.utils.logging_setup import current_run_id, log_context, setup_debug_logging
 from src.utils.performance import (
     RUN_KIND_RENDER,
     RUN_KIND_STEP,
@@ -349,293 +349,312 @@ async def create_video_for_product(
     cli_overrides: dict[str, Any] | None = None,
 ):
     product_id = product.asin or sanitize_filename(product.title[:30])
-    logger.info(
-        "--- Starting video for '%s' profile '%s' ---", product_id, profile_name
-    )
-
-    # The settings models carry the defaults; an absent section means the
-    # model's own values, not a second copy of them here.
-    # `model_validate({})` rather than `Model()`: the fields declare their
-    # defaults positionally, which mypy's plugin reads as required.
-    opt = config.optimization_settings or OptimizationSettings.model_validate({})
-    history_manager = PerformanceHistoryManager(
-        history_dir=config.global_output_root_path / "performance_history",
-        max_runs=opt.performance_history_max_runs,
-    )
-    monitor = PerformanceMonitor(
-        history_manager=history_manager,
-        memory_monitor_interval=opt.performance_monitoring_interval_sec,
-    )
-
-    # Generate run ID for this pipeline execution
-    import uuid
-
-    run_id = str(uuid.uuid4())[:8]  # Short ID for readability
-
-    # A `--step` run records only that step; the history marks it so the
-    # reports can keep it out of the render averages.
-    monitor.start_pipeline(
-        run_id=run_id,
-        product_id=product_id,
-        profile_name=profile_name,
-        kind=RUN_KIND_STEP if debug_step_target else RUN_KIND_RENDER,
-    )
-
-    step = ""
-    run_paths = get_video_run_paths(config, product_id, profile_name, cli_overrides)
-    successful_run = False
-    skipped_run = False
-
-    if clean_run and run_paths["run_root"].exists():
+    with log_context(product_id=product_id):
         logger.info(
-            "--clean flag set. Removing producer-generated files from: %s",
-            run_paths["run_root"],
-        )
-        try:
-            _clean_producer_files(run_paths, config, product_id, profile_name)
-        except OSError as e:
-            logger.error("Error cleaning producer files: %s", e)
-            raise PipelineError("Could not clean producer files for fresh run.") from e
-
-    try:
-        profile = config.get_profile(profile_name)
-        ensure_dirs_exist(run_paths["run_root"])
-
-        apply_script_template_overrides(config, cli_overrides)
-
-        ctx = PipelineContext(
-            product,
-            profile,
-            profile_name,
-            config,
-            secrets,
-            session,
-            run_paths,
-            debug_mode,
-            cli_overrides,
-            performance=monitor,
+            "--- Starting video for '%s' profile '%s' ---", product_id, profile_name
         )
 
-        # Initialize background processing with configuration
-        opt_settings = config.optimization_settings
-        bg_processor_params = {}
-        if opt_settings:
-            bg_processor_params = {
-                "max_concurrent_tasks": opt_settings.background_max_concurrent_tasks,
-                "thread_pool_workers": opt_settings.background_thread_pool_workers,
-                "max_recent_completed": opt_settings.background_max_recent_completed,
-            }
+        # The settings models carry the defaults; an absent section means the
+        # model's own values, not a second copy of them here.
+        # `model_validate({})` rather than `Model()`: the fields declare their
+        # defaults positionally, which mypy's plugin reads as required.
+        opt = config.optimization_settings or OptimizationSettings.model_validate({})
+        history_manager = PerformanceHistoryManager(
+            history_dir=config.global_output_root_path / "performance_history",
+            max_runs=opt.performance_history_max_runs,
+        )
+        monitor = PerformanceMonitor(
+            history_manager=history_manager,
+            memory_monitor_interval=opt.performance_monitoring_interval_sec,
+        )
 
-        async with get_background_processor(**bg_processor_params) as bg_processor:
-            ctx.background_processor = bg_processor
-            ctx.resource_preloader = ResourcePreloader(bg_processor)
-            ctx.tts_warmer = TTSWarmer(bg_processor)
+        # Generate run ID for this pipeline execution
+        import uuid
 
-            await _load_pipeline_state(ctx)
+        # The entry point's run id, so the history row and the log lines share
+        # one; a fresh one only when nothing bound it (a direct call).
+        run_id = current_run_id() or str(uuid.uuid4())[:8]
 
-            # Resolve the pillar once, on every run, and record it here.
-            # CLI --pillar wins; otherwise the product's own value, which the
-            # scraper writes into `data.json`.
-            #
-            # This has to sit after the state load rather than inside
-            # `step_generate_script`: a resume that truncates the state drops
-            # every non-step key and then skips the steps it kept, so a
-            # product-level pillar recorded inside the step would be lost on
-            # exactly the runs that reload it. A repeat render then draws
-            # from a different template pool, preamble and audience than the
-            # script already on disk was written for.
-            # CLI, then what a previous run recorded, then the product's own
-            # value. The middle term matters on a resume: without it the
-            # product record overwrites a `--pillar` the earlier run resolved
-            # and already wrote the script under, and the flag is not repeated
-            # on the rerun.
-            resolved_pillar = (
-                (cli_overrides or {}).get("pillar")
-                or ctx.state.get("pillar")
-                or getattr(product, "pillar", None)
+        # A `--step` run records only that step; the history marks it so the
+        # reports can keep it out of the render averages.
+        monitor.start_pipeline(
+            run_id=run_id,
+            product_id=product_id,
+            profile_name=profile_name,
+            kind=RUN_KIND_STEP if debug_step_target else RUN_KIND_RENDER,
+        )
+
+        step = ""
+        run_paths = get_video_run_paths(config, product_id, profile_name, cli_overrides)
+        successful_run = False
+        skipped_run = False
+
+        if clean_run and run_paths["run_root"].exists():
+            logger.info(
+                "--clean flag set. Removing producer-generated files from: %s",
+                run_paths["run_root"],
             )
-            if resolved_pillar:
-                ctx.state["pillar"] = resolved_pillar
-
-        if debug_step_target:
-            # This profile's real order, not the storage order: on a
-            # script-first render `gather_visuals` runs after the script, so
-            # demanding it as a prerequisite of `generate_script` would refuse
-            # a run that is in a perfectly good state.
-            step_order = resolved_step_order(ctx.profile)
-            # Only the requested step's transitive prerequisites are
-            # required. The positional walk this replaces blocked
-            # `--step create_voiceover` on `generate_description`, which
-            # feeds it nothing. Iterated in run order so artifacts load in
-            # the order they were produced.
-            required = transitive_prereqs(
-                data_dependencies(ctx.profile), debug_step_target
-            )
-            for step_to_load in step_order[: step_order.index(debug_step_target)]:
-                if step_to_load not in required:
-                    continue
-                if ctx.state.get(step_to_load, {}).get("status") == "done":
-                    logger.info(
-                        "Loading prerequisites for '%s': Loading artifacts from '%s'.",
-                        debug_step_target,
-                        step_to_load,
-                    )
-                    if not _load_artifacts_from_state(ctx, step_to_load):
-                        raise PipelineError(
-                            f"Cannot run step '{debug_step_target}': failed to load "
-                            f"required artifacts from preceding step '{step_to_load}'."
-                        )
-                else:
-                    raise PipelineError(
-                        f"Cannot run step '{debug_step_target}': preceding step "
-                        f"'{step_to_load}' "
-                        f"is not complete. Run it first."
-                    )
-            steps_to_run = [debug_step_target]
-        else:
-            steps_to_run = resolved_step_order(ctx.profile)
-
-        # Use parallel pipeline execution unless debugging specific step
-        if debug_step_target:
-            # For debugging specific steps, use sequential execution
-            for current_step in steps_to_run:
-                step = current_step
-
-                if (
-                    debug_step_target is None
-                    and ctx.state.get(current_step, {}).get("status") == "done"  # type: ignore[unreachable]
-                ):
-                    logger.info("Skipping step '%s': Already completed.", current_step)  # type: ignore[unreachable]
-                    _load_artifacts_from_state(ctx, current_step)
-                    continue
-
-                # Ensure directories for the step's outputs exist
-                for path in run_paths.values():
-                    if isinstance(path, Path):
-                        ensure_dirs_exist(path.parent)
-
-                runner = step_runners().get(step)
-                if runner is None:
-                    raise PipelineError(f"No handler for step '{step}'.")
-                await runner(ctx)
-
-                async with ctx._state_lock:
-                    await _update_state_after_step(ctx, step)
-                    await _save_pipeline_state(ctx)
-        else:
-            # Use parallel pipeline execution for normal runs
-            successful_run, parallel_failed_step = await execute_pipeline_parallel(ctx)
-            if not successful_run:
-                # Record the failing step so the FAILED:<step> sentinel names
-                # it instead of reporting 'unknown'.
-                step = parallel_failed_step or ""
-                raise PipelineError("Parallel pipeline execution failed")
-
-        successful_run = True
-        logger.info(
-            "<<< SUCCESS: Video for '%s': %s",
-            product_id,
-            run_paths.get("final_video_output", "N/A"),
-        )
-
-        # Save performance metrics for successful runs
-        if debug_mode:
-            # Check if performance metrics should be created
-            create_metrics = True
             try:
-                create_metrics = (
-                    getattr(config.debug_settings, "create_performance_metrics", True)
-                    if hasattr(config, "debug_settings") and config.debug_settings
-                    else True
+                _clean_producer_files(run_paths, config, product_id, profile_name)
+            except OSError as e:
+                logger.error("Error cleaning producer files: %s", e)
+                raise PipelineError(
+                    "Could not clean producer files for fresh run."
+                ) from e
+
+        try:
+            profile = config.get_profile(profile_name)
+            ensure_dirs_exist(run_paths["run_root"])
+
+            apply_script_template_overrides(config, cli_overrides)
+
+            ctx = PipelineContext(
+                product,
+                profile,
+                profile_name,
+                config,
+                secrets,
+                session,
+                run_paths,
+                debug_mode,
+                cli_overrides,
+                performance=monitor,
+            )
+
+            # Initialize background processing with configuration
+            opt_settings = config.optimization_settings
+            bg_processor_params = {}
+            if opt_settings:
+                bg_processor_params = {
+                    "max_concurrent_tasks": (
+                        opt_settings.background_max_concurrent_tasks
+                    ),
+                    "thread_pool_workers": opt_settings.background_thread_pool_workers,
+                    "max_recent_completed": (
+                        opt_settings.background_max_recent_completed
+                    ),
+                }
+
+            async with get_background_processor(**bg_processor_params) as bg_processor:
+                ctx.background_processor = bg_processor
+                ctx.resource_preloader = ResourcePreloader(bg_processor)
+                ctx.tts_warmer = TTSWarmer(bg_processor)
+
+                await _load_pipeline_state(ctx)
+
+                # Resolve the pillar once, on every run, and record it here.
+                # CLI --pillar wins; otherwise the product's own value, which the
+                # scraper writes into `data.json`.
+                #
+                # This has to sit after the state load rather than inside
+                # `step_generate_script`: a resume that truncates the state drops
+                # every non-step key and then skips the steps it kept, so a
+                # product-level pillar recorded inside the step would be lost on
+                # exactly the runs that reload it. A repeat render then draws
+                # from a different template pool, preamble and audience than the
+                # script already on disk was written for.
+                # CLI, then what a previous run recorded, then the product's own
+                # value. The middle term matters on a resume: without it the
+                # product record overwrites a `--pillar` the earlier run resolved
+                # and already wrote the script under, and the flag is not repeated
+                # on the rerun.
+                resolved_pillar = (
+                    (cli_overrides or {}).get("pillar")
+                    or ctx.state.get("pillar")
+                    or getattr(product, "pillar", None)
                 )
-            except Exception:
+                if resolved_pillar:
+                    ctx.state["pillar"] = resolved_pillar
+
+            if debug_step_target:
+                # This profile's real order, not the storage order: on a
+                # script-first render `gather_visuals` runs after the script, so
+                # demanding it as a prerequisite of `generate_script` would refuse
+                # a run that is in a perfectly good state.
+                step_order = resolved_step_order(ctx.profile)
+                # Only the requested step's transitive prerequisites are
+                # required. The positional walk this replaces blocked
+                # `--step create_voiceover` on `generate_description`, which
+                # feeds it nothing. Iterated in run order so artifacts load in
+                # the order they were produced.
+                required = transitive_prereqs(
+                    data_dependencies(ctx.profile), debug_step_target
+                )
+                for step_to_load in step_order[: step_order.index(debug_step_target)]:
+                    if step_to_load not in required:
+                        continue
+                    if ctx.state.get(step_to_load, {}).get("status") == "done":
+                        logger.info(
+                            "Loading prerequisites for '%s': "
+                            "Loading artifacts from '%s'.",
+                            debug_step_target,
+                            step_to_load,
+                        )
+                        if not _load_artifacts_from_state(ctx, step_to_load):
+                            raise PipelineError(
+                                f"Cannot run step '{debug_step_target}': "
+                                "failed to load required artifacts from "
+                                f"preceding step '{step_to_load}'."
+                            )
+                    else:
+                        raise PipelineError(
+                            f"Cannot run step '{debug_step_target}': preceding step "
+                            f"'{step_to_load}' "
+                            f"is not complete. Run it first."
+                        )
+                steps_to_run = [debug_step_target]
+            else:
+                steps_to_run = resolved_step_order(ctx.profile)
+
+            # Use parallel pipeline execution unless debugging specific step
+            if debug_step_target:
+                # For debugging specific steps, use sequential execution
+                for current_step in steps_to_run:
+                    step = current_step
+
+                    if (
+                        debug_step_target is None
+                        and ctx.state.get(current_step, {}).get("status") == "done"  # type: ignore[unreachable]
+                    ):
+                        logger.info(  # type: ignore[unreachable]
+                            "Skipping step '%s': Already completed.", current_step
+                        )
+                        _load_artifacts_from_state(ctx, current_step)
+                        continue
+
+                    # Ensure directories for the step's outputs exist
+                    for path in run_paths.values():
+                        if isinstance(path, Path):
+                            ensure_dirs_exist(path.parent)
+
+                    runner = step_runners().get(step)
+                    if runner is None:
+                        raise PipelineError(f"No handler for step '{step}'.")
+                    await runner(ctx)
+
+                    async with ctx._state_lock:
+                        await _update_state_after_step(ctx, step)
+                        await _save_pipeline_state(ctx)
+            else:
+                # Use parallel pipeline execution for normal runs
+                successful_run, parallel_failed_step = await execute_pipeline_parallel(
+                    ctx
+                )
+                if not successful_run:
+                    # Record the failing step so the FAILED:<step> sentinel names
+                    # it instead of reporting 'unknown'.
+                    step = parallel_failed_step or ""
+                    raise PipelineError("Parallel pipeline execution failed")
+
+            successful_run = True
+            logger.info(
+                "<<< SUCCESS: Video for '%s': %s",
+                product_id,
+                run_paths.get("final_video_output", "N/A"),
+            )
+
+            # Save performance metrics for successful runs
+            if debug_mode:
+                # Check if performance metrics should be created
                 create_metrics = True
+                try:
+                    create_metrics = (
+                        getattr(
+                            config.debug_settings, "create_performance_metrics", True
+                        )
+                        if hasattr(config, "debug_settings") and config.debug_settings
+                        else True
+                    )
+                except Exception:
+                    create_metrics = True
 
-            if create_metrics:
-                monitor.save_metrics(run_paths["performance"])
+                if create_metrics:
+                    monitor.save_metrics(run_paths["performance"])
 
-        # Mark pipeline as successful for history tracking
-        monitor.finish_pipeline(success=True)
+            # Mark pipeline as successful for history tracking
+            monitor.finish_pipeline(success=True)
 
-        # Check performance thresholds and log warnings
-        debug_settings = config.debug_settings or DebugSettings.model_validate({})
-        threshold_warnings = monitor.check_thresholds(
-            timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
-            memory_warning_mb=debug_settings.memory_usage_warning_mb,
-        )
-        for warning in threshold_warnings:
-            logger.warning("Performance threshold exceeded: %s", warning)
+            # Check performance thresholds and log warnings
+            debug_settings = config.debug_settings or DebugSettings.model_validate({})
+            threshold_warnings = monitor.check_thresholds(
+                timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
+                memory_warning_mb=debug_settings.memory_usage_warning_mb,
+            )
+            for warning in threshold_warnings:
+                logger.warning("Performance threshold exceeded: %s", warning)
 
-        # Clean up background processing
-        if ctx.background_processor:
-            summary = ctx.background_processor.get_summary()
-            logger.debug("Background processing summary: %s", summary)
+            # Clean up background processing
+            if ctx.background_processor:
+                summary = ctx.background_processor.get_summary()
+                logger.debug("Background processing summary: %s", summary)
+                await cleanup_global_background_processor()
+
+            return run_paths.get("final_video_output")
+
+        except InsufficientMediaError as e:
+            skipped_run = True
+            logger.warning("Product skipped due to insufficient media: %s", e)
+            # Mark as skipped, not failed - this is expected for some products
+            monitor.finish_pipeline(success=False, error_message=str(e), skipped=True)
+            # Clean up background processing on skip
             await cleanup_global_background_processor()
+            # Return special value to indicate skip
+            return "SKIPPED"
+        except (FileNotFoundError, PipelineError, KeyError) as e:
+            logger.error(
+                "Pipeline stopped at step '%s': %s", step, e, exc_info=debug_mode
+            )
+            # Mark pipeline as failed for history tracking
+            monitor.finish_pipeline(success=False, error_message=str(e))
+            # Clean up background processing on failure
+            await cleanup_global_background_processor()
+            # Signal a step failure, distinct from "SKIPPED" and from a partial
+            # None return, naming the step so callers can report it.
+            return f"{FAILED_PREFIX}{step or 'unknown'}"
+        except Exception as e:
+            logger.exception(
+                "An unexpected error occurred in pipeline for '%s': %s",
+                product_id,
+                e,
+            )
+            # Mark pipeline as failed for history tracking
+            monitor.finish_pipeline(success=False, error_message=str(e))
+            # Clean up background processing on failure
+            await cleanup_global_background_processor()
+            return f"{FAILED_PREFIX}{step or 'unknown'}"
+        finally:
+            # Log performance summary
+            summary = monitor.get_pipeline_summary()
+            if summary:
+                logger.info(
+                    "Pipeline performance: %.2fs total, %s steps, Memory: %+.1fMB",
+                    summary.get("total_duration", 0),
+                    summary.get("steps_completed", 0),
+                    summary.get("total_memory_delta_mb", 0),
+                )
 
-        return run_paths.get("final_video_output")
-
-    except InsufficientMediaError as e:
-        skipped_run = True
-        logger.warning("Product skipped due to insufficient media: %s", e)
-        # Mark as skipped, not failed - this is expected for some products
-        monitor.finish_pipeline(success=False, error_message=str(e), skipped=True)
-        # Clean up background processing on skip
-        await cleanup_global_background_processor()
-        # Return special value to indicate skip
-        return "SKIPPED"
-    except (FileNotFoundError, PipelineError, KeyError) as e:
-        logger.error("Pipeline stopped at step '%s': %s", step, e, exc_info=debug_mode)
-        # Mark pipeline as failed for history tracking
-        monitor.finish_pipeline(success=False, error_message=str(e))
-        # Clean up background processing on failure
-        await cleanup_global_background_processor()
-        # Signal a step failure, distinct from "SKIPPED" and from a partial
-        # None return, naming the step so callers can report it.
-        return f"{FAILED_PREFIX}{step or 'unknown'}"
-    except Exception as e:
-        logger.exception(
-            "An unexpected error occurred in pipeline for '%s': %s",
-            product_id,
-            e,
-        )
-        # Mark pipeline as failed for history tracking
-        monitor.finish_pipeline(success=False, error_message=str(e))
-        # Clean up background processing on failure
-        await cleanup_global_background_processor()
-        return f"{FAILED_PREFIX}{step or 'unknown'}"
-    finally:
-        # Log performance summary
-        summary = monitor.get_pipeline_summary()
-        if summary:
-            logger.info(
-                "Pipeline performance: %.2fs total, %s steps, Memory: %+.1fMB",
-                summary.get("total_duration", 0),
-                summary.get("steps_completed", 0),
-                summary.get("total_memory_delta_mb", 0),
-            )
-
-        if (
-            successful_run
-            and not debug_mode
-            and run_paths
-            and run_paths["intermediate_base"].exists()
-        ):
-            logger.info("Successful run; cleaning up intermediate files.")
-            cleanup_temp_dirs(run_paths["intermediate_base"])
-        elif debug_mode:
-            logger.info(
-                "Debug mode: Intermediate files preserved in %s",
-                run_paths.get("run_root"),
-            )
-        elif skipped_run:
-            # Not a failure: nothing broke, the product just had too little
-            # media. Saying otherwise sends an operator looking for a step
-            # that never went wrong.
-            logger.info(
-                "Product skipped. Files preserved in %s.", run_paths.get("run_root")
-            )
-        elif not successful_run:
-            logger.warning(
-                "Run failed. Files preserved in %s for resume.",
-                run_paths.get("run_root"),
-            )
+            if (
+                successful_run
+                and not debug_mode
+                and run_paths
+                and run_paths["intermediate_base"].exists()
+            ):
+                logger.info("Successful run; cleaning up intermediate files.")
+                cleanup_temp_dirs(run_paths["intermediate_base"])
+            elif debug_mode:
+                logger.info(
+                    "Debug mode: Intermediate files preserved in %s",
+                    run_paths.get("run_root"),
+                )
+            elif skipped_run:
+                # Not a failure: nothing broke, the product just had too little
+                # media. Saying otherwise sends an operator looking for a step
+                # that never went wrong.
+                logger.info(
+                    "Product skipped. Files preserved in %s.", run_paths.get("run_root")
+                )
+            elif not successful_run:
+                logger.warning(
+                    "Run failed. Files preserved in %s for resume.",
+                    run_paths.get("run_root"),
+                )

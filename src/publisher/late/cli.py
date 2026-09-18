@@ -59,7 +59,7 @@ from src.publisher.registry import create_publisher_from_config
 from src.publisher.schedule import ScheduleManager, record_scheduled_posts
 from src.publisher.tracking import is_already_published, record_publish_results
 from src.publisher.video_selector import sole_render_for_product
-from src.utils.logging_setup import setup_debug_logging
+from src.utils.logging_setup import log_context, setup_debug_logging
 from src.utils.outputs_paths import get_project_root
 
 logger = logging.getLogger(__name__)
@@ -478,251 +478,255 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
         session: aiohttp ClientSession
 
     """
-    product_id = args.product_id
-    outputs_dir = DEFAULT_OUTPUTS_DIR.resolve()
-    product_dir = outputs_dir / product_id
+    with log_context(product_id=args.product_id):
+        product_id = args.product_id
+        outputs_dir = DEFAULT_OUTPUTS_DIR.resolve()
+        product_dir = outputs_dir / product_id
 
-    if not product_dir.exists():
-        logger.error("Product directory not found: %s", product_dir)
-        sys.exit(1)
+        if not product_dir.exists():
+            logger.error("Product directory not found: %s", product_dir)
+            sys.exit(1)
 
-    # Default to all 3 platforms if none specified
-    if not args.platforms:
-        args.platforms = list(DEFAULT_PLATFORMS)
-        logger.info("Using default platforms: youtube, tiktok, instagram")
+        # Default to all 3 platforms if none specified
+        if not args.platforms:
+            args.platforms = list(DEFAULT_PLATFORMS)
+            logger.info("Using default platforms: youtube, tiktok, instagram")
 
-    # Link-in-bio enablement (CLI flags override config)
-    link_in_bio_enabled = config.link_in_bio_config.enabled
-    if getattr(args, "no_link_in_bio", False):
-        link_in_bio_enabled = False
-    elif getattr(args, "link_in_bio", None):
-        link_in_bio_enabled = True
+        # Link-in-bio enablement (CLI flags override config)
+        link_in_bio_enabled = config.link_in_bio_config.enabled
+        if getattr(args, "no_link_in_bio", False):
+            link_in_bio_enabled = False
+        elif getattr(args, "link_in_bio", None):
+            link_in_bio_enabled = True
 
-    # A fully-published product needs no video or upload: keep its bio link
-    # fresh and exit. This also works after cleanup removed the rendered
-    # video (only data.json is needed for the link).
-    if not args.force and all(
-        is_already_published(product_id, p.value, outputs_dir) for p in args.platforms
-    ):
-        logger.warning(
-            "Product %s already published to all requested platforms. "
-            "Use --force to republish.",
-            product_id,
-        )
-        if link_in_bio_enabled:
-            await update_link_in_bio_safe(
+        # A fully-published product needs no video or upload: keep its bio link
+        # fresh and exit. This also works after cleanup removed the rendered
+        # video (only data.json is needed for the link).
+        if not args.force and all(
+            is_already_published(product_id, p.value, outputs_dir)
+            for p in args.platforms
+        ):
+            logger.warning(
+                "Product %s already published to all requested platforms. "
+                "Use --force to republish.",
                 product_id,
-                outputs_dir,
-                replace(config.link_in_bio_config, enabled=True),
             )
-        return
-
-    # Auto-discover video file. If profiles are configured, prefer the
-    # render for the first platform in the list. The unified upload path
-    # uses one file for all platforms; full per-platform uploads are a
-    # follow-up after multi-profile renders ship.
-    from src.publisher.video_selector import select_video_for_platform
-
-    first_platform = (
-        args.platforms[0].value
-        if hasattr(args.platforms[0], "value")
-        else str(args.platforms[0])
-    )
-    video_path = select_video_for_platform(
-        product_dir, product_id, first_platform, config.profiles
-    )
-    if video_path is None:
-        logger.error("No video files found in %s", product_dir)
-        sys.exit(1)
-    logger.info("Auto-discovered video: %s", video_path.name)
-
-    logger.info("Publishing single video: %s", video_path.name)
-    logger.info("Target platforms: %s", [p.value for p in args.platforms])
-
-    publisher = _create_publisher_from_config(config, session)
-
-    try:
-        # Authenticate
-        is_authenticated = await publisher.authenticate()
-        if not is_authenticated:
-            logger.error("Authentication failed - check your API key")
-            sys.exit(1)
-
-        # Get accounts for mapping
-        accounts = await publisher.get_accounts()
-        if not accounts:
-            logger.error("No connected accounts found")
-            sys.exit(1)
-
-        # Auto-discover next slot if --schedule not provided (and not --immediate)
-        schedule_time = args.schedule
-        slot_index: int | None = None
-        schedule_mgr: ScheduleManager | None = None
-        if not schedule_time and not args.immediate:
-            logger.info("Auto-discovering next available schedule slot...")
-            schedule_mgr = ScheduleManager(config=config.schedule_config)
-            slots = config.schedule_config.slots
-            if not slots:
-                logger.error("No recurring slots configured for auto-discovery")
-                sys.exit(1)
-
-            # The same read `schedule` and the batch make: the provider's
-            # posts and the local schedule, as one set.
-            now = datetime.now(UTC)
-            occupied_slot_times = await schedule_mgr.build_occupancy(publisher, now)
-            try:
-                schedule_time, slot_index = schedule_mgr.next_free_slot(
-                    product_id, now, 0, occupied_slot_times
-                )
-            except ValueError:
-                logger.error("Could not find available slot within search range")
-                sys.exit(1)
-            logger.info("Found available slot: %s", schedule_time.isoformat())
-
-        if schedule_time:
-            logger.info("Scheduled time: %s", schedule_time)
-        else:
-            logger.info("Publishing immediately")
-
-        # Upload video
-        logger.info("Uploading video...")
-        media_url = await publisher.upload_media(video_path)
-        logger.info("Upload complete: %s", media_url)
-
-        # Build platforms list (filter duplicates and validate accounts)
-        wanted: list[Platform] = []
-        skipped_already_published = False
-        for platform in args.platforms:
-            # Check for duplicates (unless --force)
-            if not args.force and is_already_published(
-                product_id, platform.value, outputs_dir
-            ):
-                logger.warning(
-                    "Product %s already published to %s. Use --force to republish.",
-                    product_id,
-                    platform.value,
-                )
-                skipped_already_published = True
-                continue
-            wanted.append(platform)
-
-        platforms_to_publish, missing = accounts_for_platforms(wanted, accounts)
-        for platform in missing:
-            logger.warning("No connected account for %s, skipping", platform.value)
-
-        if not platforms_to_publish:
-            logger.warning("No platforms to publish to after filtering")
-            # The product is already live; make sure its bio link exists so
-            # `single <id>` on a published product isn't a link-in-bio no-op.
-            if skipped_already_published and link_in_bio_enabled:
+            if link_in_bio_enabled:
                 await update_link_in_bio_safe(
                     product_id,
                     outputs_dir,
                     replace(config.link_in_bio_config, enabled=True),
                 )
-            await run_delivery_sweep(publisher, config.delivery_sweep_config)
             return
 
-        # Publish (unified or platform-specific mode)
-        from src.publisher.publish_modes import publish_product
+        # Auto-discover video file. If profiles are configured, prefer the
+        # render for the first platform in the list. The unified upload path
+        # uses one file for all platforms; full per-platform uploads are a
+        # follow-up after multi-profile renders ship.
+        from src.publisher.video_selector import select_video_for_platform
 
-        platform_specific = (
-            getattr(args, "platform_specific", False)
-            or config.use_platform_specific_content
+        first_platform = (
+            args.platforms[0].value
+            if hasattr(args.platforms[0], "value")
+            else str(args.platforms[0])
         )
-
-        disc_cfg = config.affiliate_disclosure_config
-        disclosure_phrase = disc_cfg.phrase if disc_cfg.enabled else None
-        publish_results = await publish_product(
-            publisher=publisher,
-            media_id=media_url,
-            product_id=product_id,
-            platforms=platforms_to_publish,
-            outputs_dir=outputs_dir,
-            platform_specific=platform_specific,
-            schedule_time=schedule_time,
-            disclosure_phrase=disclosure_phrase,
+        video_path = select_video_for_platform(
+            product_dir, product_id, first_platform, config.profiles
         )
+        if video_path is None:
+            logger.error("No video files found in %s", product_dir)
+            sys.exit(1)
+        logger.info("Auto-discovered video: %s", video_path.name)
 
-        # Record successful publish for each result
-        _record_publish_results(
-            product_id, publish_results, platforms_to_publish, outputs_dir
-        )
+        logger.info("Publishing single video: %s", video_path.name)
+        logger.info("Target platforms: %s", [p.value for p in args.platforms])
 
-        # A scheduled post also goes into the local schedule, so `calendar`
-        # sees it. An explicit --schedule reaches here with no manager yet.
-        if schedule_time:
-            if schedule_mgr is None:
-                schedule_mgr = ScheduleManager(config=config.schedule_config)
-            record_scheduled_posts(
-                product_id,
-                publish_results,
-                platforms_to_publish,
-                schedule_time,
-                slot_index,
-                schedule_mgr,
-            )
+        publisher = _create_publisher_from_config(config, session)
 
-        logger.info("Single video publishing complete")
-
-        # Add to published products registry
         try:
-            add_to_registry(product_id, outputs_dir)
-        except Exception as exc:
-            logger.warning("Failed to update product registry: %s", exc)
+            # Authenticate
+            is_authenticated = await publisher.authenticate()
+            if not is_authenticated:
+                logger.error("Authentication failed - check your API key")
+                sys.exit(1)
 
-        # Link-in-bio update if enabled (flags resolved above)
-        if link_in_bio_enabled:
-            await update_link_in_bio_safe(
-                product_id,
-                outputs_dir,
-                replace(config.link_in_bio_config, enabled=True),
+            # Get accounts for mapping
+            accounts = await publisher.get_accounts()
+            if not accounts:
+                logger.error("No connected accounts found")
+                sys.exit(1)
+
+            # Auto-discover next slot if --schedule not provided (and not --immediate)
+            schedule_time = args.schedule
+            slot_index: int | None = None
+            schedule_mgr: ScheduleManager | None = None
+            if not schedule_time and not args.immediate:
+                logger.info("Auto-discovering next available schedule slot...")
+                schedule_mgr = ScheduleManager(config=config.schedule_config)
+                slots = config.schedule_config.slots
+                if not slots:
+                    logger.error("No recurring slots configured for auto-discovery")
+                    sys.exit(1)
+
+                # The same read `schedule` and the batch make: the provider's
+                # posts and the local schedule, as one set.
+                now = datetime.now(UTC)
+                occupied_slot_times = await schedule_mgr.build_occupancy(publisher, now)
+                try:
+                    schedule_time, slot_index = schedule_mgr.next_free_slot(
+                        product_id, now, 0, occupied_slot_times
+                    )
+                except ValueError:
+                    logger.error("Could not find available slot within search range")
+                    sys.exit(1)
+                logger.info("Found available slot: %s", schedule_time.isoformat())
+
+            if schedule_time:
+                logger.info("Scheduled time: %s", schedule_time)
+            else:
+                logger.info("Publishing immediately")
+
+            # Upload video
+            logger.info("Uploading video...")
+            media_url = await publisher.upload_media(video_path)
+            logger.info("Upload complete: %s", media_url)
+
+            # Build platforms list (filter duplicates and validate accounts)
+            wanted: list[Platform] = []
+            skipped_already_published = False
+            for platform in args.platforms:
+                # Check for duplicates (unless --force)
+                if not args.force and is_already_published(
+                    product_id, platform.value, outputs_dir
+                ):
+                    logger.warning(
+                        "Product %s already published to %s. Use --force to republish.",
+                        product_id,
+                        platform.value,
+                    )
+                    skipped_already_published = True
+                    continue
+                wanted.append(platform)
+
+            platforms_to_publish, missing = accounts_for_platforms(wanted, accounts)
+            for platform in missing:
+                logger.warning("No connected account for %s, skipping", platform.value)
+
+            if not platforms_to_publish:
+                logger.warning("No platforms to publish to after filtering")
+                # The product is already live; make sure its bio link exists so
+                # `single <id>` on a published product isn't a link-in-bio no-op.
+                if skipped_already_published and link_in_bio_enabled:
+                    await update_link_in_bio_safe(
+                        product_id,
+                        outputs_dir,
+                        replace(config.link_in_bio_config, enabled=True),
+                    )
+                await run_delivery_sweep(publisher, config.delivery_sweep_config)
+                return
+
+            # Publish (unified or platform-specific mode)
+            from src.publisher.publish_modes import publish_product
+
+            platform_specific = (
+                getattr(args, "platform_specific", False)
+                or config.use_platform_specific_content
             )
 
-        # Automatic cleanup if enabled
-        if config.cleanup_config.enabled and not args.no_cleanup:
-            logger.info("Running automatic cleanup...")
+            disc_cfg = config.affiliate_disclosure_config
+            disclosure_phrase = disc_cfg.phrase if disc_cfg.enabled else None
+            publish_results = await publish_product(
+                publisher=publisher,
+                media_id=media_url,
+                product_id=product_id,
+                platforms=platforms_to_publish,
+                outputs_dir=outputs_dir,
+                platform_specific=platform_specific,
+                schedule_time=schedule_time,
+                disclosure_phrase=disclosure_phrase,
+            )
 
+            # Record successful publish for each result
+            _record_publish_results(
+                product_id, publish_results, platforms_to_publish, outputs_dir
+            )
+
+            # A scheduled post also goes into the local schedule, so `calendar`
+            # sees it. An explicit --schedule reaches here with no manager yet.
+            if schedule_time:
+                if schedule_mgr is None:
+                    schedule_mgr = ScheduleManager(config=config.schedule_config)
+                record_scheduled_posts(
+                    product_id,
+                    publish_results,
+                    platforms_to_publish,
+                    schedule_time,
+                    slot_index,
+                    schedule_mgr,
+                )
+
+            logger.info("Single video publishing complete")
+
+            # Add to published products registry
             try:
-                cleanup_mgr = CleanupManager(
-                    outputs_dir=outputs_dir,
-                    config=config.cleanup_config,
-                    publisher=publisher,
+                add_to_registry(product_id, outputs_dir)
+            except Exception as exc:
+                logger.warning("Failed to update product registry: %s", exc)
+
+            # Link-in-bio update if enabled (flags resolved above)
+            if link_in_bio_enabled:
+                await update_link_in_bio_safe(
+                    product_id,
+                    outputs_dir,
+                    replace(config.link_in_bio_config, enabled=True),
                 )
 
-                cleanup_result = await cleanup_mgr.cleanup(
-                    product_id=product_id,
-                    platforms=args.platforms,
-                    dry_run=False,
-                )
+            # Automatic cleanup if enabled
+            if config.cleanup_config.enabled and not args.no_cleanup:
+                logger.info("Running automatic cleanup...")
 
-                if cleanup_result["success"]:
-                    logger.info("Cleanup complete: %s", cleanup_result["message"])
-                    disk_freed = cleanup_result["disk_freed"]
-                    if isinstance(disk_freed, int) and disk_freed > 0:
-                        logger.info("  Disk space freed: %s", format_bytes(disk_freed))
-                else:
-                    logger.warning("Cleanup skipped: %s", cleanup_result["message"])
+                try:
+                    cleanup_mgr = CleanupManager(
+                        outputs_dir=outputs_dir,
+                        config=config.cleanup_config,
+                        publisher=publisher,
+                    )
 
-            except Exception as cleanup_error:
-                logger.warning(
-                    "Cleanup failed but publish was successful: %s", cleanup_error
-                )
+                    cleanup_result = await cleanup_mgr.cleanup(
+                        product_id=product_id,
+                        platforms=args.platforms,
+                        dry_run=False,
+                    )
 
-        elif args.no_cleanup:
-            logger.info("Cleanup disabled via --no-cleanup flag")
-        else:
-            logger.debug("Cleanup not configured in config file")
+                    if cleanup_result["success"]:
+                        logger.info("Cleanup complete: %s", cleanup_result["message"])
+                        disk_freed = cleanup_result["disk_freed"]
+                        if isinstance(disk_freed, int) and disk_freed > 0:
+                            logger.info(
+                                "  Disk space freed: %s", format_bytes(disk_freed)
+                            )
+                    else:
+                        logger.warning("Cleanup skipped: %s", cleanup_result["message"])
 
-        # Trim the Vercel Blob upload store (non-blocking)
-        await run_blob_retention(publisher, config.blob_retention_config)
+                except Exception as cleanup_error:
+                    logger.warning(
+                        "Cleanup failed but publish was successful: %s", cleanup_error
+                    )
 
-        # Sweep recent posts for silently-failed legs (non-blocking)
-        await run_delivery_sweep(publisher, config.delivery_sweep_config)
+            elif args.no_cleanup:
+                logger.info("Cleanup disabled via --no-cleanup flag")
+            else:
+                logger.debug("Cleanup not configured in config file")
 
-    except Exception as e:
-        logger.error("Failed to publish video: %s", e, exc_info=args.debug)
-        sys.exit(1)
+            # Trim the Vercel Blob upload store (non-blocking)
+            await run_blob_retention(publisher, config.blob_retention_config)
+
+            # Sweep recent posts for silently-failed legs (non-blocking)
+            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+
+        except Exception as e:
+            logger.error("Failed to publish video: %s", e, exc_info=args.debug)
+            sys.exit(1)
 
 
 async def cmd_calendar(

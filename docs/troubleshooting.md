@@ -814,8 +814,12 @@ poetry run python -m src.video.producer products.json profile \
   --debug \
   --product-index 0
 
-# Check all log files
-find outputs/logs/ -name "*.log" -exec echo "=== {} ===" \; -exec cat {} \;
+# One product's whole story across a batch run (every line carries its id)
+grep ' B0ASIN123 ' outputs/logs/global_pipeline.log
+
+# The runs in a log, with their ids; then everything from one run
+grep 'run starting' outputs/logs/producer.log
+grep ' 1a2b3c4d ' outputs/logs/producer.log
 ```
 
 ### Collect System Information

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .scraper import BotasaurusAmazonScraper
 
+from src.utils.logging_setup import log_context
+
 from ..base.throttle import summary_lines_for
 from .config import get_batch_logging_config
 from .models import BatchConfig, BatchSummary, ProductData, ProductResult
@@ -108,79 +110,20 @@ class BatchController:
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
-            # Pace consecutive inputs, as the batch pipeline's single-session
-            # loop does. Back-to-back searches are the pattern that draws
-            # Amazon's block, and this arm launches a fresh browser per input,
-            # so without it the standalone CLI is the faster way to get
-            # throttled.
-            if i > 1:
-                time.sleep(self.scraper.throttle.inter_input_delay_sec())
+            with log_context(product_id=product_id):
+                # Pace consecutive inputs, as the batch pipeline's single-session
+                # loop does. Back-to-back searches are the pattern that draws
+                # Amazon's block, and this arm launches a fresh browser per input,
+                # so without it the standalone CLI is the faster way to get
+                # throttled.
+                if i > 1:
+                    time.sleep(self.scraper.throttle.inter_input_delay_sec())
 
-            # URLs are passed through directly; ASINs are validated
-            is_url = product_id.startswith(("http://", "https://"))
-            if not is_url and not validate_asin_format(product_id):
-                self.logger.warning(
-                    "[%d/%d]  Invalid ASIN format: %s - Skipping",
-                    i,
-                    len(self.config.product_ids),
-                    product_id,
-                )
-                results.append(
-                    ProductResult(
-                        product_id=product_id,
-                        success=False,
-                        data=None,
-                        error="Invalid ASIN format",
-                        source="product_id",
-                    )
-                )
-                continue
-
-            self.logger.info(
-                "[%d/%d] Scraping product: %s",
-                i,
-                len(self.config.product_ids),
-                product_id,
-            )
-
-            try:
-                # Delegate to existing scraper with products_per_keyword limit
-                # (single product scraping via keyword/ASIN)
-                products = self.scraper.scrape_products_unified(
-                    keyword=product_id,
-                    search_params=self.config.search_params,
-                    max_products=self.config.products_per_keyword,
-                )
-
-                if products and len(products) > 0:
-                    product_data = products[0]
-                    # Write through the record's own serialiser, as the
-                    # keyword arm does. Without this the file is whatever the
-                    # browser callback wrote mid-scrape: a raw extractor dict
-                    # that predates the media downloads and omits ten of the
-                    # canonical keys, so the same product scraped by ASIN and
-                    # by keyword produced different records.
-                    self.scraper._save_products(
-                        [p for p in products if isinstance(p, ProductData)]
-                    )
-                    self.logger.info(
-                        "[%d/%d] Successfully scraped: %s",
-                        i,
-                        len(self.config.product_ids),
-                        product_id,
-                    )
-                    results.append(
-                        ProductResult(
-                            product_id=product_id,
-                            success=True,
-                            data=product_data,
-                            error=None,
-                            source="product_id",
-                        )
-                    )
-                else:
+                # URLs are passed through directly; ASINs are validated
+                is_url = product_id.startswith(("http://", "https://"))
+                if not is_url and not validate_asin_format(product_id):
                     self.logger.warning(
-                        "[%d/%d]  No data found for: %s",
+                        "[%d/%d]  Invalid ASIN format: %s - Skipping",
                         i,
                         len(self.config.product_ids),
                         product_id,
@@ -190,36 +133,96 @@ class BatchController:
                             product_id=product_id,
                             success=False,
                             data=None,
-                            error="No data found",
+                            error="Invalid ASIN format",
+                            source="product_id",
+                        )
+                    )
+                    continue
+
+                self.logger.info(
+                    "[%d/%d] Scraping product: %s",
+                    i,
+                    len(self.config.product_ids),
+                    product_id,
+                )
+
+                try:
+                    # Delegate to existing scraper with products_per_keyword limit
+                    # (single product scraping via keyword/ASIN)
+                    products = self.scraper.scrape_products_unified(
+                        keyword=product_id,
+                        search_params=self.config.search_params,
+                        max_products=self.config.products_per_keyword,
+                    )
+
+                    if products and len(products) > 0:
+                        product_data = products[0]
+                        # Write through the record's own serialiser, as the
+                        # keyword arm does. Without this the file is whatever the
+                        # browser callback wrote mid-scrape: a raw extractor dict
+                        # that predates the media downloads and omits ten of the
+                        # canonical keys, so the same product scraped by ASIN and
+                        # by keyword produced different records.
+                        self.scraper._save_products(
+                            [p for p in products if isinstance(p, ProductData)]
+                        )
+                        self.logger.info(
+                            "[%d/%d] Successfully scraped: %s",
+                            i,
+                            len(self.config.product_ids),
+                            product_id,
+                        )
+                        results.append(
+                            ProductResult(
+                                product_id=product_id,
+                                success=True,
+                                data=product_data,
+                                error=None,
+                                source="product_id",
+                            )
+                        )
+                    else:
+                        self.logger.warning(
+                            "[%d/%d]  No data found for: %s",
+                            i,
+                            len(self.config.product_ids),
+                            product_id,
+                        )
+                        results.append(
+                            ProductResult(
+                                product_id=product_id,
+                                success=False,
+                                data=None,
+                                error="No data found",
+                                source="product_id",
+                            )
+                        )
+
+                except Exception as e:
+                    error_msg = str(e)
+                    self.logger.error(
+                        "[%d/%d] Failed to scrape %s: %s",
+                        i,
+                        len(self.config.product_ids),
+                        product_id,
+                        error_msg,
+                    )
+                    results.append(
+                        ProductResult(
+                            product_id=product_id,
+                            success=False,
+                            data=None,
+                            error=error_msg,
                             source="product_id",
                         )
                     )
 
-            except Exception as e:
-                error_msg = str(e)
-                self.logger.error(
-                    "[%d/%d] Failed to scrape %s: %s",
-                    i,
-                    len(self.config.product_ids),
-                    product_id,
-                    error_msg,
-                )
-                results.append(
-                    ProductResult(
-                        product_id=product_id,
-                        success=False,
-                        data=None,
-                        error=error_msg,
-                        source="product_id",
-                    )
-                )
-
-                # Fail-fast: stop on first error
-                if self.config.fail_fast:
-                    self.logger.error(
-                        "Fail-fast enabled: " "Stopping batch after first failure"
-                    )
-                    break
+                    # Fail-fast: stop on first error
+                    if self.config.fail_fast:
+                        self.logger.error(
+                            "Fail-fast enabled: " "Stopping batch after first failure"
+                        )
+                        break
 
         return results
 

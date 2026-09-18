@@ -461,6 +461,22 @@ Modules take a named logger and nothing more. Configuring the root logger
 logger of every process that imports the module, including the test suite,
 and its records then land in that module's production log file.
 
+Every file record carries a run id and a product id. The entry point's
+`setup_debug_logging` binds the run id once; a loop that handles one
+product at a time binds the product for its records:
+
+```python
+from src.utils.logging_setup import log_context
+
+for product_id in product_ids:
+    with log_context(product_id=product_id):
+        await handle(product_id)  # every record inside, awaited steps included
+```
+
+The ids are context variables, so an awaited step logs under the product
+that awaited it, and the previous value returns when the block ends. Read
+them back with `grep ' <product id> ' outputs/logs/<component>.log`.
+
 ## Configuration Development
 
 **📖 Complete configuration guide**: [Configuration](configuration.md)
