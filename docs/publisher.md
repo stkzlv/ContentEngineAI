@@ -1512,7 +1512,7 @@ Follow these best practices to prevent accidental data loss:
 |------|---------|---------|
 | 1. Preview | `cleanup --all --dry-run` | See what will be deleted |
 | 2. Verify | `calendar list --status published` | Confirm posts are live |
-| 3. Check logs | View `outputs/logs/publisher.log` | Review audit trail |
+| 3. Check logs | View `outputs/logs/publisher-<date>.log` | Review audit trail |
 | 4. Execute | `cleanup --all --confirm` | Run with confirmation |
 
 **Recommended Configuration:**
@@ -2092,7 +2092,7 @@ poetry run python -m src.publisher.late single B0ABC \
 
 **Log file location:**
 ```
-outputs/logs/publisher.log
+outputs/logs/publisher-<date>.log
 ```
 
 </details>

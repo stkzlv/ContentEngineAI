@@ -479,7 +479,10 @@ thread started through an executor begins with an empty context: its
 records still carry the run id, which also lives process-wide, but the
 product only if the job is submitted as `contextvars.copy_context().run`
 with the callable as its argument, as the media downloader does. Read
-them back with `grep ' <product id> ' outputs/logs/<component>.log`.
+them back with `grep ' <product id> ' outputs/logs/<component>-*.log`; the
+file is per day, named for the day the run started (a run that crosses
+midnight stays in its file), and files older than 45 days are removed at
+the next setup.
 
 ## Configuration Development
 

@@ -176,7 +176,7 @@ global_settings:
 
 The scraper writes the affiliate URL for each scraped product into `data.json::affiliate_link` using `build_affiliate_url`, which canonicalises every URL to `https://www.amazon.com/dp/<ASIN>?tag=<AMAZON_ASSOCIATE_TAG>`. The tag is read from the `AMAZON_ASSOCIATE_TAG` environment variable (or, if unset, from `scrapers.amazon.associate_tag` in `config/scraper.yaml`).
 
-The standalone scraper CLI loads `.env` at startup, so a tag present in `.env` is visible to the URL builder without any shell-side `export`. If the tag resolves empty (no env var, no config value), `build_affiliate_url` logs a WARNING and returns the input URL unchanged: this signals lost affiliate attribution on every scrape in the session and is grep-able in `outputs/logs/scraper.log`.
+The standalone scraper CLI loads `.env` at startup, so a tag present in `.env` is visible to the URL builder without any shell-side `export`. If the tag resolves empty (no env var, no config value), `build_affiliate_url` logs a WARNING and returns the input URL unchanged: this signals lost affiliate attribution on every scrape in the session and is grep-able in `outputs/logs/scraper-<date>.log`.
 
 ### Running without an affiliate program
 
@@ -259,7 +259,7 @@ Two gotchas:
   `pyvirtualdisplay` Python package is already installed but only wraps the binary. If the
   binary is missing, Botasaurus prints a one-line notice and silently falls back to
   `--headless=new`, putting you right back in the detectable/unstable headless mode. Grep
-  `outputs/logs/scraper.log` for `install Xvfb` to catch this.
+  `outputs/logs/scraper-<date>.log` for `install Xvfb` to catch this.
 
 Debug mode (`--debug`) behaviour depends on the session:
 

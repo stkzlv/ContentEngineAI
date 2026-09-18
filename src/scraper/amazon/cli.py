@@ -26,7 +26,7 @@ from src.scraper.base.keyword_pillars import (
     rotate_keyword_pool,
 )
 from src.scraper.config_models import ScraperConfig
-from src.utils.logging_setup import setup_debug_logging
+from src.utils.logging_setup import dated_log_path, setup_debug_logging
 from src.utils.outputs_paths import get_logs_directory, get_project_root
 
 from . import scraper as scraper_module
@@ -294,7 +294,7 @@ def _start_logging() -> Path:
     touching the log at all. The marker records an invoked run, not a
     completed scrape.
     """
-    log_file = get_logs_directory() / "scraper.log"
+    log_file = dated_log_path(get_logs_directory() / "scraper.log")
     setup_debug_logging(
         log_file=log_file,
         debug_mode=False,
@@ -793,7 +793,7 @@ def main() -> None:
 
     if args.profile_uses_videos is not None:
         # The `--profile NAME` path this replaces logged which profile it had
-        # aligned with; an operator reading scraper.log still needs to see
+        # aligned with; an operator reading the scraper log still needs to see
         # which rule a run used. Only the false side changes anything: the
         # one consumer tests `is False` (scraper.py, `effective_vid_count`),
         # so the true side restates the configured requirements, as naming a

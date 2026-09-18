@@ -52,13 +52,14 @@ This pattern is generic. Any contributor can create `docs/<public-doc>.private.m
 
 ## Logs
 
-Pipeline logs are in `outputs/logs/`:
-- `global_pipeline.log` — batch pipeline (scrape + produce + publish)
-- `scraper.log` — standalone scraper runs
-- `producer.log` — standalone video production
-- `publisher.log` — standalone publishing
+Pipeline logs are in `outputs/logs/`, one file per component per day (named for the day the run started; a run that crosses midnight stays in its file), kept 45 days:
+- `global_pipeline-YYYY-MM-DD.log` — batch pipeline (scrape + produce + publish)
+- `scraper-YYYY-MM-DD.log` — standalone scraper runs
+- `producer-YYYY-MM-DD.log` — standalone video production
+- `publisher-YYYY-MM-DD.log` — standalone publishing
+- `analytics-failures.log` — an operator ledger the analytics sweep and its systemd failure handler both append to; not a log stream
 
-Every file line carries the run id and the product id (`-` when none is bound): `time - run - product - logger - LEVEL - func:line - message`, with an ISO 8601 timestamp and the local UTC offset. `grep ' B0ASIN '` on a log returns one product's whole story across phases; `grep 'run starting'` lists the runs with their ids. A new per-product loop binds the id with `log_context(product_id=...)` from `src/utils/logging_setup.py`.
+Every file line carries the run id and the product id (`-` when none is bound): `time - run - product - logger - LEVEL - func:line - message`, with an ISO 8601 timestamp and the local UTC offset. `grep ' B0ASIN '` on a log returns one product's whole story across phases; `grep 'run starting'` lists the runs with their ids; a question that spans days is a glob, `grep ' B0ASIN ' outputs/logs/producer-*.log`. A new per-product loop binds the id with `log_context(product_id=...)` from `src/utils/logging_setup.py`.
 
 ## Resource discipline (read before running anything below)
 

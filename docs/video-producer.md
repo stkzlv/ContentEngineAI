@@ -474,7 +474,7 @@ Enable detailed logging for troubleshooting:
 poetry run python -m src.video.producer data.json profile --debug
 ```
 
-Logs are written to `outputs/logs/producer.log`.
+Logs are written to `outputs/logs/producer-<date>.log`.
 
 ### Clean Run
 

@@ -59,7 +59,7 @@ from src.publisher.registry import create_publisher_from_config
 from src.publisher.schedule import ScheduleManager, record_scheduled_posts
 from src.publisher.tracking import is_already_published, record_publish_results
 from src.publisher.video_selector import sole_render_for_product
-from src.utils.logging_setup import log_context, setup_debug_logging
+from src.utils.logging_setup import dated_log_path, log_context, setup_debug_logging
 from src.utils.outputs_paths import get_project_root
 
 logger = logging.getLogger(__name__)
@@ -1703,7 +1703,7 @@ Examples:
 
     # Setup logging
     setup_debug_logging(
-        log_file=project_root / "outputs" / "logs" / "publisher.log",
+        log_file=dated_log_path(project_root / "outputs" / "logs" / "publisher.log"),
         debug_mode=args.debug,
         verbose=args.debug,
         component_name="Publisher",

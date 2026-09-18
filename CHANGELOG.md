@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.0] - 2026-09-18
+
+### Changed
+- **Breaking**: each component writes one log file per day, `outputs/logs/<component>-YYYY-MM-DD.log`, appended and kept for 45 days, in place of the fixed name with size rotation; size rotation gave `scraper.log.2` with no idea what dates it covered, and two processes with a rotating handler each (the analytics timer and a manual publisher run) rename the same file from under each other. The size-rotated files of earlier releases are left alone.
+
 ## [0.123.0] - 2026-09-18
 
 ### Added
