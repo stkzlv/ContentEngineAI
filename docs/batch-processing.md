@@ -704,8 +704,9 @@ make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 # Several topics, one pipeline step per process (see below)
 make topics-batch TOPICS=topics.private.yaml
 
-# Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
-make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
+# Override resource limits (defaults: MEM_LIMIT=6G, NICE_LEVEL=15). Raise the cap or
+# lower the priority; do not cap a render below 6G, a stock render's tree peaks past 4 GB.
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=8G NICE_LEVEL=19
 ```
 
 Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.
