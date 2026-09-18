@@ -28,14 +28,24 @@ REPO = get_project_root()
 LOG_METHODS = frozenset({"debug", "info", "warning", "error", "critical"})
 
 
+def _reset_library_levels() -> None:
+    # Logger levels are process-global. Without this the non-debug case sets
+    # PIL and friends to WARNING and the debug case inherits it, so a setup
+    # that quieted them in one mode only would still pass both cases.
+    for name in (*QUIET_LOGGERS, *DEBUG_INFO_LOGGERS, "websocket"):
+        logging.getLogger(name).setLevel(logging.NOTSET)
+
+
 @pytest.fixture
 def clean_root() -> Iterator[None]:
-    """Release the file handler the setup attaches, so tmp_path can go."""
+    """Start from unset library levels; release the file handler afterwards."""
+    _reset_library_levels()
     yield
     root = logging.getLogger()
     for handler in root.handlers[:]:
         handler.close()
         root.removeHandler(handler)
+    _reset_library_levels()
 
 
 @pytest.mark.parametrize("debug_mode", [False, True])
