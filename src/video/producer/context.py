@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from src.scraper.amazon.models import ProductData
+from src.utils.performance import PerformanceMonitor
 from src.video.config import VideoConfig, VideoProfile
 
 
@@ -37,6 +38,7 @@ class PipelineContext:
         run_paths: dict,
         debug_mode: bool,
         cli_overrides: dict[str, Any] | None = None,
+        performance: PerformanceMonitor | None = None,
     ):
         self.product = product
         self.profile = profile
@@ -47,6 +49,9 @@ class PipelineContext:
         self.run_paths = run_paths
         self.debug_mode = debug_mode
         self.cli_overrides = cli_overrides or {}
+        # The run's own monitor. The steps measure themselves against it;
+        # it used to be a module global that every render reset in place.
+        self.performance = performance or PerformanceMonitor()
         self.visuals: list[Path] | None = None
         self.script: str | None = None
         self.description: str | None = None

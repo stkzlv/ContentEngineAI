@@ -239,9 +239,10 @@ class TestOptimizationIntegration:
     @pytest.mark.asyncio
     async def test_performance_monitoring_integration(self):
         """Test that performance monitoring is properly integrated."""
-        from src.utils.performance import performance_monitor
+        from src.utils.performance import PerformanceMonitor
 
-        # Initialize pipeline monitoring
+        # One monitor per run, the way the orchestrator builds it
+        performance_monitor = PerformanceMonitor()
         performance_monitor.start_pipeline()
 
         # Test step measurement

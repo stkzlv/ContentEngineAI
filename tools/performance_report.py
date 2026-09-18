@@ -28,6 +28,7 @@ from typing import Any
 # (package-mode = false), so `src` is importable only once the root is added.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.utils.outputs_paths import get_project_root  # noqa: E402
 from src.utils.performance import (  # noqa: E402
     PerformanceHistoryManager,
     PipelineRunMetrics,
@@ -45,25 +46,56 @@ def _percentile(sorted_values: list[float], pct: float) -> float:
     return sorted_values[lower] * (1 - weight) + sorted_values[upper] * weight
 
 
+def _step_durations(runs: list[PipelineRunMetrics]) -> dict[str, list[float]]:
+    """Every recorded duration of each step across `runs`, in run order.
+
+    The one grouping the summary, the trends and the regression check all
+    read; each used to walk the step lists its own way.
+    """
+    durations: dict[str, list[float]] = {}
+    for run in runs:
+        for step in run.step_metrics:
+            durations.setdefault(step["step_name"], []).append(step["duration"])
+    return durations
+
+
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
 class PerformanceReportGenerator:
     """Generates performance monitoring reports from historical data."""
 
-    def __init__(self, history_manager: PerformanceHistoryManager):
+    def __init__(
+        self, history_manager: PerformanceHistoryManager, kind: str | None = "render"
+    ):
         self.history_manager = history_manager
+        self.kind = kind
+
+    def _runs(self, limit: int | None = None) -> list[PipelineRunMetrics]:
+        return self.history_manager.get_run_history(limit=limit, kind=self.kind)
 
     def generate_summary_report(
         self, limit: int = 50, recent_window: int = 10
     ) -> dict[str, Any]:
         """Generate overall summary report."""
-        runs = self.history_manager.get_run_history(limit=limit)
+        runs = self._runs(limit=limit)
 
         if not runs:
             return {"error": "No historical data available"}
 
-        # Basic statistics
+        # A skip (insufficient media) is an expected outcome, not a failure,
+        # so the rate is over the runs that were actually attempted.
         total_runs = len(runs)
+        skipped_runs = sum(1 for run in runs if run.skipped)
+        attempted = total_runs - skipped_runs
         successful_runs = sum(1 for run in runs if run.success)
-        success_rate = (successful_runs / total_runs) * 100 if total_runs > 0 else 0
+        failed_runs = attempted - successful_runs
+        success_rate = (successful_runs / attempted) * 100 if attempted > 0 else 0
+        failed_steps: dict[str, int] = {}
+        for run in runs:
+            if not run.success and not run.skipped and run.failed_step:
+                failed_steps[run.failed_step] = failed_steps.get(run.failed_step, 0) + 1
 
         # Duration statistics with percentiles
         durations = sorted(run.total_duration for run in runs)
@@ -117,8 +149,12 @@ class PerformanceReportGenerator:
             "success_metrics": {
                 "total_runs": total_runs,
                 "successful_runs": successful_runs,
-                "failed_runs": total_runs - successful_runs,
+                "failed_runs": failed_runs,
+                "skipped_runs": skipped_runs,
                 "success_rate_percent": round(success_rate, 2),
+                "failed_steps": dict(
+                    sorted(failed_steps.items(), key=lambda x: x[1], reverse=True)
+                ),
             },
             "performance_metrics": {
                 "duration": {
@@ -151,7 +187,7 @@ class PerformanceReportGenerator:
         self, product_id: str | None = None, days: int = 30
     ) -> dict[str, Any]:
         """Generate performance trends report with step-level breakdowns."""
-        runs = self.history_manager.get_run_history()
+        runs = self._runs()
 
         # Filter by product if specified
         if product_id:
@@ -276,7 +312,7 @@ class PerformanceReportGenerator:
 
     def generate_detailed_report(self, limit: int = 20) -> dict[str, Any]:
         """Generate detailed report with individual run information."""
-        runs = self.history_manager.get_run_history(limit=limit)
+        runs = self._runs(limit=limit)
 
         if not runs:
             return {"error": "No historical data available"}
@@ -303,8 +339,11 @@ class PerformanceReportGenerator:
                     "run_id": run.run_id,
                     "product_id": run.product_id,
                     "profile_name": run.profile_name,
+                    "kind": run.kind,
                     "timestamp": run.start_timestamp,
                     "success": run.success,
+                    "skipped": run.skipped,
+                    "failed_step": run.failed_step,
                     "error_message": run.error_message,
                     "metrics": {
                         "total_duration": round(run.total_duration, 2),
@@ -325,7 +364,7 @@ class PerformanceReportGenerator:
 
     def generate_comparison_report(self, limit: int = 100) -> dict[str, Any]:
         """Generate profile-vs-profile performance comparison."""
-        runs = self.history_manager.get_run_history(limit=limit)
+        runs = self._runs(limit=limit)
 
         if not runs:
             return {"error": "No historical data available"}
@@ -381,7 +420,7 @@ class PerformanceReportGenerator:
         Flags steps where recent average duration exceeds the previous
         average by more than `threshold_factor`.
         """
-        runs = self.history_manager.get_run_history(limit=window * 2)
+        runs = self._runs(limit=window * 2)
 
         if len(runs) < window * 2:
             return {
@@ -395,18 +434,8 @@ class PerformanceReportGenerator:
         recent_runs = runs[:window]
         previous_runs = runs[window:]
 
-        def _step_avg(run_list: list[PipelineRunMetrics]) -> dict[str, float]:
-            step_totals: dict[str, list[float]] = {}
-            for run in run_list:
-                for step in run.step_metrics:
-                    name = step["step_name"]
-                    if name not in step_totals:
-                        step_totals[name] = []
-                    step_totals[name].append(step["duration"])
-            return {name: sum(vals) / len(vals) for name, vals in step_totals.items()}
-
-        recent_avgs = _step_avg(recent_runs)
-        previous_avgs = _step_avg(previous_runs)
+        recent_avgs = {n: _mean(v) for n, v in _step_durations(recent_runs).items()}
+        previous_avgs = {n: _mean(v) for n, v in _step_durations(previous_runs).items()}
 
         regressions = []
         for step_name in recent_avgs:
@@ -459,46 +488,31 @@ class PerformanceReportGenerator:
         self, runs: list[PipelineRunMetrics]
     ) -> dict[str, Any]:
         """Analyze performance by pipeline step with percentiles."""
-        step_stats: dict[str, dict[str, Any]] = {}
-
+        memory_deltas: dict[str, float] = {}
+        error_counts: dict[str, int] = {}
         for run in runs:
             for step_data in run.step_metrics:
-                step_name = step_data["step_name"]
-
-                if step_name not in step_stats:
-                    step_stats[step_name] = {
-                        "count": 0,
-                        "durations": [],
-                        "total_memory_delta": 0,
-                        "error_count": 0,
-                    }
-
-                step_stats[step_name]["count"] += 1
-                step_stats[step_name]["durations"].append(step_data["duration"])
-                step_stats[step_name]["total_memory_delta"] += (
+                name = step_data["step_name"]
+                memory_deltas[name] = memory_deltas.get(name, 0.0) + (
                     step_data["memory_end"] - step_data["memory_start"]
                 )
-                step_stats[step_name]["error_count"] += len(step_data.get("errors", []))
+                error_counts[name] = error_counts.get(name, 0) + len(
+                    step_data.get("errors", [])
+                )
 
         # Calculate averages and percentiles
         step_analysis = {}
-        for step_name, stats in step_stats.items():
-            count = stats["count"]
-            durations = sorted(stats["durations"])
+        for step_name, values in _step_durations(runs).items():
+            count = len(values)
+            durations = sorted(values)
             step_analysis[step_name] = {
                 "execution_count": count,
-                "average_duration": (
-                    round(sum(durations) / count, 3) if count > 0 else 0
-                ),
+                "average_duration": round(_mean(durations), 3),
                 "p50_duration": round(_percentile(durations, 50), 3),
                 "p95_duration": round(_percentile(durations, 95), 3),
                 "p99_duration": round(_percentile(durations, 99), 3),
-                "average_memory_delta": (
-                    round(stats["total_memory_delta"] / count, 2) if count > 0 else 0
-                ),
-                "error_rate": (
-                    round((stats["error_count"] / count) * 100, 2) if count > 0 else 0
-                ),
+                "average_memory_delta": round(memory_deltas[step_name] / count, 2),
+                "error_rate": round((error_counts[step_name] / count) * 100, 2),
             }
 
         # Sort by average duration (slowest first)
@@ -527,7 +541,10 @@ def _report_to_csv(report: dict[str, Any]) -> str:
                 "product_id",
                 "profile_name",
                 "timestamp",
+                "kind",
                 "success",
+                "skipped",
+                "failed_step",
                 "total_duration",
                 "memory_delta",
                 "peak_memory",
@@ -543,7 +560,10 @@ def _report_to_csv(report: dict[str, Any]) -> str:
                     run["product_id"],
                     run["profile_name"],
                     run["timestamp"],
+                    run["kind"],
                     run["success"],
+                    run["skipped"],
+                    run.get("failed_step") or "",
                     m["total_duration"],
                     m["memory_delta"],
                     m["peak_memory"],
@@ -642,11 +662,24 @@ Examples:
         help="Window size for regression detection (compares last N vs previous N)",
     )
 
+    # Composed from the project root rather than through `outputs_paths`'s
+    # directory helpers, which create what they name; a report must not.
     parser.add_argument(
         "--history-dir",
         type=Path,
-        default=Path("outputs/performance_history"),
-        help="Directory containing performance history data",
+        default=get_project_root() / "outputs" / "performance_history",
+        help=(
+            "Directory containing performance history data (default: the "
+            "repository's outputs/performance_history, from any working directory)"
+        ),
+    )
+    parser.add_argument(
+        "--include-steps",
+        action="store_true",
+        help=(
+            "Also count single-step (--step) debug runs, which the reports "
+            "leave out by default"
+        ),
     )
 
     parser.add_argument(
@@ -662,14 +695,13 @@ Examples:
 
     args = parser.parse_args()
 
-    # Initialize history manager
-    history_manager = PerformanceHistoryManager(
-        history_dir=args.history_dir,
-        max_runs=1000,  # High limit for report generation
-    )
+    # Read-only here: the manager creates nothing until it saves.
+    history_manager = PerformanceHistoryManager(history_dir=args.history_dir)
 
     # Generate report
-    generator = PerformanceReportGenerator(history_manager)
+    generator = PerformanceReportGenerator(
+        history_manager, kind=None if args.include_steps else "render"
+    )
 
     if args.report_type == "summary":
         report = generator.generate_summary_report(limit=args.limit)
@@ -750,6 +782,9 @@ def print_summary_report(report: dict[str, Any]) -> None:
         f"({success.get('successful_runs', 0)}/{success.get('total_runs', 0)})"
     )
     print(f"   Failed Runs: {success.get('failed_runs', 0)}")
+    print(f"   Skipped Runs: {success.get('skipped_runs', 0)} (insufficient media)")
+    for step, count in success.get("failed_steps", {}).items():
+        print(f"     failed at {step}: {count}")
 
     print("\nPERFORMANCE METRICS")
     duration = perf.get("duration", {})
@@ -843,8 +878,8 @@ def print_detailed_report(report: dict[str, Any]) -> None:
     print(f"\nDETAILED RUNS (Showing {len(runs)} of max {limit})")
 
     for i, run in enumerate(runs[:10]):  # Show first 10 runs
-        status = "OK" if run["success"] else "FAIL"
-        print(f"\n   {i+1}. [{status}] {run['run_id']}")
+        status = "OK" if run["success"] else "SKIP" if run["skipped"] else "FAIL"
+        print(f"\n   {i+1}. [{status}] {run['run_id']} ({run['kind']})")
         print(f"      Product: {run['product_id']} | Profile: {run['profile_name']}")
         print(f"      Time: {run['timestamp']}")
 
@@ -856,7 +891,8 @@ def print_detailed_report(report: dict[str, Any]) -> None:
         )
 
         if not run["success"] and run["error_message"]:
-            print(f"      Error: {run['error_message']}")
+            where = f" at {run['failed_step']}" if run.get("failed_step") else ""
+            print(f"      Error{where}: {run['error_message']}")
 
         # Show slowest steps
         steps = sorted(run["step_details"], key=lambda x: x["duration"], reverse=True)[

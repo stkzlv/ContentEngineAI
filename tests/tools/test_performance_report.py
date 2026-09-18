@@ -1,6 +1,7 @@
 """Tests for the performance report generator tool."""
 
 import json
+import sys
 import tempfile
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -396,3 +397,151 @@ class TestCSVExport:
         csv_output = _report_to_csv(report)
         parsed = json.loads(csv_output)
         assert parsed["report_type"] == "summary"
+
+
+def _row(
+    run_id: str,
+    *,
+    success: bool = True,
+    skipped: bool = False,
+    failed_step: str | None = None,
+    kind: str = "render",
+    timestamp: str = "2025-01-15T10:00:00+00:00",
+) -> PipelineRunMetrics:
+    return PipelineRunMetrics(
+        run_id=run_id,
+        product_id="P1",
+        profile_name="prof",
+        start_timestamp=timestamp,
+        end_timestamp=timestamp,
+        total_duration=10.0,
+        total_memory_delta=1.0,
+        peak_memory=100.0,
+        total_cpu_percent=10.0,
+        step_metrics=[
+            {
+                "step_name": "assemble_video",
+                "start_time": 0,
+                "end_time": 1,
+                "duration": 1.0,
+                "memory_start": 1,
+                "memory_peak": 2,
+                "memory_end": 1,
+                "cpu_percent": 1,
+                "io_read_bytes": 0,
+                "io_write_bytes": 0,
+                "errors": ["boom"] if failed_step else [],
+                "metadata": {},
+            }
+        ],
+        success=success,
+        skipped=skipped,
+        failed_step=failed_step,
+        kind=kind,
+    )
+
+
+class TestSkipsAndFailedSteps:
+    def test_a_skip_is_not_in_the_success_rate(self):
+        """Seven of the real file's 25 'failures' were insufficient-media
+        skips, an expected outcome the rate should not count against.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.save_run_metrics(_row("ok", timestamp="2025-01-01T10:00:00+00:00"))
+            hm.save_run_metrics(
+                _row(
+                    "skip",
+                    success=False,
+                    skipped=True,
+                    timestamp="2025-01-02T10:00:00+00:00",
+                )
+            )
+            hm.save_run_metrics(
+                _row(
+                    "fail",
+                    success=False,
+                    failed_step="assemble_video",
+                    timestamp="2025-01-03T10:00:00+00:00",
+                )
+            )
+            report = PerformanceReportGenerator(hm).generate_summary_report()
+        metrics = report["success_metrics"]
+        assert metrics["total_runs"] == 3
+        assert metrics["skipped_runs"] == 1
+        assert metrics["failed_runs"] == 1
+        assert metrics["success_rate_percent"] == 50.0
+        assert metrics["failed_steps"] == {"assemble_video": 1}
+
+    def test_the_detailed_report_names_kind_skip_and_step(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.save_run_metrics(
+                _row("fail", success=False, failed_step="assemble_video")
+            )
+            (run,) = PerformanceReportGenerator(hm).generate_detailed_report()["runs"]
+        assert run["kind"] == "render"
+        assert run["skipped"] is False
+        assert run["failed_step"] == "assemble_video"
+
+
+class TestRendersOnlyByDefault:
+    def test_step_runs_are_left_out_unless_asked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hm = PerformanceHistoryManager(history_dir=Path(tmp))
+            hm.save_run_metrics(_row("render"))
+            hm.save_run_metrics(
+                _row("dbg", kind="step", timestamp="2025-01-16T10:00:00+00:00")
+            )
+            default = PerformanceReportGenerator(hm).generate_summary_report()
+            everything = PerformanceReportGenerator(
+                hm, kind=None
+            ).generate_summary_report()
+        assert default["data_range"]["total_runs"] == 1
+        assert everything["data_range"]["total_runs"] == 2
+
+
+class TestTheDefaultDirectoryIsTheRepositorys:
+    def test_default_history_dir_is_anchored_on_the_project_root(self, monkeypatch):
+        """Run from any directory, the tool reads the repository's history;
+        a CWD-relative default read an empty directory from anywhere else.
+        And a read creates nothing: the `outputs_paths` helpers make the
+        directories they name, so the default is composed from the project
+        root instead.
+        """
+        import tools.performance_report as tool
+
+        seen: dict[str, Path] = {}
+
+        class Reader:
+            def __init__(self, history_dir, max_runs=100):
+                seen["dir"] = Path(history_dir)
+
+            def get_run_history(self, limit=None, kind="render"):
+                return []
+
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as root,
+        ):
+            monkeypatch.chdir(tmp)
+            monkeypatch.setattr(tool, "get_project_root", lambda: Path(root))
+            monkeypatch.setattr(
+                sys, "argv", ["performance_report.py", "--format", "json"]
+            )
+            monkeypatch.setattr(tool, "PerformanceHistoryManager", Reader)
+            tool.main()
+            assert not (Path(tmp) / "outputs").exists()
+            assert not (Path(root) / "outputs").exists()
+            assert seen["dir"] == Path(root) / "outputs" / "performance_history"
+
+
+class TestStepGrouping:
+    def test_durations_grouped_per_step_in_run_order(self):
+        from tools.performance_report import _step_durations
+
+        runs = [
+            _make_run("a", step_durations=[("x", 1.0), ("y", 2.0)]),
+            _make_run("b", step_durations=[("x", 3.0)]),
+        ]
+        assert _step_durations(runs) == {"x": [1.0, 3.0], "y": [2.0]}

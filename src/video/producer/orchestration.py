@@ -23,7 +23,7 @@ from src.utils.performance import (
     RUN_KIND_RENDER,
     RUN_KIND_STEP,
     PerformanceHistoryManager,
-    performance_monitor,
+    PerformanceMonitor,
 )
 from src.video.config import (
     DebugSettings,
@@ -362,7 +362,7 @@ async def create_video_for_product(
         history_dir=config.global_output_root_path / "performance_history",
         max_runs=opt.performance_history_max_runs,
     )
-    performance_monitor.reset(
+    monitor = PerformanceMonitor(
         history_manager=history_manager,
         memory_monitor_interval=opt.performance_monitoring_interval_sec,
     )
@@ -374,7 +374,7 @@ async def create_video_for_product(
 
     # A `--step` run records only that step; the history marks it so the
     # reports can keep it out of the render averages.
-    performance_monitor.start_pipeline(
+    monitor.start_pipeline(
         run_id=run_id,
         product_id=product_id,
         profile_name=profile_name,
@@ -413,6 +413,7 @@ async def create_video_for_product(
             run_paths,
             debug_mode,
             cli_overrides,
+            performance=monitor,
         )
 
         # Initialize background processing with configuration
@@ -551,14 +552,14 @@ async def create_video_for_product(
                 create_metrics = True
 
             if create_metrics:
-                performance_monitor.save_metrics(run_paths["performance"])
+                monitor.save_metrics(run_paths["performance"])
 
         # Mark pipeline as successful for history tracking
-        performance_monitor.finish_pipeline(success=True)
+        monitor.finish_pipeline(success=True)
 
         # Check performance thresholds and log warnings
         debug_settings = config.debug_settings or DebugSettings.model_validate({})
-        threshold_warnings = performance_monitor.check_thresholds(
+        threshold_warnings = monitor.check_thresholds(
             timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
             memory_warning_mb=debug_settings.memory_usage_warning_mb,
         )
@@ -577,9 +578,7 @@ async def create_video_for_product(
         skipped_run = True
         logger.warning("Product skipped due to insufficient media: %s", e)
         # Mark as skipped, not failed - this is expected for some products
-        performance_monitor.finish_pipeline(
-            success=False, error_message=str(e), skipped=True
-        )
+        monitor.finish_pipeline(success=False, error_message=str(e), skipped=True)
         # Clean up background processing on skip
         await cleanup_global_background_processor()
         # Return special value to indicate skip
@@ -587,7 +586,7 @@ async def create_video_for_product(
     except (FileNotFoundError, PipelineError, KeyError) as e:
         logger.error("Pipeline stopped at step '%s': %s", step, e, exc_info=debug_mode)
         # Mark pipeline as failed for history tracking
-        performance_monitor.finish_pipeline(success=False, error_message=str(e))
+        monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
         await cleanup_global_background_processor()
         # Signal a step failure, distinct from "SKIPPED" and from a partial
@@ -600,13 +599,13 @@ async def create_video_for_product(
             e,
         )
         # Mark pipeline as failed for history tracking
-        performance_monitor.finish_pipeline(success=False, error_message=str(e))
+        monitor.finish_pipeline(success=False, error_message=str(e))
         # Clean up background processing on failure
         await cleanup_global_background_processor()
         return f"{FAILED_PREFIX}{step or 'unknown'}"
     finally:
         # Log performance summary
-        summary = performance_monitor.get_pipeline_summary()
+        summary = monitor.get_pipeline_summary()
         if summary:
             logger.info(
                 "Pipeline performance: %.2fs total, %s steps, Memory: %+.1fMB",

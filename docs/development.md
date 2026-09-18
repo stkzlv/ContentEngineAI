@@ -220,11 +220,10 @@ class MyNewStepConfig(BaseModel):
 
 4. **Add Performance Monitoring:**
 ```python
-from src.utils.performance import performance_monitor
-
-
-async def my_new_step(context: PipelineContext) -> PipelineContext:
-    async with performance_monitor.measure_step('my_new_step'):
+async def my_new_step(ctx: PipelineContext) -> PipelineContext:
+    # The run's monitor rides on the context; every step measures itself
+    # against it, and its row lands in outputs/performance_history/.
+    async with ctx.performance.measure_step('my_new_step'):
         # Implementation
         pass
 ```
@@ -425,9 +424,9 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 ### Performance Profiling
 
 ```python
-# Add performance tracking to your code
-async def my_function():
-    async with performance_monitor.measure_step('my_operation'):
+# Add performance tracking to your code; the monitor rides on the context
+async def my_function(ctx: PipelineContext):
+    async with ctx.performance.measure_step('my_operation'):
         # Your code here
         pass
 ```

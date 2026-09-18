@@ -331,28 +331,6 @@ class PerformanceMonitor:
         self.current_profile_name: str | None = None
         self.current_kind: str = RUN_KIND_RENDER
 
-    def reset(
-        self,
-        history_manager: PerformanceHistoryManager | None = None,
-        memory_monitor_interval: float | None = None,
-    ) -> None:
-        """Reset monitor state for a new pipeline run.
-
-        Optionally sets a new history manager and/or memory monitor interval.
-        Use this instead of directly mutating attributes between batch runs.
-        """
-        self.metrics.clear()
-        self.current_step = None
-        self.pipeline_start = None
-        self.current_run_id = None
-        self.current_product_id = None
-        self.current_profile_name = None
-        self.current_kind = RUN_KIND_RENDER
-        if history_manager is not None:
-            self.history_manager = history_manager
-        if memory_monitor_interval is not None:
-            self.memory_monitor_interval = memory_monitor_interval
-
     def start_pipeline(
         self,
         run_id: str | None = None,
@@ -585,7 +563,3 @@ class PerformanceMonitor:
             logger.debug("Pipeline run %s saved to history", self.current_run_id)
         except (OSError, TypeError, ValueError) as e:
             logger.error("Failed to save pipeline run to history: %s", e)
-
-
-# Global performance monitor instance
-performance_monitor = PerformanceMonitor()

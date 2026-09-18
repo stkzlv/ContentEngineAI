@@ -121,6 +121,7 @@ debug_settings:
   create_pipeline_metadata: true
   create_performance_metrics: true
 
-  # Performance thresholds (Whisper STT runs 60-120s; peak RSS ~2.3GB)
+  # Performance thresholds (Whisper STT runs 60-120s; the process-tree peak
+  # passes 4 GB on a stock render, and the lowpri cgroup cap is 6 GB)
   operation_timing_threshold_sec: 180.0
-  memory_usage_warning_mb: 3000
+  memory_usage_warning_mb: 5000
