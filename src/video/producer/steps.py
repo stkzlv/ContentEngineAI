@@ -22,7 +22,6 @@ from src.audio.manager import AudioManager
 from src.audio.registry import create_audio_provider
 from src.scraper.base.models import carries_affiliate_content
 from src.utils import ensure_dirs_exist
-from src.utils.performance import performance_monitor
 from src.utils.script_sanitizer import sanitize_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
@@ -282,7 +281,7 @@ async def _fetch_stock_across_queries(
 
 
 async def step_gather_visuals(ctx: PipelineContext):
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "gather_visuals",
         profile=ctx.profile.description,
         scraped_images_enabled=ctx.profile.use_scraped_images,
@@ -536,7 +535,7 @@ async def step_gather_visuals(ctx: PipelineContext):
 
 
 async def step_generate_script(ctx: PipelineContext):
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "generate_script",
         product_title_length=len(ctx.product.title or ""),
         llm_model=(
@@ -1041,7 +1040,7 @@ async def step_generate_description(ctx: PipelineContext):
         logger.info("Description generation is disabled, skipping step")
         return
 
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "generate_description",
         product_title_length=len(ctx.product.title or ""),
         target_platforms=",".join(ctx.config.description_settings.target_platforms),
@@ -1062,7 +1061,7 @@ async def step_generate_description(ctx: PipelineContext):
 
 
 async def step_create_voiceover(ctx: PipelineContext):
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "create_voiceover",
         script_length=len(ctx.script or ""),
         tts_provider=(
@@ -1264,7 +1263,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
         else ctx.config.subtitle_settings.get("enabled", True)
     )
 
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "generate_subtitles",
         subtitle_provider="whisper",  # Default subtitle provider
         voiceover_duration=ctx.voiceover_duration or 0.0,
@@ -1497,7 +1496,7 @@ def _require_subtitle_artifact(ctx: PipelineContext) -> None:
 
 
 async def step_download_music(ctx: PipelineContext):
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "download_music",
         required_duration=ctx.voiceover_duration or 0.0,
         freesound_enabled=bool(
@@ -1624,7 +1623,7 @@ async def step_assemble_video(ctx: PipelineContext):
         else ctx.config.subtitle_settings.get("enabled", True)
     )
 
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "assemble_video",
         visual_count=len(ctx.visuals) if ctx.visuals else 0,
         target_duration=ctx.voiceover_duration or 0.0,
@@ -2121,7 +2120,7 @@ async def step_burn_pycaps_subtitles(ctx: PipelineContext):
 
         pycaps_settings = PycapsSettings()  # type: ignore[call-arg]
 
-    async with performance_monitor.measure_step(
+    async with ctx.performance.measure_step(
         "burn_pycaps_subtitles",
         pycaps_renderer=pycaps_settings.renderer,
         pycaps_template_pool_size=len(pycaps_settings.template_pool or []),

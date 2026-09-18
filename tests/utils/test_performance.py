@@ -22,7 +22,6 @@ from src.utils.performance import (
     PerformanceMetrics,
     PerformanceMonitor,
     PipelineRunMetrics,
-    performance_monitor,
 )
 
 
@@ -197,29 +196,6 @@ class TestPerformanceMonitor:
         monitor.start_pipeline(kind=RUN_KIND_STEP)
         assert monitor.pipeline_start is not None
         assert monitor.current_kind == RUN_KIND_STEP
-
-    @patch("src.utils.performance.psutil.Process")
-    def test_reset_clears_state(self, mock_process_class):
-        mock_process_class.return_value = _process()
-        monitor = PerformanceMonitor()
-        monitor.start_pipeline(
-            run_id="r", product_id="P1", profile_name="p", kind=RUN_KIND_STEP
-        )
-        monitor.metrics.append(_metric())
-
-        monitor.reset()
-
-        assert monitor.metrics == []
-        assert monitor.pipeline_start is None
-        assert monitor.current_run_id is None
-        assert monitor.current_kind == RUN_KIND_RENDER
-
-    def test_reset_sets_history_manager(self):
-        monitor = PerformanceMonitor()
-        with tempfile.TemporaryDirectory() as tmp:
-            hm = PerformanceHistoryManager(history_dir=Path(tmp))
-            monitor.reset(history_manager=hm)
-            assert monitor.history_manager is hm
 
     def test_get_pipeline_summary_empty(self):
         assert PerformanceMonitor().get_pipeline_summary() == {}
@@ -561,11 +537,6 @@ class TestPipelineRunMetrics:
         assert run.success is False
         assert run.error_message == "Something broke"
         assert run.failed_step == "assemble_video"
-
-
-class TestGlobalMonitor:
-    def test_global_monitor_exists(self):
-        assert isinstance(performance_monitor, PerformanceMonitor)
 
 
 class TestTheCapIsPerKind:

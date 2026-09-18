@@ -54,7 +54,7 @@ STEPS = Path("src/video/producer/steps.py")
 
 # `step_assemble_video` reads these after an `async with` closes, so the
 # compiler must assume the context manager might have suppressed an exception
-# and skipped the binding. It cannot: `performance_monitor.measure_step`
+# and skipped the binding. It cannot: `ctx.performance.measure_step`
 # (`src/utils/performance.py`) re-raises in its `except` and its `finally`
 # contains no `return`, which are the only two ways to suppress. Verified by
 # reading it, not assumed -- and the entries are per-function, so the same
