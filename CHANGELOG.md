@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.1] - 2026-09-18
+
+### Fixed
+- `tools/cleanup_outputs.py --force` runs the cleaner when the config disables it; the flag passed the tool's own check and stopped at the cleaner's, so it printed "disabled" and exited 1 regardless.
+- A dangling symlink under the outputs root is removed by the cleaner instead of being counted as an error.
+
 ## [0.124.0] - 2026-09-18
 
 ### Changed

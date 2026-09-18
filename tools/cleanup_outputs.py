@@ -73,7 +73,7 @@ def main():
             print()
 
         # Run cleanup
-        result = config.cleanup_outputs_directory(dry_run=dry_run)
+        result = config.cleanup_outputs_directory(dry_run=dry_run, force=args.force)
 
         if result.get("status") == "disabled":
             print("Cleanup is disabled in configuration")

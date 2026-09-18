@@ -307,7 +307,7 @@ make test-cov      # Run tests with coverage report
 **Releases are automated via CI/CD**:
 1. Review changes and determine version bump
 2. Update version in `pyproject.toml` and code files
-3. Update `CHANGELOG.md` with release notes following [Keep a Changelog](https://keepachangelog.com/) format
+3. Update `CHANGELOG.md` with release notes following [Keep a Changelog](https://keepachangelog.com/) format; the heading date is the UTC date (`date -u +%F`), which after local midnight is still the previous day
 4. Commit version bump: `git commit -m "Bump version to 0.18.0"`
 5. Merge PR and switch to main branch
 6. Create and push version tag: `git tag -a v0.18.0 -m "Release v0.18.0"`
