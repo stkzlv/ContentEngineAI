@@ -79,7 +79,7 @@ help:
 	@echo "$(GREEN)Batch Pipeline:$(NC)"
 	@echo "  batch         - Run global batch pipeline (ARGS=\"--keywords foo\")"
 	@echo "  batch-lowpri  - Same but with reduced CPU/IO/memory priority"
-	@echo "                  Defaults MEM_LIMIT=6G NICE_LEVEL=15; tighten with MEM_LIMIT=4G NICE_LEVEL=19"
+	@echo "                  Defaults MEM_LIMIT=6G NICE_LEVEL=15; raise MEM_LIMIT or lower NICE_LEVEL; never below 6G for a render"
 	@echo ""
 	@echo "$(YELLOW)Scraping Commands:$(NC)"
 	@echo "  scrape-test        - Run test scrape with Botasaurus"
