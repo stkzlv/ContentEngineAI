@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.2] - 2026-09-18
+
+### Fixed
+- The outputs cleaner unlinks a symlink under the outputs root instead of following it, so a symlinked directory is no longer reported as an error on every run and its target is never touched.
+- A removal that fails inside the cleaner is counted in the report's error statistics, which only counted exceptions that escaped the item cleanup.
+
 ## [0.124.1] - 2026-09-18
 
 ### Fixed

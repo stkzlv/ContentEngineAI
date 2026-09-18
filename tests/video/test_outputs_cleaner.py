@@ -154,3 +154,50 @@ class TestADanglingSymlinkIsNotAnError:
         assert not link.is_symlink()
         assert report["statistics"]["errors"] == 0
         assert report["statistics"]["files_removed"] == 1
+
+
+class TestASymlinkedDirectoryIsUnlinkedNotWalked:
+    """A link the cleaner does remove is unlinked, never walked.
+
+    A link named like a product is a product directory to the shared
+    helper and is left alone like any other; a hidden one is unexpected
+    and used to reach `rmtree`, which refuses a link, so it was an error
+    action on every run.
+    """
+
+    def test_the_link_goes_and_the_target_stays(self, root: Path, tmp_path: Path):
+        target = tmp_path / "elsewhere"
+        target.mkdir()
+        (target / "keep.txt").write_text("x")
+        hidden = root / ".linked"
+        hidden.symlink_to(target, target_is_directory=True)
+        product_like = root / "B0LINK00001"
+        product_like.symlink_to(target, target_is_directory=True)
+
+        report = _config_on(root).cleanup_outputs_directory(dry_run=False)
+
+        assert not hidden.is_symlink()
+        assert product_like.is_symlink()
+        assert (target / "keep.txt").exists()
+        assert report["statistics"]["errors"] == 0
+
+
+class TestAnErrorActionIsCounted:
+    def test_a_failed_removal_shows_in_the_statistics(self, root: Path, monkeypatch):
+        from src.video.config import core_models
+
+        junk = root / ".junk"
+        junk.mkdir()
+        # Non-empty, or the empty-directory pass takes it after the refusal.
+        (junk / "file").write_text("x")
+
+        def refuse(path, *args, **kwargs):
+            raise PermissionError(f"refused: {path}")
+
+        monkeypatch.setattr(core_models.shutil, "rmtree", refuse)
+
+        report = _config_on(root).cleanup_outputs_directory(dry_run=False)
+
+        assert junk.exists()
+        assert report["statistics"]["errors"] == 1
+        assert any(a["action"] == "error" for a in report["actions"])
