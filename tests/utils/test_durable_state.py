@@ -189,3 +189,20 @@ class TestCleanupPreservesDurableState:
         assert keep.exists(), "cleanup removed a durable state file"
         assert not junk.exists(), "cleanup left the aged stray, so it never ran"
         assert report["statistics"]["files_removed"] >= 1
+
+    def test_the_empty_directory_sweep_keeps_every_global_directory(self, tmp_path):
+        """The empty-directory pass had its own preserve list, a fourth one,
+        and it lacked reports and performance_history: the sweep removed an
+        empty reports directory that the structure validator then reported
+        as missing. It reads the shared list now, plus the configured names.
+        """
+        from src.utils.outputs_paths import GLOBAL_DIR_NAMES
+
+        config = self._config_on(tmp_path)
+        for name in GLOBAL_DIR_NAMES:
+            assert config._is_expected_base_directory(tmp_path / name), name
+        assert config._is_expected_base_directory(
+            tmp_path / config.output_structure.global_dirs.reports
+        )
+        assert not config._is_expected_base_directory(tmp_path / "B0STRAY001")
+        assert not config._is_expected_base_directory(tmp_path / "B0STRAY001" / "logs")

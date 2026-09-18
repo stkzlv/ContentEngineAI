@@ -17,6 +17,7 @@ from src.ai.llm_settings import LLMSettings
 # Platform-specific metadata models (no circular import after extracting LLMSettings)
 from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
+from src.utils.outputs_paths import GLOBAL_DIR_NAMES
 from src.video.config.audio_models import (
     AudioProcessingSettings,
     AudioSettings,
@@ -1380,18 +1381,18 @@ class VideoConfig(BaseModel):
 
         These directories should not be removed.
         """
-        expected_bases = {
-            self.global_output_root_path / "videos",  # Static videos directory
-            self.global_output_root_path / "data",  # Static scraper data directory
-            self.global_output_root_path / self.output_structure.global_dirs.logs,
-            self.global_output_root_path / self.output_structure.global_dirs.temp,
-            self.global_output_root_path / self.output_structure.global_dirs.cache,
-            # The durable-state directory: the resolver plants it eagerly, so
-            # an empty one is normal, and the empty-dirs pass must not take
-            # what the preserve-list names.
-            self.global_output_root_path / "state",
+        # The shared list plus the configured names, which can differ from
+        # the defaults. This was a fourth hand-kept list; it lacked reports
+        # and performance_history, so the sweep removed an empty reports
+        # directory that the structure validator then reported missing.
+        global_dirs = self.output_structure.global_dirs
+        names = GLOBAL_DIR_NAMES | {
+            global_dirs.cache,
+            global_dirs.logs,
+            global_dirs.reports,
+            global_dirs.temp,
         }
-        return path in expected_bases
+        return path.parent == self.global_output_root_path and path.name in names
 
     def _save_cleanup_report(self, report: dict[str, Any]) -> None:
         """Save cleanup report to file."""

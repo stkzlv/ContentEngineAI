@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 # provider's retention and are then unrecoverable at any price.
 STATE_DIR_NAME = "state"
 
-# Directories under the outputs root that are not products. Three scans kept
+# Directories under the outputs root that are not products. Four scans kept
 # their own lists (batch cleanup, the producer's batch discovery, the
-# structure validator) and disagreed: cleanup's was the shortest, so the
+# structure validator, the empty-directory sweep) and disagreed: cleanup's
+# was the shortest, so the
 # state, log and cache directories went through per-product cleanup and
 # warned for each on every platform, and the validator counted the state
 # directory as unexpected, which strict cleanup removes.

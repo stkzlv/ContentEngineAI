@@ -38,6 +38,10 @@ There is no predetermined version for reaching 1.0.0 - development continues in 
 
 ⚠️ **Important**: During the 0.x phase, breaking changes may occur in minor versions.
 
+A removed or renamed configuration key is a breaking change: a config file
+that still sets it fails validation. It takes a minor bump, and its CHANGELOG
+entry is marked `**Breaking**:`.
+
 We will:
 - Document all breaking changes in the CHANGELOG
 - Provide migration guides for significant changes
