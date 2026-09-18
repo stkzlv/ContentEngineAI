@@ -476,10 +476,10 @@ class BatchController:
         for line in summary_lines_for(summary.dead_queries, summary.throttled_inputs):
             self.logger.warning("%s", line)
 
-        self.logger.info("\nMedia Collection Statistics:")
+        self.logger.info("Media Collection Statistics:")
         for key, value in summary.media_stats.items():
             self.logger.info("  - %s: %s", key, value)
 
         self.logger.info(
-            "\nDuration: %.*f seconds", duration_places, summary.duration_sec
+            "Duration: %.*f seconds", duration_places, summary.duration_sec
         )

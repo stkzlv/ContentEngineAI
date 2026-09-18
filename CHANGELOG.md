@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.121.14] - 2026-09-18
+## [0.122.0] - 2026-09-18
 
 ### Fixed
 - Third-party loggers are held at WARNING under `--debug` too. The quiet list applied only outside debug mode, which every documented command passes, so Pillow's PNG plugin was 45% of a producer log and the Gemini SDK's per-call "AFC is enabled" line another 4,600 rows.

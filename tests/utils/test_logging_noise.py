@@ -102,7 +102,9 @@ def _rule_log_calls(path: Path) -> list[int]:
         is_logger = (isinstance(owner, ast.Name) and owner.id.endswith("logger")) or (
             isinstance(owner, ast.Attribute) and owner.attr.endswith("logger")
         )
-        if is_logger and _is_rule(node.args[0]):
+        # Every positional argument, not just the format string: a rule
+        # smuggled in as `logger.warning("\\n%s", "=" * 80)` is still a rule.
+        if is_logger and any(_is_rule(arg) for arg in node.args):
             hits.append(node.lineno)
     return hits
 
@@ -118,8 +120,12 @@ class TestNoLogLineIsABareRule:
 
     def test_the_guard_sees_a_rule(self, tmp_path: Path):
         sample = tmp_path / "s.py"
-        sample.write_text('logger.info("=" * 80)\nself.logger.info("-" * 40)\n')
-        assert _rule_log_calls(sample) == [1, 2]
+        sample.write_text(
+            'logger.info("=" * 80)\n'
+            'self.logger.info("-" * 40)\n'
+            'logger.warning("\\n%s", "=" * 80)\n'
+        )
+        assert _rule_log_calls(sample) == [1, 2, 3]
 
     def test_the_guard_ignores_real_messages(self, tmp_path: Path):
         sample = tmp_path / "s.py"

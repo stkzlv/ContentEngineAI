@@ -523,7 +523,6 @@ async def main():
         sys.exit(exit_code)
 
     except KeyboardInterrupt:
-        logger.warning("\n%s", "=" * 80)
         logger.warning("PIPELINE INTERRUPTED BY USER")
         logger.warning("Partial log saved to: %s", log_file)
         logger.warning("To resume from last checkpoint, run with --resume flag")
