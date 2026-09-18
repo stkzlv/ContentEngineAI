@@ -345,9 +345,7 @@ async def main():
         component_name="GlobalPipeline",
     )
 
-    logger.info("=" * 80)
     logger.info("GLOBAL BATCH PIPELINE STARTING")
-    logger.info("=" * 80)
     logger.info("Log file: %s", log_file)
 
     try:
@@ -494,7 +492,6 @@ async def main():
             print(summary.to_json(started_at=pipeline_started_at))
         else:
             # Text output (already logged by _generate_final_summary)
-            logger.info("=" * 80)
             # Keyed on what happened, not on the exit code: under --strict
             # a partial loss also exits non-zero, and calling that "no
             # products completed end-to-end" would be false. A loss counts
@@ -521,7 +518,6 @@ async def main():
                 )
             else:
                 logger.info("PIPELINE COMPLETED SUCCESSFULLY")
-            logger.info("=" * 80)
             logger.info("Complete log saved to: %s", log_file)
 
         sys.exit(exit_code)
@@ -529,25 +525,20 @@ async def main():
     except KeyboardInterrupt:
         logger.warning("\n%s", "=" * 80)
         logger.warning("PIPELINE INTERRUPTED BY USER")
-        logger.warning("=" * 80)
         logger.warning("Partial log saved to: %s", log_file)
         logger.warning("To resume from last checkpoint, run with --resume flag")
         sys.exit(130)  # Standard exit code for SIGINT
 
     except ValueError as e:
         # Configuration or validation errors
-        logger.error("=" * 80)
         logger.error("CONFIGURATION ERROR")
-        logger.error("=" * 80)
         logger.error(str(e))
         logger.error("Complete log saved to: %s", log_file)
         sys.exit(1)
 
     except Exception as e:
         # Unexpected errors
-        logger.critical("=" * 80)
         logger.critical("PIPELINE FAILED WITH ERROR")
-        logger.critical("=" * 80)
         logger.critical("Error: %s", e, exc_info=True)
         logger.critical("Complete log saved to: %s", log_file)
         logger.critical("To resume from last checkpoint, run with --resume flag")

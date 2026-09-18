@@ -162,9 +162,7 @@ poetry run python -m src.scraper.amazon.scraper \
 After completion, view detailed statistics:
 
 ```
-================================================================================
-BATCH SCRAPING SUMMARY
-================================================================================
+Batch scraping summary
 Total Attempted: 3
   - Product IDs: 2
   - Keywords: 1
@@ -178,7 +176,6 @@ Media Collection Statistics:
   - avg_videos_per_product: 2.0
 
 Duration: 45.32 seconds
-================================================================================
 ```
 
 ---

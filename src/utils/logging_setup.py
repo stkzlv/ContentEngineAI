@@ -159,6 +159,25 @@ class SecretMaskingFilter(logging.Filter):
 LOG_MAX_BYTES = 10 * 1024 * 1024
 LOG_BACKUP_COUNT = 3
 
+# Third-party loggers held at WARNING in every mode. The list used to apply
+# only outside debug mode, and every documented command passes --debug, so it
+# never applied in practice: Pillow's PNG plugin logs each chunk at DEBUG
+# (45% of a producer log), and the Gemini SDK logs "AFC is enabled" at INFO
+# on every call. `google_genai` is its own top-level logger, not `google`.
+QUIET_LOGGERS: tuple[str, ...] = (
+    "PIL",
+    "google_genai",
+    "httpx",
+    "httpcore",
+    "hpack",
+    "numba",
+    "TTS",
+    "TTS.tts.utils.text.phonemizers",
+)
+# INFO under --debug, WARNING otherwise: their INFO lines are worth having
+# when debugging, their DEBUG lines never are.
+DEBUG_INFO_LOGGERS: tuple[str, ...] = ("google", "aiohttp", "asyncio", "urllib3")
+
 
 def setup_debug_logging(
     log_file: Path,
@@ -192,7 +211,8 @@ def setup_debug_logging(
     - A run marker is written at INFO unless `mark_run` is False. Pass False
       when configuring logging at import rather than at the start of a run,
       or the marker records the import and misleads whoever reads it
-    - Third-party loggers (numba, httpx, google, etc.) are suppressed to WARNING
+    - The loggers in `QUIET_LOGGERS` sit at WARNING in every mode; those in
+      `DEBUG_INFO_LOGGERS` at INFO under debug mode and WARNING otherwise
 
     """
     log_level = logging.DEBUG if debug_mode else logging.INFO
@@ -243,21 +263,12 @@ def setup_debug_logging(
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
-    # Suppress noisy third-party loggers
-    logging.getLogger("numba").setLevel(logging.WARNING)
-    # Suppress websocket cleanup messages (harmless "goodbye" errors)
+    for lib in QUIET_LOGGERS:
+        logging.getLogger(lib).setLevel(logging.WARNING)
+    for lib in DEBUG_INFO_LOGGERS:
+        logging.getLogger(lib).setLevel(logging.INFO if debug_mode else logging.WARNING)
+    # Websocket cleanup "goodbye" errors are noise at any level
     logging.getLogger("websocket").setLevel(logging.CRITICAL)
-    # Suppress TTS library noise (espeak language listings, phonemizer details)
-    logging.getLogger("TTS").setLevel(logging.WARNING)
-    logging.getLogger("TTS.tts.utils.text.phonemizers").setLevel(logging.WARNING)
-    if not debug_mode:
-        for lib in ["httpx", "google", "aiohttp", "urllib3", "asyncio", "hpack"]:
-            logging.getLogger(lib).setLevel(logging.WARNING)
-    else:
-        # In debug mode, still suppress urllib3 DEBUG spam but allow INFO
-        logging.getLogger("urllib3").setLevel(logging.INFO)
-        # Keep websocket quiet even in debug mode (cleanup messages are noise)
-        logging.getLogger("websocket").setLevel(logging.CRITICAL)
 
     # Run boundary, at INFO on purpose. The file is appended to, so without a
     # marker visible at the default level a reader greping the log -- which is

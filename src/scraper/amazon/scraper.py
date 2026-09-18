@@ -668,7 +668,6 @@ class BotasaurusAmazonScraper(BaseScraper):
                 )
                 self.logger.debug("Length: %s", length_str)
                 self.logger.debug("Content: %s", download_results)
-                self.logger.debug("=" * 50)
 
             if not download_results:
                 self.logger.warning(

@@ -154,12 +154,7 @@ class BatchPublisher:
         """
         batch_start = time.time()
 
-        logger.info("=" * 80)
-        if self.retry_failed:
-            logger.info("BATCH PUBLISHING STARTED (RETRY MODE)")
-        else:
-            logger.info("BATCH PUBLISHING STARTED")
-        logger.info("=" * 80)
+        logger.info("Batch publishing started (retry mode: %s)", self.retry_failed)
 
         # Get videos to process
         if self.retry_failed:
@@ -211,7 +206,6 @@ class BatchPublisher:
             # Get scheduled_time from retry queue item (if any) to preserve scheduling
             scheduled_time = video_info.get("scheduled_time")
 
-            logger.info("-" * 80)
             logger.info("[%d/%d] Processing: %s", idx, len(videos), video_path.name)
             logger.info("Product ID: %s", product_id)
             if self.retry_failed:
@@ -709,9 +703,7 @@ class BatchPublisher:
             summary: BatchPublishSummary with detailed statistics
 
         """
-        logger.info("=" * 80)
-        logger.info("BATCH PUBLISHING COMPLETE")
-        logger.info("=" * 80)
+        logger.info("Batch publishing complete")
 
         # Overall statistics
         logger.info("Total videos attempted: %d", summary.total_videos)
@@ -741,12 +733,10 @@ class BatchPublisher:
 
         # Platform-specific results
         if summary.platform_results:
-            logger.info("-" * 80)
             logger.info("Per-Platform Results:")
             header = f"{'Platform':<15} {'Successful':<12} {'Failed':<10} "
             header += f"{'Total':<10} {'Rate':<10}"
             logger.info(header)
-            logger.info("-" * 80)
 
             for platform, counts in summary.platform_results.items():
                 total_attempts = counts["successful"] + counts["failed"]
@@ -766,7 +756,6 @@ class BatchPublisher:
 
         # Errors (show first 10, summarize rest)
         if summary.errors:
-            logger.info("-" * 80)
             logger.info("Errors (%d total):", len(summary.errors))
 
             # Group errors by type for better readability
@@ -791,7 +780,6 @@ class BatchPublisher:
                 logger.info("  ... and %d more error types", len(error_types) - 5)
 
         # Success summary
-        logger.info("=" * 80)
         if summary.failed == 0 and summary.skipped == 0:
             logger.info("All videos published successfully!")
         elif summary.successful > 0:
@@ -803,4 +791,3 @@ class BatchPublisher:
             )
         else:
             logger.info("No videos were successfully published")
-        logger.info("=" * 80)

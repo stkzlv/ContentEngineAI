@@ -533,12 +533,6 @@ batch:
   # ---- Batch Logging Configuration ----
   # Controls batch progress and summary logging format
   logging:
-    # Separator character for log headers and sections
-    separator_char: "="
-
-    # Separator width (number of characters) for log sections
-    separator_width: 60
-
     # Number of decimal places for duration display
     duration_decimal_places: 2
 

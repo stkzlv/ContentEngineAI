@@ -85,13 +85,23 @@ class TestDebugMode:
             "resolve_debug_display",
             lambda: DisplayInfo(":0", "/run/user/1000/.cookie", "xwayland"),
         )
-        with caplog.at_level("WARNING"):
+        # Informational, not a warning: it fires on every scrape from a
+        # Wayland desktop and describes the normal route, not a problem.
+        with caplog.at_level("INFO"):
             cfg = _build_browser_config(debug_mode=True)
         assert cfg["enable_xvfb_virtual_display"] is True
         assert any("wayland" in r.message.lower() for r in caplog.records)
+        assert all(
+            r.levelname == "INFO"
+            for r in caplog.records
+            if "wayland" in r.message.lower()
+        )
 
     def test_none_source_falls_back_to_virtual(self, monkeypatch, caplog):
         self._patch_monitors(monkeypatch)
+        # A Wayland desktop leaks WAYLAND_DISPLAY into the test; without this
+        # the Wayland branch runs and the "none" branch is never exercised.
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         monkeypatch.setattr(browser_functions, "_BROWSER_CONFIG", {"headless": False})
         monkeypatch.setattr(
             browser_functions,

@@ -128,7 +128,7 @@ except (ImportError, AttributeError) as e:
 # exercise Coqui TTS off that path.
 COQUI_AVAILABLE = importlib.util.find_spec("TTS") is not None
 if not COQUI_AVAILABLE:
-    logger.warning("Coqui TTS library not available; this provider will be disabled.")
+    logger.debug("Coqui TTS library not available; this provider will be disabled.")
 _TTS_CLASS: Any = None  # populated lazily on first use
 
 
