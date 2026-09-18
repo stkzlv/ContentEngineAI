@@ -1199,6 +1199,8 @@ class VideoConfig(BaseModel):
                         )
                     elif action["action"] == "removed_directory":
                         cleanup_report["statistics"]["directories_removed"] += 1
+                    elif action["action"] == "error":
+                        cleanup_report["statistics"]["errors"] += 1
 
             except Exception as e:
                 error_msg = f"Error processing {item}: {e}"
@@ -1292,7 +1294,23 @@ class VideoConfig(BaseModel):
         }
 
         try:
-            if path.is_file():
+            if path.is_symlink():
+                # The link itself, never its target. is_file/is_dir follow
+                # links, and rmtree refuses a link to a directory, so a
+                # symlinked directory was an error action on every run.
+                action.update(
+                    {
+                        "action": "removed_file"
+                        if not dry_run
+                        else "would_remove_file",
+                        "size": 0,
+                    }
+                )
+                if not dry_run:
+                    path.unlink()
+                    logger.debug("Removed link: %s", path)
+
+            elif path.is_file():
                 size = path.stat().st_size
                 action.update(
                     {
@@ -1324,22 +1342,6 @@ class VideoConfig(BaseModel):
                     logger.debug("Removed directory: %s", path)
                 else:
                     logger.debug("Would remove directory: %s", path)
-
-            elif path.is_symlink():
-                # A dangling link is neither a file nor a directory; it used
-                # to fall through with no action, and the caller's read of
-                # action["action"] raised and was counted as an error.
-                action.update(
-                    {
-                        "action": "removed_file"
-                        if not dry_run
-                        else "would_remove_file",
-                        "size": 0,
-                    }
-                )
-                if not dry_run:
-                    path.unlink()
-                    logger.debug("Removed dangling link: %s", path)
 
             else:
                 return None
