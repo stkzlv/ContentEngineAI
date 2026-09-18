@@ -12,6 +12,8 @@ from unittest.mock import patch
 import pytest
 
 from src.utils.outputs_paths import (
+    GLOBAL_DIR_NAMES,
+    STATE_DIR_NAME,
     _is_valid_product_id,
     _validate_product_directory,
     cleanup_invalid_outputs,
@@ -31,6 +33,7 @@ from src.utils.outputs_paths import (
     get_relative_path_from_outputs,
     get_reports_directory,
     get_temp_directory,
+    is_product_directory,
     validate_outputs_structure,
 )
 
@@ -620,3 +623,42 @@ class TestCustomOutputsDirParameter:
                 get_product_images_directory("B0TEST", custom_name).parent.parent.name
                 == custom_name
             )
+
+
+class TestTheGlobalDirectoriesAreNotProducts:
+    """One list, shared by the three scans of the outputs root."""
+
+    def test_the_durable_state_directory_is_in_it(self):
+        assert STATE_DIR_NAME in GLOBAL_DIR_NAMES
+
+    def test_the_names_every_scan_used_to_skip_are_in_it(self):
+        assert {"cache", "logs", "reports", "temp", "performance_history"} <= (
+            GLOBAL_DIR_NAMES
+        )
+        assert {"archive", "__pycache__", "unknown_product"} <= GLOBAL_DIR_NAMES
+
+    @pytest.mark.parametrize("name", sorted(GLOBAL_DIR_NAMES))
+    def test_a_global_directory_is_not_a_product(self, tmp_path, name):
+        (tmp_path / name).mkdir()
+        assert not is_product_directory(tmp_path / name)
+
+    def test_a_hidden_directory_or_a_file_is_not_a_product(self, tmp_path):
+        (tmp_path / ".hidden").mkdir()
+        (tmp_path / "cleanup_audit.json").write_text("{}")
+        assert not is_product_directory(tmp_path / ".hidden")
+        assert not is_product_directory(tmp_path / "cleanup_audit.json")
+
+    def test_a_product_and_a_topic_directory_are(self, tmp_path):
+        (tmp_path / "B0TEST0001").mkdir()
+        (tmp_path / "topic-why-wifi-drops-1a2b3c4d").mkdir()
+        assert is_product_directory(tmp_path / "B0TEST0001")
+        assert is_product_directory(tmp_path / "topic-why-wifi-drops-1a2b3c4d")
+
+    def test_the_validator_expects_the_state_directory(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "src.utils.outputs_paths.get_outputs_root", lambda custom=None: tmp_path
+        )
+        for name in ("cache", "logs", "reports", STATE_DIR_NAME, "videos"):
+            (tmp_path / name).mkdir()
+        results = validate_outputs_structure(str(tmp_path), strict=True)
+        assert results["unexpected_items"] == []

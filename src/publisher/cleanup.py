@@ -18,7 +18,7 @@ from src.publisher.base import PublisherError
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR, MAX_CONCURRENT_CLEANUPS
 from src.publisher.models import CleanupConfig, Platform
 from src.publisher.tracking import get_publish_record
-from src.utils.outputs_paths import durable_state_path
+from src.utils.outputs_paths import durable_state_path, is_product_directory
 
 logger = logging.getLogger(__name__)
 
@@ -746,14 +746,11 @@ class CleanupManager:
             logger.info("Cleanup disabled in configuration")
             return {"cleaned": 0, "skipped": 0, "disk_freed": 0}
 
-        # Scan for product directories
-        product_dirs = [d for d in self.outputs_dir.iterdir() if d.is_dir()]
-
-        # Filter out non-product directories
+        # The global directories (state, logs, cache, ...) are not products.
+        # A shorter local list here sent them through per-product cleanup,
+        # which warned for each of them on every platform.
         product_dirs = [
-            d
-            for d in product_dirs
-            if not d.name.startswith(".") and d.name not in ["archive", "__pycache__"]
+            d for d in self.outputs_dir.iterdir() if is_product_directory(d)
         ]
 
         logger.info("Found %d product directories", len(product_dirs))

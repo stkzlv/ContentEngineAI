@@ -180,7 +180,7 @@ caveats baked in from real runs are in
 - **Naming**: snake_case functions, PascalCase classes, UPPER_CASE constants
 - **Type Annotations**: Use modern Python typing (`dict[str, Any]`, `| None`)
 - **Error Handling**: Specific exceptions (never bare `except Exception`), structured logging
-- **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings -- ruff's `G`/`LOG` groups enforce this, so a new f-string call fails `ruff check` rather than being caught in review. A literal `%` has to be written `%%` in any message that takes arguments (`logging` applies `%` formatting only when there are some, so escaping one in an argument-less message prints the `%%` verbatim), and `tests/utils/test_lazy_logging.py` counts placeholders against arguments, which no linter does: a miscount raises inside `logging`, which prints it to stderr and logs nothing. No emojis in log messages (existing emoji-laden lines are pre-existing tech debt to clean up over time; new code emits plain text).
+- **Logging**: Use lazy format (`logger.debug("msg: %s", val)`) not f-strings -- ruff's `G`/`LOG` groups enforce this, so a new f-string call fails `ruff check` rather than being caught in review. A literal `%` has to be written `%%` in any message that takes arguments (`logging` applies `%` formatting only when there are some, so escaping one in an argument-less message prints the `%%` verbatim), and `tests/utils/test_lazy_logging.py` counts placeholders against arguments, which no linter does: a miscount raises inside `logging`, which prints it to stderr and logs nothing. No emojis in log messages (existing emoji-laden lines are pre-existing tech debt to clean up over time; new code emits plain text). One event per line: no separator-only rows (`"=" * 80`) through the logger in any argument, and no message that opens with a newline; `tests/utils/test_logging_noise.py` refuses the rules. Third-party loggers are quieted in `QUIET_LOGGERS` in every mode, since every documented command runs with `--debug`.
 - **Configuration**: Centralized in `src/video/config/` (Pydantic models)
 - **Secrets wiring**: the render pipeline's secrets dict is built once, by `collect_producer_secrets` in `src/video/producer/utils.py`, for both entry points (producer CLI and global batch). Adding an env var to the config model is the whole change; there are no per-entry-point copies to keep aligned any more. The audio provider `audio_providers[].settings` env vars are read dynamically; other modules use hardcoded lists.
 
@@ -298,6 +298,7 @@ make test-cov      # Run tests with coverage report
   - **Major** (e.g., 1.0.0 → 2.0.0): Breaking API changes
   - **Minor** (e.g., 0.17.0 → 0.18.0): New features (backward compatible)
   - **Patch** (e.g., 0.17.0 → 0.17.1): Bug fixes only
+  - A removed or renamed config key is a breaking change even in 0.x: minor bump, `**Breaking**:` in the CHANGELOG entry (`docs/versioning.md`)
 - Update version in `pyproject.toml`
 
 **Releases are automated via CI/CD**:
