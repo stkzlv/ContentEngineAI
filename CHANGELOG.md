@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.13] - 2026-09-18
+
+### Fixed
+- The end-to-end testing runbook no longer caps the produce step at 4 GB, which is below a stock render's measured process-tree peak; the resource-tuning examples raise the cap or lower the priority instead of capping a render under the 6 GB default.
+
 ## [0.121.12] - 2026-09-18
 
 ### Fixed

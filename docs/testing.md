@@ -316,14 +316,14 @@ make scrape-lowpri ARGS="--keywords 'mini projector' --debug" \
 
 # 2. Produce (replace ASIN with what scrape found)
 make produce-lowpri ARGS="--batch --random-profile --product-ids B0ASIN123 --clean --debug" \
-  MEM_LIMIT=4G NICE_LEVEL=19
+  NICE_LEVEL=19
 
 # 3. Publish
 make publish-lowpri ARGS="single B0ASIN123 --debug" \
   MEM_LIMIT=4G NICE_LEVEL=19
 ```
 
-`MEM_LIMIT=4G` is tighter than the `make batch-lowpri` default (`6G`) on purpose. Whisper STT peaks near 2.3 GB on a 40-word transcript, so 4 GB leaves room but not much. If a memory regression pushes Whisper over the cap, it fails loudly instead of hiding.
+The scrape and publish steps run under `MEM_LIMIT=4G`, tighter than the default `6G`, because neither carries the STT model. The produce step keeps the default: a stock render's process tree peaks at 4.1 to 4.3 GB while Whisper and the subtitle renderer's Chromium are both alive (the performance history measures the tree since 0.121.11), and at 4G the kernel has OOM-killed ffmpeg mid-assembly. The default is the floor for a render; `NICE_LEVEL` is the knob to turn when the desktop needs the CPU.
 
 ### What to check between phases
 

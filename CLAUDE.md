@@ -140,8 +140,8 @@ make scrape-lowpri ARGS="--keywords 'wireless earbuds' --debug"
 # Video production only (low priority)
 make produce-lowpri ARGS="--batch --batch-profile slideshow_images1 --debug"
 
-# Tune resource limits if needed (defaults: MEM_LIMIT=6G, NICE_LEVEL=15)
-make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=4G NICE_LEVEL=19
+# Tune resource limits if needed (defaults: MEM_LIMIT=6G, NICE_LEVEL=15); never below 6G for a render
+make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=8G NICE_LEVEL=19
 
 # Publish single product (auto-schedules to next slot)
 poetry run python -m src.publisher.late single B0ASIN1 --debug
