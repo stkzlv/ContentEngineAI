@@ -105,23 +105,23 @@ global_batch:
   products_per_keyword: 1
 
   # ---- Scraper Filter Configuration ----
-  # Optional filters to apply when searching for products
+  # Filters applied when searching for products. A null field takes the
+  # scraper's own default from config/scraper.yaml
+  # (scrapers.amazon.default_search_parameters), the same seed the
+  # standalone scraper CLI uses; a value here overrides that field, and a
+  # CLI flag overrides both.
   scraper_filters:
     # Minimum price filter (e.g., 10.99)
-    # Default: null (no minimum)
     min_price: null
 
     # Maximum price filter (e.g., 99.99)
-    # Default: null (no maximum)
     max_price: null
 
     # Minimum rating filter (1-5 stars, e.g., 4.0)
-    # Default: null (no minimum)
     min_rating: null
 
-    # Filter for Prime eligible items only
-    # Default: false
-    prime_only: false
+    # Filter for Prime eligible items only (true/false)
+    prime_only: null
 
   # ---- Video Production Configuration ----
   # Profile selection mode - choose ONE of the following:

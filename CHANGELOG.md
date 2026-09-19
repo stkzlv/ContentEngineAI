@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.8] - 2026-09-19
+
+### Fixed
+- A global batch keyword search now starts from the scraper's configured default filters (price, rating, prime), as the standalone scraper always has, instead of running unfiltered when no flag or pipeline setting names them; a null filter in the pipeline config means the scraper's value, and a CLI flag still overrides both. The search log line that names the filters in force is written on every run, not only under debug.
+
 ## [0.124.7] - 2026-09-19
 
 ### Fixed

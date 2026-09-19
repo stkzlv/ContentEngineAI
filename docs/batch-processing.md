@@ -519,7 +519,8 @@ global_batch:
   max_products: 10        # Global cap across all keywords
   products_per_keyword: 1 # Limit per individual keyword
 
-  # Scraper Filters
+  # Scraper Filters (a null field takes the scraper's default from
+  # config/scraper.yaml; a CLI flag overrides both)
   scraper_filters:
     min_price: 20.0
     max_price: 100.0

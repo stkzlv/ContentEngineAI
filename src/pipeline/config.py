@@ -28,7 +28,7 @@ import json
 import logging
 import math
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, date, datetime
 from enum import Enum
 from pathlib import Path
@@ -965,6 +965,34 @@ def _configured_topics(
     return []
 
 
+def resolve_scraper_filters(
+    cli_args: argparse.Namespace, yaml_filters: dict[str, Any]
+) -> SearchParameters:
+    """A CLI flag, then pipeline.yaml, then the scraper's own defaults.
+
+    The standalone scraper seeds its search from
+    `scrapers.amazon.default_search_parameters`; the batch used to start
+    from a bare `SearchParameters`, so a keyword search with no flags ran
+    with no price or rating filter and took the first product with media.
+    A null in pipeline.yaml means "the scraper's value", not "no filter".
+    """
+    from src.scraper.amazon.config import get_default_search_parameters
+
+    overrides: dict[str, Any] = {}
+    for name in ("min_price", "max_price", "min_rating"):
+        value = getattr(cli_args, name, None)
+        if value is None:
+            value = yaml_filters.get(name)
+        if value is not None:
+            overrides[name] = value
+    if getattr(cli_args, "prime_only", False):
+        overrides["prime_only"] = True
+    elif yaml_filters.get("prime_only") is not None:
+        overrides["prime_only"] = bool(yaml_filters["prime_only"])
+    defaults: SearchParameters = get_default_search_parameters()
+    return replace(defaults, **overrides)
+
+
 def load_global_batch_config(
     cli_args: argparse.Namespace, config_path: str | Path | None = None
 ) -> GlobalBatchConfig:
@@ -1202,15 +1230,8 @@ def load_global_batch_config(
         else:
             keywords = keywords_for_run(keywords, per_run)
 
-    # Scraper filters (SearchParameters)
-    yaml_filters = yaml_config.get("scraper_filters", {})
-    scraper_filters = SearchParameters(
-        min_price=getattr(cli_args, "min_price", None) or yaml_filters.get("min_price"),
-        max_price=getattr(cli_args, "max_price", None) or yaml_filters.get("max_price"),
-        min_rating=getattr(cli_args, "min_rating", None)
-        or yaml_filters.get("min_rating"),
-        prime_only=getattr(cli_args, "prime_only", False)
-        or yaml_filters.get("prime_only", False),
+    scraper_filters = resolve_scraper_filters(
+        cli_args, yaml_config.get("scraper_filters") or {}
     )
 
     # Profile configuration
