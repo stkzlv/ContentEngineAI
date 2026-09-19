@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.3] - 2026-09-19
+
+### Changed
+- The requirements document states what a batch run's review found the system should do and does not yet: test isolation from the developer's `.env`, profile-aware media download, search-card classification without waits, search defaults on both entry points, a retried Jamendo query, a once-per-run Freesound refresh, a music step with a budget and a mood check, and summaries that count files on disk; each such requirement carries a planned marker with its issue.
+
 ## [0.124.2] - 2026-09-18
 
 ### Fixed
