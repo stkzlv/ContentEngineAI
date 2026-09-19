@@ -8,7 +8,7 @@ from src.scraper.amazon.models import SearchParameters
 
 
 def test_default_sort_order_is_valid_amazon_token():
-    # The global batch builds scraper_filters from this bare default, so the
+    # The global batch used to build scraper_filters from this bare default; the
     # default must be a valid Amazon token, not the CLI-friendly "relevance".
     params = SearchParameters()
     assert params.sort_order == "relevanceblender"
