@@ -1504,7 +1504,7 @@ For original quality audio downloads, configure OAuth2 authentication:
 2. Fill in application details:
    - **Name**: "ContentEngineAI" (or your project name)
    - **Description**: "Automated video production pipeline"
-   - **Redirect URI**: `http://localhost:8000/callback` (for local testing)
+   - **Redirect URI**: pick Freesound's own redirect target, offered on the form; the setup tool cannot receive a redirect, and with that target Freesound shows the authorization code on its own "app authorized" page
    - **Accepted Terms**: Check the box to accept Freesound API terms
 3. Click "Apply" and wait for approval (usually instant)
 4. Note down your **Client ID** and **Client Secret**
@@ -1525,11 +1525,11 @@ poetry run python tools/freesound_oauth2_setup.py \
 
 **Script will:**
 1. Print authorization URL for Freesound
-2. You open URL in browser, log in, and approve access
-3. Copy authorization code from redirect URL
+2. You open URL in a browser that is logged in to Freesound and approve access
+3. Copy the `code` from the URL of the page the redirect lands on (Freesound's "app authorized" page with the redirect target above; it expires in ten minutes)
 4. Paste code into script when prompted
-5. Script exchanges code for access + refresh tokens
-6. Refresh token printed to console
+5. Script exchanges code for access + refresh tokens and writes the refresh token to `.env`
+6. From then on the pipeline refreshes the token itself; refresh tokens rotate on use, and Freesound's server configuration sets no refresh-token expiry, so the tool is needed again only if the stored token is lost or overwritten
 
 **Step 3: Configure Environment Variables**
 

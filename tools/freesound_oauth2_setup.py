@@ -55,10 +55,13 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
     )
     print(f"  {auth_url}\n")
     print(
-        "After authorizing, you will be redirected to a URL that looks like:\n"
-        "  http://localhost/oauth2/callback?code=THIS_IS_THE_CODE\n"
+        "After authorizing, the page the redirect lands on carries the code in "
+        "its URL (?code=THIS_IS_THE_CODE); with Freesound's own redirect target "
+        "that is its 'app authorized' page.\n"
     )
-    print("Copy the value of the 'code' parameter from the redirect URL.")
+    print("Copy the value of the 'code' parameter from that URL (it expires in")
+    print("10 minutes). A browser already logged in to Freesound skips the")
+    print("login; an app authorized before may skip the consent click too.")
 
     # Get authorization code from user
     auth_code = input("\nEnter the authorization code here: ").strip()

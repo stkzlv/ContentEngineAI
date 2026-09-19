@@ -1,6 +1,7 @@
 import asyncio
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import aiohttp
@@ -124,13 +125,15 @@ async def test_download_full_sound_oauth2_success(
         status=200,
     )
 
+    # The wrapper returns a `Sound` object with attributes, not a dict; a
+    # dict here let a `.get` on the object pass for months.
     with patch.object(fs_client.fs_api_client, "get_sound") as mock_get_sound:
-        mock_get_sound.return_value = {
-            "name": "Test Sound",
-            "username": "user",
-            "license": "CC0",
-            "url": "http://fs.org/s/456/",
-        }
+        mock_get_sound.return_value = SimpleNamespace(
+            name="Test Sound",
+            username="user",
+            license="CC0",
+            url="http://fs.org/s/456/",
+        )
 
         async with aiohttp.ClientSession() as session:
             result = await fs_client.download_full_sound_oauth2(
@@ -140,6 +143,9 @@ async def test_download_full_sound_oauth2_success(
             path, attribution = result
             assert path.name == "test.wav"
             assert attribution["name"] == "Test Sound"
+            assert attribution["author"] == "user"
+            assert attribution["license"] == "CC0"
+            assert attribution["url"] == "http://fs.org/s/456/"
             assert path.exists()
 
 
