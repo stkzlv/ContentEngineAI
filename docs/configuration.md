@@ -1573,26 +1573,23 @@ asyncio.run(test())
 #### Token Refresh and Persistence
 
 **Automatic Token Management:**
-- Access tokens expire after 1 hour (3600 seconds)
-- System automatically refreshes tokens 60 seconds before expiration
-- New refresh tokens are saved to `.env` file using `dotenv.set_key()`
+- Access tokens last 24 hours; the token response states the lifetime and the client uses that value
+- The access token is not kept between runs, so each render refreshes on its first full download (and would refresh again 60 seconds before expiry); a refresh that fails is reported once at WARNING with the remedy that fits, and the rest of that render uses API-key previews
+- Every refresh returns a new refresh token, which replaces the old one in `.env` (`dotenv.set_key()`); the old one stops working, so the stored token rotates on every render that makes a full download
+- Freesound sets no expiry on refresh tokens, so an unused one stays valid
 - No manual intervention required after initial setup
 
-**Token Refresh Configuration:**
-
-```yaml
-audio_settings:
-  # Token expiration time (Freesound default: 3600s)
-  freesound_token_expiry_sec: 3600
-
-  # Refresh buffer - triggers refresh this many seconds before expiry
-  # Recommendation: 60s provides safety margin
-  freesound_token_refresh_buffer_sec: 60
-```
+The `freesound_token_expiry_sec` and `freesound_token_refresh_buffer_sec`
+settings in `config/video_production.yaml` are declared but not read yet; the
+client uses the token response and a built-in 60-second buffer (#534).
 
 **Manual Token Refresh:**
 
-If refresh token becomes invalid or expires, regenerate using OAuth2 setup script:
+A refresh token stops working when it is rotated by a refresh whose result
+never reached `.env` (another copy of the project, or a process that
+overwrote the file), or when it is revoked. Freesound then answers the
+refresh with HTTP 400, the run logs one warning naming the setup tool, and
+music comes from previews until a new token is minted:
 
 ```bash
 poetry run python tools/freesound_oauth2_setup.py \
@@ -1602,18 +1599,13 @@ poetry run python tools/freesound_oauth2_setup.py \
 
 **Troubleshooting Token Refresh:**
 
-If token refresh fails with timeout errors:
+The refresh request has a built-in 5-second timeout and one quick retry;
+the `freesound_token_refresh` block in `config/video_production.yaml` that
+appears to control them is declared but not read (#534). When it fails:
 
-1. **Check network connectivity**: Ensure you can reach `https://freesound.org`
+1. **Read the one warning**: `refresh rejected` means the token is invalid or was rotated, so run the setup script again; `token endpoint unreachable` means a network problem, so check that `https://freesound.org` is reachable
 2. **Verify credentials**: Confirm `FREESOUND_CLIENT_ID`, `FREESOUND_CLIENT_SECRET`, and `FREESOUND_REFRESH_TOKEN` are correct in `.env`
-3. **Regenerate token**: If refresh token is expired or invalid, run OAuth2 setup script again
-4. **Check timeout settings**: Default is 5s - increase if needed in `config/video_production.yaml`:
-   ```yaml
-   audio_settings:
-     freesound_token_refresh:
-       timeout_sec: 10  # Increase if network is slow
-   ```
-5. **Fallback behavior**: System automatically falls back to HQ preview downloads if OAuth2 fails
+3. **Fallback behavior**: the rest of that render uses HQ preview downloads; nothing is retried per candidate, and the whole music step stays inside `music_search_budget_sec`
 
 **Token Storage Location:**
 - Primary: `.env` file in project root (automatically updated by system)

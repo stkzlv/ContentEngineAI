@@ -304,7 +304,8 @@ curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
 2. **OAuth2 Issues:**
    - Only needed for full-quality downloads
    - Preview downloads work with just API key
-   - Check refresh token is still valid
+   - A refresh token rotates on every refresh; one that was overwritten in `.env` or rotated by another copy of the project is rejected with HTTP 400, and the run logs one warning naming `tools/freesound_oauth2_setup.py`
+   - Attribution with `Unknown` author or licence after a full download means the metadata fetch failed; the log line before it says why
 
 ## Pipeline Execution Issues
 
