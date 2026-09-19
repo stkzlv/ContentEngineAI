@@ -233,3 +233,45 @@ class TestProvidersCarryTags:
 
         call = provider._client.search_music.call_args.kwargs
         assert call["sort_order"] == "downloads_desc"
+
+
+class TestAProviderIsJudgedOnTheQueryItSearched:
+    """Jamendo draws one of its own configured queries; "soft background"
+    shares no word with "calm ambient instrumental", and ranking its
+    results against the latter dropped the primary provider on a random
+    draw.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_drawn_query_is_what_the_tracks_are_ranked_on(self, tmp_path):
+        path = tmp_path / "t.mp3"
+        path.write_bytes(b"audio")
+        soft = _track("Evening Piano", ["soft", "piano"], "3")
+        provider = RecordingProvider("jamendo", [soft], path)
+        provider.last_query = "soft background"
+        manager = AudioManager(providers=[provider])
+
+        result = await manager.find_music(QUERY, 60, 300, 10, tmp_path, MagicMock())
+
+        assert result is not None and result["name"] == soft.name
+        assert result["matched_terms"] == ["soft"]
+
+    @pytest.mark.asyncio
+    async def test_jamendo_records_the_query_it_returned_tracks_for(self, monkeypatch):
+        from src.audio import jamendo_provider
+
+        provider = jamendo_provider.JamendoProvider.__new__(
+            jamendo_provider.JamendoProvider
+        )
+        provider._client_id = "id"
+        provider._search_queries = ["soft background"]
+        jamendo_provider.jamendo_circuit_breaker.reset()
+
+        async def one_search(query, *args):
+            return [_track("Evening Piano", ["soft"], "3")]
+
+        monkeypatch.setattr(provider, "_search_once", one_search)
+
+        await provider.search(QUERY, 60, 300, 10, MagicMock())
+
+        assert provider.last_query == "soft background"

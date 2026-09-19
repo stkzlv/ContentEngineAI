@@ -120,6 +120,7 @@ class JamendoProvider(BaseAudioProvider):
                 # logged and recorded against the circuit breaker.
                 return []
             if tracks:
+                self.last_query = attempt_query
                 return tracks
 
             logger.info(

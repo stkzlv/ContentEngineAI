@@ -184,7 +184,10 @@ class AudioManager:
                 min_duration,
             )
             return None
-        terms = query_terms(query)
+        # Judge the provider on the terms it searched: Jamendo draws one of
+        # its own queries, and "soft background" shares no word with the
+        # query this chain was asked for.
+        terms = query_terms(provider.last_query or query)
         ranked = rank_by_mood(eligible, terms)
         if not ranked:
             logger.info(

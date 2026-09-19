@@ -47,6 +47,12 @@ class BaseAudioProvider(ABC):
     where the dict contains: source, type, path, name, author, license, url, id.
     """
 
+    # The query the last search actually sent, when a provider draws its own
+    # (Jamendo picks one of its configured queries at random). The manager
+    # ranks candidates against this, not against the query it was asked
+    # for, so a provider is judged on the terms it searched.
+    last_query: str | None = None
+
     @property
     @abstractmethod
     def provider_name(self) -> str:

@@ -430,7 +430,7 @@ benefit under a voiceover.
 
 #### Background Music (`src/audio/`)
 - **Provider Platform**: `BaseAudioProvider` ABC + `AudioProviderRegistry` + `AudioManager`, the same chain pattern used by the publisher module
-- **Provider Chain**: Jamendo (primary) then Freesound, with local files as the last resort; first successful download wins
+- **Provider Chain**: Jamendo (primary) then Freesound, with local files as the last resort; within a provider the candidates are ranked on the words of the query it searched, and the first matching one that downloads wins
 - **Configuration**: `audio_providers` list in `config/video_production.yaml`, tried in order
 - **Jamendo**: `client_id` auth, `fuzzytags` search for genre/mood, downloads over HTTP/2 via curl (its CDN blocks HTTP/1.1)
 - **Freesound**: `FreesoundProvider` wraps the existing `FreesoundClient`; OAuth2 for full quality, API key for previews
