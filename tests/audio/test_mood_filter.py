@@ -97,6 +97,13 @@ class TestTerms:
 
 
 class TestTheChainPicksTheMood:
+    @pytest.fixture(autouse=True)
+    def _no_shuffle(self, monkeypatch):
+        """Ties are shuffled; without the ranking the two-track cases would be
+        a coin flip and pass three times in four.
+        """
+        monkeypatch.setattr("src.audio.manager.random.shuffle", lambda seq: None)
+
     @pytest.mark.asyncio
     async def test_an_on_mood_track_second_in_the_list_is_picked(self, tmp_path):
         path = tmp_path / "t.mp3"

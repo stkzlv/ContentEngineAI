@@ -131,7 +131,10 @@ narration-led, so the trade-off is different:
   Within a provider, candidates are ranked by how many of the search query's
   words their title or tags carry; the first matching candidate that
   downloads wins, and a provider with no matching candidate hands over to the
-  next one.
+  next one. A candidate that matches only a generic word such as
+  `instrumental` still passes, as a fallback tried after the fuller matches,
+  so a query's mood words carry the choice only when a provider returns a
+  track that has them.
 
 ## 4. The audio hook
 
