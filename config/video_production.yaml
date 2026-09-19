@@ -489,8 +489,8 @@ audio_settings:
   freesound_token_refresh_buffer_sec: 60
 
   # --- Retry and Backoff Configuration ---
-  # Used by: src/audio/freesound_client.py
-  # Controls how many times to retry failed operations and delay between attempts
+  # Declared but not read yet (#534): the client uses a built-in 5 s timeout
+  # and one retry for the refresh request, and downloads each candidate once.
 
   # Token refresh retry configuration
   freesound_token_refresh:
