@@ -145,8 +145,14 @@ def extract_product_data_from_page(
     serp_info=None,
     debug_mode=False,
     debug_options=None,
+    extract_videos: bool = True,
 ) -> dict[str, Any] | None:
-    """Extract product data from a single Amazon product page"""
+    """Extract product data from a single Amazon product page.
+
+    `extract_videos=False` is the image-only profile: the three video
+    extraction methods and the download they feed are skipped, not run and
+    discarded.
+    """
     DEBUG_MODE = debug_mode
 
     try:
@@ -284,8 +290,15 @@ def extract_product_data_from_page(
         logger.info("Extracting images for %s", asin)
         images = extract_high_res_images_botasaurus(driver, debug_options=debug_options)
 
-        logger.info("Extracting videos for %s", asin)
-        videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
+        if extract_videos:
+            logger.info("Extracting videos for %s", asin)
+            videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
+        else:
+            logger.info(
+                "Skipping video extraction for %s: the target profile is image-only",
+                asin,
+            )
+            videos = []
 
         # Build product data
         product_data = {

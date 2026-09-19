@@ -129,6 +129,7 @@ def scrape_amazon_products_browser_impl(
             asin,
             debug_mode=DEBUG_MODE,
             debug_options=data.get("debug_options"),
+            extract_videos=data.get("extract_videos", True),
         )
         if product_data:
             products.append(product_data)
@@ -193,6 +194,7 @@ def scrape_amazon_products_browser_impl(
             keyword,
             debug_mode=DEBUG_MODE,
             debug_options=data.get("debug_options"),
+            extract_videos=data.get("extract_videos", True),
         )
         if product_data:
             products.append(product_data)
@@ -577,6 +579,7 @@ def scrape_amazon_products_browser_impl(
                         serp_info,
                         debug_mode=DEBUG_MODE,
                         debug_options=data.get("debug_options"),
+                        extract_videos=data.get("extract_videos", True),
                     )
                     if DEBUG_MODE:
                         result_status = "" if product_data else ""

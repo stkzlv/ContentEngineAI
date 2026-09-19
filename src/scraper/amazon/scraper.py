@@ -127,6 +127,10 @@ class BotasaurusAmazonScraper(BaseScraper):
     - Quality control
     """
 
+    # Whether the target video profile uses scraped videos; None when unknown.
+    # A class default so an instance built without __init__ (tests) has it.
+    profile_uses_videos: bool | None = None
+
     @property
     def platform(self) -> Platform:
         """Return the platform this scraper handles."""
@@ -502,6 +506,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "debug_options": self.debug_options,
                 "max_products": products_limit,
                 "page": page,
+                "extract_videos": self.profile_uses_videos is not False,
             }
 
             # Use the dynamic Botasaurus browser function with current debug settings
@@ -570,6 +575,11 @@ class BotasaurusAmazonScraper(BaseScraper):
 
         # Prepare media download data for all products
         media_download_tasks = []
+        skip_videos = self.profile_uses_videos is False
+        if skip_videos and any(result.get("videos") for result in results):
+            self.logger.info(
+                "Video downloads skipped: the target profile is image-only"
+            )
         for result in results:
             if self.debug_mode:
                 self.logger.debug(
@@ -584,7 +594,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     {
                         "asin": result["asin"],
                         "images": result.get("images", []),
-                        "videos": result.get("videos", []),
+                        "videos": [] if skip_videos else result.get("videos", []),
                         "platform": "amazon",
                         "debug_mode": self.debug_mode,
                         "output_dir": self.output_dir,
@@ -1029,6 +1039,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     "debug_options": self.debug_options,
                     "max_products": self.effective_max_products,
                     "page": start_page,
+                    "extract_videos": self.profile_uses_videos is not False,
                 }
             )
 

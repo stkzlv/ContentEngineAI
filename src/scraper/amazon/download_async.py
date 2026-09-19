@@ -222,6 +222,20 @@ async def download_file_async(
     return False
 
 
+def _discard_rejected_video(file_path: Path, validation_result) -> None:
+    """Remove a downloaded video that failed validation, saying why.
+
+    It used to go inside a `contextlib.suppress` with no log line, so a
+    126 MB download vanished and the summary said `0/1` with no reason.
+    """
+    issues = "; ".join(str(issue) for issue in validation_result.issues) or (
+        "failed validation"
+    )
+    logger.info("[VIDEO] Rejected %s: %s", file_path.name, issues)
+    with contextlib.suppress(OSError):
+        file_path.unlink()
+
+
 async def _download_media_async(
     asin: str,
     image_urls: list[str],
@@ -405,8 +419,7 @@ async def _download_media_async(
                                 )
                             return relative_path
                         else:
-                            with contextlib.suppress(Exception):
-                                file_path.unlink()
+                            _discard_rejected_video(file_path, validation_result)
                 except Exception as e:
                     logger.warning("[VIDEO] Failed %d: %s", i + 1, e)
                 return None
