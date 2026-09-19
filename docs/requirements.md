@@ -129,7 +129,7 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Sorting options and regional redirect handling
 - Product ID validation against platform formats
 - Skip products lacking essential data
-- A search-result card is classified from its rendered DOM before any element wait: a sponsored, placeholder or non-product card is skipped without paying a per-selector timeout, and the time to classify one card is bounded (planned, #520)
+- A search-result card is classified from its rendered DOM before any element wait: a sponsored, placeholder or non-product card is skipped without paying a per-selector timeout, and the time to classify one card is bounded
 - The configured `default_search_parameters` (price, rating, prime) apply to every entry point, the standalone CLI and the global batch alike, unless a CLI flag overrides a field; the search log line states the filters in force (planned, #521)
 
 ### Stealth & Human Simulation

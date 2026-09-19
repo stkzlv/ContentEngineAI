@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.6] - 2026-09-19
+
+### Fixed
+- A search-result card is inspected in one script call instead of seventeen element lookups, each of which carried the driver's four-second default wait, so a sponsored or placeholder card without a product link is skipped in milliseconds instead of about forty seconds; the selector chain stays as a fallback and no longer waits either.
+
 ## [0.124.5] - 2026-09-19
 
 ### Fixed
