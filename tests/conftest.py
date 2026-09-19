@@ -524,6 +524,44 @@ _LOGGING_SETUP_SITES = (
 _SETUP_DEBUG_LOGGING_SIGNATURE = inspect.signature(logging_setup.setup_debug_logging)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def real_env_file_untouched():
+    """The developer's `.env` has the same hash after the session as before.
+
+    The per-test fixture below keeps the known writer away; this one
+    catches any writer, known or not, because the assertion is over the
+    whole session rather than inside one test.
+    """
+    import hashlib
+
+    from src.utils.outputs_paths import get_project_root
+
+    path = get_project_root() / ".env"
+
+    def digest():
+        return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
+
+    before = digest()
+    yield
+    assert digest() == before, "a test wrote the developer's .env"
+
+
+@pytest.fixture(autouse=True)
+def no_real_env_file(monkeypatch, tmp_path):
+    """No test may write the developer's `.env`.
+
+    One test drove the real Freesound token refresh with a mocked response
+    and an unpatched writer, so every suite run replaced the working refresh
+    token in the repository's `.env` with the literal from the mock; the
+    service rotates refresh tokens on use, so the real one was gone for
+    good. The writer resolves its file through `env_file_path`, and here
+    that is a file under the test's own directory.
+    """
+    from src.audio import freesound_client
+
+    monkeypatch.setattr(freesound_client, "env_file_path", lambda: tmp_path / ".env")
+
+
 @pytest.fixture(autouse=True)
 def no_production_log_files(monkeypatch):
     """A test that drives an entry point must not write to outputs/logs/.

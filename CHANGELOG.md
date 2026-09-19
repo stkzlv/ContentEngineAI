@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.4] - 2026-09-19
+
+### Fixed
+- The test suite no longer writes the developer's `.env`: one test drove the real Freesound token refresh against a mocked response and an unpatched writer, so every run replaced the working refresh token with the mock's literal. The writer now resolves its file through a seam the suite points at a temporary file, and a test proves the real file stays byte-identical. The refresh token in an affected checkout is lost and has to be minted again with the OAuth2 setup tool.
+
 ## [0.124.3] - 2026-09-19
 
 ### Changed
