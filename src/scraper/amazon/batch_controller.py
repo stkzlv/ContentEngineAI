@@ -158,11 +158,12 @@ class BatchController:
                     if products and len(products) > 0:
                         product_data = products[0]
                         # Write through the record's own serialiser, as the
-                        # keyword arm does. Without this the file is whatever the
-                        # browser callback wrote mid-scrape: a raw extractor dict
-                        # that predates the media downloads and omits ten of the
-                        # canonical keys, so the same product scraped by ASIN and
-                        # by keyword produced different records.
+                        # keyword arm does. Without this no data.json is written
+                        # at all (the browser callback that used to leave a raw
+                        # extractor dict mid-scrape is off), and before that the
+                        # raw dict predated the media downloads and omitted ten
+                        # of the canonical keys, so the same product scraped by
+                        # ASIN and by keyword produced different records.
                         self.scraper._save_products(
                             [p for p in products if isinstance(p, ProductData)]
                         )
@@ -273,9 +274,9 @@ class BatchController:
 
                     # Assign before saving. This path does not go through
                     # `process_raw_products`, so nothing else writes the
-                    # record after this point: the file on disk is whatever
-                    # the browser callback wrote mid-scrape, which predates
-                    # both the pillar and the media downloads.
+                    # record after this point, and nothing wrote it before:
+                    # the browser callback that used to leave a raw dict
+                    # mid-scrape is off.
                     keyword_pillar = self.config.pillar_for(keyword)
                     for product in products:
                         product.pillar = keyword_pillar

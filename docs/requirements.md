@@ -34,7 +34,7 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Global debug mode across all components
 - Progress tracking with `[N/total]` format for batch operations
 - **Unified module summaries**: each module (scraper, producer, publisher, audio) logs a summary at the end of its work with consistent format, key counts, product IDs, and duration. No emojis in logs.
-- A logged duration is measured on one monotonic clock; a logged count names what it counts (URLs found on a page against files validated on disk); a message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so (planned, #522)
+- A logged duration is measured on one monotonic clock; a logged count names what it counts (URLs found on a page against files validated on disk); a message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so
 - One event per record, every record carrying the run id and the product id it belongs to, one file per component per day; the line shape and the retention are in `docs/development.md` (Logging Best Practices)
 
 ### Documentation Standards
@@ -120,7 +120,7 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Product rating falls back to the search-results rating when the product page yields none, so a rating is recorded whenever the listing shows one
 - Download high-resolution images, and videos only when the target profile uses them: an image-only profile skips video extraction and download instead of fetching a file and discarding it
 - A downloaded file that fails validation is removed and the rejection is logged with its reason
-- Media counts in summaries are validated files on disk per product, not URLs found on the page (planned, #522)
+- Media counts in summaries are validated files on disk per product, not URLs found on the page
 - Filter out low-quality or invalid media
 - Store media in dedicated directories per product ID
 
@@ -421,7 +421,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Per-phase counts (success, failure, skipped)
 - Overall pipeline statistics
 - Profile usage distribution
-- Media counts are validated files on disk per product, matching the scraper's final verification, not URLs extracted (planned, #522)
+- Media counts are validated files on disk per product, matching the scraper's final verification, not URLs extracted
 
 ---
 

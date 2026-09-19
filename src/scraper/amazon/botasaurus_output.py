@@ -166,17 +166,17 @@ def configure_botasaurus_outputs() -> None:
 
 
 def get_browser_config_for_outputs() -> dict[str, Any]:
-    """Get browser configuration dict that includes our custom output function.
+    """Browser configuration that disables Botasaurus's own output.
 
-    Returns
-    -------
-        Dictionary with browser configuration including output function
-
+    Every scraper arm saves through ``BotasaurusAmazonScraper._save_products``
+    after the media downloads, so a write from the decorator's output
+    callback was at best redundant: on the standalone keyword and ASIN
+    arms ``write_scraped_data_output`` wrote a raw extractor dict that
+    ``_save_products`` then overwrote, and on the batch arm it received one
+    ``{"input", "products"}`` envelope per input, found no ASIN and warned.
+    ``None`` tells Botasaurus to write nothing.
     """
-    return {
-        "output": write_scraped_data_output,
-        # Add any other browser-specific output configurations here
-    }
+    return {"output": None}
 
 
 def get_task_config_for_outputs() -> dict[str, Any]:

@@ -630,8 +630,8 @@ SCRAPING PHASE:
   Failed: 0
 
   Media Statistics:
-    - Total Images: 42
-    - Total Videos: 6
+    - Images downloaded: 42
+    - Videos downloaded: 6
   Duration: 25.4s
 
 VIDEO PRODUCTION PHASE:

@@ -58,8 +58,10 @@ def mock_product_data():
             price="$29.99",
             url="https://amazon.com/dp/B0ABC123",
             platform=Platform.AMAZON,
-            images=["img1.jpg", "img2.jpg"],
-            videos=["vid1.mp4"],
+            images=["img1.jpg", "img2.jpg", "img-rejected.jpg"],
+            videos=["vid1.mp4", "vid-rejected.mp4"],
+            downloaded_images=["img1.jpg", "img2.jpg"],
+            downloaded_videos=["vid1.mp4"],
         ),
         ProductData(
             asin="B0DEF456",
@@ -69,6 +71,8 @@ def mock_product_data():
             platform=Platform.AMAZON,
             images=["img3.jpg", "img4.jpg", "img5.jpg"],
             videos=[],
+            downloaded_images=["img3.jpg", "img4.jpg", "img5.jpg"],
+            downloaded_videos=[],
         ),
     ]
 
@@ -149,7 +153,8 @@ async def test_scraping_phase_success(orchestrator, mock_product_data):
         assert summary.total_attempted == 2
         assert summary.successful == 2
         assert summary.failed == 0
-        assert summary.media_stats["total_images"] == 5  # 2 + 3
+        # Downloaded files (2 + 3, 1), not the URLs found (3 + 3, 2).
+        assert summary.media_stats["total_images"] == 5
         assert summary.media_stats["total_videos"] == 1
         assert summary.duration_sec > 0
 
@@ -859,8 +864,8 @@ def test_summary_format_method():
     assert "SCRAPING PHASE:" in formatted
     assert "VIDEO PRODUCTION PHASE:" in formatted
     assert "END-TO-END RESULTS:" in formatted
-    assert "Total Images: 5" in formatted
-    assert "Total Videos: 1" in formatted
+    assert "Images downloaded: 5" in formatted
+    assert "Videos downloaded: 1" in formatted
     assert "slideshow_images1: 2 (100.0%)" in formatted
 
 
