@@ -334,7 +334,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 #### Jamendo Provider
 - Jamendo Music API v3.0 with `client_id` authentication (no OAuth2 needed)
 - `fuzzytags` search mode for genre/mood matching (OR relevance), configurable to `tags` (AND) or `search` (free text)
-- An empty answer is repeated for the same query a bounded number of times before the next query is drawn, and only a run of empty answers counts as no tracks, because the API answers an identical query inconsistently (the measurement is in the audio notes) (planned, #516)
+- An empty answer is retried a bounded number of times, with a fresh query each time since the emptiness is not query-specific, and only a run of empty answers counts as no tracks; the count is sized to the measured empty rate so a run of misses is rare (the measurement is in the audio notes)
 - Configurable search query pool with random selection per product for music variety
 - Prefers `audiodownload` URL, falls back to stream URL if download not allowed
 
