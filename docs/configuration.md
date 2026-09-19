@@ -1525,11 +1525,11 @@ poetry run python tools/freesound_oauth2_setup.py \
 
 **Script will:**
 1. Print authorization URL for Freesound
-2. You open URL in browser, log in, and approve access
-3. Copy authorization code from redirect URL
+2. You open URL in a browser that is logged in to Freesound and approve access
+3. Copy the `code` from the URL of the "app authorized" page Freesound shows (it expires in ten minutes)
 4. Paste code into script when prompted
-5. Script exchanges code for access + refresh tokens
-6. Refresh token printed to console
+5. Script exchanges code for access + refresh tokens and writes the refresh token to `.env`
+6. From then on the pipeline refreshes the token itself; refresh tokens rotate on use and do not expire unused, so the tool is needed again only if the stored token is lost
 
 **Step 3: Configure Environment Variables**
 
