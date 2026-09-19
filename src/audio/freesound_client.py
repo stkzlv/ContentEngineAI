@@ -25,16 +25,25 @@ from src.video.config import (
 logger = logging.getLogger(__name__)
 
 
-def update_env_file(key_to_update: str, new_value: str):
+def env_file_path() -> Path:
+    """The file a rotated credential is written back to: the project's `.env`.
+
+    A seam on purpose. The test suite points it at a temporary file, because
+    a test that drove the refresh path against the real one replaced the
+    working refresh token with a literal on every run for months.
+    """
+    from src.utils.outputs_paths import get_project_root
+
+    return get_project_root() / ".env"
+
+
+def update_env_file(key_to_update: str, new_value: str, env_path: Path | None = None):
     """Safely updates an existing key in the project's .env file.
 
     Only overwrites if the key already exists — never adds new lines.
     """
     try:
-        from src.utils.outputs_paths import get_project_root
-
-        project_root = get_project_root()
-        env_path = project_root / ".env"
+        env_path = env_path or env_file_path()
         if not env_path.is_file():
             logger.warning(
                 ".env file not found at %s. Cannot update refresh token automatically.",
