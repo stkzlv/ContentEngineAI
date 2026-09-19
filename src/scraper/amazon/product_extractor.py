@@ -324,141 +324,187 @@ def extract_product_data_from_page(
         return None
 
 
+# A search-result card is on screen when it is inspected, so a selector
+# that matches nothing now will not match later. The driver's element
+# lookups default to a four-second wait, and the link chain below tries nine
+# selectors, so a sponsored or placeholder card cost about forty seconds
+# to skip. None means one lookup, no waiting.
+CARD_LOOKUP_WAIT = None
+
+
+# One script call returns everything the classification needs. Each element
+# lookup is a DOM round trip (about half a second here), and the selector
+# chains below make seventeen of them, which is why a skipped card still cost
+# eight seconds with the waits gone. The chains stay as the fallback for an
+# element that cannot run a script.
+CARD_FACTS_JS = """(el) => {
+  const hrefs = Array.from(el.querySelectorAll("a[href]")).map(
+    (a) => a.getAttribute("href") || ""
+  );
+  const isProduct = (h) => h.includes("/dp/") || h.includes("/gp/product/");
+  const link = hrefs.find(isProduct) || null;
+  const pick = (sel) => {
+    const n = el.querySelector(sel);
+    return n ? n.getAttribute("aria-label") || n.textContent || "" : "";
+  };
+  const rating =
+    pick(".a-icon-alt") ||
+    pick("[aria-label*='stars']") ||
+    pick(".a-star-mini .a-icon-alt") ||
+    pick(".a-icon-row .a-icon-alt");
+  const reviews = Array.from(
+    el.querySelectorAll(
+      ".a-size-base, .a-link-normal .a-size-base, " +
+        "[aria-label*='ratings'], .a-row .a-size-small"
+    )
+  ).map((n) => n.textContent || "");
+  return { text: el.innerText || el.textContent || "", link, rating, reviews };
+}"""
+
+_SKIP_INDICATORS = (
+    "people also search for",
+    "related searches",
+    "sponsored brands",
+    "advertisement",
+    "top brands",
+    "frequently bought together",
+)
+
+_CARD_LINK_SELECTORS = (
+    "h2 a[href*='/dp/']",
+    "h3 a[href*='/dp/']",
+    "h1 a[href*='/dp/']",
+    "a[href*='/dp/']",
+    "a[href*='/gp/product/']",
+    "[data-cy='title-recipe-title'] a",
+    ".s-link-style a[href*='/dp/']",
+    ".a-link-normal[href*='/dp/']",
+)
+_CARD_RATING_SELECTORS = (
+    ".a-icon-alt",
+    "[aria-label*='stars']",
+    ".a-star-mini .a-icon-alt",
+    ".a-icon-row .a-icon-alt",
+)
+_CARD_REVIEWS_SELECTORS = (
+    ".a-size-base",
+    ".a-link-normal .a-size-base",
+    "[aria-label*='ratings']",
+    ".a-row .a-size-small",
+)
+
+
+def _is_product_href(href: str | None) -> bool:
+    if not href:
+        return False
+    return "/dp/" in href or "/gp/product/" in href
+
+
+def _card_facts_by_script(card_element) -> dict[str, Any] | None:
+    run_js = getattr(card_element, "run_js", None)
+    if run_js is None:
+        return None
+    try:
+        facts = run_js(CARD_FACTS_JS)
+    except Exception:
+        return None
+    return facts if isinstance(facts, dict) else None
+
+
+def _card_facts_by_selectors(card_element) -> dict[str, Any]:
+    """The same facts through element lookups, none of them waiting."""
+    text = card_element.text if hasattr(card_element, "text") else ""
+    link = None
+    for selector in _CARD_LINK_SELECTORS:
+        try:
+            element = card_element.select(selector, wait=CARD_LOOKUP_WAIT)
+        except Exception:  # noqa: S112
+            continue
+        href = element.get_attribute("href") if element else None
+        if _is_product_href(href):
+            link = href
+            break
+    if link is None:
+        try:
+            for anchor in card_element.select_all("a", wait=CARD_LOOKUP_WAIT):
+                href = anchor.get_attribute("href")
+                if _is_product_href(href):
+                    link = href
+                    break
+        except Exception:  # noqa: S110
+            pass
+    rating = ""
+    for selector in _CARD_RATING_SELECTORS:
+        element = card_element.select(selector, wait=CARD_LOOKUP_WAIT)
+        if element:
+            rating = element.get_attribute("aria-label") or element.text or ""
+            if rating:
+                break
+    reviews = []
+    for selector in _CARD_REVIEWS_SELECTORS:
+        element = card_element.select(selector, wait=CARD_LOOKUP_WAIT)
+        if element:
+            reviews.append(element.text or "")
+    return {"text": text or "", "link": link, "rating": rating, "reviews": reviews}
+
+
+def _parse_rating(rating_text: str) -> str | None:
+    if "out of" in rating_text:
+        return rating_text.split(" out of")[0].strip() or None
+    if "stars" in rating_text.lower():
+        match = re.search(r"([\d.]+)\s*stars?", rating_text.lower())
+        if match:
+            return match.group(1)
+    return None
+
+
+def _parse_reviews(candidates: list[str]) -> str | None:
+    for text in candidates:
+        clean = text.replace(",", "").replace("(", "").replace(")", "").strip()
+        if clean.isdigit():
+            return text.strip()
+    return None
+
+
+def _asin_from(url: str) -> str | None:
+    if "/dp/" in url:
+        return url.split("/dp/")[1].split("/")[0].split("?")[0] or None
+    if "/gp/product/" in url:
+        return url.split("/gp/product/")[1].split("/")[0].split("?")[0] or None
+    match = re.search(r"/([A-Z0-9]{10})(?:/|$|\?)", url)
+    return match.group(1) if match else None
+
+
 def extract_serp_product_info(card_element, keyword: str):
-    """Extract product info from search result card"""
+    """Extract product info from a search result card, in one round trip."""
     from .models import SerpProductInfo
 
     try:
-        # Quick check: skip non-product cards
-        card_text = card_element.text.lower() if hasattr(card_element, "text") else ""
-        skip_indicators = [
-            "people also search for",
-            "related searches",
-            "sponsored brands",
-            "advertisement",
-            "top brands",
-            "frequently bought together",
-        ]
-
-        for indicator in skip_indicators:
-            if indicator in card_text:
-                return None
-
-        # Extract URL with comprehensive selector attempts
-        link_element = None
-        link_selectors = [
-            "h2 a[href*='/dp/']",
-            "h3 a[href*='/dp/']",
-            "h1 a[href*='/dp/']",
-            "a[href*='/dp/']",
-            "a[href*='/gp/product/']",
-            "[data-cy='title-recipe-title'] a",
-            ".s-link-style a[href*='/dp/']",
-            ".a-link-normal[href*='/dp/']",
-            "a",
-        ]
-
-        for selector in link_selectors:
-            try:
-                if selector == "a":
-                    all_links = card_element.select_all(selector)
-                    for link in all_links:
-                        href = link.get_attribute("href")
-                        if href and ("/dp/" in href or "/gp/product/" in href):
-                            link_element = link
-                            break
-                    if link_element:
-                        break
-                else:
-                    link_element = card_element.select(selector)
-                    if link_element:
-                        href = link_element.get_attribute("href")
-                        if href and ("/dp/" in href or "/gp/product/" in href):
-                            break
-                        else:
-                            link_element = None
-            except Exception:  # noqa: S112
-                continue
-
-        if not link_element:
+        facts = _card_facts_by_script(card_element)
+        if facts is None:
+            facts = _card_facts_by_selectors(card_element)
+        text = str(facts.get("text") or "").lower()
+        if any(indicator in text for indicator in _SKIP_INDICATORS):
             return None
-
-        url = link_element.get_attribute("href")
-        if url and not url.startswith("http"):
+        url = facts.get("link")
+        if not url:
+            return None
+        if not url.startswith("http"):
             base_url = (
                 CONFIG.get("scrapers", {})
                 .get("amazon", {})
                 .get("base_url", "https://www.amazon.com")
             )
             url = f"{base_url}{url}"
-
-        # Extract ASIN from URL
-        asin = None
-        if "/dp/" in url:
-            asin = url.split("/dp/")[1].split("/")[0].split("?")[0]
-        elif "/gp/product/" in url:
-            asin = url.split("/gp/product/")[1].split("/")[0].split("?")[0]
-        else:
-            asin_match = re.search(r"/([A-Z0-9]{10})(?:/|$|\?)", url)
-            if asin_match:
-                asin = asin_match.group(1)
-
+        asin = _asin_from(url)
         if not asin:
             return None
-
-        # Extract rating
-        rating = None
-        rating_selectors = [
-            ".a-icon-alt",
-            "[aria-label*='stars']",
-            ".a-star-mini .a-icon-alt",
-            ".a-icon-row .a-icon-alt",
-        ]
-
-        for selector in rating_selectors:
-            rating_element = card_element.select(selector)
-            if rating_element:
-                rating_text = (
-                    rating_element.get_attribute("aria-label")
-                    or rating_element.text
-                    or ""
-                )
-                if "out of" in rating_text:
-                    rating = rating_text.split(" out of")[0].strip()
-                elif "stars" in rating_text.lower():
-                    match = re.search(r"([\d.]+)\s*stars?", rating_text.lower())
-                    if match:
-                        rating = match.group(1)
-                if rating:
-                    break
-
-        # Extract reviews count
-        reviews_count = None
-        reviews_selectors = [
-            ".a-size-base",
-            ".a-link-normal .a-size-base",
-            "[aria-label*='ratings']",
-            ".a-row .a-size-small",
-        ]
-
-        for selector in reviews_selectors:
-            reviews_element = card_element.select(selector)
-            if reviews_element:
-                reviews_text = reviews_element.text or ""
-                clean_text = (
-                    reviews_text.replace(",", "").replace("(", "").replace(")", "")
-                )
-                if clean_text.isdigit():
-                    reviews_count = reviews_text.strip()
-                    break
-
         return SerpProductInfo(
             url=url,
-            rating=rating,
-            reviews_count=reviews_count,
+            rating=_parse_rating(str(facts.get("rating") or "")),
+            reviews_count=_parse_reviews(list(facts.get("reviews") or [])),
             asin=asin,
             keyword=keyword,
         )
-
     except Exception:
         return None
