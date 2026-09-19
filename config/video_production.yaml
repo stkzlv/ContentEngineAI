@@ -478,9 +478,9 @@ audio_settings:
   freesound_download_timeout_sec: 60
 
   # --- OAuth2 Token Management ---
-  # Token expiration time (seconds)
-  # Freesound access tokens typically valid for 1 hour (3600s)
-  # System automatically refreshes tokens before expiration
+  # Token expiration time (seconds). Freesound access tokens last 24 hours
+  # and the token response states the lifetime, which the client uses; this
+  # value and the buffer below are declared but not read yet (#534).
   freesound_token_expiry_sec: 3600
 
   # Token refresh buffer (seconds)

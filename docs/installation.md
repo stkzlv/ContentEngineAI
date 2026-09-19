@@ -217,8 +217,9 @@ For downloading full-quality audio files from Freesound:
    ```
 
 3. **Get Authorization Code:**
-   - Authorize the app in browser
-   - Copy the `code` parameter from redirect URL
+   - Authorize the app in a browser that is logged in to Freesound
+   - Copy the `code` parameter from the URL of the page the redirect lands on (with Freesound's own redirect target, its "app authorized" page); it expires in ten minutes
+   - `tools/freesound_oauth2_setup.py` does steps 2 to 5 and writes the token to `.env`; the curl below is the manual equivalent
 
 4. **Exchange for Tokens:**
    ```bash
@@ -226,8 +227,8 @@ For downloading full-quality audio files from Freesound:
    -d "client_id=YOUR_CLIENT_ID" \
    -d "client_secret=YOUR_CLIENT_SECRET" \
    -d "grant_type=authorization_code" \
-   -d "code=AUTHORIZATION_CODE_FROM_STEP_3" \
-   -d "redirect_uri=YOUR_REDIRECT_URI"
+   -d "code=AUTHORIZATION_CODE_FROM_STEP_3"
+   # add -d "redirect_uri=..." only if the app was registered with your own redirect URI
    ```
 
 5. **Update .env file:**

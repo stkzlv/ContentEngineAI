@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.13] - 2026-09-19
+
+### Documentation
+- The Freesound guide now states the access-token lifetime Freesound actually grants (24 hours, taken from the token response), that a refresh runs once per render and rotates the stored token, that refresh tokens do not expire unused, and where the authorization code appears; the refresh-timeout setting it told readers to raise does not exist, and the two token settings the config file declares are marked as not yet read.
+
 ## [0.124.12] - 2026-09-19
 
 ### Fixed
