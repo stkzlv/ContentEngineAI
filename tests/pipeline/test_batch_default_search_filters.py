@@ -98,16 +98,27 @@ class TestOverridesLayerInOrder:
 
         assert filters.min_price == 0
 
-    def test_prime_from_the_pipeline_and_the_cli(self):
-        assert resolve_scraper_filters(argparse.Namespace(), {}).prime_only is (
-            get_default_search_parameters().prime_only
+    def test_prime_from_the_pipeline_and_the_cli(self, monkeypatch):
+        """With the scraper default at true, so that an explicit false in
+        pipeline.yaml has something to override (the shipped default is
+        false, and against it this case would pass with no yaml layer).
+        """
+        from src.scraper.amazon import config as scraper_config
+        from src.scraper.amazon.models import SearchParameters
+
+        monkeypatch.setattr(
+            scraper_config,
+            "get_default_search_parameters",
+            lambda: SearchParameters(prime_only=True),
         )
+
+        assert resolve_scraper_filters(argparse.Namespace(), {}).prime_only
+        assert not resolve_scraper_filters(
+            argparse.Namespace(), {"prime_only": False}
+        ).prime_only
         assert resolve_scraper_filters(
-            argparse.Namespace(), {"prime_only": True}
+            argparse.Namespace(), {"prime_only": None}
         ).prime_only
         assert resolve_scraper_filters(
             argparse.Namespace(prime_only=True), {"prime_only": False}
-        ).prime_only
-        assert not resolve_scraper_filters(
-            argparse.Namespace(), {"prime_only": False}
         ).prime_only

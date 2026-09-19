@@ -213,8 +213,11 @@ def scrape_amazon_products_browser_impl(
         page = data.get("page", 1)
         search_url = url_builder.build_search_url(keyword, search_params, page=page)
 
+        # The filters in force are part of the run's record on every run, not
+        # only a debug one: a search that ran unfiltered used to be invisible
+        # outside --debug.
+        url_builder.log_search_parameters(keyword, search_params)
         if DEBUG_MODE:
-            url_builder.log_search_parameters(keyword, search_params)
             logger.info("Searching: %s", search_url)
             # Take debug screenshot if enabled in config
             try:
