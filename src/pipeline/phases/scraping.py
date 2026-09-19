@@ -199,10 +199,10 @@ async def run_scraping_phase(
                 for product in products:
                     if hasattr(product, "asin") and product.asin:
                         successful_products.append(product.asin)
-                    if hasattr(product, "images") and product.images:
-                        total_images += len(product.images)
-                    if hasattr(product, "videos") and product.videos:
-                        total_videos += len(product.videos)
+                    # Files downloaded and validated, not URLs found on the
+                    # page: the summary said 15 images where 10 were on disk.
+                    total_images += len(getattr(product, "downloaded_images", []))
+                    total_videos += len(getattr(product, "downloaded_videos", []))
                 logger.info(
                     "[%s/%s] Found %s product(s) for %s",
                     idx,

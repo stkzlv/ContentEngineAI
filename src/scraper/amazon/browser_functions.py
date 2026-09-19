@@ -329,7 +329,7 @@ def scrape_amazon_products_browser_impl(
         driver.short_random_sleep()
 
         if DEBUG_MODE:
-            nav_time = time.time() - nav_start
+            nav_time = time.monotonic() - nav_start
             logger.debug("Navigation completed in %.2f seconds", nav_time)
 
             # Add page info for debugging and error detection
@@ -566,7 +566,7 @@ def scrape_amazon_products_browser_impl(
 
                     logger.info(
                         "Processing product %d/%d: %s",
-                        i + 1,
+                        len(processed_asins),
                         max_products,
                         serp_info.asin,
                     )
@@ -768,6 +768,19 @@ def scrape_amazon_products_browser_impl(
     return products
 
 
+def describe_debug_display(config: dict[str, Any]) -> str:
+    """What a debug run will show, from the config the run is about to use.
+
+    The line used to promise a visible window two lines after saying the
+    run was on a virtual display.
+    """
+    if config.get("headless") == "new":
+        return "headless Chrome, no window"
+    if config.get("enable_xvfb_virtual_display"):
+        return "virtual display, no visible window"
+    return "browser window visible on your screen"
+
+
 def _build_browser_config(debug_mode=False):
     """Build Botasaurus browser config dict.
 
@@ -880,9 +893,7 @@ def _build_browser_config(debug_mode=False):
             }
         )
 
-        logger.info(
-            "Debug mode enabled - browser window will be visible on your screen"
-        )
+        logger.info("Debug mode enabled: %s", describe_debug_display(current_config))
         logger.info(
             "Maximized positioning: --window-position=%d,%d --window-size=%d,%d",
             browser_x,

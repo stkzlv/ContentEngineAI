@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.9] - 2026-09-19
+
+### Fixed
+- Five scraper log lines now describe the run as it happened: the navigation duration is measured on one clock instead of printing a timestamp-sized number, the product counter counts products rather than search cards, a debug run on a virtual display or headless Chrome no longer promises a visible window, the per-input "no ASIN" warning from an output callback that never received products is gone, and the batch summary counts the images and videos downloaded and validated rather than the URLs found on the page.
+
 ## [0.124.8] - 2026-09-19
 
 ### Fixed

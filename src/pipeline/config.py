@@ -444,7 +444,7 @@ class ScrapingPhaseSummary:
         failed: Number of products that failed to scrape
         successful_products: List of product IDs scraped successfully
         failed_products: List of product IDs that failed
-        media_stats: Media statistics (e.g., total_images, total_videos)
+        media_stats: Files downloaded and validated (total_images, total_videos)
         duration_sec: Phase duration in seconds
 
     """
@@ -664,9 +664,9 @@ class PipelineSummary:
             [
                 "",
                 "  Media Statistics:",
-                f"    - Total Images: "
+                f"    - Images downloaded: "
                 f"{self.scraping.media_stats.get('total_images', 0)}",
-                f"    - Total Videos: "
+                f"    - Videos downloaded: "
                 f"{self.scraping.media_stats.get('total_videos', 0)}",
                 f"  Duration: {self.scraping.duration_sec:.1f}s",
                 "",

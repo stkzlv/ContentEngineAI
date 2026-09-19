@@ -166,17 +166,16 @@ def configure_botasaurus_outputs() -> None:
 
 
 def get_browser_config_for_outputs() -> dict[str, Any]:
-    """Get browser configuration dict that includes our custom output function.
+    """Browser configuration that disables Botasaurus's own output.
 
-    Returns
-    -------
-        Dictionary with browser configuration including output function
-
+    The browser function returns one envelope per input (``{"input",
+    "products"}``), never product dicts; wired as the output callback,
+    ``write_scraped_data_output`` received those envelopes, found no ASIN
+    on any of them and warned once per input, while the real save happens
+    later in ``BotasaurusAmazonScraper._save_products`` after the media
+    downloads. ``None`` tells Botasaurus to write nothing.
     """
-    return {
-        "output": write_scraped_data_output,
-        # Add any other browser-specific output configurations here
-    }
+    return {"output": None}
 
 
 def get_task_config_for_outputs() -> dict[str, Any]:
