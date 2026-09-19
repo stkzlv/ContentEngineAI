@@ -134,6 +134,20 @@ class TestAnEmptyResponseIsRetried:
         assert len(session.calls) == JAMENDO_EMPTY_RETRIES + 1
 
     @pytest.mark.asyncio
+    async def test_five_empties_in_a_row_do_not_end_the_search(self):
+        """At about one empty answer in two, three attempts lost one render in
+        eight; the count is sized so a run of misses is rare, not just short.
+        """
+        session = FakeSession(
+            [{"results": []} for _ in range(5)] + [{"results": [track("7")]}]
+        )
+
+        tracks = await provider().search("chill", 10, 60, 20, session)
+
+        assert [t.id for t in tracks] == ["7"]
+        assert len(session.calls) == 6
+
+    @pytest.mark.asyncio
     async def test_a_first_hit_costs_no_extra_call(self):
         """Retrying is for the empty case only; the happy path is unchanged."""
         session = FakeSession([{"results": [track()]}])
@@ -155,11 +169,11 @@ class TestAnEmptyResponseIsRetried:
         """
         import src.audio.jamendo_provider as mod
 
-        pool = ["alpha", "beta", "gamma"]
+        pool = [f"query{i}" for i in range(JAMENDO_EMPTY_RETRIES + 1)]
         draws = iter(pool)
         monkeypatch.setattr(mod.random, "choice", lambda _seq: next(draws))
 
-        session = FakeSession([{"results": []} for _ in range(5)])
+        session = FakeSession([{"results": []} for _ in pool])
         p = provider(search_queries=pool)
 
         await p.search("ignored", 10, 60, 20, session)

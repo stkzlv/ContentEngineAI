@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 JAMENDO_API_BASE = "https://api.jamendo.com/v3.0"
 JAMENDO_MAX_RESULTS = 200  # Jamendo API hard limit
 # Extra attempts after an empty-but-successful response. Measured at
-# roughly one call in three coming back empty for identical input, so two
-# retries put the odds of three consecutive misses near one in thirty.
-JAMENDO_EMPTY_RETRIES = 2
+# roughly one call in three coming back empty for identical input when this
+# was first seen, and at about one in two in a 2026-09 sample (five of
+# twelve), where two retries still lost one render in eight. Five retries
+# put six consecutive misses near one in sixty, and a call costs 0.3 s.
+JAMENDO_EMPTY_RETRIES = 5
 
 # Separate circuit breaker for Jamendo
 jamendo_circuit_breaker = CircuitBreaker(
@@ -73,7 +75,7 @@ class JamendoProvider(BaseAudioProvider):
         """Search Jamendo, retrying an empty-but-successful response.
 
         The API intermittently answers a working query with zero results --
-        measured at roughly one call in three for identical input. Treating
+        measured at one call in three and later at one in two. Treating
         that as "no tracks" dropped Jamendo for the whole render and fell
         through to the next provider, which silently changes the audio quality
         of a published video.

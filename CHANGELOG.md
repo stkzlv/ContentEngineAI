@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.5] - 2026-09-19
+
+### Fixed
+- Jamendo's empty-answer retry is sized to the measured rate: the service answers an identical query with zero tracks about one time in two, so two retries still lost one render in eight to the fallback provider; six attempts make a full run of misses rare at under two seconds of calls.
+
 ## [0.124.4] - 2026-09-19
 
 ### Fixed
