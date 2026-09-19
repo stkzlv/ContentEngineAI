@@ -118,8 +118,8 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Extract product data: title, price, description, ID, ratings, reviews
 - Scraped price is recorded as a plain decimal number, parsed from both US (comma grouping, dot decimal) and European (dot grouping, comma decimal) price formats
 - Product rating falls back to the search-results rating when the product page yields none, so a rating is recorded whenever the listing shows one
-- Download high-resolution images, and videos only when the target profile uses them: an image-only profile skips video extraction and download instead of fetching a file and discarding it (planned, #519)
-- A downloaded file that fails validation is removed and the rejection is logged with its reason (planned, #519)
+- Download high-resolution images, and videos only when the target profile uses them: an image-only profile skips video extraction and download instead of fetching a file and discarding it
+- A downloaded file that fails validation is removed and the rejection is logged with its reason
 - Media counts in summaries are validated files on disk per product, not URLs found on the page (planned, #522)
 - Filter out low-quality or invalid media
 - Store media in dedicated directories per product ID

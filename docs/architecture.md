@@ -510,7 +510,7 @@ Product Page → Multi-Method Extraction → URL Validation → Download → FFp
 
 #### Multi-Method Video Extraction
 
-The scraper employs a three-tier extraction strategy to maximize video discovery:
+The scraper employs a three-tier extraction strategy to maximize video discovery. The whole flow runs only when the target profile uses scraped videos: an image-only profile passes `extract_videos=False` into the browser task, the three methods are skipped with a log line, and no video is downloaded.
 
 **Method 1: Script Data Extraction**
 - Parses `window.P.register()` JavaScript blocks for video URLs

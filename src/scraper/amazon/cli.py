@@ -229,7 +229,7 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
         dest="profile_uses_videos",
         action="store_false",
         help=(
-            "Validate media for an image-only profile: videos are ignored "
+            "Scrape for an image-only profile: no video is extracted or downloaded, "
             "and enough images are required on their own."
         ),
     )
