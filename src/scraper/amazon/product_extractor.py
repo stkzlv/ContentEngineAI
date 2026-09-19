@@ -343,22 +343,19 @@ CARD_FACTS_JS = """(el) => {
   );
   const isProduct = (h) => h.includes("/dp/") || h.includes("/gp/product/");
   const link = hrefs.find(isProduct) || null;
-  const pick = (sel) => {
-    const n = el.querySelector(sel);
-    return n ? n.getAttribute("aria-label") || n.textContent || "" : "";
-  };
-  const rating =
-    pick(".a-icon-alt") ||
-    pick("[aria-label*='stars']") ||
-    pick(".a-star-mini .a-icon-alt") ||
-    pick(".a-icon-row .a-icon-alt");
+  const ratings = Array.from(
+    el.querySelectorAll(
+      ".a-icon-alt, [aria-label*='stars'], .a-star-mini .a-icon-alt, " +
+        ".a-icon-row .a-icon-alt"
+    )
+  ).map((n) => n.getAttribute("aria-label") || n.textContent || "");
   const reviews = Array.from(
     el.querySelectorAll(
       ".a-size-base, .a-link-normal .a-size-base, " +
         "[aria-label*='ratings'], .a-row .a-size-small"
     )
   ).map((n) => n.textContent || "");
-  return { text: el.innerText || el.textContent || "", link, rating, reviews };
+  return { text: el.innerText || el.textContent || "", link, ratings, reviews };
 }"""
 
 _SKIP_INDICATORS = (
@@ -433,28 +430,32 @@ def _card_facts_by_selectors(card_element) -> dict[str, Any]:
                     break
         except Exception:  # noqa: S110
             pass
-    rating = ""
+    ratings = []
     for selector in _CARD_RATING_SELECTORS:
         element = card_element.select(selector, wait=CARD_LOOKUP_WAIT)
         if element:
-            rating = element.get_attribute("aria-label") or element.text or ""
-            if rating:
-                break
+            ratings.append(element.get_attribute("aria-label") or element.text or "")
     reviews = []
     for selector in _CARD_REVIEWS_SELECTORS:
         element = card_element.select(selector, wait=CARD_LOOKUP_WAIT)
         if element:
             reviews.append(element.text or "")
-    return {"text": text or "", "link": link, "rating": rating, "reviews": reviews}
+    return {"text": text or "", "link": link, "ratings": ratings, "reviews": reviews}
 
 
-def _parse_rating(rating_text: str) -> str | None:
-    if "out of" in rating_text:
-        return rating_text.split(" out of")[0].strip() or None
-    if "stars" in rating_text.lower():
-        match = re.search(r"([\d.]+)\s*stars?", rating_text.lower())
-        if match:
-            return match.group(1)
+def _parse_rating(candidates: list[str]) -> str | None:
+    """The first candidate that reads as a rating; a badge's text before the
+    star row (an `.a-icon-alt` that says "Amazon Prime") is passed over.
+    """
+    for rating_text in candidates:
+        if "out of" in rating_text:
+            found = rating_text.split(" out of")[0].strip()
+            if found:
+                return found
+        elif "stars" in rating_text.lower():
+            match = re.search(r"([\d.]+)\s*stars?", rating_text.lower())
+            if match:
+                return match.group(1)
     return None
 
 
@@ -501,7 +502,7 @@ def extract_serp_product_info(card_element, keyword: str):
             return None
         return SerpProductInfo(
             url=url,
-            rating=_parse_rating(str(facts.get("rating") or "")),
+            rating=_parse_rating([str(r) for r in facts.get("ratings") or []]),
             reviews_count=_parse_reviews(list(facts.get("reviews") or [])),
             asin=asin,
             keyword=keyword,

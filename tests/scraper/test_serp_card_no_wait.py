@@ -51,13 +51,21 @@ class ScriptCard:
 class SelectorCard:
     """An element with no script call; every lookup records the wait it carried."""
 
-    def __init__(self, links: dict[str, str] | None = None, text: str = ""):
+    def __init__(
+        self,
+        links: dict[str, str] | None = None,
+        text: str = "",
+        answers: dict[str, object] | None = None,
+    ):
         self.links = links or {}
         self.text = text
+        self.answers = answers or {}
         self.waits: list[object] = []
 
     def select(self, selector: str, wait=_DEFAULT):
         self.waits.append(wait)
+        if selector in self.answers:
+            return self.answers[selector]
         href = self.links.get(selector)
         if href is None:
             return None
@@ -73,7 +81,7 @@ class SelectorCard:
 class TestOneScriptCallPerCard:
     def test_a_card_with_no_product_link_costs_one_call_and_no_lookup(self):
         card = ScriptCard(
-            {"text": "Sponsored", "link": None, "rating": "", "reviews": []}
+            {"text": "Sponsored", "link": None, "ratings": [], "reviews": []}
         )
 
         assert extract_serp_product_info(card, "smart watch") is None
@@ -85,7 +93,7 @@ class TestOneScriptCallPerCard:
             {
                 "text": "Smart Watch for Men",
                 "link": PRODUCT_URL,
-                "rating": "4.5 out of 5 stars",
+                "ratings": ["4.5 out of 5 stars"],
                 "reviews": ["Sponsored", "(1,234)"],
             }
         )
@@ -100,9 +108,27 @@ class TestOneScriptCallPerCard:
         )
         assert card.lookups == 0
 
+    def test_a_badge_before_the_star_row_does_not_hide_the_rating(self):
+        """The first icon with text is not always the stars: a Prime badge is
+        an `.a-icon-alt` too, and the old selector loop kept going until a
+        candidate parsed as a rating.
+        """
+        card = ScriptCard(
+            {
+                "text": "",
+                "link": PRODUCT_URL,
+                "ratings": ["Amazon Prime", "4.5 out of 5 stars"],
+                "reviews": [],
+            }
+        )
+
+        info = extract_serp_product_info(card, "k")
+
+        assert info is not None and info.rating == "4.5"
+
     def test_a_relative_link_is_anchored_on_the_site(self):
         card = ScriptCard(
-            {"text": "", "link": "/dp/B0TEST00002/ref=sr", "rating": "", "reviews": []}
+            {"text": "", "link": "/dp/B0TEST00002/ref=sr", "ratings": [], "reviews": []}
         )
 
         info = extract_serp_product_info(card, "k")
@@ -118,7 +144,7 @@ class TestOneScriptCallPerCard:
             {
                 "text": "People also search for",
                 "link": PRODUCT_URL,
-                "rating": "",
+                "ratings": [],
                 "reviews": [],
             }
         )
@@ -141,6 +167,23 @@ class TestTheSelectorFallbackNeverWaits:
 
         assert info is not None and info.asin == "B0TEST00001"
         assert all(w is CARD_LOOKUP_WAIT for w in card.waits), card.waits
+
+    def test_a_badge_before_the_star_row_does_not_hide_the_rating(self):
+        badge = SimpleNamespace(get_attribute=lambda name: None, text="Amazon Prime")
+        stars = SimpleNamespace(
+            get_attribute=lambda name: (
+                "4.5 out of 5 stars" if name == "aria-label" else None
+            ),
+            text="",
+        )
+        card = SelectorCard(
+            {"h2 a[href*='/dp/']": PRODUCT_URL},
+            answers={".a-icon-alt": badge, "[aria-label*='stars']": stars},
+        )
+
+        info = extract_serp_product_info(card, "k")
+
+        assert info is not None and info.rating == "4.5"
 
     def test_the_wait_is_none_which_the_driver_reads_as_one_lookup(self):
         assert CARD_LOOKUP_WAIT is None
