@@ -1,6 +1,6 @@
 # Project Requirements
 
-High-level requirements for ContentEngineAI.
+High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requirement means the behaviour is specified and tracked but not yet shipped; the marker goes when the issue closes.
 
 ---
 
@@ -22,7 +22,6 @@ High-level requirements for ContentEngineAI.
 
 ### Test Isolation
 - The test suite never reads or writes the developer's `.env`, the real `outputs/` tree or the real log files; a test that exercises code which persists a rotated credential or writes a file points that code at a path the test owns, and a guard fails the suite if any test reaches the real files (planned, #515)
-- A credential the system rotates (the Freesound refresh token) is persisted where it was read from and nowhere else
 
 ### Error Handling & Resilience
 - Continue processing on individual item failures (graceful degradation)
@@ -36,7 +35,7 @@ High-level requirements for ContentEngineAI.
 - Progress tracking with `[N/total]` format for batch operations
 - **Unified module summaries**: each module (scraper, producer, publisher, audio) logs a summary at the end of its work with consistent format, key counts, product IDs, and duration. No emojis in logs.
 - A logged duration is measured on one monotonic clock; a logged count names what it counts (URLs found on a page against files validated on disk); a message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so (planned, #522)
-- One event per line, every file line carrying the run id and the product id, one file per component per day; the retention and the line shape are the contributor notes' Logs section
+- One event per record, every record carrying the run id and the product id it belongs to, one file per component per day; the line shape and the retention are in `docs/development.md` (Logging Best Practices)
 
 ### Documentation Standards
 - Required root files: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, CHANGELOG.md, LICENSE
@@ -335,7 +334,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 #### Jamendo Provider
 - Jamendo Music API v3.0 with `client_id` authentication (no OAuth2 needed)
 - `fuzzytags` search mode for genre/mood matching (OR relevance), configurable to `tags` (AND) or `search` (free text)
-- The API answers an identical query inconsistently: a query that returns tracks returns none on a large share of repeats, whatever the parameters. An empty answer is therefore repeated for the same query a bounded number of times before the next query is drawn, and only a run of empty answers counts as no tracks (planned, #516)
+- An empty answer is repeated for the same query a bounded number of times before the next query is drawn, and only a run of empty answers counts as no tracks, because the API answers an identical query inconsistently (the measurement is in the audio notes) (planned, #516)
 - Configurable search query pool with random selection per product for music variety
 - Prefers `audiodownload` URL, falls back to stream URL if download not allowed
 
@@ -423,7 +422,6 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Overall pipeline statistics
 - Profile usage distribution
 - Media counts are validated files on disk per product, matching the scraper's final verification, not URLs extracted (planned, #522)
-- A `(planned, #N)` marker on a requirement in this document means the behaviour is specified and tracked but not yet shipped; the marker goes when the issue closes
 
 ---
 
