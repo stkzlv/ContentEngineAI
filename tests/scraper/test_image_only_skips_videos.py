@@ -147,7 +147,7 @@ class TestARejectedVideoSaysWhy:
         result = SimpleNamespace(issues=["duration 3s below minimum 5s", "no audio"])
 
         with caplog.at_level(logging.INFO):
-            download_async._discard_rejected_video(video, result)
+            download_async._discard_rejected_media("VIDEO", video, result)
 
         assert not video.exists()
         line = next(r.message for r in caplog.records if "Rejected" in r.message)
@@ -158,6 +158,11 @@ class TestARejectedVideoSaysWhy:
         video.write_bytes(b"x")
 
         with caplog.at_level(logging.INFO):
-            download_async._discard_rejected_video(video, SimpleNamespace(issues=[]))
+            download_async._discard_rejected_media(
+                "IMAGE", video, SimpleNamespace(issues=[])
+            )
 
-        assert any("failed validation" in r.message for r in caplog.records)
+        assert any(
+            "[IMAGE] Rejected" in r.message and "failed validation" in r.message
+            for r in caplog.records
+        )

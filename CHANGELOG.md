@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.124.7] - 2026-09-19
 
 ### Fixed
-- A scrape for an image-only profile no longer extracts and downloads the product video only to discard it: the flag that already relaxed the media validation now skips the video-extraction methods and the download, and a downloaded video that fails validation logs its reasons before it is removed instead of vanishing silently.
+- A scrape for an image-only profile no longer extracts and downloads the product video only to discard it: the flag that already relaxed the media validation now skips the video-extraction methods and the download, and a downloaded image or video that fails validation logs its reasons before it is removed instead of vanishing silently.
 
 ## [0.124.6] - 2026-09-19
 
