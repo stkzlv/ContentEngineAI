@@ -204,3 +204,25 @@ class TestProvidersCarryTags:
         assert call["sort_order"] == "score"
         assert "tags" in call["fields"].split(",")
         assert tracks[0].tags == ["ambient", "calm"]
+
+    @pytest.mark.asyncio
+    async def test_the_configured_sort_is_honoured(self):
+        """`freesound_sort` was declared and shipped but never read; the
+        client's own default applied.
+        """
+        from unittest.mock import AsyncMock
+
+        from src.audio import freesound_provider
+
+        provider = freesound_provider.FreesoundProvider.__new__(
+            freesound_provider.FreesoundProvider
+        )
+        provider._audio_settings = SimpleNamespace(freesound_sort="downloads_desc")
+        provider._client = SimpleNamespace(  # type: ignore[assignment]
+            _api_key="k", search_music=AsyncMock(return_value=[])
+        )
+
+        await provider.search(QUERY, 60, 300, 10, MagicMock())
+
+        call = provider._client.search_music.call_args.kwargs
+        assert call["sort_order"] == "downloads_desc"

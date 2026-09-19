@@ -39,7 +39,10 @@ class AudioSettings(BaseModel):
     freesound_client_id_env_var: str = Field("FREESOUND_CLIENT_ID")
     freesound_client_secret_env_var: str = Field("FREESOUND_CLIENT_SECRET")  # noqa: S106
     freesound_refresh_token_env_var: str = Field("FREESOUND_REFRESH_TOKEN")  # noqa: S106
-    freesound_sort: str = Field("rating_desc")
+    # Relevance order. "rating_desc" ranked the highest-rated sounds the
+    # text search loosely matched, which is how a calm query got a drill
+    # instrumental; the provider also never read this field until then.
+    freesound_sort: str = Field("score")
     freesound_search_query: str
     freesound_filters: str
     freesound_max_results: int

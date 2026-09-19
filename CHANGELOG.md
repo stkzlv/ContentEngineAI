@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.124.10] - 2026-09-19
 
 ### Fixed
-- Background music now matches the requested mood: every provider's candidates are ranked by how many of the query's words their title or tags carry, a candidate that matches none is skipped, a provider with no matching candidate hands over to the next one, the Freesound search asks for relevance order with tags instead of rating order, Jamendo tracks carry their genre and mood tags, and the audio summary names the terms the chosen track matched.
+- Background music now matches the requested mood: every provider's candidates are ranked by how many of the query's words their title or tags carry, a candidate that matches none is skipped, a provider with no matching candidate hands over to the next one, the Freesound search honours the configured sort (whose default is now relevance; the setting existed but was never read) and asks for tags, Jamendo tracks carry their genre and mood tags, and the audio summary names the terms the chosen track matched.
 
 ## [0.124.9] - 2026-09-19
 
