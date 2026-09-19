@@ -21,7 +21,7 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Never commit `.env` or put secrets in YAML files
 
 ### Test Isolation
-- The test suite never reads or writes the developer's `.env`, the real `outputs/` tree or the real log files; a test that exercises code which persists a rotated credential or writes a file points that code at a path the test owns, and a guard fails the suite if any test reaches the real files
+- The test suite never writes the developer's `.env`, the real `outputs/` tree or the real log files, and never depends on their contents; a test that exercises code which persists a rotated credential or writes a file points that code at a path the test owns, and a session-level guard fails the suite if the `.env` file's hash changes during a run
 
 ### Error Handling & Resilience
 - Continue processing on individual item failures (graceful degradation)

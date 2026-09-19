@@ -25,8 +25,13 @@ REAL_ENV = get_project_root() / ".env"
 REFRESH_URL = "https://freesound.org/apiv2/oauth2/access_token/"
 
 
-def _snapshot() -> bytes | None:
-    return REAL_ENV.read_bytes() if REAL_ENV.exists() else None
+def _snapshot() -> str | None:
+    """A hash, so the test depends on the file changing, never on its contents."""
+    import hashlib
+
+    return (
+        hashlib.sha256(REAL_ENV.read_bytes()).hexdigest() if REAL_ENV.exists() else None
+    )
 
 
 def _client() -> FreesoundClient:

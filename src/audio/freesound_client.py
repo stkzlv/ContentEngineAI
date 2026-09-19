@@ -37,13 +37,13 @@ def env_file_path() -> Path:
     return get_project_root() / ".env"
 
 
-def update_env_file(key_to_update: str, new_value: str, env_path: Path | None = None):
+def update_env_file(key_to_update: str, new_value: str):
     """Safely updates an existing key in the project's .env file.
 
     Only overwrites if the key already exists — never adds new lines.
     """
     try:
-        env_path = env_path or env_file_path()
+        env_path = env_file_path()
         if not env_path.is_file():
             logger.warning(
                 ".env file not found at %s. Cannot update refresh token automatically.",
