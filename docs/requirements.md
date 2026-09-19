@@ -342,7 +342,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Wraps existing FreesoundClient behind `BaseAudioProvider` interface
 - OAuth2 for full quality downloads, API key for preview fallback
 - A token refresh rotates the refresh token: the new one replaces the old in `.env`, since the service invalidates the old on use
-- A refresh that fails is attempted once per run, reported at WARNING with the remedy (re-run the OAuth2 setup tool), and the provider stays on previews for the rest of the run
+- A refresh that fails is attempted once per run, reported once at WARNING with the remedy that fits (a rejected token names the OAuth2 setup tool; an unreachable endpoint does not), and the provider stays on previews for the rest of the run
 - Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture
 - Duration filter search with general filter fallback
 
