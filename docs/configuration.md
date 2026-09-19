@@ -1476,7 +1476,7 @@ audio_settings:
   # Search configuration
   freesound_search_query: "upbeat instrumental corporate"
   freesound_filters: "duration:[60 TO 180]"
-  freesound_sort: "rating_desc"
+  freesound_sort: "score"
   freesound_max_results: 15
 
   # Timeouts
@@ -1627,8 +1627,8 @@ audio_settings:
   # Filter by duration range (seconds)
   freesound_filters: "duration:[60 TO 180]"
 
-  # Sort order (rating_desc recommended for quality)
-  freesound_sort: "rating_desc"
+  # Sort order (score, relevance, keeps results on the query's mood)
+  freesound_sort: "score"
 
   # Max results to fetch (10-20 recommended)
   freesound_max_results: 15
@@ -1658,7 +1658,11 @@ freesound_filters: "tag:music tag:background tag:corporate"
 - Sample rate: `samplerate:[MIN TO MAX]` (Hz)
 
 **Sort Options:**
-- `rating_desc` - Best rated tracks first (recommended)
+- `score` - Relevance to the query (default; the mood filter then ranks
+  candidates by the query words their title and tags carry)
+- `rating_desc` - Best rated tracks first (ranks the highest-rated sounds the
+  text search loosely matched, which is how a calm query once got a drill
+  instrumental)
 - `duration_asc` - Shortest tracks first
 - `duration_desc` - Longest tracks first
 - `created_desc` - Newest tracks first

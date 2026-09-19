@@ -349,7 +349,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 #### Selection and budget
 - A candidate track is downloaded once within a bounded timeout; a failed download moves to the next candidate rather than retrying the same URL (planned, #517)
 - The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent the chain falls back to local stock files (planned, #517)
-- The chosen track matches the requested mood: a provider that ranks by popularity or rating alone is filtered on the query's terms against the track's tags and title before a candidate is accepted, and a chain with no matching candidate moves on rather than accept a mismatch; the audio summary names the terms the chosen track matched (planned, #518)
+- The chosen track matches the requested mood: a provider that ranks by popularity or rating alone is filtered on the query's terms against the track's tags and title before a candidate is accepted, and a chain with no matching candidate moves on rather than accept a mismatch; the audio summary names the terms the chosen track matched
 
 ### Batch Mode
 - Automatic product discovery from outputs directory

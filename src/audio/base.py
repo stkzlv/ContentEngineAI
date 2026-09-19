@@ -33,6 +33,9 @@ class AudioTrack:
     author: str
     license: str
     url: str
+    # Lower-cased provider tags (genres, moods, instruments); the mood
+    # filter reads them with the title.
+    tags: list[str] = field(default_factory=list)
     provider_data: Any = field(default=None, repr=False)
 
 
@@ -43,6 +46,12 @@ class BaseAudioProvider(ABC):
     The return contract for ``download`` is a tuple of (file_path, attribution_dict)
     where the dict contains: source, type, path, name, author, license, url, id.
     """
+
+    # The query the last search actually sent, when a provider draws its own
+    # (Jamendo picks one of its configured queries at random). The manager
+    # ranks candidates against this, not against the query it was asked
+    # for, so a provider is judged on the terms it searched.
+    last_query: str | None = None
 
     @property
     @abstractmethod

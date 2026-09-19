@@ -2,6 +2,7 @@
 
 import logging
 import random
+import re
 import shutil
 import time
 from pathlib import Path
@@ -12,9 +13,50 @@ import aiohttp
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import CircuitBreakerError
 
-from .base import BaseAudioProvider
+from .base import AudioTrack, BaseAudioProvider
 
 logger = logging.getLogger(__name__)
+
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def query_terms(query: str) -> list[str]:
+    """The words of a search query, lower-cased, in order, without repeats."""
+    seen: list[str] = []
+    for word in _WORD.findall(query.lower()):
+        if word not in seen:
+            seen.append(word)
+    return seen
+
+
+def matched_terms(track: AudioTrack, terms: list[str]) -> list[str]:
+    """The query terms the track's title or tags carry.
+
+    A term matches a word it begins ("calm" matches "calming", "chill"
+    matches "chillout"), so a provider's compound tags count.
+    """
+    words = set(_WORD.findall(track.name.lower()))
+    for tag in track.tags:
+        words.update(_WORD.findall(tag.lower()))
+    return [term for term in terms if any(word.startswith(term) for word in words)]
+
+
+def rank_by_mood(
+    tracks: list[AudioTrack], terms: list[str]
+) -> list[tuple[AudioTrack, list[str]]]:
+    """Tracks that match at least one term, most matches first, ties shuffled.
+
+    A provider that ranks by rating or popularity alone returns whatever
+    high-rated sound the text search loosely matched, which is how a
+    "calm ambient instrumental" query produced a drill instrumental. With
+    no terms every track passes, in random order.
+    """
+    scored = [(track, matched_terms(track, terms)) for track in tracks]
+    if terms:
+        scored = [(track, matched) for track, matched in scored if matched]
+    random.shuffle(scored)
+    scored.sort(key=lambda pair: len(pair[1]), reverse=True)
+    return scored
 
 
 class AudioManager:
@@ -103,6 +145,8 @@ class AudioManager:
                 result.get("name", "unknown"),
                 result.get("author", "unknown"),
             )
+            if "matched_terms" in result:
+                logger.info("Matched: %s", ", ".join(result["matched_terms"]) or "none")
         else:
             logger.info("Result: no track found (tried: %s)", ", ".join(tried))
         logger.info("Duration: %.1fs", elapsed)
@@ -140,19 +184,32 @@ class AudioManager:
                 min_duration,
             )
             return None
-        random.shuffle(eligible)
-
-        for track in eligible:
+        # Judge the provider on the terms it searched: Jamendo draws one of
+        # its own queries, and "soft background" shares no word with the
+        # query this chain was asked for.
+        terms = query_terms(provider.last_query or query)
+        ranked = rank_by_mood(eligible, terms)
+        if not ranked:
             logger.info(
-                "Trying track '%s' (%.0fs) from %s",
+                "No track from %s matches the query terms (%s), trying next provider",
+                provider.provider_name,
+                ", ".join(terms),
+            )
+            return None
+
+        for track, matched in ranked:
+            logger.info(
+                "Trying track '%s' (%.0fs) from %s, matches: %s",
                 track.name,
                 track.duration,
                 provider.provider_name,
+                ", ".join(matched) or "none",
             )
             try:
                 result = await provider.download(track, output_dir, session)
                 if result:
                     _, attribution = result
+                    attribution["matched_terms"] = matched
                     return attribution
             except (RuntimeError, OSError, TimeoutError) as exc:
                 logger.warning(

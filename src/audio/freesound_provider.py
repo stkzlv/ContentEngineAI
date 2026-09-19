@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_API_TIMEOUT_SEC = 15
 DEFAULT_DOWNLOAD_TIMEOUT_SEC = 60
 
+# The sort when no `freesound_sort` is configured (relevance), and the
+# fields the mood filter reads. Rating order ranked the highest-rated
+# sounds the text search loosely matched.
+SEARCH_SORT = "score"
+SEARCH_FIELDS = "id,name,previews,license,username,url,duration,tags"
+
 
 @register_audio_provider(AudioProvider.FREESOUND)
 class FreesoundProvider(BaseAudioProvider):
@@ -59,11 +65,17 @@ class FreesoundProvider(BaseAudioProvider):
                 DEFAULT_API_TIMEOUT_SEC,
             )
 
+        sort_order = SEARCH_SORT
+        if self._audio_settings:
+            sort_order = getattr(self._audio_settings, "freesound_sort", SEARCH_SORT)
+
         duration_filter = f"duration:[{int(min_duration)} TO {int(max_duration)}]"
         tracks = await self._client.search_music(
             query=query,
             filters=duration_filter,
             max_results=max_results,
+            sort_order=sort_order,
+            fields=SEARCH_FIELDS,
             timeout_sec=timeout,
         )
 
@@ -79,6 +91,8 @@ class FreesoundProvider(BaseAudioProvider):
                     query=query,
                     filters=general_filters,
                     max_results=max_results,
+                    sort_order=sort_order,
+                    fields=SEARCH_FIELDS,
                     timeout_sec=timeout,
                 )
 
@@ -94,6 +108,7 @@ class FreesoundProvider(BaseAudioProvider):
                     "url",
                     f"https://freesound.org/s/{getattr(t, 'id', '')}/",
                 ),
+                tags=[str(tag).lower() for tag in (getattr(t, "tags", None) or [])],
                 provider_data=t,
             )
             for t in tracks

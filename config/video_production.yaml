@@ -445,9 +445,12 @@ audio_settings:
   freesound_filters: "duration:[60 TO 180]"
 
   # Sort order for search results
-  # Options: rating_desc, duration_asc, duration_desc, created_desc, created_asc
-  # Recommendation: "rating_desc" for quality, "duration_asc" for short tracks
-  freesound_sort: "rating_desc"
+  # Options: score (relevance), rating_desc, downloads_desc, duration_asc,
+  # duration_desc, created_desc, created_asc
+  # "score" keeps the results on the query's mood; the mood filter then ranks
+  # candidates by the query words their title and tags carry. "rating_desc"
+  # ranks the highest-rated sounds the text search loosely matched.
+  freesound_sort: "score"
 
   # Maximum number of search results to fetch
   # Higher values = more options but slower search

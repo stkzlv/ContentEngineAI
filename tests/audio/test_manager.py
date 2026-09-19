@@ -41,6 +41,7 @@ def sample_track():
         author="Artist",
         license="CC0",
         url="https://example.com",
+        tags=["query"],
     )
 
 
@@ -139,6 +140,7 @@ async def test_skips_short_tracks(temp_dir, sample_attribution):
         author="A",
         license="CC0",
         url="",
+        tags=["query"],
     )
     path = Path(sample_attribution["path"])
     provider = FakeProvider(

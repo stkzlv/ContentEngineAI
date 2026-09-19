@@ -33,6 +33,18 @@ jamendo_circuit_breaker = CircuitBreaker(
 )
 
 
+def _musicinfo_tags(result: dict[str, Any]) -> list[str]:
+    """Genres, instruments and vartags from `include=musicinfo`, lower-cased."""
+    tags = (result.get("musicinfo") or {}).get("tags") or {}
+    if not isinstance(tags, dict):
+        return []
+    return [
+        str(tag).lower()
+        for group in ("genres", "instruments", "vartags")
+        for tag in (tags.get(group) or [])
+    ]
+
+
 @register_audio_provider(AudioProvider.JAMENDO)
 class JamendoProvider(BaseAudioProvider):
     """Jamendo Music API provider with Creative Commons licensed tracks."""
@@ -108,6 +120,7 @@ class JamendoProvider(BaseAudioProvider):
                 # logged and recorded against the circuit breaker.
                 return []
             if tracks:
+                self.last_query = attempt_query
                 return tracks
 
             logger.info(
@@ -218,6 +231,7 @@ class JamendoProvider(BaseAudioProvider):
                 author=r.get("artist_name", "Unknown"),
                 license=r.get("license_ccurl", "Creative Commons"),
                 url=r.get("shareurl", ""),
+                tags=_musicinfo_tags(r),
                 provider_data=r,
             )
             for r in results
