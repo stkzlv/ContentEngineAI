@@ -1,6 +1,6 @@
 # Project Requirements
 
-High-level requirements for ContentEngineAI.
+High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requirement means the behaviour is specified and tracked but not yet shipped; the marker goes when the issue closes.
 
 ---
 
@@ -20,6 +20,9 @@ High-level requirements for ContentEngineAI.
 - Provide `.env.example` template for required variables
 - Never commit `.env` or put secrets in YAML files
 
+### Test Isolation
+- The test suite never reads or writes the developer's `.env`, the real `outputs/` tree or the real log files; a test that exercises code which persists a rotated credential or writes a file points that code at a path the test owns, and a guard fails the suite if any test reaches the real files (planned, #515)
+
 ### Error Handling & Resilience
 - Continue processing on individual item failures (graceful degradation)
 - Retry transient network failures with exponential backoff (timeouts, rate limits)
@@ -31,6 +34,8 @@ High-level requirements for ContentEngineAI.
 - Global debug mode across all components
 - Progress tracking with `[N/total]` format for batch operations
 - **Unified module summaries**: each module (scraper, producer, publisher, audio) logs a summary at the end of its work with consistent format, key counts, product IDs, and duration. No emojis in logs.
+- A logged duration is measured on one monotonic clock; a logged count names what it counts (URLs found on a page against files validated on disk); a message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so (planned, #522)
+- One event per record, every record carrying the run id and the product id it belongs to, one file per component per day; the line shape and the retention are in `docs/development.md` (Logging Best Practices)
 
 ### Documentation Standards
 - Required root files: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, CHANGELOG.md, LICENSE
@@ -113,7 +118,9 @@ High-level requirements for ContentEngineAI.
 - Extract product data: title, price, description, ID, ratings, reviews
 - Scraped price is recorded as a plain decimal number, parsed from both US (comma grouping, dot decimal) and European (dot grouping, comma decimal) price formats
 - Product rating falls back to the search-results rating when the product page yields none, so a rating is recorded whenever the listing shows one
-- Download high-resolution images and videos
+- Download high-resolution images, and videos only when the target profile uses them: an image-only profile skips video extraction and download instead of fetching a file and discarding it (planned, #519)
+- A downloaded file that fails validation is removed and the rejection is logged with its reason (planned, #519)
+- Media counts in summaries are validated files on disk per product, not URLs found on the page (planned, #522)
 - Filter out low-quality or invalid media
 - Store media in dedicated directories per product ID
 
@@ -122,6 +129,8 @@ High-level requirements for ContentEngineAI.
 - Sorting options and regional redirect handling
 - Product ID validation against platform formats
 - Skip products lacking essential data
+- A search-result card is classified from its rendered DOM before any element wait: a sponsored, placeholder or non-product card is skipped without paying a per-selector timeout, and the time to classify one card is bounded (planned, #520)
+- The configured `default_search_parameters` (price, rating, prime) apply to every entry point, the standalone CLI and the global batch alike, unless a CLI flag overrides a field; the search log line states the filters in force (planned, #521)
 
 ### Stealth & Human Simulation
 - Implement detection evasion techniques
@@ -145,6 +154,7 @@ High-level requirements for ContentEngineAI.
 ### Affiliate URL handling
 - Every scraped product's affiliate URL is canonicalised to `https://www.amazon.com/dp/<ASIN>?tag=<associate_tag>` before it lands in `data.json`
 - The associate tag is read from the `AMAZON_ASSOCIATE_TAG` environment variable, with the YAML `scrapers.amazon.associate_tag` field as a fallback
+- `data.json` carries the canonical link in `affiliate_link` and the page URL as visited in `url`; the publisher's link-in-bio reads `affiliate_link` first
 - The standalone scraper CLI loads `.env` at startup; a tag set only in `.env` (not exported in the shell) is visible to the canonicaliser
 - When no associate tag resolves, the canonicaliser returns the input URL unchanged and emits a WARNING-level log line indicating affiliate attribution will be lost
 - Setting `scrapers.amazon.affiliate_links.enabled: false` declares that no affiliate program is in use: the canonicaliser then strips tracking parameters down to `https://www.amazon.com/dp/<ASIN>` and logs at DEBUG instead of WARNING. An explicitly supplied tag still wins over the flag, and `AMAZON_AFFILIATE_LINKS_ENABLED` overrides the YAML field
@@ -324,14 +334,22 @@ pipeline state, rather than each consumer re-deriving it from config.
 #### Jamendo Provider
 - Jamendo Music API v3.0 with `client_id` authentication (no OAuth2 needed)
 - `fuzzytags` search mode for genre/mood matching (OR relevance), configurable to `tags` (AND) or `search` (free text)
+- An empty answer is repeated for the same query a bounded number of times before the next query is drawn, and only a run of empty answers counts as no tracks, because the API answers an identical query inconsistently (the measurement is in the audio notes) (planned, #516)
 - Configurable search query pool with random selection per product for music variety
 - Prefers `audiodownload` URL, falls back to stream URL if download not allowed
 
 #### Freesound Provider
 - Wraps existing FreesoundClient behind `BaseAudioProvider` interface
 - OAuth2 for full quality downloads, API key for preview fallback
+- A token refresh rotates the refresh token: the new one replaces the old in `.env`, since the service invalidates the old on use
+- A refresh that fails is attempted once per run, reported at WARNING with the remedy (re-run the OAuth2 setup tool), and the provider stays on previews for the rest of the run (planned, #517)
 - Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture
 - Duration filter search with general filter fallback
+
+#### Selection and budget
+- A candidate track is downloaded once within a bounded timeout; a failed download moves to the next candidate rather than retrying the same URL (planned, #517)
+- The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent the chain falls back to local stock files (planned, #517)
+- The chosen track matches the requested mood: a provider that ranks by popularity or rating alone is filtered on the query's terms against the track's tags and title before a candidate is accepted, and a chain with no matching candidate moves on rather than accept a mismatch; the audio summary names the terms the chosen track matched (planned, #518)
 
 ### Batch Mode
 - Automatic product discovery from outputs directory
@@ -403,6 +421,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Per-phase counts (success, failure, skipped)
 - Overall pipeline statistics
 - Profile usage distribution
+- Media counts are validated files on disk per product, matching the scraper's final verification, not URLs extracted (planned, #522)
 
 ---
 
