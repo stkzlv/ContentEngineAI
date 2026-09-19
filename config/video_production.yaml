@@ -469,7 +469,7 @@ audio_settings:
 
   # --- Timeout Configuration ---
   # API request timeout (seconds)
-  # Covers: Search operations, token refresh, metadata retrieval
+  # Covers: search operations (the token refresh has its own built-in 5 s)
   # Increase if experiencing frequent timeouts on slow connections
   freesound_api_timeout_sec: 15
 
