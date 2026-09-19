@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.12] - 2026-09-19
+
+### Fixed
+- A full-quality Freesound download now records the track's name, author and licence in its attribution; the metadata fetch read the API object as a dictionary and failed on every full download, leaving the attribution as a bare sound id. The OAuth2 setup tool also says where the authorization code appears.
+
 ## [0.124.11] - 2026-09-19
 
 ### Fixed

@@ -67,6 +67,18 @@ def update_env_file(key_to_update: str, new_value: str):
         logger.exception("Failed to automatically update .env file: %s", e)
 
 
+def _field(record: Any, key: str, default: Any) -> Any:
+    """A field of an API record, whether it is a `Sound` object or a dict.
+
+    The wrapper's `get_sound` returns a `Sound` with attributes; reading it
+    with `.get` raised on every full download, so the attribution was
+    written as `Sound <id>` with no author or licence. The tests had
+    mocked a dict, which is how it hid.
+    """
+    value = record.get(key) if isinstance(record, dict) else getattr(record, key, None)
+    return default if value is None else value
+
+
 class FreesoundClient:
     """Async client for Freesound.org API with OAuth2 authentication and resilience.
 
@@ -712,11 +724,15 @@ class FreesoundClient:
                                 "source": "Freesound",
                                 "type": "Music",
                                 "path": str(file_path),
-                                "name": sound_details.get("name", f"Sound {sound_id}"),
-                                "author": sound_details.get("username", "Unknown"),
-                                "license": sound_details.get("license", "Unknown"),
-                                "url": sound_details.get(
-                                    "url", f"https://freesound.org/s/{sound_id}/"
+                                "name": _field(
+                                    sound_details, "name", f"Sound {sound_id}"
+                                ),
+                                "author": _field(sound_details, "username", "Unknown"),
+                                "license": _field(sound_details, "license", "Unknown"),
+                                "url": _field(
+                                    sound_details,
+                                    "url",
+                                    f"https://freesound.org/s/{sound_id}/",
                                 ),
                                 "id": str(sound_id),
                             }
