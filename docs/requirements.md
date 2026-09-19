@@ -342,13 +342,13 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Wraps existing FreesoundClient behind `BaseAudioProvider` interface
 - OAuth2 for full quality downloads, API key for preview fallback
 - A token refresh rotates the refresh token: the new one replaces the old in `.env`, since the service invalidates the old on use
-- A refresh that fails is attempted once per run, reported at WARNING with the remedy (re-run the OAuth2 setup tool), and the provider stays on previews for the rest of the run (planned, #517)
+- A refresh that fails is attempted once per run, reported at WARNING with the remedy (re-run the OAuth2 setup tool), and the provider stays on previews for the rest of the run
 - Fully automated OAuth2 token setup: headless browser (Playwright) handles login + authorize + code capture
 - Duration filter search with general filter fallback
 
 #### Selection and budget
-- A candidate track is downloaded once within a bounded timeout; a failed download moves to the next candidate rather than retrying the same URL (planned, #517)
-- The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent the chain falls back to local stock files (planned, #517)
+- A candidate track is downloaded once within a bounded timeout; a failed download moves to the next candidate rather than retrying the same URL
+- The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent the chain falls back to local stock files
 - The chosen track matches the requested mood: a provider that ranks by popularity or rating alone is filtered on the query's terms against the track's tags and title before a candidate is accepted, and a chain with no matching candidate moves on rather than accept a mismatch; the audio summary names the terms the chosen track matched
 
 ### Batch Mode

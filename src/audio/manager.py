@@ -1,5 +1,6 @@
 """Audio manager that orchestrates provider chain with local file fallback."""
 
+import asyncio
 import logging
 import random
 import re
@@ -59,16 +60,47 @@ def rank_by_mood(
     return scored
 
 
+class BudgetSpentError(Exception):
+    """The chain's time budget ran out; the caller falls back to local files."""
+
+
 class AudioManager:
-    """Try each configured provider in order, fall back to local files."""
+    """Try each configured provider in order, fall back to local files.
+
+    `budget_sec` bounds the whole chain: every search and download runs
+    inside the time left, and when it is spent the local fallback is used.
+    The step once spent 208 s of a 304 s render on failed refreshes and
+    stalled downloads; the budget sits under the per-step warning threshold.
+    """
 
     def __init__(
         self,
         providers: list[BaseAudioProvider],
         local_paths: list[Path] | None = None,
+        budget_sec: float | None = None,
     ) -> None:
         self._providers = providers
         self._local_paths = local_paths or []
+        self._budget_sec = budget_sec
+        self._deadline: float | None = None
+
+    def _remaining(self) -> float | None:
+        if self._deadline is None:
+            return None
+        return self._deadline - time.monotonic()
+
+    async def _within_budget(self, coroutine, what: str):
+        """Run a search or download inside the time left, or stop the chain."""
+        remaining = self._remaining()
+        if remaining is None:
+            return await coroutine
+        if remaining <= 0:
+            coroutine.close()
+            raise BudgetSpentError(what)
+        try:
+            return await asyncio.wait_for(coroutine, timeout=remaining)
+        except TimeoutError as exc:
+            raise BudgetSpentError(what) from exc
 
     async def find_music(
         self,
@@ -84,6 +116,7 @@ class AudioManager:
         Returns attribution dict or None if nothing found.
         """
         t0 = time.monotonic()
+        self._deadline = t0 + self._budget_sec if self._budget_sec else None
         tried_providers: list[str] = []
 
         for provider in self._providers:
@@ -103,6 +136,14 @@ class AudioManager:
                         result, query, tried_providers, time.monotonic() - t0
                     )
                     return result
+            except BudgetSpentError as exc:
+                logger.warning(
+                    "Music budget of %.0fs spent during %s, falling back to local "
+                    "files",
+                    self._budget_sec or 0,
+                    exc,
+                )
+                break
             except CircuitBreakerError:
                 logger.warning(
                     "Circuit breaker open for %s, skipping",
@@ -162,12 +203,15 @@ class AudioManager:
         output_dir: Path,
         session: aiohttp.ClientSession,
     ) -> dict[str, Any] | None:
-        tracks = await provider.search(
-            query,
-            min_duration,
-            max_duration,
-            max_results,
-            session,
+        tracks = await self._within_budget(
+            provider.search(
+                query,
+                min_duration,
+                max_duration,
+                max_results,
+                session,
+            ),
+            f"{provider.provider_name} search",
         )
         if not tracks:
             logger.info(
@@ -206,9 +250,13 @@ class AudioManager:
                 ", ".join(matched) or "none",
             )
             try:
-                result = await provider.download(track, output_dir, session)
+                result = await self._within_budget(
+                    provider.download(track, output_dir, session),
+                    f"{provider.provider_name} download of '{track.name}'",
+                )
                 if result:
-                    _, attribution = result
+                    _, found = result
+                    attribution: dict[str, Any] = dict(found)
                     attribution["matched_terms"] = matched
                     return attribution
             except (RuntimeError, OSError, TimeoutError) as exc:

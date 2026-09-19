@@ -462,6 +462,11 @@ audio_settings:
   # Set to 9999 to disable (uses voiceover duration matching instead)
   freesound_max_search_duration_sec: 9999
 
+  # Time budget for the whole music provider chain (seconds): searches and
+  # downloads across every provider. When spent, the render uses a local
+  # file from background_music_paths. Keep it under the 180 s step warning.
+  music_search_budget_sec: 120
+
   # --- Timeout Configuration ---
   # API request timeout (seconds)
   # Covers: Search operations, token refresh, metadata retrieval

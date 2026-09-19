@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.11] - 2026-09-19
+
+### Fixed
+- The music step can no longer spend minutes on failures: a Freesound OAuth2 refresh is attempted once per render and a failure is one warning with the remedy instead of two errors per candidate, each candidate is downloaded once within its timeout instead of three times, and the whole provider chain runs inside a configurable time budget (two minutes by default, under the step warning), after which a local file is used.
+
 ## [0.124.10] - 2026-09-19
 
 ### Fixed

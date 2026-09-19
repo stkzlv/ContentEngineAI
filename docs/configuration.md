@@ -1482,6 +1482,11 @@ audio_settings:
   # Timeouts
   freesound_api_timeout_sec: 15
   freesound_download_timeout_sec: 60
+
+  # Time budget for the whole provider chain (searches and downloads across
+  # every provider); when spent, a local file from background_music_paths
+  # is used. Keep it under the 180 s per-step warning.
+  music_search_budget_sec: 120
 ```
 
 **Setup:**

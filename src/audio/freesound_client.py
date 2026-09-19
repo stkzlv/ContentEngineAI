@@ -128,6 +128,9 @@ class FreesoundClient:
         self.oauth_refresh_token: str | None = kwargs.get("FREESOUND_REFRESH_TOKEN")
         self.oauth_access_token: str | None = None
         self.oauth_token_expiry: float | None = None
+        # Set once the refresh has failed in this client's lifetime (one
+        # render); a token that failed cannot become valid mid-run.
+        self._refresh_failed = False
 
         oauth_configured = all(
             [self.oauth_client_id, self.oauth_client_secret, self.oauth_refresh_token]
@@ -316,7 +319,11 @@ class FreesoundClient:
         )
 
         if await util_download_file(
-            preview_url, file_path, session, timeout_sec=download_timeout
+            preview_url,
+            file_path,
+            session,
+            timeout_sec=download_timeout,
+            retry_attempts=1,
         ):
             file_size_mb = file_path.stat().st_size / 1024 / 1024
             logger.info(
@@ -390,8 +397,26 @@ class FreesoundClient:
                 "(missing client_id, client_secret, or refresh_token)"
             )
             return False
+        if self._refresh_failed:
+            logger.debug("OAuth2 refresh already failed this run; staying on previews")
+            return False
 
         logger.info("Refreshing Freesound OAuth2 access token...")
+        if await self._refresh_oauth2_token_once(session):
+            return True
+        # One warning per run with the remedy. The refresh used to be retried
+        # for every candidate, two ERROR lines each, although a token that
+        # failed once cannot become valid mid-run.
+        self._refresh_failed = True
+        logger.warning(
+            "Freesound OAuth2 refresh failed; staying on API-key previews for "
+            "the rest of this run. Re-run tools/freesound_oauth2_setup.py to "
+            "mint a new refresh token."
+        )
+        return False
+
+    async def _refresh_oauth2_token_once(self, session: aiohttp.ClientSession) -> bool:
+        """The refresh request itself, with its short transient-failure retry."""
         payload = {
             "client_id": self.oauth_client_id,
             "client_secret": self.oauth_client_secret,
@@ -414,9 +439,9 @@ class FreesoundClient:
                     timeout=timeout,
                 ) as response:
                     if response.status in (401, 403):
-                        logger.error(
-                            "OAuth2 authentication failed with status %s - invalid "
-                            "credentials (not retrying)",
+                        logger.info(
+                            "OAuth2 refresh rejected with status %s: the refresh "
+                            "token is invalid or was rotated",
                             response.status,
                         )
                         return False
@@ -481,7 +506,15 @@ class FreesoundClient:
                 await asyncio.sleep(backoff_base * (backoff_mult**attempt))
 
             except aiohttp.ClientResponseError as e:
-                logger.error(
+                if e.status == 400:
+                    # invalid_grant: the refresh token is dead (rotated or
+                    # revoked); a retry cannot revive it.
+                    logger.info(
+                        "OAuth2 refresh rejected with HTTP 400: the refresh token "
+                        "is invalid or was rotated"
+                    )
+                    return False
+                logger.info(
                     "OAuth2 token refresh failed with HTTP %s: %s (attempt %s/%s)",
                     e.status,
                     e.message,
@@ -534,7 +567,7 @@ class FreesoundClient:
                 )
                 return False
 
-        logger.error("OAuth2 token refresh failed after %s attempts", max_retries)
+        logger.info("OAuth2 token refresh failed after %s attempts", max_retries)
         return False
 
     async def _get_valid_oauth2_token(
@@ -587,18 +620,19 @@ class FreesoundClient:
 
         access_token = await self._get_valid_oauth2_token(session)
         if not access_token:
-            logger.error(
-                "Cannot download sound %s - OAuth2 token unavailable (credentials not "
-                "configured or token refresh failed)",
-                sound_id,
+            # The refresh already said why, once; this is per candidate.
+            logger.debug(
+                "No OAuth2 token for sound %s; trying the API-key preview", sound_id
             )
             return None
 
         download_url = f"https://freesound.org/apiv2/sounds/{sound_id}/download/"
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        # Download retry defaults
-        max_retries = 2
+        # One attempt per candidate: a stalled download costs one timeout and
+        # the chain moves to the next candidate, which is as likely to work
+        # as the same URL again and cheaper than a second minute of waiting.
+        max_retries = 1
         backoff_base = 1.0
         backoff_mult = 2.0
 
