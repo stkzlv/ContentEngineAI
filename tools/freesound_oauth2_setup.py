@@ -55,8 +55,9 @@ def get_freesound_refresh_token(client_id: str, client_secret: str) -> str | Non
     )
     print(f"  {auth_url}\n")
     print(
-        "After authorizing, Freesound shows an 'app authorized' page whose URL "
-        "ends in ?code=THIS_IS_THE_CODE\n"
+        "After authorizing, the page the redirect lands on carries the code in "
+        "its URL (?code=THIS_IS_THE_CODE); with Freesound's own redirect target "
+        "that is its 'app authorized' page.\n"
     )
     print("Copy the value of the 'code' parameter from that URL (it expires in")
     print("10 minutes). A browser already logged in to Freesound skips the")
