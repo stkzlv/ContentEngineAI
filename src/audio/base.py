@@ -33,6 +33,9 @@ class AudioTrack:
     author: str
     license: str
     url: str
+    # Lower-cased provider tags (genres, moods, instruments); the mood
+    # filter reads them with the title.
+    tags: list[str] = field(default_factory=list)
     provider_data: Any = field(default=None, repr=False)
 
 

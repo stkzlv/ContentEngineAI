@@ -127,8 +127,11 @@ narration-led, so the trade-off is different:
   carries takedown and monetization risk. The pipeline's audio providers
   (Jamendo CC-licensed as primary, then Freesound, with local files as the last
   resort) exist for this reason. The provider chain is configured via the
-  `audio_providers` list in `config/video_production.yaml` and tried in order,
-  first successful download wins.
+  `audio_providers` list in `config/video_production.yaml` and tried in order.
+  Within a provider, candidates are ranked by how many of the search query's
+  words their title or tags carry; the first matching candidate that
+  downloads wins, and a provider with no matching candidate hands over to the
+  next one.
 
 ## 4. The audio hook
 
