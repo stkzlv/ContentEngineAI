@@ -564,9 +564,12 @@ def scrape_amazon_products_browser_impl(
                     # Mark ASIN as processed
                     processed_asins.add(serp_info.asin)
 
+                    # Products taken so far, not cards visited: a page that
+                    # yields nothing (or no media) does not advance this, so
+                    # the line never reads 2/1.
                     logger.info(
                         "Processing product %d/%d: %s",
-                        len(processed_asins),
+                        len(products) + 1,
                         max_products,
                         serp_info.asin,
                     )

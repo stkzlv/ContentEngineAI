@@ -168,12 +168,13 @@ def configure_botasaurus_outputs() -> None:
 def get_browser_config_for_outputs() -> dict[str, Any]:
     """Browser configuration that disables Botasaurus's own output.
 
-    The browser function returns one envelope per input (``{"input",
-    "products"}``), never product dicts; wired as the output callback,
-    ``write_scraped_data_output`` received those envelopes, found no ASIN
-    on any of them and warned once per input, while the real save happens
-    later in ``BotasaurusAmazonScraper._save_products`` after the media
-    downloads. ``None`` tells Botasaurus to write nothing.
+    Every scraper arm saves through ``BotasaurusAmazonScraper._save_products``
+    after the media downloads, so a write from the decorator's output
+    callback was at best redundant: on the standalone keyword and ASIN
+    arms ``write_scraped_data_output`` wrote a raw extractor dict that
+    ``_save_products`` then overwrote, and on the batch arm it received one
+    ``{"input", "products"}`` envelope per input, found no ASIN and warned.
+    ``None`` tells Botasaurus to write nothing.
     """
     return {"output": None}
 
