@@ -74,6 +74,27 @@ class TestTheRefreshIsAttemptedOncePerRun:
         assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
     @pytest.mark.asyncio
+    async def test_an_unreachable_endpoint_is_one_warning_without_the_tool(
+        self, caplog
+    ):
+        client = _client()
+        with aioresponses() as mocked:
+            mocked.post(TOKEN_URL, exception=TimeoutError())
+            mocked.post(TOKEN_URL, exception=TimeoutError())
+            mocked.post(TOKEN_URL, exception=TimeoutError())
+            async with aiohttp.ClientSession() as session:
+                with caplog.at_level(logging.DEBUG):
+                    first = await client._get_valid_oauth2_token(session)
+                    second = await client._get_valid_oauth2_token(session)
+
+        assert (first, second) == (None, None)
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert "unreachable" in warnings[0].message
+        assert "freesound_oauth2_setup" not in warnings[0].message
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+    @pytest.mark.asyncio
     async def test_a_working_refresh_is_unaffected(self):
         client = _client()
         with aioresponses() as mocked:
@@ -165,7 +186,35 @@ class StallingProvider(BaseAudioProvider):
         return None
 
 
+class RaisingProvider(StallingProvider):
+    """A provider whose download times out on its own, with budget left."""
+
+    async def download(self, track, output_dir, session):
+        self.downloads += 1
+        raise TimeoutError("provider timeout")
+
+
 class TestTheChainStaysInsideItsBudget:
+    @pytest.mark.asyncio
+    async def test_a_providers_own_timeout_is_not_the_budget(self, tmp_path):
+        """With budget left, a candidate that times out on its own is
+        skipped and the chain goes on; the deadline alone ends it.
+        """
+        local = tmp_path / "local.mp3"
+        local.write_bytes(b"audio")
+        first = RaisingProvider("a", 0.0)
+        second = StallingProvider("b", 0.0)
+        manager = AudioManager(
+            providers=[first, second], local_paths=[local], budget_sec=100
+        )
+
+        result = await manager.find_music(
+            "calm", 60, 300, 10, tmp_path / "out", MagicMock()
+        )
+
+        assert result is not None and result["source"] == "Local"
+        assert first.downloads == 5 and second.downloads == 5
+
     @pytest.mark.asyncio
     async def test_stalled_downloads_end_at_the_budget(self, tmp_path, caplog):
         local = tmp_path / "local.mp3"

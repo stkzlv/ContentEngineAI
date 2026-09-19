@@ -131,6 +131,7 @@ class FreesoundClient:
         # Set once the refresh has failed in this client's lifetime (one
         # render); a token that failed cannot become valid mid-run.
         self._refresh_failed = False
+        self._refresh_rejected = False
 
         oauth_configured = all(
             [self.oauth_client_id, self.oauth_client_secret, self.oauth_refresh_token]
@@ -367,17 +368,18 @@ class FreesoundClient:
         return None
 
     async def _refresh_oauth2_token(self, session: aiohttp.ClientSession) -> bool:
-        """Refresh OAuth2 access token with retry logic and exponential backoff.
+        """Refresh the OAuth2 access token, once per client lifetime.
 
-        Attempts to refresh the access token using the refresh token grant. Implements
-        fast-fail on authentication errors (401/403) and retries on transient failures
-        (timeouts, network errors) with exponential backoff. Updates .env file when new
-        refresh token is received.
+        The request and its short transient-failure retry live in
+        `_refresh_oauth2_token_once`; this wrapper remembers a failure so
+        no later candidate repeats it, and reports it once at WARNING with
+        the remedy that fits (a rejected token needs the setup tool; an
+        unreachable endpoint does not).
 
-        Retry Strategy:
+        Retry Strategy (in `_refresh_oauth2_token_once`):
             - Max attempts: 2
             - Backoff schedule: 0.5s, 1s (exponential: 0.5 * 2^attempt)
-            - Fast-fail: 401/403 authentication errors (no retry)
+            - Fast-fail: 400 invalid_grant and 401/403 (no retry)
             - Timeout: 5s per request
 
         Args:
@@ -408,11 +410,18 @@ class FreesoundClient:
         # for every candidate, two ERROR lines each, although a token that
         # failed once cannot become valid mid-run.
         self._refresh_failed = True
-        logger.warning(
-            "Freesound OAuth2 refresh failed; staying on API-key previews for "
-            "the rest of this run. Re-run tools/freesound_oauth2_setup.py to "
-            "mint a new refresh token."
-        )
+        if self._refresh_rejected:
+            logger.warning(
+                "Freesound OAuth2 refresh rejected: the refresh token is invalid "
+                "or was rotated. Staying on API-key previews for the rest of this "
+                "run; re-run tools/freesound_oauth2_setup.py to mint a new one."
+            )
+        else:
+            logger.warning(
+                "Freesound OAuth2 refresh failed (token endpoint unreachable or "
+                "malformed response); staying on API-key previews for the rest "
+                "of this run."
+            )
         return False
 
     async def _refresh_oauth2_token_once(self, session: aiohttp.ClientSession) -> bool:
@@ -439,6 +448,7 @@ class FreesoundClient:
                     timeout=timeout,
                 ) as response:
                     if response.status in (401, 403):
+                        self._refresh_rejected = True
                         logger.info(
                             "OAuth2 refresh rejected with status %s: the refresh "
                             "token is invalid or was rotated",
@@ -450,7 +460,7 @@ class FreesoundClient:
                     token_data = await response.json()
 
                     if "access_token" not in token_data:
-                        logger.error(
+                        logger.info(
                             "OAuth2 token response missing 'access_token' field - "
                             "invalid response structure"
                         )
@@ -491,13 +501,13 @@ class FreesoundClient:
                     return True
 
             except (TimeoutError, aiohttp.ServerTimeoutError):
-                logger.warning(
+                logger.info(
                     "OAuth2 token refresh timed out on attempt %s/%s",
                     attempt + 1,
                     max_retries,
                 )
                 if attempt == max_retries - 1:
-                    logger.error(
+                    logger.info(
                         "OAuth2 token refresh failed - all attempts timed out after "
                         "%ss",
                         timeout_sec,
@@ -509,6 +519,7 @@ class FreesoundClient:
                 if e.status == 400:
                     # invalid_grant: the refresh token is dead (rotated or
                     # revoked); a retry cannot revive it.
+                    self._refresh_rejected = True
                     logger.info(
                         "OAuth2 refresh rejected with HTTP 400: the refresh token "
                         "is invalid or was rotated"
@@ -526,20 +537,20 @@ class FreesoundClient:
                 await asyncio.sleep(0.5 * (2**attempt))
 
             except aiohttp.ClientConnectorError as e:
-                logger.warning(
+                logger.info(
                     "OAuth2 network connection failed: %s (attempt %s/%s)",
                     e,
                     attempt + 1,
                     max_retries,
                 )
                 if attempt == max_retries - 1:
-                    logger.error("OAuth2 token refresh failed - network unreachable")
+                    logger.info("OAuth2 token refresh failed - network unreachable")
                     return False
                 await asyncio.sleep(0.5 * (2**attempt))
 
             except RuntimeError as e:
                 if "Session is closed" in str(e) and attempt < max_retries - 1:
-                    logger.warning(
+                    logger.info(
                         "Session closed on attempt %s - acquiring new session",
                         attempt + 1,
                     )
@@ -548,7 +559,7 @@ class FreesoundClient:
                     session = await get_http_session()
                     continue
                 else:
-                    logger.error(
+                    logger.info(
                         "OAuth2 token refresh failed with runtime error: %s (attempt "
                         "%s/%s)",
                         e,
@@ -560,7 +571,7 @@ class FreesoundClient:
                     await asyncio.sleep(0.5 * (2**attempt))
 
             except KeyError as e:
-                logger.error(
+                logger.info(
                     "OAuth2 token response missing required field %s - invalid "
                     "response structure",
                     e,

@@ -100,7 +100,13 @@ class AudioManager:
         try:
             return await asyncio.wait_for(coroutine, timeout=remaining)
         except TimeoutError as exc:
-            raise BudgetSpentError(what) from exc
+            # A provider's own timeout with budget left is its problem and
+            # the caller moves to the next candidate; only the deadline
+            # passing ends the chain.
+            left = self._remaining()
+            if left is not None and left <= 0:
+                raise BudgetSpentError(what) from exc
+            raise
 
     async def find_music(
         self,
