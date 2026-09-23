@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.video.config.constants import (
     DEFAULT_WHISPER_MODEL_DIR,
@@ -152,6 +152,46 @@ class TextMarkupRule(BaseModel):
     insert_after: str = Field("")
 
 
+# Gemini-TTS tags measured as honored and never transcribed; the numbers are
+# in docs/notes/audio.md. Re-measure with tools/tts_tag_probe.py.
+SILENT_TTS_TAGS = frozenset(
+    {"[short pause]", "[medium pause]", "[long pause]", "[sigh]"}
+)
+
+
+class PausePlan(BaseModel):
+    """Context-dependent pauses in place of one pause after every sentence.
+
+    A tag after every sentence is a metronome, and uniform pause length is a
+    robotic tell. The plan pauses longer where the script turns (a paragraph
+    break, and before the closing line), not at all after the opening hook,
+    and varies the rest with a jitter seeded by the product, so a render is
+    reproducible and a batch is not uniform. Every tag must be one measured
+    as silent: a spoken tag would reach the captions, which are transcribed
+    from this audio.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    sentence: str = Field("[short pause]")
+    paragraph: str = Field("[medium pause]")
+    after_hook: str = Field("")
+    before_last: str = Field("[medium pause]")
+    # Share of ordinary sentence boundaries that deviate: half take no
+    # pause, half take the paragraph pause.
+    jitter: float = Field(0.3, ge=0.0, le=1.0)
+
+    @field_validator("sentence", "paragraph", "after_hook", "before_last")
+    @classmethod
+    def _silent_tag_or_nothing(cls, tag: str) -> str:
+        if tag and tag not in SILENT_TTS_TAGS:
+            raise ValueError(
+                f"{tag!r} is not a tag measured as silent; "
+                f"use one of {sorted(SILENT_TTS_TAGS)} or an empty string"
+            )
+        return tag
+
+
 class VoiceProfileConfig(BaseModel):
     """A named voice profile with style, markup, and voice preferences."""
 
@@ -164,6 +204,8 @@ class VoiceProfileConfig(BaseModel):
     speaking_rate: float | None = Field(None)
     pitch: float | None = Field(None)
     markup_rules: list[TextMarkupRule] = Field(default_factory=list)
+    # When set, replaces markup_rules for this profile.
+    pause_plan: PausePlan | None = Field(None)
 
 
 class TTSConfig(BaseModel):

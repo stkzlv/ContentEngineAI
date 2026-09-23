@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.126.0] - 2026-09-23
+
+### Added
+- A voice profile can replace its uniform after-every-sentence pause with context-varied pauses, longer at paragraph breaks and before the closing line, none after the hook, and a per-product variation on the rest; the new `charon_varied` profile carries one and is not selected by default.
+- A probe tool measures which TTS tags the voice honors without speaking them, and a profile accepts only those.
+
+### Fixed
+- A fallback voice no longer reads a `[medium pause]` tag aloud.
+
 ## [0.125.0] - 2026-09-23
 
 ### Added

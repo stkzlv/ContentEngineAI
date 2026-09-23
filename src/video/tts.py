@@ -38,6 +38,7 @@ from src.video.config import (
     CoquiTTSSettings,
     GoogleCloudTTSSettings,
     GoogleCloudVoiceCriteria,
+    PausePlan,
     TextMarkupRule,
     TTSConfig,
     VoiceProfileConfig,
@@ -618,6 +619,57 @@ async def _generate_gemini_speech(
     return None, None
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def apply_pause_plan(text: str, plan: PausePlan, seed_key: str | None) -> str:
+    """Insert the plan's pause tags at sentence and paragraph boundaries.
+
+    A line break is a paragraph boundary, since the scripts carry their beats
+    as lines. The first boundary follows the hook, the last one precedes the
+    closing line, and every other one takes the sentence pause, except the
+    jittered share: half of it none, half the paragraph pause. The jitter is
+    seeded by `seed_key` (the product id), so a product renders the same
+    pauses every time; with no key it is not applied at all rather than
+    drawn at random, which would make a render irreproducible.
+    """
+    paragraphs = [p.strip() for p in text.splitlines() if p.strip()]
+    sentences: list[tuple[str, bool]] = []  # (sentence, ends its paragraph)
+    for para in paragraphs:
+        parts = [s for s in _SENTENCE_END.split(para) if s]
+        sentences.extend((s, i == len(parts) - 1) for i, s in enumerate(parts))
+    if len(sentences) < 2:
+        return text
+
+    rng = None
+    if seed_key and plan.jitter > 0:
+        digest = hashlib.md5(f"{seed_key}:pauses".encode(), usedforsecurity=False)
+        rng = random.Random(int(digest.hexdigest()[:8], 16))  # noqa: S311
+
+    last_gap = len(sentences) - 2
+    out: list[str] = []
+    for i, (sentence, ends_paragraph) in enumerate(sentences):
+        out.append(sentence)
+        if i > last_gap:
+            break
+        if i == 0:
+            tag = plan.after_hook
+        elif i == last_gap:
+            tag = plan.before_last
+        elif ends_paragraph:
+            tag = plan.paragraph
+        else:
+            tag = plan.sentence
+            if rng is not None:
+                draw = rng.random()
+                if draw < plan.jitter / 2:
+                    tag = ""
+                elif draw < plan.jitter:
+                    tag = plan.paragraph
+        out.append(f" {tag} " if tag else " ")
+    return "".join(out)
+
+
 class TTSManager:
     """Manages text-to-speech generation across multiple providers.
 
@@ -711,7 +763,9 @@ class TTSManager:
         return name, self.config.voice_profiles[name]
 
     # Regex to strip Gemini inline markup like [short pause], [whispering], etc.
-    _MARKUP_PATTERN = re.compile(r"\[(?:short |long )?pause\]|\[\w+\]\s*")
+    # [medium pause] was missing, so a fallback provider would have read it
+    # aloud once a pause plan started emitting it.
+    _MARKUP_PATTERN = re.compile(r"\[(?:short |medium |long )?pause\]\s*|\[\w+\]\s*")
 
     @staticmethod
     def _apply_markup_rules(text: str, rules: list[TextMarkupRule]) -> str:
@@ -743,16 +797,22 @@ class TTSManager:
         profile_name, profile = self._select_voice_profile()
         self.selected_profile_name = profile_name
 
-        # Apply markup rules if the profile defines them
+        # A pause plan replaces the profile's markup rules; otherwise apply
+        # the rules if the profile defines them.
         markup_rules = profile.markup_rules if profile else []
+        pause_plan = profile.pause_plan if profile else None
         processed_text = text
-        if markup_rules:
+        if pause_plan is not None:
+            processed_text = apply_pause_plan(text, pause_plan, self.product_id)
+            logger.info("Applied the pause plan of voice profile '%s'", profile_name)
+        elif markup_rules:
             processed_text = self._apply_markup_rules(text, markup_rules)
             logger.debug(
                 "Applied %d markup rules from profile '%s'",
                 len(markup_rules),
                 profile_name,
             )
+        has_markup = pause_plan is not None or bool(markup_rules)
 
         # Try Gemini provider first if profile requests it
         if profile and profile.provider == "gemini" and self.config.google_cloud:
@@ -774,7 +834,7 @@ class TTSManager:
         # Strip markup before falling back to non-Gemini providers
         # (SSML and Coqui would speak "[short pause]" literally)
         fallback_text = (
-            self._strip_markup(processed_text) if markup_rules else processed_text
+            self._strip_markup(processed_text) if has_markup else processed_text
         )
 
         # Standard provider fallback loop

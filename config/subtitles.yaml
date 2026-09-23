@@ -537,6 +537,23 @@ tts_config:
         - { pattern: '!\s+', insert_after: '[short pause] ' }
         - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
+    # Charon with context-varied pauses instead of one [short pause] per
+    # sentence (docs/notes/audio.md has the measurements). Not selected while
+    # the reach test runs; try it with --voice-profile charon_varied.
+    charon_varied:
+      provider: gemini
+      gemini_model_name: "gemini-2.5-flash-tts"
+      style_prompt: "Speak calmly and confidently. Warm but grounded. Like a trusted friend recommending something over coffee."
+      voice_criteria:
+        - { language_code: "en-US", name_contains: "Charon" }
+      speaking_rate: 1.00
+      pause_plan:
+        sentence: "[short pause]"
+        paragraph: "[long pause]"
+        after_hook: ""
+        before_last: "[medium pause]"
+        jitter: 0.3
+
     fenrir:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
