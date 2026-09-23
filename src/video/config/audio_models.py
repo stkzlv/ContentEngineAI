@@ -34,8 +34,8 @@ class SignatureSting(BaseModel):
 
     Mixed through the same `amix` and `loudnorm` as the music bed, so it is
     mastered with the rest of the programme. `start` places it `offset_sec`
-    into the video; `end` places it so it finishes `offset_sec` before the
-    end, under the closing line.
+    into the narration; `end` places it so it finishes `offset_sec` before
+    the narration ends, under the closing line.
     """
 
     model_config = {"extra": "forbid"}

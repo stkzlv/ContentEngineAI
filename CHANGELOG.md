@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.127.0] - 2026-09-23
 
 ### Added
-- Scripts can carry a recurring author signature, an opener, a transition and a sign-off before the call to action, each drawn per product below a configured rate; the YouTube first comment still quotes the closing line rather than the sign-off.
-- A short signature sting can be mixed at the start or the end of every render, mastered with the rest of the audio.
+- Scripts can carry a recurring author signature, an opener, a transition and a sign-off before the call to action, each drawn per product below a configured rate; the first comment and the platform captions still quote the closing line rather than the sign-off.
+- A short signature sting can be mixed at the start of the narration or under its closing line, mastered with the rest of the audio.
 
 ## [0.126.0] - 2026-09-23
 

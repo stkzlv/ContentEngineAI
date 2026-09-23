@@ -15,6 +15,7 @@ sits below the target is pushed up relative to the feed around it.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from src.video.config import VideoConfig
 
@@ -62,16 +63,61 @@ class AudioFilterBuilder:
         input_cmd_parts.extend(["-i", str(sting_path)])
         return index
 
-    def sting_delay_sec(
-        self, sting_duration: float, total_video_duration: float
-    ) -> float:
-        """When the sting starts, by its configured position."""
+    def sting_delay_sec(self, sting_duration: float, voice_end: float) -> float:
+        """When the sting starts, by its configured position.
+
+        Placed against the end of the narration, not of the video: the mix
+        lasts as long as its first input (`audio_mix_duration: "first"`, the
+        voiceover), and the video runs an outro past it, so a sting placed
+        against the video's end played in the outro and was cut to silence.
+        """
         sting = self.config.audio_settings.signature_sting
         if sting is None:
             return 0.0
+        latest = max(0.0, voice_end - sting_duration)
         if sting.position == "end":
-            return max(0.0, total_video_duration - sting_duration - sting.offset_sec)
-        return min(sting.offset_sec, max(0.0, total_video_duration - sting_duration))
+            return max(0.0, latest - sting.offset_sec)
+        return min(sting.offset_sec, latest)
+
+    async def build_mix(
+        self,
+        input_cmd_parts: list[str],
+        voiceover_audio_path: Path | None,
+        music_track_path: Path | None,
+        total_video_duration: float,
+        media_inspector: Any,
+    ) -> tuple[list[str], str]:
+        """Add the audio inputs and build the whole mix, the sting included.
+
+        The one entry point the assembler calls, so the sting's input index,
+        its placement and the filter that mixes it cannot be wired in one
+        place and dropped in another.
+        """
+        voiceover_idx, music_idx = self.prepare_audio_inputs(
+            input_cmd_parts,
+            voiceover_audio_path,
+            music_track_path,
+            input_cmd_parts.count("-i"),
+        )
+        sting_path = self.sting_path()
+        sting_idx = self.prepare_sting_input(input_cmd_parts, sting_path)
+        delay = 0.0
+        if sting_path is not None:
+            voice_end = (
+                await media_inspector.get_media_duration(voiceover_audio_path)
+                if voiceover_audio_path
+                else total_video_duration
+            ) or total_video_duration
+            delay = self.sting_delay_sec(
+                await media_inspector.get_media_duration(sting_path), voice_end
+            )
+        return self.build_audio_filters(
+            voiceover_idx,
+            music_idx,
+            total_video_duration,
+            sting_input_idx=sting_idx,
+            sting_delay_sec=delay,
+        )
 
     def prepare_audio_inputs(
         self,

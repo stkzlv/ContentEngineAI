@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
     from src.publisher.models import FirstCommentConfig
 
 from src.utils.script_sanitizer import split_sentences
+from src.utils.script_signoff import normalise, recorded_signoff
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,6 @@ _CTA_MARKERS = (
     "save this",
     "check the link",
 )
-
-
-def _words(text: str) -> str:
-    return " ".join(re.sub(r"[^a-z0-9\s]+", "", text.lower()).split())
 
 
 def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
@@ -82,22 +78,9 @@ def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
         for m in _CTA_MARKERS
     ):
         sentences.pop()
-    if signoff and sentences and _words(sentences[-1]) == _words(signoff):
+    if signoff and sentences and normalise(sentences[-1]) == normalise(signoff):
         sentences.pop()
     return sentences[-1] if sentences else None
-
-
-def _recorded_signoff(temp_dir: Path) -> str | None:
-    """The sign-off the script step drew, from the pipeline state, if any."""
-    try:
-        state = json.loads((temp_dir / "pipeline_state.json").read_text("utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    signoff = state.get("signoff")
-    if not signoff:
-        step = state.get("generate_script")
-        signoff = step.get("signoff") if isinstance(step, dict) else None
-    return signoff if isinstance(signoff, str) else None
 
 
 def build_first_comment(
@@ -167,7 +150,7 @@ def build_first_comment(
         try:
             closing_line = (
                 extract_closing_line(
-                    script_path.read_text("utf-8"), _recorded_signoff(temp_dir)
+                    script_path.read_text("utf-8"), recorded_signoff(temp_dir)
                 )
                 or ""
             )

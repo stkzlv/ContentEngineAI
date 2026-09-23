@@ -40,18 +40,24 @@ def _max_volume(path: Path, start: float, length: float) -> float:
     return float("-inf") if match.group(1) == "-inf" else float(match.group(1))
 
 
+VOICE_SEC = 5.0
+VIDEO_SEC = 6.0  # the outro runs past the narration, as on a real render
+
+
 def _render(tmp_path: Path, sting: SignatureSting | None) -> Path:
+    """Mix through `build_mix`, the one entry point the assembler calls."""
+    import asyncio
+
+    from src.video.assembler.media_inspector import MediaInspector
+
     config = load_video_config_modular()
     config.audio_settings.signature_sting = sting
     config.audio_settings.loudness_normalization_enabled = False
     builder = AudioFilterBuilder(config)
-    voice = _source(tmp_path / "voice.wav", "anullsrc=r=48000:cl=mono", 6.0)
+    voice = _source(tmp_path / "voice.wav", "anullsrc=r=48000:cl=mono", VOICE_SEC)
     parts: list[str] = []
-    voice_idx, music_idx = builder.prepare_audio_inputs(parts, voice, None, 0)
-    sting_idx = builder.prepare_sting_input(parts, builder.sting_path())
-    delay = builder.sting_delay_sec(1.0, 6.0) if builder.sting_path() is not None else 0
-    filters, label = builder.build_audio_filters(
-        voice_idx, music_idx, 6.0, sting_input_idx=sting_idx, sting_delay_sec=delay
+    filters, label = asyncio.run(
+        builder.build_mix(parts, voice, None, VIDEO_SEC, MediaInspector())
     )
     out = tmp_path / "mix.wav"
     _run(["ffmpeg", "-y", "-v", "error", *parts,
@@ -71,13 +77,25 @@ class TestPlacement:
         assert _max_volume(mix, 2.1, 0.8) > -40
         assert _max_volume(mix, 3.2, 2.5) < -60
 
-    def test_end_finishes_before_the_end(self, tmp_path: Path, tone: Path) -> None:
+    def test_end_finishes_before_the_narration_ends(
+        self, tmp_path: Path, tone: Path
+    ) -> None:
+        """Against the narration, not the video: the mix stops when the voice
+        does, and a sting placed against the video's end played in the outro
+        and was silenced.
+        """
         mix = _render(
             tmp_path, SignatureSting(path=tone, position="end", offset_sec=0.5)
         )
-        assert _max_volume(mix, 0.0, 4.3) < -60
-        assert _max_volume(mix, 4.6, 0.8) > -40
-        assert _max_volume(mix, 5.6, 0.4) < -60
+        assert _max_volume(mix, 0.0, 3.3) < -60
+        assert _max_volume(mix, 3.6, 0.8) > -40
+        assert _max_volume(mix, 4.6, 1.3) < -60
+
+    def test_end_with_no_offset_is_heard_whole(
+        self, tmp_path: Path, tone: Path
+    ) -> None:
+        mix = _render(tmp_path, SignatureSting(path=tone, position="end"))
+        assert _max_volume(mix, 4.1, 0.8) > -40
 
     def test_the_delay_is_clamped_inside_the_video(self) -> None:
         config = load_video_config_modular()
@@ -85,6 +103,14 @@ class TestPlacement:
             path=Path("x.wav"), offset_sec=30.0
         )
         assert AudioFilterBuilder(config).sting_delay_sec(1.0, 6.0) == 5.0
+
+    def test_the_assembler_mixes_through_build_mix(self) -> None:
+        """The sting's input, placement and filter are wired in one method;
+        an assembler that built the filters itself would drop the sting.
+        """
+        source = Path("src/video/assembler/core.py").read_text()
+        assert "audio_builder.build_mix(" in source
+        assert "audio_builder.build_audio_filters(" not in source
 
 
 class TestOffIsTheOldMix:
