@@ -24,6 +24,19 @@ from pydantic import BaseModel, Field, field_validator
 MIN_PHRASE_WORDS = 3
 
 
+class NaturalismConfig(BaseModel):
+    """How conversational the spoken script is asked to sound.
+
+    0 leaves the prompt exactly as it was. 1 asks for contractions, one or
+    two spoken fillers and one emotional beat; 2 adds a second filler and one
+    self-correction. Everything lands in the spoken script, so the captions,
+    which are transcribed from the audio, carry it without any caption-side
+    change.
+    """
+
+    intensity: int = Field(default=0, ge=0, le=2)
+
+
 class ScriptTemplateConfig(BaseModel):
     """Config for multi-template script generation."""
 
@@ -68,6 +81,9 @@ class ScriptTemplateConfig(BaseModel):
     # something to buy.
     cta_options: list[str] = Field(default_factory=list)
     cta_options_topic: list[str] = Field(default_factory=list)
+    # Conversational delivery written into the script. Off (intensity 0)
+    # by default, which renders the prompt unchanged.
+    naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
 
     @field_validator("cta_options", "cta_options_topic")
     @classmethod

@@ -202,6 +202,76 @@ def render_cta_rule(cta_line: str, is_topic: bool = False) -> str:
     )
 
 
+# Spoken fillers the naturalism rule offers. "Honestly" and "literally" are
+# absent on purpose: the narrator profiles ban them as empty intensifiers, and
+# a rule that contradicts the profile makes the model pick one at random.
+# "Right" is absent too: offered as a filler, it came back as a tag question
+# on the first sentence ("..., right?"), the one sentence the rule keeps clean.
+NATURALISM_FILLERS = '"so", "okay", "look", "anyway"'
+
+
+def render_naturalism_rule(intensity: int) -> str:
+    """The rule that asks for conversational delivery, or "" when it is off.
+
+    Rendered into `{CTA_RULE}` after the CTA rule, not before it: the CTA
+    rule says "after the closing beat above", meaning the template bullet
+    directly over the placeholder, and a rule between them would take that
+    referent. On topic templates it ends the Rules block; on product
+    templates the trade-off bullet follows it. Either way it states its own
+    positions rather than inheriting the one it sits in.
+
+    Three exclusions, each guarding something downstream:
+
+    - The first sentence stays clean: its spoken keyword is a search asset.
+    - Nothing touches a number, a name or a claim. A "wait, no, it's X"
+      correction invents a claim the fact check then has to catch.
+    - Nothing in or after the CTA: `ends_with_cta` compares whole sentences.
+
+    Fillers are set off with commas, and "um" or "uh" never written: the
+    voice speaks a hesitation and Whisper sometimes transcribes it (a
+    synthesized one came back as "Um," in one of four samples), so it can
+    reach the captions as written stumbling. A dash reaches
+    the voice as a pause of unpredictable length.
+    """
+    if intensity <= 0:
+        return ""
+    if intensity == 1:
+        fillers = "one or two spoken fillers"
+        correction = ""
+    else:
+        fillers = "two or three spoken fillers"
+        # Described by shape, with no worked example: an example teaches its
+        # subject along with its shape, and the first draft's was a
+        # first-person size claim that topic prompts forbid.
+        correction = (
+            ", and one self-correction: restart the first two or three words "
+            "of one sentence, then finish it unchanged, never changing a fact"
+        )
+    return (
+        "- **Sound like someone talking, not reading.** Use contractions "
+        f"throughout. Add {fillers} ({NATURALISM_FILLERS}) at natural "
+        f"pauses{correction}. Give the script one emotional beat: mild "
+        "frustration at the problem, or quiet satisfaction when it is solved. "
+        "None of this goes in the first sentence, not even a tag question, "
+        "nor inside a number, name or claim, nor in or after the call to "
+        "action. Set fillers off with commas, not dashes or ellipses, and "
+        'never write "um" or "uh". This overrides any limit on filler stated '
+        "above."
+    )
+
+
+def render_ending_rules(cta_line: str, is_topic: bool, naturalism: int) -> str:
+    """Everything `{CTA_RULE}` carries: the CTA rule, then naturalism."""
+    return "\n".join(
+        rule
+        for rule in (
+            render_cta_rule(cta_line, is_topic=is_topic),
+            render_naturalism_rule(naturalism),
+        )
+        if rule
+    )
+
+
 def format_prompt(
     template: str, product: ProductData, audience: str, cta_rule: str = ""
 ) -> str:
@@ -787,7 +857,11 @@ async def generate_script(
             template,
             product,
             audience,
-            cta_rule=render_cta_rule(cta_line, is_topic=is_topic),
+            cta_rule=render_ending_rules(
+                cta_line,
+                is_topic,
+                settings.script_templates.naturalism.intensity,
+            ),
         )
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e

@@ -1270,6 +1270,7 @@ llm_settings:
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
 | `cta_options` | list[str] | The closing lines a product script may end on, verbatim. One is chosen per product by salted hash and rendered alone into that template's `{CTA_RULE}`, immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of the configured lines. Override the choice with `--cta`. |
 | `cta_options_topic` | list[str] | Topic counterpart, none of which implies something to buy. Empty list falls back to `cta_options`. |
+| `naturalism.intensity` | int, 0-2 | Conversational delivery written into the script. 0 (the default) leaves the prompt unchanged. 1 asks for contractions, one or two spoken fillers and one emotional beat; 2 asks for two or three fillers and one self-correction that rephrases wording, never a fact. The rule is rendered into `{CTA_RULE}` after the CTA rule and keeps filler out of the first sentence, any number, name or claim, and the call to action. The captions are transcribed from the audio, so they carry the filler with no caption-side change. |
 | `pillar_preambles_topic` | dict[str, str] | Topic counterpart to `pillar_preambles`, using the same pillar keys. Read instead of the product map on a topic render. **Empty dict falls back to the product map**, which describes a product fixing an annoyance and lands above the topic prompt's rule against naming one. |
 | `pillar_audiences_topic` | dict[str, str] | Topic counterpart to `pillar_audiences`, same keys. Empty dict falls back to the product map, which describes buyers and shoppers. |
 
@@ -1285,8 +1286,10 @@ llm_settings:
                            {SHORT_PRODUCT_NAME}, {PRODUCT_DESCRIPTION},
                            {AUDIENCE} substituted. Topic templates use
                            {TOPIC_TITLE} and {TOPIC_DETAIL}; {CTA_RULE} is
-                           the rendered closing-CTA rule. All seven are
-                           always passed, and a template uses what it names.
+                           the rendered closing-CTA rule, followed by the
+                           naturalism rule when its intensity is above 0.
+                           All seven are always passed, and a template uses
+                           what it names.
 ```
 
 **Selection rules:**
