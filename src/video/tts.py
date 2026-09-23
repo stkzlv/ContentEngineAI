@@ -770,7 +770,12 @@ class TTSManager:
     # Regex to strip Gemini inline markup like [short pause], [whispering], etc.
     # [medium pause] was missing, so a fallback provider would have read it
     # aloud once a pause plan started emitting it.
-    _MARKUP_PATTERN = re.compile(r"\[(?:short |medium |long )?pause\]\s*|\[\w+\]\s*")
+    # Trailing spaces only, not newlines: a pause plan ends a paragraph with
+    # "tag\n", and eating the break would run an unpunctuated line into the
+    # next one on the fallback voice.
+    _MARKUP_PATTERN = re.compile(
+        r"\[(?:short |medium |long )?pause\][^\S\n]*|\[\w+\][^\S\n]*"
+    )
 
     @staticmethod
     def _apply_markup_rules(text: str, rules: list[TextMarkupRule]) -> str:

@@ -135,6 +135,12 @@ class TestFallbackProvidersNeverReadATagAloud:
     def test_every_silent_tag_is_stripped(self, tag: str) -> None:
         assert TTSManager._strip_markup(f"One. {tag} Two.") == "One. Two."
 
+    def test_stripping_keeps_the_paragraph_breaks(self) -> None:
+        planned = apply_pause_plan(
+            "Hook.\nStep two\nNext sentence.\nClose.", PausePlan(jitter=0), "B0X"
+        )
+        assert "Step two\nNext sentence." in TTSManager._strip_markup(planned)
+
 
 def _config(profile: VoiceProfileConfig) -> TTSConfig:
     return TTSConfig(
