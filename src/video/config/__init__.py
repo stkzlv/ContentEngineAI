@@ -10,12 +10,14 @@ from typing import TYPE_CHECKING, Any
 # Re-export all constants
 # Re-export audio models
 from src.video.config.audio_models import (  # noqa: F401
+    SILENT_TTS_TAGS,
     AudioProcessingSettings,
     AudioSettings,
     CoquiTTSSettings,
     GoogleCloudSTTSettings,
     GoogleCloudTTSSettings,
     GoogleCloudVoiceCriteria,
+    PausePlan,
     TextMarkupRule,
     TTSConfig,
     VoiceProfileConfig,
@@ -135,6 +137,8 @@ __all__ = [
     "GoogleCloudSTTSettings",
     "GoogleCloudTTSSettings",
     "GoogleCloudVoiceCriteria",
+    "SILENT_TTS_TAGS",
+    "PausePlan",
     "TextMarkupRule",
     "TTSConfig",
     "VoiceProfileConfig",

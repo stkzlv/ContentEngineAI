@@ -317,6 +317,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Style-directed speech (tone, energy, pacing). Profiles favor calm, confident delivery over high-energy pitch.
 - Speaking rate and pitch tunable per profile. Rates near 1.0 (natural pace), avoid stacking slow rate + low pitch + "slow" style prompt.
 - Inline markup rules for pause insertion at sentence boundaries (periods, exclamations, question marks)
+- Optional context-varied pauses per profile: none after the opening hook, longer at paragraph breaks and before the closing line, and a per-product reproducible variation on the rest. Only tags measured as silent are accepted, so no tag text can reach the captions.
 - Deterministic profile selection per product for reproducibility
 - Voice selection precedence (highest first): CLI override, random across configured pool, pinned default profile, random across all profiles
 - Pinned default profile keeps unattended runs on a single voice for channel-wide consistency

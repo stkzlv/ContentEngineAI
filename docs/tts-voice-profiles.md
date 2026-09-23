@@ -1,6 +1,6 @@
 # TTS Voice Profiles
 
-Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline markup (pauses, whispers). Voice character comes from the selected voice name, not from a text style prompt.
+Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline pauses measured as silent. Voice character comes from the selected voice name, not from a text style prompt.
 
 ## How it works
 
@@ -74,9 +74,24 @@ index; see the TTS section of [Troubleshooting](troubleshooting.md).
 
 ## Inline markup
 
-Gemini TTS understands inline tags like `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`, etc. Markup rules in profiles inject these tags into the script text using regex patterns.
+Markup rules in a profile inject Gemini TTS tags into the script text using regex patterns. When falling back to non-Gemini providers, all markup is stripped so it is not spoken literally.
 
-When falling back to non-Gemini providers, all markup is automatically stripped so it won't be spoken literally.
+Only tags measured as silent are safe, because the captions are transcribed from the voiceover and a spoken tag reaches them. Measured on `gemini-2.5-flash-tts` with Charon:
+
+| Tag | Gap after the sentence | Transcribed |
+|---|---|---|
+| none | 0.5 s | - |
+| `[short pause]` | about 0.58 s | no |
+| `[medium pause]` | about 0.7 s | no |
+| `[long pause]` | about 1.0 s | no |
+| `[sigh]` | 0.9-1.1 s | no |
+| `[uhm]` | 0.6-0.8 s | as "Um," in one of four samples |
+
+The adjective tags (`[scared]`, `[curious]`, `[bored]`) are spoken by design. Re-measure with `python -m tools.tts_tag_probe --repeat 3` when the model or voice changes.
+
+### Pause plan
+
+A `pause_plan` on a profile replaces its markup rules with context-dependent pauses: `after_hook` after the first sentence (empty by default), `before_last` before the closing line, `paragraph` at any other line break, and `sentence` elsewhere. The hook and closing-line tags win where those boundaries also end a line. `jitter` (0.3 by default) is the share of ordinary sentence boundaries that deviate, half with no pause and half with the paragraph pause, seeded by the product id so a product always renders the same pauses. Every tag must be one of the measured silent ones; anything else fails at config load. The bundled `charon_varied` profile carries a plan with `[long pause]` at paragraph breaks and before the closing line. On one script it widened the spread of gaps between sentences from 0.56-0.74 s to 0.42-0.82 s, with no tag text in the transcript. It is not selected by default; try it with `--voice-profile charon_varied`.
 
 ## Deterministic selection
 
@@ -88,6 +103,7 @@ Different hash slices prevent correlation between randomized choices:
 | Color palette | `[8:16]` |
 | Voice profile | `[16:24]` |
 | Voice name | `[24:32]` |
+| Pause jitter (pause plan) | `[0:8]` of a separate digest keyed `<product_id>:pauses` |
 
 Same product ID always produces the same combination.
 
@@ -175,7 +191,7 @@ Tone and character come from the voice you pick by name (Charon, Puck, Kore, and
 
 **Gemini caveat on `speaking_rate`:** empirically, the Gemini TTS API appears to ignore the numeric `speaking_rate` parameter for Gemini-model voices. A 1.05 vs 1.00 A/B render produced near-identical durations (38.23s vs 38.03s). For Gemini voices, pacing is a property of the voice itself, not an API parameter. The rate field is honored on Chirp 3 HD voices via the same Cloud TTS client.
 
-**Markup tags** Gemini understands: `[short pause]`, `[pause]`, `[long pause]`, `[whispering]`. Injected via `markup_rules` regex patterns. Stripped automatically when falling back to Google Cloud TTS.
+**Markup tags:** see [Inline markup](#inline-markup) for the tags measured as silent. Injected via `markup_rules` or a `pause_plan`, and stripped when falling back to Google Cloud TTS.
 
 ## Setup
 
