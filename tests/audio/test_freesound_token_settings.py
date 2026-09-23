@@ -105,14 +105,20 @@ def test_settings_that_are_not_numbers_fall_back_to_the_defaults():
     assert isinstance(client._token_refresh_buffer_sec, int | float)
 
 
-def test_the_shipped_config_values_reach_the_client():
+def test_values_on_the_loaded_config_reach_the_client():
+    """The shipped values equal the defaults, so they are changed first;
+    otherwise the check would pass with the wiring removed.
+    """
     config = load_video_config_modular()
-    client = FreesoundProvider(config=config, secrets=SECRETS)._client
-    settings = config.audio_settings
-    assert client._token_expiry_sec == settings.freesound_token_expiry_sec
-    assert (
-        client._token_refresh_buffer_sec == settings.freesound_token_refresh_buffer_sec
+    config.audio_settings = config.audio_settings.model_copy(
+        update={
+            "freesound_token_expiry_sec": 4321,
+            "freesound_token_refresh_buffer_sec": 123,
+        }
     )
+    client = FreesoundProvider(config=config, secrets=SECRETS)._client
+    assert client._token_expiry_sec == 4321
+    assert client._token_refresh_buffer_sec == 123
 
 
 def test_the_shipped_config_declares_no_unread_retry_blocks():
