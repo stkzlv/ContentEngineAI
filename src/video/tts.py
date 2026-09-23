@@ -627,8 +627,10 @@ def apply_pause_plan(text: str, plan: PausePlan, seed_key: str | None) -> str:
 
     A line break is a paragraph boundary, since the scripts carry their beats
     as lines. The first boundary follows the hook, the last one precedes the
-    closing line, and every other one takes the sentence pause, except the
-    jittered share: half of it none, half the paragraph pause. The jitter is
+    closing line, and each of those takes its own tag even where it also ends
+    a paragraph; every other one takes the paragraph or sentence pause, and
+    the jittered share of sentence pauses becomes none or the paragraph
+    pause, half each. The jitter is
     seeded by `seed_key` (the product id), so a product renders the same
     pauses every time; with no key it is not applied at all rather than
     drawn at random, which would make a render irreproducible.
@@ -666,7 +668,10 @@ def apply_pause_plan(text: str, plan: PausePlan, seed_key: str | None) -> str:
                     tag = ""
                 elif draw < plan.jitter:
                     tag = plan.paragraph
-        out.append(f" {tag} " if tag else " ")
+        # A paragraph end keeps its line break, so a hook line with no full
+        # stop is not run into the next sentence when no tag separates them.
+        separator = "\n" if ends_paragraph else " "
+        out.append(f" {tag}{separator}" if tag else separator)
     return "".join(out)
 
 

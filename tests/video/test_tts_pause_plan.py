@@ -56,6 +56,28 @@ class TestWhereThePausesGo:
             "[medium pause]",  # before the closing line
         ]
 
+    def test_the_hook_and_closing_tags_win_over_a_line_break(self) -> None:
+        """One sentence per line, the shape the topic scripts take: the hook
+        and the next-to-last sentence both end a paragraph.
+        """
+        script = "Hook line.\nMiddle one.\nMiddle two.\nFollow for more."
+        plan = PausePlan(
+            after_hook="",
+            paragraph="[long pause]",
+            before_last="[medium pause]",
+            jitter=0,
+        )
+        tags = _tags_between_sentences(apply_pause_plan(script, plan, "B0X"))
+        assert tags == ["", "[long pause]", "[medium pause]"]
+
+    def test_an_unpunctuated_hook_line_keeps_its_break(self) -> None:
+        out = apply_pause_plan(
+            "POV: your router at 2am\nIt drops every call. Here is why.",
+            PausePlan(jitter=0),
+            "B0X",
+        )
+        assert out.startswith("POV: your router at 2am\nIt drops")
+
     def test_nothing_follows_the_last_sentence(self) -> None:
         out = apply_pause_plan(SCRIPT, PausePlan(), "B0X")
         assert out.endswith("Save this for the next time it happens.")

@@ -1,6 +1,6 @@
 # TTS Voice Profiles
 
-Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline markup (pauses, whispers). Voice character comes from the selected voice name, not from a text style prompt.
+Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline pauses measured as silent. Voice character comes from the selected voice name, not from a text style prompt.
 
 ## How it works
 
@@ -91,7 +91,7 @@ The adjective tags (`[scared]`, `[curious]`, `[bored]`) are spoken by design. Re
 
 ### Pause plan
 
-A `pause_plan` on a profile replaces its markup rules with context-dependent pauses: `after_hook` after the first sentence (empty by default), `paragraph` at a line break, `before_last` before the closing line, and `sentence` elsewhere. `jitter` (0.3 by default) is the share of ordinary sentence boundaries that deviate, half with no pause and half with the paragraph pause, seeded by the product id so a product always renders the same pauses. Every tag must be one of the measured silent ones; anything else fails at config load. The bundled `charon_varied` profile carries a plan with `[long pause]` at paragraph breaks. On one script it widened the spread of gaps between sentences from 0.56-0.74 s to 0.50-0.82 s, with no tag text in the transcript. It is not selected by default; try it with `--voice-profile charon_varied`.
+A `pause_plan` on a profile replaces its markup rules with context-dependent pauses: `after_hook` after the first sentence (empty by default), `before_last` before the closing line, `paragraph` at any other line break, and `sentence` elsewhere. The hook and closing-line tags win where those boundaries also end a line. `jitter` (0.3 by default) is the share of ordinary sentence boundaries that deviate, half with no pause and half with the paragraph pause, seeded by the product id so a product always renders the same pauses. Every tag must be one of the measured silent ones; anything else fails at config load. The bundled `charon_varied` profile carries a plan with `[long pause]` at paragraph breaks and before the closing line. On one script it widened the spread of gaps between sentences from 0.56-0.74 s to 0.42-0.82 s, with no tag text in the transcript. It is not selected by default; try it with `--voice-profile charon_varied`.
 
 ## Deterministic selection
 
@@ -103,6 +103,7 @@ Different hash slices prevent correlation between randomized choices:
 | Color palette | `[8:16]` |
 | Voice profile | `[16:24]` |
 | Voice name | `[24:32]` |
+| Pause jitter (pause plan) | `[0:8]` of a separate digest keyed `<product_id>:pauses` |
 
 Same product ID always produces the same combination.
 

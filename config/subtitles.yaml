@@ -551,7 +551,7 @@ tts_config:
         sentence: "[short pause]"
         paragraph: "[long pause]"
         after_hook: ""
-        before_last: "[medium pause]"
+        before_last: "[long pause]"
         jitter: 0.3
 
     fenrir:
