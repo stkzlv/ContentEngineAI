@@ -16,6 +16,7 @@ from src.ai.script_fact_check import fact_check_and_revise
 from src.ai.script_generator import (
     generate_hook_headline,
     generate_visual_search_phrases,
+    select_signature,
 )
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.manager import AudioManager
@@ -599,6 +600,27 @@ async def step_generate_script(ctx: PipelineContext):
                 # analytics layer can segment by closing line; nothing reads
                 # it yet.
                 ctx.state["cta"] = cta_line
+            # The same deterministic draw the prompt used. The sign-off sits
+            # where the first-comment extractor looks for the closing beat,
+            # so the extractor has to be told what to strip.
+            signature = select_signature(
+                ctx.config.llm_settings.script_templates.signature,
+                ctx.product.asin,
+            )
+            if signature.signoff:
+                ctx.state["signoff"] = signature.signoff
+            for element, value in (
+                ("opener", signature.opener),
+                ("transition", signature.transition),
+                ("signoff", signature.signoff),
+            ):
+                if value:
+                    logger.info(
+                        "Signature %s %r %s in the script",
+                        element,
+                        value,
+                        "is" if value.lower() in ctx.script.lower() else "is NOT",
+                    )
             logger.info(
                 "Script generated (template=%s) and saved to %s",
                 template_name,

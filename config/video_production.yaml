@@ -307,6 +307,11 @@ audio_settings:
   # Music fade in/out durations (seconds)
   music_fade_in_duration: 2.0
   music_fade_out_duration: 3.0
+  # Recurring audio mark mixed at the start or the end, mastered with the mix.
+  # Example: {path: "assets/audio/sting.wav", position: "start",
+  # offset_sec: 0.0, volume_db: -6.0}. null = none, and held off while the
+  # reach test runs.
+  signature_sting: null
 
   # Voice-keyed ducking: the music drops while narration plays and recovers
   # in the gaps, instead of holding music_volume_db for the whole clip.

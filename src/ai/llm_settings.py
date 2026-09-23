@@ -24,6 +24,38 @@ from pydantic import BaseModel, Field, field_validator
 MIN_PHRASE_WORDS = 3
 
 
+class SignatureConfig(BaseModel):
+    """Recurring verbal elements a viewer recognises the channel by.
+
+    Each pool is drawn per product at `use_rate`, independently, so the
+    signature recurs without appearing in every render, which would read as
+    the templated sameness the platforms throttle. Empty pools (the default)
+    leave the prompt unchanged.
+    """
+
+    use_rate: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Words that start the first sentence, before the hook ("Quick one").
+    openers: list[str] = Field(default_factory=list)
+    # A phrase used once where the script turns from problem to answer.
+    transitions: list[str] = Field(default_factory=list)
+    # A full sentence spoken immediately before the call to action.
+    signoffs: list[str] = Field(default_factory=list)
+
+    @field_validator("openers", "transitions", "signoffs")
+    @classmethod
+    def _each_entry_carries_words(cls, entries: list[str]) -> list[str]:
+        for entry in entries:
+            if not re.sub(r"[^a-z0-9]", "", entry.lower()):
+                raise ValueError(f"Signature entry carries no words: {entry!r}")
+        return entries
+
+    @property
+    def configured(self) -> bool:
+        return self.use_rate > 0 and bool(
+            self.openers or self.transitions or self.signoffs
+        )
+
+
 class NaturalismConfig(BaseModel):
     """How conversational the spoken script is asked to sound.
 
@@ -84,6 +116,8 @@ class ScriptTemplateConfig(BaseModel):
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
+    # Recurring opener, transition and sign-off. Empty pools = off.
+    signature: SignatureConfig = Field(default_factory=SignatureConfig)
 
     @field_validator("cta_options", "cta_options_topic")
     @classmethod

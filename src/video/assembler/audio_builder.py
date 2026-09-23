@@ -38,6 +38,41 @@ class AudioFilterBuilder:
         """
         self.config = config
 
+    def sting_path(self) -> Path | None:
+        """The configured sting file, or None when unset or missing.
+
+        A missing file warns and mixes nothing: an identity mark is not worth
+        losing a render over.
+        """
+        sting = self.config.audio_settings.signature_sting
+        if sting is None:
+            return None
+        if not sting.path.is_file():
+            logger.warning("Signature sting %s not found; mixing none", sting.path)
+            return None
+        return sting.path
+
+    def prepare_sting_input(
+        self, input_cmd_parts: list[str], sting_path: Path | None
+    ) -> int | None:
+        """Add the sting as the next input and return its index."""
+        if sting_path is None:
+            return None
+        index = input_cmd_parts.count("-i")
+        input_cmd_parts.extend(["-i", str(sting_path)])
+        return index
+
+    def sting_delay_sec(
+        self, sting_duration: float, total_video_duration: float
+    ) -> float:
+        """When the sting starts, by its configured position."""
+        sting = self.config.audio_settings.signature_sting
+        if sting is None:
+            return 0.0
+        if sting.position == "end":
+            return max(0.0, total_video_duration - sting_duration - sting.offset_sec)
+        return min(sting.offset_sec, max(0.0, total_video_duration - sting_duration))
+
     def prepare_audio_inputs(
         self,
         input_cmd_parts: list[str],
@@ -78,6 +113,8 @@ class AudioFilterBuilder:
         voiceover_input_idx: int | None,
         music_input_idx: int | None,
         total_video_duration: float,
+        sting_input_idx: int | None = None,
+        sting_delay_sec: float = 0.0,
     ) -> tuple[list[str], str]:
         """Build audio processing filters for FFmpeg.
 
@@ -86,6 +123,8 @@ class AudioFilterBuilder:
             voiceover_input_idx: Index of voiceover input in FFmpeg command
             music_input_idx: Index of music input in FFmpeg command
             total_video_duration: Target video duration for fade calculations
+            sting_input_idx: Index of the signature sting input, if any
+            sting_delay_sec: When the sting starts, from `sting_delay_sec()`
 
         Returns:
         -------
@@ -136,6 +175,17 @@ class AudioFilterBuilder:
                 f"[a_music_ducked]"
             )
             audio_to_mix = ["[a_voice_mix]", "[a_music_ducked]"]
+
+        # The sting joins the mix after the duck, so the duck never keys on
+        # it, and before `loudnorm`, so it is mastered with the programme.
+        sting = audio_settings.signature_sting
+        if sting_input_idx is not None and sting is not None:
+            delay_ms = int(round(sting_delay_sec * 1000))
+            audio_filters.append(
+                f"[{sting_input_idx}:a]volume={sting.volume_db}dB,"
+                f"adelay={delay_ms}:all=1[a_sting]"
+            )
+            audio_to_mix.append("[a_sting]")
 
         if not audio_to_mix:
             return audio_filters, ""

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -47,7 +48,11 @@ _CTA_MARKERS = (
 )
 
 
-def extract_closing_line(script: str) -> str | None:
+def _words(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9\s]+", "", text.lower()).split())
+
+
+def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
     """Return the script's engagement-bait closing beat, or None.
 
     Every template closes with the engagement-bait beat immediately before one
@@ -59,6 +64,10 @@ def extract_closing_line(script: str) -> str | None:
     Selecting on punctuation instead would be wrong. Question-led templates open
     with rhetorical questions in the body, so "the last question in the script"
     reaches back past the closing beat and pulls one of those out mid-script.
+
+    A render with an author sign-off speaks it between the closing beat and
+    the CTA, so the recorded `signoff` is stripped next; otherwise the first
+    comment would be the sign-off.
     """
     if not script or not script.strip():
         return None
@@ -73,7 +82,22 @@ def extract_closing_line(script: str) -> str | None:
         for m in _CTA_MARKERS
     ):
         sentences.pop()
+    if signoff and sentences and _words(sentences[-1]) == _words(signoff):
+        sentences.pop()
     return sentences[-1] if sentences else None
+
+
+def _recorded_signoff(temp_dir: Path) -> str | None:
+    """The sign-off the script step drew, from the pipeline state, if any."""
+    try:
+        state = json.loads((temp_dir / "pipeline_state.json").read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    signoff = state.get("signoff")
+    if not signoff:
+        step = state.get("generate_script")
+        signoff = step.get("signoff") if isinstance(step, dict) else None
+    return signoff if isinstance(signoff, str) else None
 
 
 def build_first_comment(
@@ -138,9 +162,15 @@ def build_first_comment(
 
     closing_line = ""
     if "{closing_line}" in template:
-        script_path = outputs_dir / product_id / "temp" / "script.txt"
+        temp_dir = outputs_dir / product_id / "temp"
+        script_path = temp_dir / "script.txt"
         try:
-            closing_line = extract_closing_line(script_path.read_text("utf-8")) or ""
+            closing_line = (
+                extract_closing_line(
+                    script_path.read_text("utf-8"), _recorded_signoff(temp_dir)
+                )
+                or ""
+            )
         except OSError as e:
             logger.warning("Could not read script for %s: %s", product_id, e)
         if not closing_line:
