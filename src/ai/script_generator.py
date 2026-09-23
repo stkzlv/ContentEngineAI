@@ -216,9 +216,9 @@ def render_naturalism_rule(intensity: int) -> str:
     Rendered into `{CTA_RULE}` after the CTA rule, not before it: the CTA
     rule says "after the closing beat above", meaning the template bullet
     directly over the placeholder, and a rule between them would take that
-    referent. Sitting last in the list, it states its own positions rather
-    than inheriting the tail, which is what a rule with no stated position
-    does.
+    referent. On topic templates it ends the Rules block; on product
+    templates the trade-off bullet follows it. Either way it states its own
+    positions rather than inheriting the one it sits in.
 
     Three exclusions, each guarding something downstream:
 
@@ -227,9 +227,10 @@ def render_naturalism_rule(intensity: int) -> str:
       correction invents a claim the fact check then has to catch.
     - Nothing in or after the CTA: `ends_with_cta` compares whole sentences.
 
-    Commas only, and no "um" or "uh": Whisper tends to drop those, so the
-    captions would disagree with the audio, and a dash reaches the voice as
-    a pause of unpredictable length.
+    Fillers are set off with commas, and "um" or "uh" never written: the
+    voice speaks a hesitation and Whisper transcribes it ("Um," in the tag
+    probe), so it reaches the captions as written stumbling. A dash reaches
+    the voice as a pause of unpredictable length.
     """
     if intensity <= 0:
         return ""
@@ -238,9 +239,12 @@ def render_naturalism_rule(intensity: int) -> str:
         correction = ""
     else:
         fillers = "two or three spoken fillers"
+        # Described by shape, with no worked example: an example teaches its
+        # subject along with its shape, and the first draft's was a
+        # first-person size claim that topic prompts forbid.
         correction = (
-            ", and one small self-correction that rephrases wording, never a "
-            "fact (\"it's, well, it's smaller than I expected\")"
+            ", and one self-correction: restart the first two or three words "
+            "of one sentence, then finish it unchanged, never changing a fact"
         )
     return (
         "- **Sound like someone talking, not reading.** Use contractions "
@@ -249,8 +253,9 @@ def render_naturalism_rule(intensity: int) -> str:
         "frustration at the problem, or quiet satisfaction when it is solved. "
         "None of this goes in the first sentence, not even a tag question, "
         "nor inside a number, name or claim, nor in or after the call to "
-        'action. Commas only: no dashes, ellipses, "um" or "uh". This '
-        "overrides any limit on filler stated above."
+        "action. Set fillers off with commas, not dashes or ellipses, and "
+        'never write "um" or "uh". This overrides any limit on filler stated '
+        "above."
     )
 
 

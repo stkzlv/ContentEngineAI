@@ -66,7 +66,17 @@ class TestTheRule:
     def test_two_adds_a_correction_that_never_touches_a_fact(self) -> None:
         rule = render_naturalism_rule(2)
         assert "two or three spoken fillers" in rule
-        assert "self-correction that rephrases wording, never a fact" in rule
+        assert "self-correction" in rule
+        assert "never changing a fact" in rule
+
+    def test_the_correction_carries_no_worked_example(self) -> None:
+        """An example teaches its subject with its shape; the first draft's
+        was a first-person size claim that topic prompts forbid.
+        """
+        assert (
+            '"'
+            not in render_naturalism_rule(2).split("self-correction")[1].split(".")[0]
+        )
 
     @pytest.mark.parametrize("intensity", [1, 2])
     def test_it_names_every_protected_position(self, intensity) -> None:
