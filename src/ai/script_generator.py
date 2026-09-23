@@ -228,8 +228,9 @@ def render_naturalism_rule(intensity: int) -> str:
     - Nothing in or after the CTA: `ends_with_cta` compares whole sentences.
 
     Fillers are set off with commas, and "um" or "uh" never written: the
-    voice speaks a hesitation and Whisper transcribes it ("Um," in the tag
-    probe), so it reaches the captions as written stumbling. A dash reaches
+    voice speaks a hesitation and Whisper sometimes transcribes it (a
+    synthesized one came back as "Um," in one of four samples), so it can
+    reach the captions as written stumbling. A dash reaches
     the voice as a pause of unpredictable length.
     """
     if intensity <= 0:
