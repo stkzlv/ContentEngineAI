@@ -139,7 +139,9 @@ class TestFallbackProvidersNeverReadATagAloud:
         planned = apply_pause_plan(
             "Hook.\nStep two\nNext sentence.\nClose.", PausePlan(jitter=0), "B0X"
         )
-        assert "Step two\nNext sentence." in TTSManager._strip_markup(planned)
+        stripped = TTSManager._strip_markup(planned)
+        assert re.search(r"Step two[^\S\n]*\nNext sentence\.", stripped)
+        assert "[" not in stripped
 
 
 def _config(profile: VoiceProfileConfig) -> TTSConfig:
