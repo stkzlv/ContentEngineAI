@@ -52,8 +52,12 @@ class AudioSettings(BaseModel):
     # The whole provider chain, searches and downloads together; under the
     # 180 s per-step warning. When spent, local files are used.
     music_search_budget_sec: float = Field(120.0, gt=0)
-    freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC)
-    freesound_token_refresh_buffer_sec: int = Field(FREESOUND_TOKEN_REFRESH_BUFFER_SEC)
+    # Fallback lifetime when a token response states none, and how early
+    # before expiry the client refreshes.
+    freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC, gt=0)
+    freesound_token_refresh_buffer_sec: int = Field(
+        FREESOUND_TOKEN_REFRESH_BUFFER_SEC, ge=0
+    )
     freesound_download_chunk_size: int = Field(FREESOUND_DOWNLOAD_CHUNK_SIZE)
     output_audio_codec: str = Field("aac")
     output_audio_bitrate: str = Field("192k")

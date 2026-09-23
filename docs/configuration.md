@@ -1574,14 +1574,14 @@ asyncio.run(test())
 
 **Automatic Token Management:**
 - Access tokens last 24 hours; the token response states the lifetime and the client uses that value
-- The access token is not kept between runs, so each render refreshes on its first full download (and would refresh again 60 seconds before expiry); a refresh that fails is reported once at WARNING with the remedy that fits, and the rest of that render uses API-key previews
+- The access token is not kept between runs, so each render refreshes on its first full download (and would refresh again `freesound_token_refresh_buffer_sec`, 60 seconds by default, before expiry); a refresh that fails is reported once at WARNING with the remedy that fits, and the rest of that render uses API-key previews
 - Every refresh returns a new refresh token, which replaces the old one in `.env` (`dotenv.set_key()`); the old one stops working, so the stored token rotates on every render that makes a full download
 - Freesound sets no expiry on refresh tokens, so an unused one stays valid
 - No manual intervention required after initial setup
 
-The `freesound_token_expiry_sec` and `freesound_token_refresh_buffer_sec`
-settings in `config/video_production.yaml` are declared but not read yet; the
-client uses the token response and a built-in 60-second buffer (#534).
+`freesound_token_refresh_buffer_sec` in `config/video_production.yaml` sets
+how early the token is refreshed. `freesound_token_expiry_sec` (24 hours by
+default) is used only when a token response does not state its own lifetime.
 
 **Manual Token Refresh:**
 
@@ -1599,9 +1599,8 @@ poetry run python tools/freesound_oauth2_setup.py \
 
 **Troubleshooting Token Refresh:**
 
-The refresh request has a built-in 5-second timeout and one quick retry;
-the `freesound_token_refresh` block in `config/video_production.yaml` that
-appears to control them is declared but not read (#534). When it fails:
+The refresh request has a built-in 5-second timeout and one quick retry,
+and neither is configurable. When it fails:
 
 1. **Read the one warning**: `refresh rejected` means the token is invalid or was rotated, so run the setup script again; `token endpoint unreachable` means a network problem, so check that `https://freesound.org` is reachable
 2. **Verify credentials**: Confirm `FREESOUND_CLIENT_ID`, `FREESOUND_CLIENT_SECRET`, and `FREESOUND_REFRESH_TOKEN` are correct in `.env`
