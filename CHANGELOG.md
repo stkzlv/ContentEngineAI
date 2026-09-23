@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.14] - 2026-09-23
+
+### Fixed
+- The Freesound token refresh buffer and the fallback token lifetime in the video config now take effect; the client had used its own constants, and the fallback lifetime now matches the 24 hours Freesound grants. The retry blocks under them, which nothing ever read, are removed from the shipped config; a config that still sets them loads as before.
+
 ## [0.124.13] - 2026-09-19
 
 ### Documentation

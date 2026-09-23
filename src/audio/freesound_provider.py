@@ -6,6 +6,11 @@ from typing import Any
 
 import aiohttp
 
+from src.video.config import (
+    FREESOUND_TOKEN_EXPIRY_SEC,
+    FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
+)
+
 from .base import AudioTrack, BaseAudioProvider
 from .freesound_client import FreesoundClient
 from .registry import AudioProvider, register_audio_provider
@@ -22,6 +27,14 @@ SEARCH_SORT = "score"
 SEARCH_FIELDS = "id,name,previews,license,username,url,duration,tags"
 
 
+def _number_setting(settings: Any, name: str, default: float) -> float:
+    """A numeric audio setting, or the default when it is absent or not a number."""
+    value = getattr(settings, name, None)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    return value
+
+
 @register_audio_provider(AudioProvider.FREESOUND)
 class FreesoundProvider(BaseAudioProvider):
     """Adapter wrapping FreesoundClient behind BaseAudioProvider."""
@@ -34,11 +47,24 @@ class FreesoundProvider(BaseAudioProvider):
     ) -> None:
         self._config = config
         secrets = secrets or {}
-        self._client = FreesoundClient(config=config, **secrets)
         self._audio_settings = (
             config.audio_settings
             if config and hasattr(config, "audio_settings")
             else None
+        )
+        self._client = FreesoundClient(
+            config=config,
+            token_expiry_sec=_number_setting(
+                self._audio_settings,
+                "freesound_token_expiry_sec",
+                FREESOUND_TOKEN_EXPIRY_SEC,
+            ),
+            token_refresh_buffer_sec=_number_setting(
+                self._audio_settings,
+                "freesound_token_refresh_buffer_sec",
+                FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
+            ),
+            **secrets,
         )
 
     @property

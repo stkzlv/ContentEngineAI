@@ -478,46 +478,15 @@ audio_settings:
   freesound_download_timeout_sec: 60
 
   # --- OAuth2 Token Management ---
-  # Token expiration time (seconds). Freesound access tokens last 24 hours
-  # and the token response states the lifetime, which the client uses; this
-  # value and the buffer below are declared but not read yet (#534).
-  freesound_token_expiry_sec: 3600
+  # Access-token lifetime (seconds) assumed only when a token response does
+  # not state one. Freesound grants 24-hour tokens and says so.
+  freesound_token_expiry_sec: 86400
 
-  # Token refresh buffer (seconds)
-  # How far before expiration to trigger automatic refresh
-  # Recommendation: 60s provides safety margin for slow refreshes
+  # How far before expiry (seconds) the client refreshes the token.
   freesound_token_refresh_buffer_sec: 60
 
-  # --- Retry and Backoff Configuration ---
-  # Declared but not read yet (#534): the client uses a built-in 5 s timeout
-  # and one retry for the refresh request, and downloads each candidate once.
-
-  # Token refresh retry configuration
-  freesound_token_refresh:
-    # Maximum retry attempts for token refresh
-    # After this many failures, fallback to API key or local files
-    max_retries: 2
-
-    # Timeout for token refresh requests (seconds)
-    # Freesound OAuth2 endpoint typically responds in <1s
-    timeout_sec: 5
-
-    # Exponential backoff configuration
-    # Delay = base_delay * (multiplier ** attempt)
-    # Example: 0.5s, 1.0s, 2.0s with base=0.5 and multiplier=2
-    backoff_base_delay_sec: 0.5
-    backoff_multiplier: 2.0
-
-  # Download retry configuration
-  freesound_download:
-    # Maximum retry attempts for downloads
-    # Retries help with transient network issues
-    max_retries: 2
-
-    # Exponential backoff configuration for download retries
-    # Longer base delay since downloads may be rate-limited
-    backoff_base_delay_sec: 1.0
-    backoff_multiplier: 2.0
+  # The refresh request has a built-in 5 s timeout and one retry, and each
+  # download candidate is fetched once; neither is configurable.
 
   # --- Download Settings ---
   # Download chunk size for streaming (bytes)

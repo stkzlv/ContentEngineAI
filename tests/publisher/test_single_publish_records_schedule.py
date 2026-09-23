@@ -56,9 +56,13 @@ class TestRecordEntry:
         """The contrast that justifies a second method."""
         path = tmp_path / "schedule.json"
         manager = ScheduleManager(schedule_path=path, config=ScheduleConfig())
-        when = datetime(2026, 9, 20, 8, 0, tzinfo=UTC)
+        # Relative to now: `add_entry` also refuses a past slot, and a fixed
+        # date turned this into a test of that once the date passed.
+        when = (datetime.now(UTC) + timedelta(days=30)).replace(
+            hour=8, minute=0, second=0, microsecond=0
+        )
         manager.add_entry(_entry("B0SAME", when))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="(?i)duplicate|already|close|within"):
             manager.add_entry(_entry("B0SAME", when))
 
     def test_a_failed_write_rolls_the_entry_back(self, tmp_path: Path, monkeypatch):

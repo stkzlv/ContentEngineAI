@@ -106,12 +106,23 @@ class FreesoundClient:
 
     """
 
-    def __init__(self, config: Any | None = None, **kwargs: str) -> None:
+    def __init__(
+        self,
+        config: Any | None = None,
+        *,
+        token_expiry_sec: float = FREESOUND_TOKEN_EXPIRY_SEC,
+        token_refresh_buffer_sec: float = FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
+        **kwargs: str,
+    ) -> None:
         """Initialize FreesoundClient with API credentials and OAuth2 configuration.
 
         Args:
         ----
             config: VideoConfig object for accessing retry/backoff configuration
+            token_expiry_sec: Access-token lifetime assumed when a token
+                response does not state one.
+            token_refresh_buffer_sec: How long before expiry the token is
+                refreshed.
             **kwargs: Credential configuration parameters:
                 - FREESOUND_API_KEY: API key for search/preview operations (required for
                   search)
@@ -140,6 +151,8 @@ class FreesoundClient:
         self.oauth_refresh_token: str | None = kwargs.get("FREESOUND_REFRESH_TOKEN")
         self.oauth_access_token: str | None = None
         self.oauth_token_expiry: float | None = None
+        self._token_expiry_sec = token_expiry_sec
+        self._token_refresh_buffer_sec = token_refresh_buffer_sec
         # Set once the refresh has failed in this client's lifetime (one
         # render); a token that failed cannot become valid mid-run.
         self._refresh_failed = False
@@ -500,12 +513,8 @@ class FreesoundClient:
                                 env_error,
                             )
 
-                    self.oauth_token_expiry = time.time() + token_data.get(
-                        "expires_in", FREESOUND_TOKEN_EXPIRY_SEC
-                    )
-                    expires_in = token_data.get(
-                        "expires_in", FREESOUND_TOKEN_EXPIRY_SEC
-                    )
+                    expires_in = token_data.get("expires_in", self._token_expiry_sec)
+                    self.oauth_token_expiry = time.time() + expires_in
                     logger.info(
                         "OAuth2 token refreshed successfully (expires in %ss)",
                         expires_in,
@@ -599,8 +608,7 @@ class FreesoundClient:
         if (
             self.oauth_access_token
             and self.oauth_token_expiry
-            and time.time()
-            < self.oauth_token_expiry - FREESOUND_TOKEN_REFRESH_BUFFER_SEC
+            and time.time() < self.oauth_token_expiry - self._token_refresh_buffer_sec
         ):
             return self.oauth_access_token
         if await self._refresh_oauth2_token(session):

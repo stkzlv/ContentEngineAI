@@ -65,7 +65,9 @@ ASSEMBLER_PAD_COLOR = "black"  # Standard padding color
 # =============================================================================
 # FREESOUND API TECHNICAL CONSTANTS
 # =============================================================================
-FREESOUND_TOKEN_EXPIRY_SEC = 3600  # OAuth2 standard token lifetime
+# Freesound grants 24-hour access tokens; used only when a token response
+# does not state its own lifetime.
+FREESOUND_TOKEN_EXPIRY_SEC = 86400
 FREESOUND_TOKEN_REFRESH_BUFFER_SEC = 60  # Buffer before expiry to refresh
 FREESOUND_DOWNLOAD_CHUNK_SIZE = 8192 * 4  # Network buffer size
 
