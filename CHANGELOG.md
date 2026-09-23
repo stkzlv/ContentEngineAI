@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.125.0] - 2026-09-23
+
+### Added
+- Scripts can be asked to sound conversational, with contractions, spoken fillers and one emotional beat, and at the higher setting one self-correction; the setting ships off and leaves the prompt unchanged until it is turned on.
+
 ## [0.124.14] - 2026-09-23
 
 ### Fixed

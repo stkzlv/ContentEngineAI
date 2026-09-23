@@ -282,6 +282,13 @@ llm_settings:
       - "Drop a comment if this worked."
       - "Share it with whoever needs it."
       - "Save this for the next time it happens."
+    # Conversational delivery written into the script: contractions, spoken
+    # fillers ("so", "okay") and one emotional beat; at 2 also one
+    # self-correction. Never in the first sentence, a number, name or claim,
+    # or the CTA. 0 = off, and the prompt is unchanged. Held at 0 while the
+    # reach test runs: it changes the treatment arm's script.
+    naturalism:
+      intensity: 0
 
     # Templates used when the record came from a topic rather than a scraped
     # product. These replace the pool rather than narrowing it: every other
