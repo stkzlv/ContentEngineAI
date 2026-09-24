@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.127.0] - 2026-09-23
+## [0.127.0] - 2026-09-24
 
 ### Added
 - Scripts can carry a recurring author signature, an opener, a transition and a sign-off before the call to action, each drawn per product below a configured rate; the first comment and the platform captions still quote the closing line rather than the sign-off.

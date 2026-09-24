@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from src.ai.platform_metadata import _read_video_script
+from src.publisher.first_comment import extract_closing_line
 from src.utils.script_signoff import drop_signoff, recorded_signoff
 
 SIGNOFF = "That's the fix for today."
@@ -29,6 +32,22 @@ def test_the_signoff_line_is_removed_and_nothing_else() -> None:
 def test_an_inline_signoff_keeps_the_spacing() -> None:
     script = f"It stays steady. {SIGNOFF} Drop a comment."
     assert drop_signoff(script, SIGNOFF) == "It stays steady. Drop a comment."
+
+
+@pytest.mark.parametrize(
+    ("spoken", "configured"),
+    [
+        ("That's the fix for today!", SIGNOFF),
+        (SIGNOFF, "That's the fix for today"),
+    ],
+)
+def test_punctuation_drift_matches_like_the_first_comment(
+    spoken: str, configured: str
+) -> None:
+    script = f"It stays steady. Team A or B? {spoken} Drop a comment."
+    out = drop_signoff(script, configured)
+    assert out == "It stays steady. Team A or B? Drop a comment."
+    assert extract_closing_line(script, signoff=configured) == "Team A or B?"
 
 
 def test_no_signoff_or_no_match_is_unchanged() -> None:

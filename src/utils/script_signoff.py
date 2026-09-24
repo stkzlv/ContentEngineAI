@@ -13,6 +13,8 @@ import json
 import re
 from pathlib import Path
 
+from src.utils.script_sanitizer import split_sentences
+
 STATE_FILE = "pipeline_state.json"
 
 
@@ -37,14 +39,28 @@ def normalise(text: str) -> str:
 
 
 def drop_signoff(script: str, signoff: str | None) -> str:
-    """The script without its last occurrence of the sign-off sentence."""
+    """The script without its last sentence that matches the sign-off.
+
+    Matched sentence by sentence on words only, the same comparison the
+    first-comment extractor makes, so a sign-off the model ended with "!"
+    or a pool entry with no full stop is removed on both paths alike.
+    """
     if not signoff:
         return script
-    index = script.lower().rfind(signoff.strip().lower())
-    if index < 0:
+    target = normalise(signoff)
+    match = None
+    cursor = 0
+    for sentence in split_sentences(script):
+        start = script.find(sentence, cursor)
+        if start < 0:
+            continue
+        cursor = start + len(sentence)
+        if normalise(sentence) == target:
+            match = (start, cursor)
+    if match is None:
         return script
-    before = script[:index].rstrip(" \t")
-    after = script[index + len(signoff.strip()) :].lstrip(" \t")
+    before = script[: match[0]].rstrip(" \t")
+    after = script[match[1] :].lstrip(" \t")
     if before.endswith("\n") and after.startswith("\n"):
         # The sign-off had its own line; drop the line, not just its text.
         after = after[1:]
