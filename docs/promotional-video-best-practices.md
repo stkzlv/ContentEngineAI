@@ -30,7 +30,7 @@ served via TikTok, Instagram Reels, and YouTube Shorts. Watched with sound on by
 2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Pick an accent colour that contrasts with the palette; A/B tests of CTA colour measure contrast, not hue.
 3. **`#ad` disclosure is an on-frame overlay AND first-line caption text.** FTC wants the disclosure in the video itself and at the top of the caption before other text. Same font family as captions, sized for legibility (not a fixed ratio), fixed corner; full-clip persistence is a safe short-form default rather than a codified duration. Max statutory penalty is $53,088 per violation (2025 figure, still current 2026) — a cap reached via a Notice of Penalty Offense or consent-order violation, not an automatic per-post fine.
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
-5. **End with a genuine closing question or claim right before the CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. In one brand TikTok study a closing prompt was the main predictor of comments. Asking for a specific word, emoji, share or tag is demoted as engagement bait. It is additive to the CTA, not a replacement.
+5. **End with a genuine closing question or claim right before the CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. Asking for a specific word, emoji, share or tag is demoted as engagement bait, even though bait is what drove comments in the one study that measured it. It is additive to the CTA, not a replacement.
 6. **Change the visual every 3-5 seconds, and put slow motion on every still.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Stimulation follows an inverted U: moderate intensity gets the most engagement, and a cut every 2 seconds has no measured support.
 
 ---
@@ -170,7 +170,7 @@ still (#542) matters. A faster `cut_density: high` option is planned (roadmap
 
 ## 3. Design for sound-off as well as sound-on
 
-**Muted viewing is common on some feeds, but not on TikTok: 93% of TikTok users keep sound on (TikTok and Kantar, 2020-2021 data).** Captions must stand alone for muted viewers, and voice, music and effects matter at least as much for everyone else. (The widely-cited
+**Muted viewing is common on some feeds, but not on TikTok: 93% of US TikTok users spend time with sound on (TikTok's own 2020 data).** Captions must stand alone for muted viewers, and voice, music and effects matter at least as much for everyone else. (The widely-cited
 "85% watch muted" traces to a 2016 Facebook, publisher-reported figure and does
 not describe TikTok.) Design every beat to work both ways: legible without
 sound, and carried by the voice for the majority who listen.
@@ -275,7 +275,7 @@ on the same frame.
 **Anti-patterns**:
 - "Comment YES if you agree": comment baiting, demoted by Meta
 - "Share with someone who...": share baiting, demoted by Meta
-- "Follow for part 2" with the payoff withheld: TikTok excludes false incentives
+- "Follow for part 2" as a condition for the payoff: TikTok excludes false incentives for following
 - "What do you think?" — too open, no reply hook
 - A question with no opinion attached ("Have you seen this before?")
 - Replacing the CTA with the closing line — both beats are needed, not one
@@ -371,8 +371,9 @@ the FTC `#ad` overlay above.
   guidelines say generic TTS narration needs no disclosure, so this
   pipeline's renders (real product photos and stock footage, a generic TTS
   voice) are not required to carry it; whether to keep it on voluntarily is
-  #558. It reads C2PA credentials. Since November 2025 viewers can choose to
-  see less AI content, so a labelled video reaches fewer viewers, and a study
+  #558. It reads C2PA credentials. In November 2025 TikTok began testing a
+  control to see less AI content, which would shrink a labelled video's
+  audience, and a study
   of about a million posts found disclosure cut engagement by 7-8%. The
   publisher sets this flag on every TikTok payload, on by default,
   configurable at `config/publisher.yaml::tiktok_settings.video_made_with_ai`.
@@ -383,7 +384,7 @@ the FTC `#ad` overlay above.
   (auto-applies a disclosure label, rejects undisclosed AI creative, can
   retroactively flag running campaigns); organic-Reels detection is more
   metadata- and self-declaration-driven. Self-declare AI provenance (embed
-  C2PA / IPTC at generation) and set the platform AI toggle — self-labelling
+  C2PA / IPTC at generation) and set the platform AI toggle; self-labelling
   is the compliant path. No published data shows how Meta weighs labelled
   against auto-flagged content.
 
@@ -391,8 +392,8 @@ The pipeline already prepends `#ad` to caption text and burns the corner
 disclosure. AI-content disclosure is additive, not a replacement.
 
 **Originality is the real 2026 AI-reach risk.** YouTube says AI labels do not
-reduce reach, and on TikTok the cost runs only through viewers who turn AI
-content down. All three platforms deprioritize unoriginal, templated,
+reduce reach; on TikTok the cost is the viewers who turn AI content down plus
+a measured 7-8% engagement drop. All three platforms deprioritize unoriginal, templated,
 mass-produced output: YouTube's inauthentic-content policy (July 2025, with
 channel terminations in January 2026, https://thenextweb.com/news/youtube-ai-slop-crackdown-faceless-creators-collateral-damage), Instagram's originality rules (30 April
 2026: "unique text, creative edits, and voiceover" count, watermarks and speed

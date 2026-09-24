@@ -148,7 +148,7 @@ The technical design for each requirement drawn from [creator-research.md](creat
 
 ## #552 Cover frames, including YouTube Shorts thumbnails
 
-**Today.** No cover is produced. Since July 2026 YouTube accepts custom Shorts thumbnails on desktop for Partner Program channels; roadmap 4.7 records this.
+**Today.** No cover is produced. Since July 2026 YouTube accepts custom Shorts thumbnails from Partner Program channels; roadmap 4.7 records this.
 
 **Design.**
 - After assembly, render `cover.jpg` at 1080x1920 from the frame 0 composition: the hero image and the hook headline, with the headline inside the centred 3:4 area Instagram's grid crops to.
@@ -208,9 +208,19 @@ An evaluation, not a feature. Compare the available voices, including lower-pitc
 **Today.** `tiktok_settings.video_made_with_ai` is on for every post, and `docs/compliance.md` gave AI voiceover as the reason. TikTok's 2026-H2 guidelines exempt generic TTS narration.
 
 **Design.**
-- Correct the compliance row (done in this PR as a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
+- Correct the compliance row (the row carries a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
 - Optionally add a bounded AI-role statement to the profile bio or the caption template, behind a config key. It must describe the real process: here an LLM writes the whole script, a person curates the topic pool and keywords, and no person edits each video, so a line like "researched and edited by a person" would be false. The study behind the idea found the label penalty disappears when AI's role is limited (polishing, a first draft) and persists when AI writes the whole piece, so a truthful statement helps only to the extent a person really reviews each video.
 - Inspect a rendered file with `exiftool` or a C2PA reader for SynthID or C2PA metadata carried through from the TTS audio, and record whether it survives the mux.
 
 **Reach test.** The label changes reach for both arms, so the config change waits for the readout.
+
+## Specs from the tutorial research (#559, #560, #561)
+
+The designs are in the issue bodies, from `docs/tutorial-video-best-practices.md` sections 2 and 8-10; this section records how they fit the rules above.
+
+- **#559 Sourced step list.** The topic script step first returns a structured list (action, exact UI path, expected result, source URL per step), validated like the other LLM outputs; the script is written from it and its length follows the step count. A step with no source is refused and a topic that cannot be sourced is dropped. Behind `topic_scripts.step_list.enabled` (default false).
+- **#560 A visual per step.** Visual planning moves from one keyword search over the script to one plan per step, timed from the Whisper word timings. Source order: a real capture, a UI mockup with exact labels, a diagram, and stock only for the opening symptom. Behind `video_settings.step_visuals.enabled` (default false).
+- **#561 Explanatory graphics.** HTML and CSS templates rendered to transparent images in the existing Chromium and composited with FFmpeg overlays, from a validated JSON spec; one graphic at a time, every graphic tied to a script fact, a DOM overflow and safe-zone check, and a failed graphic skipped. Behind `video_settings.graphics.enabled` (default false).
+
+Each gains a check in `tests/test_reach_test_holdout.py` when it lands.
 

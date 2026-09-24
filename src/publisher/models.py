@@ -1434,8 +1434,7 @@ class TikTokContentSettings:
     # `synthetic_media_disclosure` defaults off.
     #
     # Disclosing is also the cheaper error. TikTok reads C2PA credentials and
-    # auto-labels undisclosed AI content, and an auto-flag suppresses
-    # distribution; self-disclosure keeps reach. Enforcement escalates from a
+    # auto-labels undisclosed AI content, and enforcement escalates from a
     # warning to a posting restriction to a ban.
     video_made_with_ai: bool = True
 

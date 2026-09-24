@@ -3,8 +3,8 @@
 The sound-on layer for short-form vertical promotional video. The
 [promotional-video-best-practices.md](promotional-video-best-practices.md)
 doc covers design for muted viewers. This doc covers the audio track,
-which reaches most TikTok viewers (93% keep sound on, in TikTok and Kantar
-data from 2020-2021; muted viewing is more common elsewhere) and which
+which reaches most TikTok viewers (93% of US users spend time with sound on,
+in TikTok's own 2020 data; muted viewing is more common elsewhere) and which
 TikTok's speech indexing reads even when a viewer has the sound off.
 
 **Audience**: 30-60 second 9:16 vertical product videos for TikTok, Instagram

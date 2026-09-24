@@ -62,7 +62,7 @@ Complements 1.10: that item varies the content dimensions, this one adds human t
 
 ### 1.12 Motion on every still
 
-TikTok's feed standards list static images as low-quality content, and the settle-zoom covers only the first image. Slow, varied, jitter-free motion on every still, drawn per product. Off by default until the reach test reads out. Tracked in #542.
+YouTube's inauthentic-content policy names image slideshows and TikTok's Creator Rewards criteria name slide videos, and the settle-zoom covers only the first image. Slow, varied, jitter-free motion on every still, drawn per product. Off by default until the reach test reads out. Tracked in #542.
 
 **Done when:** a still-image profile renders motion on every still, varied between products, with the default unchanged.
 
@@ -74,7 +74,7 @@ Three audio-side techniques from the creator research (`docs/creator-research.md
 
 ### 1.14 Remove AI-slop signals
 
-Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made, and every platform's originality rule names the slideshow-plus-narration shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
+Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made, YouTube's inauthentic-content policy names image slideshows, and TikTok's Creator Rewards criteria name slide videos, the shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
 
 **Done when:** each item is enabled on measured results or left off with the reason recorded, and the TikTok label decision is written down.
 
@@ -109,6 +109,12 @@ Smaller than it sounds: the producer already falls back to the title when no pro
 Deliberately not a content-source abstraction. There is one live source today; add the second directly and let a third reveal the seam worth abstracting.
 
 **Done when:** `--topic "how to fix X"` (or an equivalent input file) produces a rendered, publishable video with no scraper run and no product directory.
+
+### 2.5 Useful tutorials
+
+Topic renders read as generic: the picture rarely shows the step being spoken, and the advice is what most viewers already know. Research in `docs/tutorial-video-best-practices.md` sections 2 and 8-10. Scripts built from a sourced step list and sized by step count (#559), a visual per step timed to its narration (#560), and templated explanatory graphics (#561). Output changes ship off until the reach test reads out.
+
+**Done when:** a topic render shows each step as it is spoken, carries sourced steps and a length set by their count, and uses graphics that encode script facts, enabled on measured results.
 
 ## Phase 3 — Conversion infrastructure (Now/Next)
 
@@ -216,7 +222,7 @@ Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a n
 
 Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
 
-Scope note, corrected: since July 2026 YouTube accepts custom Shorts thumbnails on desktop for Partner Program channels, shown in search, the channel page and home but not in the swipe feed. Whether the publishing provider exposes that field is open. Instagram's profile grid crops covers to 3:4, so the headline belongs in the centred 3:4 area. The first frame stays the main lever in the feed, which is why it carries the hook. Tracked in #552.
+Scope note, corrected: since July 2026 YouTube accepts custom Shorts thumbnails from Partner Program channels; the swipe feed autoplays the video, so the thumbnail matters off-feed. Whether the publishing provider exposes that field is open. Instagram's profile grid crops covers to 3:4, so the headline belongs in the centred 3:4 area. The first frame stays the main lever in the feed, which is why it carries the hook. Tracked in #552.
 
 **Done when:** every render produces a cover image and the publish payload sets it as the poster on the platforms that accept one.
 
@@ -354,7 +360,7 @@ Concrete gates for the 1.0.0 release:
 
 **Roadmap items in scope for 1.0.0**
 - All Phase 0 items shipped (compliance baseline; gating).
-- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.11, 1.12, 1.13, 1.14, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
+- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.4, 1.8, 1.11, 1.12, 1.13, 1.14, 2.5, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
 - At least half of the Phase 4 items shipped or in review.
 - Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
 

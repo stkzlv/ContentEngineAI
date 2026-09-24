@@ -90,12 +90,14 @@ generic feel: a one-step shortcut gets padded and a six-step fix gets cut.
 
 The evidence behind the bands (the bands themselves are an inference, grade C):
 
-- **Short holds attention (A).** Across 6.9 million edX sessions, median
-  engagement was near 100% for videos under 6 minutes and fell sharply after.
+- **Short holds attention (A, correlational).** Across 6.9 million edX
+  sessions, median engagement time was at most about 6 minutes whatever the
+  video's length, and in the shortest videos three quarters of sessions
+  watched more than 75%.
   https://dl.acm.org/doi/10.1145/2556325.2566239
 - **Tutorial viewers take what they need and leave (A).** In the same study,
   viewers watched 2-3 minutes of a tutorial regardless of its length,
-  re-watched more than lectures, and paused at step boundaries. Length matters
+  and re-watched them more than lectures. Length matters
   less than being able to find the step. These were motivated learners, not
   feed scrollers, so treat the numbers as an upper bound on patience.
 - **Fast speech is fine (A).** Engagement rose with speaking rate; viewers
@@ -281,14 +283,17 @@ applied to a 30-90 s video:
 | Segmenting | 0.70 | One step per visual segment, with a counter ("2/4") |
 | Signaling | 0.46 | Highlight the control being tapped |
 | Pre-training | 0.46 | Name the starting place first ("everything is in Settings, Battery") |
+| Voice | 0.74 | Human voices beat machine voices in the studies reviewed, which predate modern TTS |
 
 Beyond the table:
 
 - **Show the task done, then recap it (A, small sample).** Demonstration
-  tutorials built procedural skill, and a short recap beat demonstration alone.
+  tutorials built procedural skill, and a short recap beat demonstration alone
+  (van der Meij 2016, https://doi.org/10.1007/s11251-016-9394-9).
   In a Short the recap is the last 2-3 s: the whole path on one card.
 - **First-person view, not a presenter (A).** Showing an instructor did not
-  improve learning; showing the task as the viewer sees it did. Faceless is not
+  improve learning; showing the task as the viewer sees it did (Fiorella and
+  Mayer 2018, https://doi.org/10.1016/j.chb.2018.07.015). Faceless is not
   the problem.
 - **Be specific (C).** An exact menu path plus the device and OS version, said
   once and shown on screen, is what separates a tutorial from advice and makes
@@ -330,16 +335,17 @@ End on the result, then a 2-3 s recap card with the full path. Tracked in
 
 Yes, when the graphic explains; no when it decorates.
 
-- **Signaling works (A).** Arrows, highlights and labels: d = 0.52 in Mayer's
-  lab, g of about 0.38 across a meta-analysis of 29 studies.
+- **Signaling works (A).** Arrows, highlights and labels: d = 0.46 in Mayer's
+  2017 review, and positive across a meta-analysis of 29 studies.
   https://link.springer.com/article/10.1007/s11423-020-09748-7
 - **Animation beats static pictures, most for procedures (A).** d = 0.37
   overall and d = 1.06 for procedural-motor knowledge, larger when the
   animation shows the content itself rather than decorating it. "Tap here,
   then here" is procedural. https://www.sciencedirect.com/science/article/abs/pii/S0959475207001077
-- **Keep each graphic short and single (A).** Animation loses its advantage on
-  long sections because working memory overloads: one idea per graphic, on
-  screen long enough to read.
+- **Keep each graphic short and single (A).** Animation's advantage shrinks
+  on long sections because transient information overloads working memory
+  (Wong et al. 2012, https://eric.ed.gov/?id=EJ978021): one idea per graphic,
+  on screen long enough to read.
 - **Build-on drawing beats static slides (B).** In the edX data, continuously
   drawn tutorials were more engaging than slides or screencasts.
 - **Decorative graphics hurt (A).** Interesting but irrelevant material lowers

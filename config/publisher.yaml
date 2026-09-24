@@ -395,8 +395,8 @@ synthetic_media_disclosure: false
 # Whether to keep it on is #558; it stays on until that is decided.
 #
 # Disclosing is also the cheaper error: TikTok reads C2PA credentials and
-# auto-labels undisclosed AI content, an auto-flag suppresses distribution,
-# and enforcement escalates from a warning to a posting restriction to a ban.
+# auto-labels undisclosed AI content, and enforcement escalates from a warning
+# to a posting restriction to a ban.
 #
 # A single unknown key discards the whole block back to defaults, with a
 # warning. Keep it minimal.
