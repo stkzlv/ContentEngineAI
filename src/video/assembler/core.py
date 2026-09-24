@@ -782,22 +782,13 @@ class VideoAssembler:
                     "affiliate content to disclose"
                 )
 
-            # Add audio inputs to command
-            num_visual_inputs = input_cmd_parts.count("-i")
-            voiceover_input_idx, music_input_idx = (
-                self.audio_builder.prepare_audio_inputs(
-                    input_cmd_parts,
-                    voiceover_audio_path,
-                    music_track_path,
-                    num_visual_inputs,
-                )
-            )
-
-            # Build audio processing filters
-            audio_filters, final_audio_label = self.audio_builder.build_audio_filters(
-                voiceover_input_idx,
-                music_input_idx,
+            # Audio inputs and the mix, the sting included
+            audio_filters, final_audio_label = await self.audio_builder.build_mix(
+                input_cmd_parts,
+                voiceover_audio_path,
+                music_track_path,
                 total_video_duration,
+                self.media_inspector,
             )
 
             # FFmpeg writes here, not to the finished name. A killed encode

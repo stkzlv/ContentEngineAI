@@ -550,6 +550,10 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # the loss is permanent for that product.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("cta"):
         step_state["cta"] = ctx.state["cta"]
+    # The drawn sign-off, for the same reason: the first-comment extractor
+    # reads it to strip the sign-off before taking the closing beat.
+    if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("signoff"):
+        step_state["signoff"] = ctx.state["signoff"]
     # Why a subtitle step legitimately produced nothing: subtitles switched
     # off in config, or the engine was unavailable and the policy is to skip.
     # Without it, verification cannot tell either from a step that produced

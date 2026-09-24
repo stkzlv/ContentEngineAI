@@ -72,6 +72,8 @@ if TYPE_CHECKING:
     from src.ai.platform_metadata.youtube import YouTubeMetadataGenerator
     from src.scraper.amazon.models import ProductData
 
+from src.utils.script_signoff import drop_signoff, recorded_signoff
+
 logger = logging.getLogger(__name__)
 
 _EXPORTS: dict[str, str] = {
@@ -147,6 +149,9 @@ def _read_video_script(
         return None
     try:
         text = Path(script_path).read_text(encoding="utf-8").strip()
+        # The caption prompts mirror "the line right before the CTA"; with an
+        # author sign-off that line is the sign-off, so it is removed here.
+        text = drop_signoff(text, recorded_signoff(Path(script_path).parent))
         return text or None
     except OSError as e:
         logger.warning(

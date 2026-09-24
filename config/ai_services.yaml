@@ -289,6 +289,15 @@ llm_settings:
     # reach test runs: it changes the treatment arm's script.
     naturalism:
       intensity: 0
+    # Recurring author signature: each pool is drawn per product at use_rate,
+    # independently. The opener starts the first sentence, the transition is
+    # used once mid-script, the sign-off is spoken right before the CTA. Empty
+    # pools = off, and held off while the reach test runs.
+    signature:
+      use_rate: 0.5
+      openers: []
+      transitions: []
+      signoffs: []
 
     # Templates used when the record came from a topic rather than a scraped
     # product. These replace the pool rather than narrowing it: every other

@@ -27,3 +27,9 @@ def test_the_selected_voice_keeps_uniform_pauses() -> None:
     selected = list(tts.voice_profile_pool) or [tts.default_voice_profile]
     for name in selected:
         assert tts.voice_profiles[name].pause_plan is None, name
+
+
+def test_the_author_signature_is_off() -> None:
+    config = load_video_config_modular()
+    assert not config.llm_settings.script_templates.signature.configured
+    assert config.audio_settings.signature_sting is None

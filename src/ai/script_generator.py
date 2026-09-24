@@ -20,6 +20,7 @@ import logging
 import random
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 import aiohttp
@@ -33,7 +34,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.ai.llm_settings import MIN_PHRASE_WORDS, LLMSettings
+from src.ai.llm_settings import MIN_PHRASE_WORDS, LLMSettings, SignatureConfig
 from src.ai.model_pool import (
     discover_any_free_model,
     fetch_and_select_model,
@@ -260,13 +261,89 @@ def render_naturalism_rule(intensity: int) -> str:
     )
 
 
-def render_ending_rules(cta_line: str, is_topic: bool, naturalism: int) -> str:
-    """Everything `{CTA_RULE}` carries: the CTA rule, then naturalism."""
+@dataclass(frozen=True)
+class SignatureChoice:
+    """The signature elements one render uses; "" where none was drawn."""
+
+    opener: str = ""
+    transition: str = ""
+    signoff: str = ""
+
+
+def select_signature(
+    signature: SignatureConfig, product_id: str | None
+) -> SignatureChoice:
+    """Draw each signature element for a product, deterministically.
+
+    One salted draw per element, so whether a render opens with the tic says
+    nothing about whether it signs off, and a product gets the same choice on
+    every run. No product id means no signature rather than a random one,
+    which would make the render irreproducible.
+    """
+    if not product_id or not signature.configured:
+        return SignatureChoice()
+
+    def draw(element: str, pool: list[str]) -> str:
+        if not pool:
+            return ""
+        digest = hashlib.md5(
+            f"{product_id}:signature:{element}".encode(), usedforsecurity=False
+        )
+        rng = random.Random(int(digest.hexdigest()[:8], 16))  # noqa: S311
+        return rng.choice(pool) if rng.random() < signature.use_rate else ""
+
+    return SignatureChoice(
+        opener=draw("opener", signature.openers),
+        transition=draw("transition", signature.transitions),
+        signoff=draw("signoff", signature.signoffs),
+    )
+
+
+def render_signature_rules(choice: SignatureChoice) -> str:
+    """One rule per drawn element; nothing for an empty choice.
+
+    Each rule names its own position. The opener joins the first sentence
+    rather than standing alone, so that sentence still carries the spoken
+    search phrase. The sign-off is a whole sentence between the closing beat
+    and the call to action, so the CTA stays the verbatim last sentence and
+    the first-comment extractor, told the sign-off, can strip it.
+    """
+    rules = []
+    if choice.opener:
+        rules.append(
+            f'- **Start the first sentence with the words "{choice.opener},"** '
+            "and continue that same sentence with the hook the template asks "
+            "for."
+        )
+    if choice.transition:
+        rules.append(
+            f'- **Use the phrase "{choice.transition}" once,** where the script '
+            "turns from the problem to what helps, never in the first sentence "
+            "or the last two."
+        )
+    if choice.signoff:
+        rules.append(
+            "- **The sentence directly before the call to action is this "
+            f'sign-off, word for word:** "{choice.signoff}" It comes after the '
+            "closing beat, and nothing else sits between it and the call to "
+            "action."
+        )
+    return "\n".join(rules)
+
+
+def render_ending_rules(
+    cta_line: str,
+    is_topic: bool,
+    naturalism: int,
+    signature: SignatureChoice | None = None,
+) -> str:
+    """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature."""
     return "\n".join(
         rule
         for rule in (
             render_cta_rule(cta_line, is_topic=is_topic),
             render_naturalism_rule(naturalism),
+            render_signature_rules(signature or SignatureChoice()),
         )
         if rule
     )
@@ -861,6 +938,7 @@ async def generate_script(
                 cta_line,
                 is_topic,
                 settings.script_templates.naturalism.intensity,
+                select_signature(settings.script_templates.signature, product_id),
             ),
         )
     except (FileNotFoundError, ValueError) as e:

@@ -15,6 +15,7 @@ sits below the target is pushed up relative to the feed around it.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from src.video.config import VideoConfig
 
@@ -37,6 +38,86 @@ class AudioFilterBuilder:
 
         """
         self.config = config
+
+    def sting_path(self) -> Path | None:
+        """The configured sting file, or None when unset or missing.
+
+        A missing file warns and mixes nothing: an identity mark is not worth
+        losing a render over.
+        """
+        sting = self.config.audio_settings.signature_sting
+        if sting is None:
+            return None
+        if not sting.path.is_file():
+            logger.warning("Signature sting %s not found; mixing none", sting.path)
+            return None
+        return sting.path
+
+    def prepare_sting_input(
+        self, input_cmd_parts: list[str], sting_path: Path | None
+    ) -> int | None:
+        """Add the sting as the next input and return its index."""
+        if sting_path is None:
+            return None
+        index = input_cmd_parts.count("-i")
+        input_cmd_parts.extend(["-i", str(sting_path)])
+        return index
+
+    def sting_delay_sec(self, sting_duration: float, voice_end: float) -> float:
+        """When the sting starts, by its configured position.
+
+        Placed against the end of the narration, not of the video: the mix
+        lasts as long as its first input (`audio_mix_duration: "first"`, the
+        voiceover), and the video runs an outro past it, so a sting placed
+        against the video's end played in the outro and was cut to silence.
+        """
+        sting = self.config.audio_settings.signature_sting
+        if sting is None:
+            return 0.0
+        latest = max(0.0, voice_end - sting_duration)
+        if sting.position == "end":
+            return max(0.0, latest - sting.offset_sec)
+        return min(sting.offset_sec, latest)
+
+    async def build_mix(
+        self,
+        input_cmd_parts: list[str],
+        voiceover_audio_path: Path | None,
+        music_track_path: Path | None,
+        total_video_duration: float,
+        media_inspector: Any,
+    ) -> tuple[list[str], str]:
+        """Add the audio inputs and build the whole mix, the sting included.
+
+        The one entry point the assembler calls, so the sting's input index,
+        its placement and the filter that mixes it cannot be wired in one
+        place and dropped in another.
+        """
+        voiceover_idx, music_idx = self.prepare_audio_inputs(
+            input_cmd_parts,
+            voiceover_audio_path,
+            music_track_path,
+            input_cmd_parts.count("-i"),
+        )
+        sting_path = self.sting_path()
+        sting_idx = self.prepare_sting_input(input_cmd_parts, sting_path)
+        delay = 0.0
+        if sting_path is not None:
+            voice_end = (
+                await media_inspector.get_media_duration(voiceover_audio_path)
+                if voiceover_audio_path
+                else total_video_duration
+            ) or total_video_duration
+            delay = self.sting_delay_sec(
+                await media_inspector.get_media_duration(sting_path), voice_end
+            )
+        return self.build_audio_filters(
+            voiceover_idx,
+            music_idx,
+            total_video_duration,
+            sting_input_idx=sting_idx,
+            sting_delay_sec=delay,
+        )
 
     def prepare_audio_inputs(
         self,
@@ -78,6 +159,8 @@ class AudioFilterBuilder:
         voiceover_input_idx: int | None,
         music_input_idx: int | None,
         total_video_duration: float,
+        sting_input_idx: int | None = None,
+        sting_delay_sec: float = 0.0,
     ) -> tuple[list[str], str]:
         """Build audio processing filters for FFmpeg.
 
@@ -86,6 +169,8 @@ class AudioFilterBuilder:
             voiceover_input_idx: Index of voiceover input in FFmpeg command
             music_input_idx: Index of music input in FFmpeg command
             total_video_duration: Target video duration for fade calculations
+            sting_input_idx: Index of the signature sting input, if any
+            sting_delay_sec: When the sting starts, from `sting_delay_sec()`
 
         Returns:
         -------
@@ -136,6 +221,17 @@ class AudioFilterBuilder:
                 f"[a_music_ducked]"
             )
             audio_to_mix = ["[a_voice_mix]", "[a_music_ducked]"]
+
+        # The sting joins the mix after the duck, so the duck never keys on
+        # it, and before `loudnorm`, so it is mastered with the programme.
+        sting = audio_settings.signature_sting
+        if sting_input_idx is not None and sting is not None:
+            delay_ms = int(round(sting_delay_sec * 1000))
+            audio_filters.append(
+                f"[{sting_input_idx}:a]volume={sting.volume_db}dB,"
+                f"adelay={delay_ms}:all=1[a_sting]"
+            )
+            audio_to_mix.append("[a_sting]")
 
         if not audio_to_mix:
             return audio_filters, ""

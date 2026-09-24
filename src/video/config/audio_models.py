@@ -3,7 +3,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -27,6 +27,23 @@ class AudioProviderConfig(BaseModel):
     name: str
     enabled: bool = True
     settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class SignatureSting(BaseModel):
+    """A short recurring audio mark mixed into every render.
+
+    Mixed through the same `amix` and `loudnorm` as the music bed, so it is
+    mastered with the rest of the programme. `start` places it `offset_sec`
+    into the narration; `end` places it so it finishes `offset_sec` before
+    the narration ends, under the closing line.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    path: Path
+    position: Literal["start", "end"] = Field("start")
+    offset_sec: float = Field(0.0, ge=0.0)
+    volume_db: float = Field(-6.0, le=6.0)
 
 
 class AudioSettings(BaseModel):
@@ -63,6 +80,8 @@ class AudioSettings(BaseModel):
     output_audio_bitrate: str = Field("192k")
     music_fade_in_duration: float = Field(2.0)
     music_fade_out_duration: float = Field(3.0)
+    # Recurring audio identity mark. None (the default) mixes nothing.
+    signature_sting: SignatureSting | None = Field(None)
 
     # Voice-keyed ducking. `sidechaincompress` attenuates the music while
     # narration plays and lets it back up in the gaps, instead of holding one

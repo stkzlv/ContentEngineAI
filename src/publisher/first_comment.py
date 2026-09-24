@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from src.publisher.models import FirstCommentConfig
 
 from src.utils.script_sanitizer import split_sentences
+from src.utils.script_signoff import normalise, recorded_signoff
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ _CTA_MARKERS = (
 )
 
 
-def extract_closing_line(script: str) -> str | None:
+def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
     """Return the script's engagement-bait closing beat, or None.
 
     Every template closes with the engagement-bait beat immediately before one
@@ -59,6 +60,10 @@ def extract_closing_line(script: str) -> str | None:
     Selecting on punctuation instead would be wrong. Question-led templates open
     with rhetorical questions in the body, so "the last question in the script"
     reaches back past the closing beat and pulls one of those out mid-script.
+
+    A render with an author sign-off speaks it between the closing beat and
+    the CTA, so the recorded `signoff` is stripped next; otherwise the first
+    comment would be the sign-off.
     """
     if not script or not script.strip():
         return None
@@ -72,6 +77,8 @@ def extract_closing_line(script: str) -> str | None:
         sentences[-1].lower().lstrip("\"'\u201c\u2018 ").startswith(m)
         for m in _CTA_MARKERS
     ):
+        sentences.pop()
+    if signoff and sentences and normalise(sentences[-1]) == normalise(signoff):
         sentences.pop()
     return sentences[-1] if sentences else None
 
@@ -138,9 +145,15 @@ def build_first_comment(
 
     closing_line = ""
     if "{closing_line}" in template:
-        script_path = outputs_dir / product_id / "temp" / "script.txt"
+        temp_dir = outputs_dir / product_id / "temp"
+        script_path = temp_dir / "script.txt"
         try:
-            closing_line = extract_closing_line(script_path.read_text("utf-8")) or ""
+            closing_line = (
+                extract_closing_line(
+                    script_path.read_text("utf-8"), recorded_signoff(temp_dir)
+                )
+                or ""
+            )
         except OSError as e:
             logger.warning("Could not read script for %s: %s", product_id, e)
         if not closing_line:
