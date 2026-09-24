@@ -366,12 +366,14 @@ the FTC `#ad` overlay above.
   (`config/publisher.yaml::synthetic_media_disclosure`). Turn it on for output
   that does meet the bar — AI-generated music, or AI-generated footage of a
   real place.
-- **TikTok**: TikTok requires a label on realistic AI content and on
-  AI-generated speech, including a TTS voiceover, which every render here
-  carries (see `docs/compliance.md`). It reads C2PA credentials. Since November 2025 viewers can choose to see less AI content,
-  so a labelled video reaches fewer viewers, and a study of about a million
-  posts found disclosure cut engagement by 7-8%. The label is still mandatory
-  where it applies. The
+- **TikTok**: TikTok requires a label for AI or edits that show realistic
+  people or scenes, and for audio that mimics a real person. Its 2026-H2
+  guidelines say generic TTS narration needs no disclosure, so this
+  pipeline's renders (real product photos and stock footage, a generic TTS
+  voice) are not required to carry it; whether to keep it on voluntarily is
+  #558. It reads C2PA credentials. Since November 2025 viewers can choose to
+  see less AI content, so a labelled video reaches fewer viewers, and a study
+  of about a million posts found disclosure cut engagement by 7-8%. The
   publisher sets this flag on every TikTok payload, on by default,
   configurable at `config/publisher.yaml::tiktok_settings.video_made_with_ai`.
   No manual per-render step is needed, and the setting applies on every

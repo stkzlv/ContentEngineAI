@@ -1,6 +1,6 @@
 # Creator Techniques: Technical Specs
 
-The technical design for each requirement drawn from [creator-research.md](creator-research.md). The requirements themselves are in [requirements.md](requirements.md), marked `(planned, #N)`. One section per issue.
+The technical design for each requirement drawn from [creator-research.md](creator-research.md) and [ai-slop-research.md](ai-slop-research.md). The requirements themselves are in [requirements.md](requirements.md), marked `(planned, #N)`. One section per issue.
 
 ## Rules that apply to every spec
 
@@ -157,3 +157,60 @@ The technical design for each requirement drawn from [creator-research.md](creat
 **Tests.** Every render writes a cover of the right size with the headline inside the 3:4 area; the payload carries it where supported.
 
 **Reach test.** The cover does not change the feed video, but it changes the profile grid and search presentation for both arms equally, so it can land before the readout if the payload change is verified on one post first.
+
+## Specs from the AI-slop research
+
+The sections below come from [ai-slop-research.md](ai-slop-research.md), which found that looking fully automated is itself the penalty. The same rules apply: off by default when output changes, byte-identical when off, recorded per render.
+
+## #554 Prefer clean product images over seller infographics
+
+**Today.** The producer uses the downloaded listing images in listing order (`step_gather_visuals` reads `downloaded_images`). Most are marketing composites with dense text, and captions and the hook headline are drawn over them.
+
+**Design.**
+- `video_settings.image_curation`: `enabled` (default false), `max_text_share` (default 0.15), `min_clean_images` (default 3).
+- Score each image once after download with the multimodal judge the stock-relevance step already uses (`src/video/stock_relevance.py`): one call per image asking for the share of the frame covered by overlaid text and whether it is a composite. Cache the score beside the image, so a re-render pays nothing. A failed judgement is unknown and sorts after known scores, the stock judge's rule.
+- Order images clean first. Drop images above `max_text_share` while at least `min_clean_images` remain; otherwise keep the least text-heavy ones.
+- When the listing has a product video and the profile accepts video, prefer it over stills.
+- Record the per-image scores and the chosen order in the state.
+
+**Tests.** A fixture set with known scores is reordered clean first and trimmed only above the minimum; a failed judgement never removes an image; off leaves today's order.
+
+**Enable when.** A side-by-side review of renders with and without it prefers the curated set, and swipe-away (#551) is no worse.
+
+## #555 Do not reuse stock clips across recent renders
+
+**Today.** Stock candidates come from the provider search and the relevance judge with no memory of earlier renders.
+
+**Design.**
+- A small append-only store under `outputs/state/` of `(stock_id, product_id, used_at)`, written when a render finishes, outside the product directory so cleanup does not remove it.
+- Before judging, drop candidates used within `stock_reuse_window` renders (default 30). If fewer than the needed count remain, fill from the dropped set, least recently used first, and log it.
+- `stock_reuse_guard.enabled` (default false). It changes which clips the topic arm shows, and the protocol holds each arm's visuals constant, so it ships off until the readout. The id store can record from day one, so the window is full when the guard is switched on.
+
+**Tests.** A candidate used within the window is excluded; the fallback fills from the least recently used; the store survives a product directory's deletion; off records ids but leaves the candidate pool as today.
+
+## #556 Normalise numbers, units and model names before TTS
+
+**Today.** The sanitised script goes to the voice unchanged.
+
+**Design.**
+- A probe (a sibling of `tools/tts_tag_probe.py`) voices a fixed list of strings (`5000mAh`, `65W`, `2.4 GHz`, `1.83-inch`, `USB-C`, `IP68`, a SKU) and records the transcript, so misreadings are measured before anything is rewritten.
+- A `tts_normalisation` table in config: unit spellings applied only after a number (`mAh` to "milliamp hours", `W` to "watts", `GHz` to "gigahertz"), decimal and range handling, and a small lexicon for brand and model terms. Applied in `TTSManager.generate_speech` to the text sent to the provider only; the script file, captions and state keep the written form, and captions come from Whisper on the audio, so spoken forms appear there as heard.
+- Only entries the probe shows are misread go in the table.
+
+**Tests.** Each table entry rewrites its fixture and leaves unit letters inside ordinary words alone ("Watch" stays "Watch"); the script file is unchanged; off sends today's text.
+
+## #557 Evaluate a distinctive or owned narrator voice
+
+An evaluation, not a feature. Compare the available voices, including lower-pitched ones, with the #439 pauses and the #545 chain, in a blind listening test on three scripts. Separately, record whether a clone of the operator's own voice is possible through the TTS providers in use, its cost, and each platform's rule for it (YouTube exempts an owned-voice clone from disclosure). The output is a recorded decision; a voice change waits for the readout.
+
+## #558 Revisit the TikTok AI label
+
+**Today.** `tiktok_settings.video_made_with_ai` is on for every post, and `docs/compliance.md` gave AI voiceover as the reason. TikTok's 2026-H2 guidelines exempt generic TTS narration.
+
+**Design.**
+- Correct the compliance row (done in this PR as a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
+- Optionally add a bounded AI-role statement (for example "Voiced with AI. Researched and edited by a person.") to the profile bio or the caption template, behind a config key, since research found such a statement removes the penalty a bare label creates.
+- Inspect a rendered file with `exiftool` or a C2PA reader for SynthID or C2PA metadata carried through from the TTS audio, and record whether it survives the mux.
+
+**Reach test.** The label changes reach for both arms, so the config change waits for the readout.
+

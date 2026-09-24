@@ -180,6 +180,7 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Sparse sound effects can mark a few beats (a transition, the reveal, the call to action), drawn per product from a pool, capped per second and mastered with the rest of the mix. Off by default. (planned, #544)
 - Visual cuts can snap to the nearest beat of the music within a small window without breaking caption sync. Off by default. (planned, #546)
 - Every render can produce a cover image, the hero visual plus the hook headline inside the centred 3:4 area, set on each platform that accepts one. (planned, #552)
+- Product renders can prefer clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist, and prefer a listing's product video over stills. Off by default. (planned, #554)
 
 ### Image Positioning
 - Width as percentage of frame (default 100%)
@@ -272,6 +273,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Deriving the phrases never blocks a render: no key, a provider failure, or an unusable answer leaves the existing search terms in place
 - Fetching is resilient: a provider failure degrades the visual pool rather than failing the render
 - A missing provider key is caught at startup rather than mid-render, naming the variable and the profiles that need it, but only for profiles where stock is the whole visual layer. A profile that also draws scraped media degrades as above and still renders, so refusing it would block a working configuration
+- A stock clip or image used in a recent render can be excluded while alternatives exist; the ids each render uses are recorded so the rule survives cleanup. Off by default. (planned, #555)
 
 ### Topic Input
 - A video can be produced from a topic (a title, a description, optional search terms) with no scraper run and no product directory
@@ -334,6 +336,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - CLI override forces a specific profile for one-off runs
 - Profile metadata (profile name and selected voice) recorded in pipeline output for traceability
 - An optional processing chain (filtering, gentle compression, de-essing, limiting) can treat the voiceover before the mix without changing its loudness target or its transcript, and the voice and chain are recorded per render. Off by default. (planned, #545)
+- Numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only, while scripts and captions keep the written form. (planned, #556)
 
 ### Stock Background Music
 - Pluggable audio provider platform: `BaseAudioProvider` ABC with registry and factory pattern
@@ -446,6 +449,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - Reading a post's status or listing posts tolerates a published leg that reports no platform URL (some platforms return none), so status checks, first-comment verification, slot-occupancy detection, and media cleanup keep working instead of failing on such a post.
 - Per-platform delivery is verifiable after posts go live: a sweep over recent posts flags any whose delivery is incomplete (top status `partial`, or a platform leg that failed) and reports the failing platform with its error. This catches a silently-dropped leg that the scheduling service reports without surfacing.
 - Product videos publish to YouTube with a short written title within the configured maximum rather than the store listing title, and every platform's hashtag range respects that platform's cap. (planned, #550)
+- AI disclosure follows each platform's current rule, recorded with its source, and a label beyond what the rule requires is a documented, voluntary choice; an optional statement can say what AI did and what a person did. (planned, #558)
 
 ### Per-Platform Profile Routing
 - Optional mapping from platform to video profile so the publisher uploads a platform-tailored render per platform (e.g., the short hook-iteration cut for YouTube, the longer cut for TikTok and Instagram).

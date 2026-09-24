@@ -98,9 +98,9 @@ at actually teaching: stock shows a person near a laptop, not the setting you
 are telling them to change.
 
 **Generated visuals**, which can depict a specific state but need a
-generation step and carry platform AI-disclosure obligations. On TikTok every
-render is already labelled for its AI voiceover, and the label narrows reach
-slightly (see creator-research.md section 1).
+generation step and, when they look realistic, carry platform
+AI-disclosure obligations. On TikTok a label narrows reach slightly (see
+creator-research.md section 1); generic TTS narration alone needs none.
 
 **Screen recordings**, which are what tutorials actually want, because the
 instruction and the visual are the same artifact. They also conflict hardest

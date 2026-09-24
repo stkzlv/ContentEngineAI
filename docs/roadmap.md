@@ -72,6 +72,12 @@ Three audio-side techniques from the creator research (`docs/creator-research.md
 
 **Done when:** each option renders as specified in `docs/creator-techniques-spec.md`, and a batch comparison decides which to enable.
 
+### 1.14 Remove AI-slop signals
+
+Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made, and every platform's originality rule names the slideshow-plus-narration shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
+
+**Done when:** each item is enabled on measured results or left off with the reason recorded, and the TikTok label decision is written down.
+
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
 Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/cli.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
@@ -348,7 +354,7 @@ Concrete gates for the 1.0.0 release:
 
 **Roadmap items in scope for 1.0.0**
 - All Phase 0 items shipped (compliance baseline; gating).
-- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.11, 1.12, 1.13, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
+- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.11, 1.12, 1.13, 1.14, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
 - At least half of the Phase 4 items shipped or in review.
 - Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
 
