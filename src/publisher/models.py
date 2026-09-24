@@ -1427,14 +1427,11 @@ class TikTokContentSettings:
     is_brand_organic_post: bool = True
     content_preview_confirmed: bool = True
     express_consent_given: bool = True
-    # TikTok's AI-generated-content label. On by default, unlike YouTube's
-    # synthetic-media disclosure, because the two platforms draw the line in
-    # different places and this pipeline lands on opposite sides of it.
-    # TikTok requires the label for AI-generated speech and says so
-    # explicitly, extending it to AI voiceover even when the footage is real;
-    # every render here carries an AI TTS voiceover. YouTube lists cloning
-    # one's own voice for voiceover as *not* requiring disclosure, which is
-    # why `synthetic_media_disclosure` defaults off.
+    # TikTok's AI-generated-content label. On by default. TikTok's 2026-H2
+    # guidelines exempt generic TTS narration, which is all this pipeline
+    # uses, so the label is voluntary here; whether to keep it is #558.
+    # YouTube needs no disclosure for AI narration either, which is why
+    # `synthetic_media_disclosure` defaults off.
     #
     # Disclosing is also the cheaper error. TikTok reads C2PA credentials and
     # auto-labels undisclosed AI content, and an auto-flag suppresses

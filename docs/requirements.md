@@ -336,7 +336,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - CLI override forces a specific profile for one-off runs
 - Profile metadata (profile name and selected voice) recorded in pipeline output for traceability
 - An optional processing chain (filtering, gentle compression, de-essing, limiting) can treat the voiceover before the mix without changing its loudness target or its transcript, and the voice and chain are recorded per render. Off by default. (planned, #545)
-- Numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only, while scripts and captions keep the written form. (planned, #556)
+- Numbers, units and model names the voice misreads can be rewritten to speakable words in the text sent to TTS only; the script file and state keep the written form, and captions show what the voice said. Off by default. (planned, #556)
 
 ### Stock Background Music
 - Pluggable audio provider platform: `BaseAudioProvider` ABC with registry and factory pattern

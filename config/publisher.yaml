@@ -389,12 +389,10 @@ synthetic_media_disclosure: false
 # block is optional; it is shipped commented so the keys are discoverable.
 #
 # `video_made_with_ai` is TikTok's AI-generated-content label, and it is ON by
-# default -- the opposite of `synthetic_media_disclosure` above. That is not an
-# inconsistency: the two platforms draw the line in different places and this
-# pipeline lands on opposite sides of it. TikTok requires the label for
-# AI-generated speech and extends it to AI voiceover even over real footage,
-# and every render here carries an AI TTS voiceover. YouTube lists cloning
-# one's own voice for voiceover as explicitly NOT requiring disclosure.
+# default. TikTok's 2026-H2 guidelines require it for realistic AI people or
+# scenes and for audio mimicking a real person, and exempt generic TTS
+# narration, which is all this pipeline uses, so the label is voluntary here.
+# Whether to keep it on is #558; it stays on until that is decided.
 #
 # Disclosing is also the cheaper error: TikTok reads C2PA credentials and
 # auto-labels undisclosed AI content, an auto-flag suppresses distribution,

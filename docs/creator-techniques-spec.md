@@ -194,7 +194,7 @@ The sections below come from [ai-slop-research.md](ai-slop-research.md), which f
 
 **Design.**
 - A probe (a sibling of `tools/tts_tag_probe.py`) voices a fixed list of strings (`5000mAh`, `65W`, `2.4 GHz`, `1.83-inch`, `USB-C`, `IP68`, a SKU) and records the transcript, so misreadings are measured before anything is rewritten.
-- A `tts_normalisation` table in config: unit spellings applied only after a number (`mAh` to "milliamp hours", `W` to "watts", `GHz` to "gigahertz"), decimal and range handling, and a small lexicon for brand and model terms. Applied in `TTSManager.generate_speech` to the text sent to the provider only; the script file, captions and state keep the written form, and captions come from Whisper on the audio, so spoken forms appear there as heard.
+- A `tts_normalisation` block in config: `enabled` (default false) and a table: unit spellings applied only after a number (`mAh` to "milliamp hours", `W` to "watts", `GHz` to "gigahertz"), decimal and range handling, and a small lexicon for brand and model terms. Applied in `TTSManager.generate_speech` to the text sent to the provider only; the script file and state keep the written form. Captions come from Whisper on the audio, so they show the spoken form ("5000 milliamp hours").
 - Only entries the probe shows are misread go in the table.
 
 **Tests.** Each table entry rewrites its fixture and leaves unit letters inside ordinary words alone ("Watch" stays "Watch"); the script file is unchanged; off sends today's text.
@@ -209,7 +209,7 @@ An evaluation, not a feature. Compare the available voices, including lower-pitc
 
 **Design.**
 - Correct the compliance row (done in this PR as a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
-- Optionally add a bounded AI-role statement (for example "Voiced with AI. Researched and edited by a person.") to the profile bio or the caption template, behind a config key, since research found such a statement removes the penalty a bare label creates.
+- Optionally add a bounded AI-role statement to the profile bio or the caption template, behind a config key. It must describe the real process: here an LLM writes the whole script, a person curates the topic pool and keywords, and no person edits each video, so a line like "researched and edited by a person" would be false. The study behind the idea found the label penalty disappears when AI's role is limited (polishing, a first draft) and persists when AI writes the whole piece, so a truthful statement helps only to the extent a person really reviews each video.
 - Inspect a rendered file with `exiftool` or a C2PA reader for SynthID or C2PA metadata carried through from the TTS audio, and record whether it survives the mux.
 
 **Reach test.** The label changes reach for both arms, so the config change waits for the readout.
