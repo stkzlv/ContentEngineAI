@@ -6,8 +6,7 @@ caption engine — these recommendations apply whether you use the FFmpeg
 path, the pycaps engine, or render captions in some other tool entirely.
 
 **Audience**: 30-60 second 9:16 vertical product reviews, demos, and ads
-served via TikTok, Instagram Reels, and YouTube Shorts. Watched mostly
-with sound off.
+served via TikTok, Instagram Reels, and YouTube Shorts. Watched with sound on by most TikTok viewers and often muted elsewhere, so every beat must work both ways.
 
 **Related docs**:
 - [subtitle-best-practices.md](subtitle-best-practices.md) — universal
@@ -19,17 +18,20 @@ with sound off.
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer:
   trending audio, voiceover/music mix levels, ducking.
+- [creator-research.md](creator-research.md): graded 2026 evidence on ranking
+  signals, hooks, pacing, endings, engagement bait, originality rules and AI
+  labels. Where the two disagree, the graded doc wins.
 
 ---
 
 ## The 6 promo-video rules that matter (cheat-sheet)
 
-1. **First-3-second hook is a large, legible statement, distinct from the running captions.** 5-8 words, on screen for the full 1.5-3 s, visibly larger than narration captions. The swipe decision lands in the first ~1-1.5 s. Whether the hook is a static card or animated word-by-word is not settled (caption tools argue a moving fixation point holds better through the retention cliff); what matters is that it's big, readable sound-off, and lands fast. **Do not render the hook as the same words as the bottom captions at the same time** — that reads as redundant clutter. Make the hook a distinct authored headline (the pattern Submagic/OpusClip use), or suppress the captions while the card is up. The hook should also front-load the search keyword in spoken audio within the first 5 s; spoken audio is one TikTok search signal alongside caption / on-screen text / hashtags, not the dominant one.
-2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Red/orange beats green in independent A/B tests.
+1. **First-3-second hook is a large, legible statement, distinct from the running captions.** 5-8 words, on screen for the full 1.5-3 s, visibly larger than narration captions. The swipe decision lands in the first ~1-1.5 s. Whether the hook is a static card or animated word-by-word is not settled (caption tools argue a moving fixation point holds better through the retention cliff); what matters is that it's big, readable sound-off, and lands fast. **Do not render the hook as the same words as the bottom captions at the same time** — that reads as redundant clutter. Make the hook a distinct authored headline (the pattern Submagic/OpusClip use), or suppress the captions while the card is up. Say the search phrase in three places: the first spoken line, the on-screen text and the start of the caption; spoken audio is one TikTok search signal alongside caption / on-screen text / hashtags, not the dominant one.
+2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Pick an accent colour that contrasts with the palette; the tests measure contrast, not hue.
 3. **`#ad` disclosure is an on-frame overlay AND first-line caption text.** FTC wants the disclosure in the video itself and at the top of the caption before other text. Same font family as captions, sized for legibility (not a fixed ratio), fixed corner; full-clip persistence is a safe short-form default rather than a codified duration. Max statutory penalty is $53,088 per violation (2025 figure, still current 2026) — a cap reached via a Notice of Penalty Offense or consent-order violation, not an automatic per-post fine.
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
-5. **End with an engagement-bait closing line right before the hard CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. The closing line drives comments and saves, both of which feed the algorithm. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
-6. **Keep something moving every 1.5-3 seconds.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Younger audiences need the tighter end of the band (cut every 2-4 s); a high-density profile pushes to 1.5-3 s with a transition between slides.
+5. **End with a genuine closing question or claim right before the CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. In one brand TikTok study a closing prompt was the main predictor of comments. Asking for a specific word, emoji, share or tag is demoted as engagement bait. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
+6. **Change the visual every 3-5 seconds, and put slow motion on every still.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Stimulation follows an inverted U: moderate intensity gets the most engagement, and a cut every 2 seconds has no measured support.
 
 ---
 
@@ -42,7 +44,7 @@ ranking trigger," "84.3% of viral TikToks used a hook trigger" — trace to
 single un-sourced posts with no disclosed methodology. Treat them as narrative,
 not data; measure your own 2 s / 3 s view-through by hook style instead.)
 
-**Word budget**: read aloud in ≤3 s. 5-8 words.
+**Word budget**: 5-8 words for the on-screen headline. The spoken first line can run longer; the median spoken Shorts hook in one 4,148-hook sample was 11 words.
 
 **Patterns that work for product video specifically:**
 
@@ -69,10 +71,11 @@ captions. See subtitle-best-practices for caption design rules.
 
 **Title card vs. text-over-frame — two shapes, different timing**:
 
-- **Static title card** (default on `slideshow_short_20s`):
+- **Static title card** (the `hook_overlay` default on every profile):
   1.0-1.5 s, **hard cut to motion** (no fade between card and the first
   slideshow segment), 3-5 words capped at 7, ALL CAPS-leaning or bold
-  weight, 10-15% of frame height. The card is the first thing on screen
+  weight, sized larger than the captions. The shipped `size_factor` of 1.1 is
+  about 5.5% of frame height, below the 10-15% band vendors quote. The card is the first thing on screen
   and gives way to motion immediately.
 - **Text-over-mid-action-frame** (longer profiles): 1.5-3.0 s, can fade in,
   text sits over a frame that already carries motion (Ken Burns settle-zoom
@@ -96,12 +99,13 @@ pipeline's `pre_motion_peak_zoom: 1.10` sits at the upper edge of the band.
 `slideshow_short_20s`; tune `pre_motion_peak_zoom`
 between 1.05 and 1.15 to taste.
 
-**Opener fatigue**: identical pattern-interrupt structure for ~3 weeks
-shows measurable diminishing returns. Rotate at least 2-3 cold-open
-variants per pillar so the channel doesn't read as a template factory
-at the aggregate level. The pipeline's `cold_open_variant_pool`
-deterministically picks one variant per product render and persists the
-chosen variant in `pipeline_state.json` for downstream analytics.
+**Opener fatigue**: identical pattern-interrupt structure over weeks is
+reported to show diminishing returns (vendor claim, grade C), and templated
+sameness is what the platforms' originality rules target. Rotate at least 2-3
+cold-open variants per pillar so the channel doesn't read as a template
+factory at the aggregate level. The pipeline's `cold_open_variant_pool`
+records one variant name per render for analytics, but the three variants
+still render identically, so today the pool adds no visual variety.
 
 Hook caption sizing and word budget converge across Captions.ai, OpusClip,
 and Submagic 2025-2026 guidance.
@@ -126,12 +130,13 @@ Vertical feeds reward visual energy. A frame that hasn't changed in a few
 seconds reads as "nothing happening" and the viewer swipes. The fix is a steady
 beat of visual change, tuned to the audience.
 
-**Shot-length bands** (vendor-converged across 2026 editing tooling):
+**Shot-length bands.** Most published bands are vendor claims (grade C). The
+measured evidence points to moderate pace: stimulation follows an inverted U
+(see [creator-research.md](creator-research.md) section 4).
 
 | Audience / profile | Cut every | Notes |
 |---|---|---|
-| General short-form | 1.5-3 s | The default high-retention band |
-| Younger / Gen Z feeds | 2-4 s, pushing to 1-2 s on high-energy edits | The algorithm reclassifies into faster feeds; match it |
+| Default | a visual change every 3-5 s, list items about every 3 s | Measured frame by frame on one creator's Shorts (grade C); a cut every 2 s has no measured support |
 | First shot (hook) | change within 1-1.5 s | Signals pace immediately, see section 1 |
 | Hard ceiling | never hold a static frame past 4-5 s | Add a punch-in, cut, B-roll, or text pop |
 
@@ -154,20 +159,19 @@ slideshow, the slide change itself is the beat.
 mixing whip pans, zoom punches, and slides in one clip reads as amateur. Pick
 the cadence and the transition from the profile, not per-slide.
 
-**Pipeline mapping**: the high-density cut profile (`cut_density: high`,
-roadmap 1.4) drops the minimum slide duration to 1.5-3 s and inserts one
-transition between every slide. Keep the slower-cut profile available for
-audiences and platforms where a calmer pace fits. Match cut speed to content
+**Pipeline mapping**: slideshows ship with `image_duration: 3.0`. A faster
+`cut_density: high` option is planned (roadmap 1.4) as a test arm, not a new
+default, and motion on every still is #542. Keep the slower-cut profile
+available for audiences and platforms where a calmer pace fits. Match cut speed to content
 energy; a calm productivity review and a Gen Z gadget teardown should not share
 a cadence.
 
-## 3. Sound-off as the primary audience
+## 3. Design for sound-off as well as sound-on
 
-**A large majority of feed video is watched sound-off.** (The widely-cited
-"85%" traces to a 2016 Facebook, publisher-reported figure, so treat the exact
-number as dated; the direction is solid and repeated across 2025-2026 sources.)
-Design the entire video assuming sound-off is the default; treat sound-on as
-the accessibility layer, not the source of truth.
+**Muted viewing is common on some feeds, but not on TikTok: 93% of TikTok users keep sound on (TikTok and Kantar, 2020-2021 data).** Captions must stand alone for muted viewers, and voice, music and effects matter at least as much for everyone else. (The widely-cited
+"85% watch muted" traces to a 2016 Facebook, publisher-reported figure and does
+not describe TikTok.) Design every beat to work both ways: legible without
+sound, and carried by the voice for the majority who listen.
 
 **What this changes:**
 
@@ -175,7 +179,7 @@ the accessibility layer, not the source of truth.
   should be able to follow the entire script with audio off.
 - **Embed the CTA inside the visual track**, not only in the voiceover.
   "Link in caption" + arrow on a frame, not just spoken `tap the link`.
-  The on-frame text IS the call to action for the 85% on autoplay.
+  The on-frame text carries the call to action for muted viewers.
 - **Visual hierarchy**: captions should be the second-largest element
   after the product itself.
 - **Beat punctuation matters more sound-off.** Voice intonation is the
@@ -239,16 +243,15 @@ the accessibility layer, not the source of truth.
 This aligns with the project's trade-off-honesty rule baked into the
 script template prompts (CHANGELOG `0.43.1`).
 
-## 5. Closing-line beat — comment-fork or spec-correction
+## 5. Closing-line beat: a genuine question or claim
 
-One short engagement-bait line, right before the hard CTA, not replacing it.
-TikTok's algorithm rewards comments and saves as high-intent engagement signals;
-a closing line that invites a reply outperforms a video that ends on the
-sponsor pitch. Generic engagement bait ("Comment YES if you agree") is widely
-reported to be down-ranked by the moderation layer while specific, opinion-driven
-prompts pass. This is industry consensus and aligns with TikTok's stated stance
-against engagement-bait, though the exact "spam-filtered" mechanism isn't
-documented by the platform — keep the tactic, hold the mechanism loosely.
+One short closing question or claim that invites a genuine reply, right
+before the CTA, not replacing it. Comments are a weak ranking signal on Shorts
+(creator-research.md section 1); the line is for conversation and profile
+visits, not rank. Meta documents the demotion of comment, share, tag and vote
+baiting, and TikTok's For You feed standards exclude engagement manipulation.
+Genuine requests for opinions or experiences are exempt, which is the line
+this beat has to stay on.
 
 **Two flavours, picked by template framing:**
 
@@ -268,7 +271,9 @@ optionally in the platform caption. It comes BEFORE the hard CTA frame, not
 on the same frame.
 
 **Anti-patterns**:
-- "Comment YES if you agree" — generic, spam-filtered
+- "Comment YES if you agree": comment baiting, demoted by Meta
+- "Share with someone who...": share baiting, demoted by Meta
+- "Follow for part 2" with the payoff withheld: TikTok excludes false incentives
 - "What do you think?" — too open, no reply hook
 - A question with no opinion attached ("Have you seen this before?")
 - Replacing the CTA with the closing line — both beats are needed, not one
@@ -294,6 +299,11 @@ templates and spec-correction for analytical/comparison templates. See
 |---|---|---|---|
 | Soft CTA | 3-5 s | Small caption line, neutral color, e.g. "link in caption" + arrow | Plant intent without interrupting the hook |
 | Hard CTA | Last 2-4 s | Full-frame text, accent color, 1.3-1.5× narration size, static or single pulse, ≥1.5 s on screen | Convert the warm viewer |
+
+Caveat: a standalone end card after the last spoken line can become the
+"goodbye second" where viewers leave. One creator measured it; nobody has at
+scale. Test the CTA spoken over the final visual against a separate card
+(#543).
 
 **Hard-CTA caption rendering:**
 
@@ -354,9 +364,11 @@ the FTC `#ad` overlay above.
   (`config/publisher.yaml::synthetic_media_disclosure`). Turn it on for output
   that does meet the bar — AI-generated music, or AI-generated footage of a
   real place.
-- **TikTok**: as of 2026, TikTok auto-flags AI content via C2PA detection.
-  Auto-flagging suppresses distribution BEFORE removal; explicit
-  disclosure via TikTok's AI-content label keeps reach intact. The
+- **TikTok**: TikTok requires a label on realistic AI content and reads C2PA
+  credentials. Since November 2025 viewers can choose to see less AI content,
+  so a labelled video reaches fewer viewers, and a study of about a million
+  posts found disclosure cut engagement by 7-8%. The label is still mandatory
+  where it applies. The
   publisher sets this flag on every TikTok payload, on by default,
   configurable at `config/publisher.yaml::tiktok_settings.video_made_with_ai`.
   No manual per-render step is needed, and the setting applies on every
@@ -366,15 +378,21 @@ the FTC `#ad` overlay above.
   (auto-applies a disclosure label, rejects undisclosed AI creative, can
   retroactively flag running campaigns); organic-Reels detection is more
   metadata- and self-declaration-driven. Self-declare AI provenance (embed
-  C2PA / IPTC at generation) and set the platform AI toggle — self-labeling
-  preserves reach; getting auto-flagged undisclosed is what costs distribution.
+  C2PA / IPTC at generation) and set the platform AI toggle — self-labelling
+  is the compliant path. No published data shows how Meta weighs labelled
+  against auto-flagged content.
 
 The pipeline already prepends `#ad` to caption text and burns the corner
 disclosure. AI-content disclosure is additive, not a replacement.
 
-**Originality is the real 2026 AI-reach risk.** No platform penalizes *labeled*
-AI content on its own, but all three deprioritize unoriginal, templated,
-mass-produced output, and that is exactly the failure mode of an automated
+**Originality is the real 2026 AI-reach risk.** YouTube says AI labels do not
+reduce reach, and on TikTok the cost runs only through viewers who turn AI
+content down. All three platforms deprioritize unoriginal, templated,
+mass-produced output: YouTube's inauthentic-content policy (July 2025, with
+channel terminations in January 2026), Instagram's originality rules (30 April
+2026: "unique text, creative edits, and voiceover" count, watermarks and speed
+changes do not), and TikTok's stricter For You feed standards (24 September
+2026). That is exactly the failure mode of an automated
 pipeline that renders the same shapes repeatedly. Treat variety as a
 reach-preservation requirement: rotate hook patterns, script templates, voice,
 cut cadence, and cold-open variant per render so the aggregate output doesn't
@@ -383,10 +401,8 @@ the discipline is using them.
 
 **2026 platform shifts a 2025 playbook would miss.** TikTok's US operation was
 divested to a US joint venture in January 2026 and its recommendation algorithm
-is being retrained on US-only data, so US-reach assumptions are provisional
-right now. Instagram removed the longer-Reels penalty (recommends up to ~3 min
-to non-followers), weights DM-sends ~3-5x above likes for reaching new
-audiences, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
+is being retrained on US-only data, so US-reach assumptions are provisional. Instagram removed the longer-Reels penalty (recommends up to ~3 min
+to non-followers), names watch time, likes per reach and sends per reach as its top signals, with sends weighing slightly more for viewers who do not follow the account, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
 guidance now hurts reach.
 
 ## 8. Honest gaps in the evidence

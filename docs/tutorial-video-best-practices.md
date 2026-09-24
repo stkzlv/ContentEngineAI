@@ -8,14 +8,16 @@ the difference is what the video is for, and that changes the structure, the
 length band, the visual source, and which metric tells you it worked.
 
 **Audience**: problem-first tech-help, fix-it, and explainer content served
-via TikTok, Instagram Reels, and YouTube Shorts. Watched mostly with sound off.
+via TikTok, Instagram Reels, and YouTube Shorts. Often watched muted, though most TikTok viewers keep sound on.
 
 **Related docs**:
 - [promotional-video-best-practices.md](promotional-video-best-practices.md) —
   hook patterns, cut cadence, CTA staging, and `#ad` disclosure. Everything
-  there about hooks, sound-off legibility, and disclosure applies here
-  unchanged; only the sections below differ.
+  there about hooks, legibility without sound, and disclosure applies here;
+  only the sections below differ.
 - [subtitle-best-practices.md](subtitle-best-practices.md) — caption design.
+- [creator-research.md](creator-research.md): graded 2026 evidence on ranking signals,
+  search placement, the Shorts view-count change and what to measure.
 - [platform-safe-zones.md](platform-safe-zones.md) — UI overlay zones.
 
 ---
@@ -36,9 +38,10 @@ via TikTok, Instagram Reels, and YouTube Shorts. Watched mostly with sound off.
 4. **The title is a ranking signal, not decoration.** Tutorial content is
    found by search, and a Shorts title made only of hashtags throws away the
    strongest signal available. Write the query the viewer typed.
-5. **Say the keyword out loud in the first 5 seconds.** Platforms transcribe
-   audio and index it. On tutorial content the spoken line is a search asset,
-   not just narration.
+5. **Put the search phrase in three places**: the first spoken line, the
+   on-screen text and the start of the caption. Platforms transcribe audio and
+   read on-screen text, so on tutorial content the spoken line is a search
+   asset, not just narration.
 6. **Judge it on a longer clock than promo.** Promo is scored on day-1 reach.
    Tutorial content is scored on whether it still earns views after 30 days,
    and reading it on a 48-hour window will call every tutorial a failure.
@@ -95,7 +98,7 @@ at actually teaching: stock shows a person near a laptop, not the setting you
 are telling them to change.
 
 **Generated visuals**, which can depict a specific state but need a
-generation step and carry platform AI-disclosure obligations.
+generation step and, when they look realistic, carry platform AI-disclosure obligations. On TikTok a label also narrows reach slightly (see creator-research.md section 1).
 
 **Screen recordings**, which are what tutorials actually want, because the
 instruction and the visual are the same artifact. They also conflict hardest
@@ -131,9 +134,10 @@ distinction changes what to optimise.
 
 - **Title.** Write the query, not a label. Shorts titles composed only of
   hashtags waste the primary text ranking signal.
-- **Spoken keyword in the first 5 s.** Platforms transcribe and index audio.
+- **Search phrase in three places.** The first spoken line, the on-screen text
+  and the start of the caption. Platforms transcribe audio and read on-screen text.
 - **Description.** Two or three sentences carrying the target phrase.
-- **Hashtags.** 3-5 relevant, not 30.
+- **Hashtags.** Two or three on TikTok (its own advice), at most five on Instagram (a hard cap since December 2025). They categorise; they do not add reach.
 - **Topical clustering.** Consecutive videos answering adjacent questions in
   one theme build topical authority; scattered one-off topics do not.
 
@@ -154,6 +158,11 @@ Short-form views arrive fast and stop. The bulk of a post's lifetime views
 land within the first day or two, and the curve is steep enough that on a
 short window every video looks like a spike and a tutorial looks identical to
 a trend post.
+
+On YouTube, every play and replay has counted as a Shorts view since
+31 March 2025, while "engaged views" exclude replays. Loops inflate raw
+counts, so compare engaged views and "viewed vs swiped away" where you can,
+and note which one a comparison used.
 
 Do not take a figure for this from any document, including this one. Pull
 your own curve: it is the baseline every comparison below is measured
