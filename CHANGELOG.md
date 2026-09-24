@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.1] - 2026-09-24
+
+### Documentation
+- A research guide collects what successful short-form creators and the platforms' own statements say about hooks, structure, editing, sound, endings, packaging and ranking, with every claim graded by its evidence.
+- A technical spec turns that research into eleven planned requirements, each tracked by an issue and designed to ship off by default until the reach test reads out, and the roadmap links them to its existing items.
+
 ## [0.127.0] - 2026-09-24
 
 ### Added

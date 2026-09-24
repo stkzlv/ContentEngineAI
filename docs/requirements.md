@@ -175,6 +175,11 @@ High-level requirements for ContentEngineAI. A `(planned, #N)` marker on a requi
 - Display images with configurable duration (2-3 seconds)
 - Smooth transitions (crossfade) between media elements
 - Reuse images if needed to fill remaining time
+- Every still image can carry slow, jitter-free motion whose direction varies per image and per product, so no render contains a static still. Off by default. (planned, #542)
+- A render can end on its last spoken beat with no silent or fading tail, and optionally loop, its last frame matching its first. Off by default. (planned, #543)
+- Sparse sound effects can mark a few beats (a transition, the reveal, the call to action), drawn per product from a pool, capped per second and mastered with the rest of the mix. Off by default. (planned, #544)
+- Visual cuts can snap to the nearest beat of the music within a small window without breaking caption sync. Off by default. (planned, #546)
+- Every render can produce a cover image, the hero visual plus the hook headline inside the centred 3:4 area, set on each platform that accepts one. (planned, #552)
 
 ### Image Positioning
 - Width as percentage of frame (default 100%)
@@ -311,6 +316,9 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Topic templates carry a different contract, and the product rules above are not merely absent from them but would be wrong. A topic template states the fix inside the first three seconds rather than building to it, requires the search phrase to be spoken aloud in the first five, asks for one instruction per sentence, forbids inventing a product to recommend, permits a menu path or a URL only when the script can state it exactly, the labels in order or the address in full, for a platform it names and otherwise requires an observable on the device or a plain statement that it differs by device, and closes on the result rather than a debatable spec claim. It still carries one honest limit, placed among the steps rather than after them: a rule stating no position takes the position it sits in, and a limit read last became the final spoken line before the call to action, sending the viewer away unsure the fix worked
 - Scripts name the product the way a person would say it aloud. Model and SKU designations are never spoken. The short alias derived from the listing title is offered as a suggestion rather than an instruction, because it is auto-trimmed and can come out as a fragment carrying a part number; when it does not read as a spoken name, the plain category noun is used instead.
 - The per-platform caption generator receives the rendered spoken script and mirrors the script's closing engagement-bait line into the caption body before the hashtag block. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s for engagement bait). When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
+- A generated script can be checked after generation for common machine-writing phrases, sentence length and a word count derived from the target duration, re-entering the retry loop on failure. Off by default. (planned, #548)
+- The search phrase is spoken in the first line, shown in the hook headline and placed at the start of every platform caption, and a report shows how often all three hold. (planned, #548)
+- No configured call to action or closing-line example asks viewers to share, tag, vote or reply with a specific word; closing questions ask for a choice or an experience. (planned, #549)
 
 ### TTS Voice Profiles
 - Named voice presets with style direction, voice preferences, and text markup
@@ -325,6 +333,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Configurable profile pool restricts selection to a named subset for A/B testing
 - CLI override forces a specific profile for one-off runs
 - Profile metadata (profile name and selected voice) recorded in pipeline output for traceability
+- An optional processing chain (filtering, gentle compression, de-essing, limiting) can treat the voiceover before the mix without changing its loudness target or its transcript, and the voice and chain are recorded per render. Off by default. (planned, #545)
 
 ### Stock Background Music
 - Pluggable audio provider platform: `BaseAudioProvider` ABC with registry and factory pattern
@@ -436,6 +445,7 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - API-based upload and status tracking
 - Reading a post's status or listing posts tolerates a published leg that reports no platform URL (some platforms return none), so status checks, first-comment verification, slot-occupancy detection, and media cleanup keep working instead of failing on such a post.
 - Per-platform delivery is verifiable after posts go live: a sweep over recent posts flags any whose delivery is incomplete (top status `partial`, or a platform leg that failed) and reports the failing platform with its error. This catches a silently-dropped leg that the scheduling service reports without surfacing.
+- Product videos publish to YouTube with a short written title within the configured maximum rather than the store listing title, and every platform's hashtag range respects that platform's cap. (planned, #550)
 
 ### Per-Platform Profile Routing
 - Optional mapping from platform to video profile so the publisher uploads a platform-tailored render per platform (e.g., the short hook-iteration cut for YouTube, the longer cut for TikTok and Instagram).
@@ -499,6 +509,8 @@ Group products and scripts into a small set of named pillars (default 3). Each k
 - A day-N figure counts every platform or none. Platforms start reporting on their own lag, and a leg's first row carries its lifetime total rather than that day's increment, so a cutoff that some legs had reported by and others had not reports as unknown. The cutoff is recorded on the post, because the sweep that stores the figure is usually earlier than the one that can see the lag, and a later sweep withdraws the number it already kept
 - Reports can rank by durability, which answers a different question from ranking by total views or by day-7 views: at day 7 a post that keeps earning and one that spiked and stopped are indistinguishable
 - Measuring a post again merges into its stored row field by field rather than replacing it. Past the provider's retention horizon a later reading has *less* history behind it, so a measured figure is never replaced by an absent one, except at a cutoff later found to have straddled a leg's first report, where the stored figure counted only part of the post, and the field recording how far the timeline reached moves with the ratio it dates
+- The choices that shape each render (template, hook archetype, voice, caption template, music, motion, transitions, effects) are recorded, and a report shows their distribution over recent renders with an alert when one value dominates or two scripts are near-identical. (planned, #547)
+- The analytics sweep stores each first-seconds and quality metric a platform exposes (engaged views and viewed-vs-swiped on YouTube, watch time or completion on TikTok, sends or shares per reach on Instagram), records an unavailable metric as unknown rather than zero, and segments them by format arm and render choice. (planned, #551)
 
 ### Published Products Registry
 - Maintain a registry of all published products in the outputs directory

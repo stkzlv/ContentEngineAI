@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-09-03
+Last updated: 2026-09-24
 
 Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
 
@@ -26,19 +26,19 @@ The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engag
 
 ### 1.4 High-density cut profile
 
-Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2.
+Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2. The creator research (`docs/creator-research.md` section 4) tempers it: stimulation follows an inverted U, measured top Shorts change visual state about every 3-5 seconds rather than every 2, and "a cut every 2 seconds" has no measured support. Build it as an option to test, not a new default.
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
 
 ### 1.7 Hook-variant A/B measurement
 
-The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers.
+The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers. The first-seconds metrics it needs (viewed vs swiped away, engaged views) are #551. Instagram Trial Reels, which show a Reel to non-followers first, are the one native A/B lever until YouTube's Shorts cut-testing arrives in 2027; check whether the publishing provider can post them.
 
 **Done when:** the registry carries the hook variant per video and a report segments retention by hook variant.
 
 ### 1.8 Loop-friendly ending
 
-Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds. Config flag per profile, off by default.
+Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds, and since March 2025 every replay counts as a Shorts view. Config flag per profile, off by default. Tracked with the end-on-the-peak ending in #543.
 
 **Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
 
@@ -50,9 +50,27 @@ The burned-in hook overlay reused the script's first spoken sentence, which the 
 
 ### 1.10 Output-variety guard (reach preservation)
 
-Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 2025 "inauthentic content" policy; the equivalent unoriginality signal on TikTok and Instagram). An automated pipeline that renders the same shapes repeatedly is the exact failure mode. The variant frameworks already exist (hook pattern, script template, voice, cut density, cold-open variant); the item is to select across them so aggregate output stays varied, and to surface a "sameness" check (e.g. recent-render template/voice/hook distribution) in the analytics reports. Reach preservation, not polish. Background in `docs/promotional-video-best-practices.md` section 7.
+Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 2025 "inauthentic content" policy; the equivalent unoriginality signal on TikTok and Instagram). An automated pipeline that renders the same shapes repeatedly is the exact failure mode. The variant frameworks already exist (hook pattern, script template, voice, cut density, cold-open variant); the item is to select across them so aggregate output stays varied, and to surface a "sameness" check (e.g. recent-render template/voice/hook distribution) in the analytics reports. Reach preservation, not polish. Background in `docs/promotional-video-best-practices.md` section 7 and `docs/creator-research.md` section 1 (Instagram stopped recommending unoriginal accounts to non-followers in April 2026). Tracked in #547.
 
 **Done when:** a batch run spreads renders across the variant dimensions and a report shows the recent-render variety distribution.
+
+### 1.11 Humanization layer
+
+Complements 1.10: that item varies the content dimensions, this one adds human texture and authored identity. Three pieces, each shipped behind a switch that stays off until the reach test reads out: conversational naturalism in the script (#438), context-varied TTS pauses using only tags measured as silent (#439), and a recurring author signature with an optional audio sting (#440). Enabling them is #540; naturalism needs re-measuring first (#541).
+
+**Done when:** each piece is enabled with a measured setting or left off with the reason recorded.
+
+### 1.12 Motion on every still
+
+TikTok's feed standards list static images as low-quality content, and the settle-zoom covers only the first image. Slow, varied, jitter-free motion on every still, drawn per product. Off by default until the reach test reads out. Tracked in #542.
+
+**Done when:** a still-image profile renders motion on every still, varied between products, with the default unchanged.
+
+### 1.13 Sound design: sparse effects, voice polish, beat-snapped cuts
+
+Three audio-side techniques from the creator research (`docs/creator-research.md` section 5), each optional and off by default: sparse event sound effects on the reveal and the CTA (#544), a processing chain for the TTS voice (#545), and cuts snapped to music beats (#546). The AI-voice finding (a measured engagement gap that a lower-pitched voice narrows) makes the voice work the higher priority.
+
+**Done when:** each option renders as specified in `docs/creator-techniques-spec.md`, and a batch comparison decides which to enable.
 
 ## Phase 2 — Non-affiliate pillar mode (Now/Next)
 
@@ -132,6 +150,18 @@ Score and filter product candidates before rendering, using the data the scraper
 
 **Done when:** a scrape run rejects below-threshold products before the producer stage, with the rejection reason logged.
 
+### 3.8 Bait-safe CTAs and closing lines
+
+Meta demotes share, tag and vote requests and specific-reply asks; TikTok's feed standards exclude false incentives. One bundled CTA asks for a share. A test that fails on bait patterns in the CTA pools and closing-line examples, then a pool change after the reach test. Tracked in #549.
+
+**Done when:** no configured CTA or closing-line example matches a bait pattern, guarded by a test.
+
+### 3.9 Script lint and search-phrase placement
+
+A post-generation lint for machine-writing tells, sentence length and pace, and a report of whether the search phrase is spoken first, shown in the hook headline and placed at the start of the caption. Tracked in #548.
+
+**Done when:** the lint rejects the listed shapes when enabled, and the report counts search-phrase placement per render.
+
 ## Phase 4 — Per-platform optimisations (Next)
 
 Targeted for the following quarter. Builds on Phases 1-3.
@@ -180,15 +210,21 @@ Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a n
 
 Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
 
-Scope note: this does not apply to YouTube. Custom thumbnails are not supported on Shorts, so the YouTube poster frame is whatever frame YouTube picks and no API accepts an override. The item is worth doing for the platforms that do accept a cover, and the first frame of the render is the only thumbnail lever on YouTube, which is another reason the opening frame carries the hook.
+Scope note, corrected: since July 2026 YouTube accepts custom Shorts thumbnails on desktop for Partner Program channels, shown in search, the channel page and home but not in the swipe feed. Whether the publishing provider exposes that field is open. Instagram's profile grid crops covers to 3:4, so the headline belongs in the centred 3:4 area. The first frame stays the main lever in the feed, which is why it carries the hook. Tracked in #552.
 
 **Done when:** every render produces a cover image and the publish payload sets it as the poster on the platforms that accept one.
 
 ### 4.8 Episodic series framing per pillar
 
-Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system.
+Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system. Each episode must stand alone: TikTok's feed standards exclude a payoff withheld to force a follow ("follow for part 2"), so link episodes through YouTube's related-video field or a playlist instead.
 
 **Done when:** published titles/captions carry a per-pillar episode number that increments across the back-catalogue.
+
+### 4.9 Product titles and hashtag caps per platform
+
+Product videos go to YouTube with the store listing title cut to fit, where trending Shorts titles run 20-40 characters with the keyword first; and the Instagram config asks for 15-30 hashtags against the platform's 5-hashtag cap. Tracked in #550.
+
+**Done when:** product videos carry a written YouTube title within the configured maximum, and every platform's hashtag range respects its cap.
 
 ## Phase 5 — Analytics and continuous learning (Next)
 
@@ -237,6 +273,12 @@ Day-2 and day-7 views and a 30-day durability ratio per post, stored locally, wi
 Recorded here because the item was written on an assumption that turned out to be false, and the correction is the reusable part. It originally read that the scheduler returns a cumulative per-post timeline, "so any day-N figure is a lookup rather than a scheduled job". Measured against the live API, the opposite holds: the timeline stops reaching back after roughly five weeks, so day-2 and day-7 are available only while the post is young enough. They are a scheduled job or they are nothing, which is why 5.1 is built around capture cadence rather than around querying on demand.
 
 The two figures answer different questions. A 7-day window captures the launch curve for every video and cannot distinguish content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio. See [tutorial-video-best-practices.md](tutorial-video-best-practices.md).
+
+### 5.6 First-seconds metrics
+
+The first gate on every platform is whether the viewer stops or swipes, and since March 2025 raw Shorts views include replays. Store each first-seconds and quality metric the APIs expose (engaged views and viewed vs swiped away on YouTube, completion on TikTok, sends per reach on Instagram) and segment it by format arm and render choice. The enable-when checks in `docs/creator-techniques-spec.md` read these. Tracked in #551.
+
+**Done when:** the metrics store carries each available metric per post, with unavailable ones recorded as unknown, and the reports segment them.
 
 ## Phase 6 — Threshold-gated unlocks (Later)
 
