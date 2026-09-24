@@ -98,7 +98,9 @@ at actually teaching: stock shows a person near a laptop, not the setting you
 are telling them to change.
 
 **Generated visuals**, which can depict a specific state but need a
-generation step and, when they look realistic, carry platform AI-disclosure obligations. On TikTok a label also narrows reach slightly (see creator-research.md section 1).
+generation step and carry platform AI-disclosure obligations. On TikTok every
+render is already labelled for its AI voiceover, and the label narrows reach
+slightly (see creator-research.md section 1).
 
 **Screen recordings**, which are what tutorials actually want, because the
 instruction and the visual are the same artifact. They also conflict hardest
@@ -159,16 +161,16 @@ land within the first day or two, and the curve is steep enough that on a
 short window every video looks like a spike and a tutorial looks identical to
 a trend post.
 
-On YouTube, every play and replay has counted as a Shorts view since
-31 March 2025, while "engaged views" exclude replays. Loops inflate raw
-counts, so compare engaged views and "viewed vs swiped away" where you can,
-and note which one a comparison used.
-
 Do not take a figure for this from any document, including this one. Pull
 your own curve: it is the baseline every comparison below is measured
 against, and it varies by channel, niche, and posting cadence. Scheduling and
 analytics APIs commonly expose a per-post timeline or a content-decay
 endpoint, which makes this a query rather than a project.
+
+On YouTube, every play and replay has counted as a Shorts view since
+31 March 2025, while "engaged views" exclude replays. Loops inflate raw
+counts, so compare engaged views and "viewed vs swiped away" where you can,
+and note which one a comparison used.
 
 The metric that separates them is **whether the video earns views after the
 initial spike**. The industry shorthand is an *evergreen score*: views after

@@ -27,10 +27,10 @@ served via TikTok, Instagram Reels, and YouTube Shorts. Watched with sound on by
 ## The 6 promo-video rules that matter (cheat-sheet)
 
 1. **First-3-second hook is a large, legible statement, distinct from the running captions.** 5-8 words, on screen for the full 1.5-3 s, visibly larger than narration captions. The swipe decision lands in the first ~1-1.5 s. Whether the hook is a static card or animated word-by-word is not settled (caption tools argue a moving fixation point holds better through the retention cliff); what matters is that it's big, readable sound-off, and lands fast. **Do not render the hook as the same words as the bottom captions at the same time** — that reads as redundant clutter. Make the hook a distinct authored headline (the pattern Submagic/OpusClip use), or suppress the captions while the card is up. Say the search phrase in three places: the first spoken line, the on-screen text and the start of the caption; spoken audio is one TikTok search signal alongside caption / on-screen text / hashtags, not the dominant one.
-2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Pick an accent colour that contrasts with the palette; the tests measure contrast, not hue.
+2. **CTA gets its own staging**, distinct from narration. Pair an early **soft CTA** (3-5 s, neutral) with a **hard CTA** at the end (full-frame, accent color, larger, static, ≥1.5 s on screen). Pick an accent colour that contrasts with the palette; A/B tests of CTA colour measure contrast, not hue.
 3. **`#ad` disclosure is an on-frame overlay AND first-line caption text.** FTC wants the disclosure in the video itself and at the top of the caption before other text. Same font family as captions, sized for legibility (not a fixed ratio), fixed corner; full-clip persistence is a safe short-form default rather than a codified duration. Max statutory penalty is $53,088 per violation (2025 figure, still current 2026) — a cap reached via a Notice of Penalty Offense or consent-order violation, not an automatic per-post fine.
 4. **State at least one trade-off per video.** Trust converts; absolute superlatives ("life-changing", "obsessed") now actively reduce trust in 2025-2026 data. A dedicated downside beat is the strongest trust signal in the de-influencing era — disclosed sponsorships do not depress engagement.
-5. **End with a genuine closing question or claim right before the CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. In one brand TikTok study a closing prompt was the main predictor of comments. Asking for a specific word, emoji, share or tag is demoted as engagement bait. It is additive to the CTA, not a replacement; generic "Comment YES if..." asks are spam-filtered.
+5. **End with a genuine closing question or claim right before the CTA.** Personal and storytelling content closes with a two-option opinion question (comment-fork); analytical and comparison content closes with a debatable but defensible spec claim. In one brand TikTok study a closing prompt was the main predictor of comments. Asking for a specific word, emoji, share or tag is demoted as engagement bait. It is additive to the CTA, not a replacement.
 6. **Change the visual every 3-5 seconds, and put slow motion on every still.** Each slide change, punch-in, or text pop resets the attention clock. Hold no single static frame past 4-5 s without a visual change. Stimulation follows an inverted U: moderate intensity gets the most engagement, and a cut every 2 seconds has no measured support.
 
 ---
@@ -74,8 +74,10 @@ captions. See subtitle-best-practices for caption design rules.
 - **Static title card** (the `hook_overlay` default on every profile):
   1.0-1.5 s, **hard cut to motion** (no fade between card and the first
   slideshow segment), 3-5 words capped at 7, ALL CAPS-leaning or bold
-  weight, sized larger than the captions. The shipped `size_factor` of 1.1 is
-  about 5.5% of frame height, below the 10-15% band vendors quote. The card is the first thing on screen
+  weight, sized to stand out from the captions. The shipped `size_factor` of
+  1.1 gives about 5.5% of frame height, below the 10-15% band vendors quote
+  and possibly smaller than the rendered captions; measure one render before
+  relying on it. The card is the first thing on screen
   and gives way to motion immediately.
 - **Text-over-mid-action-frame** (longer profiles): 1.5-3.0 s, can fade in,
   text sits over a frame that already carries motion (Ken Burns settle-zoom
@@ -128,7 +130,7 @@ the Google-query shape as an explicit anti-pattern.
 
 Vertical feeds reward visual energy. A frame that hasn't changed in a few
 seconds reads as "nothing happening" and the viewer swipes. The fix is a steady
-beat of visual change, tuned to the audience.
+beat of visual change, at a moderate pace.
 
 **Shot-length bands.** Most published bands are vendor claims (grade C). The
 measured evidence points to moderate pace: stimulation follows an inverted U
@@ -159,12 +161,12 @@ slideshow, the slide change itself is the beat.
 mixing whip pans, zoom punches, and slides in one clip reads as amateur. Pick
 the cadence and the transition from the profile, not per-slide.
 
-**Pipeline mapping**: slideshows ship with `image_duration: 3.0`. A faster
-`cut_density: high` option is planned (roadmap 1.4) as a test arm, not a new
-default, and motion on every still is #542. Keep the slower-cut profile
-available for audiences and platforms where a calmer pace fits. Match cut speed to content
-energy; a calm productivity review and a Gen Z gadget teardown should not share
-a cadence.
+**Pipeline mapping**: a slideshow holds each image for the narration length
+divided by the image count, so the pace depends on script length and image
+count, not on a fixed setting. A 35 s script over five images holds each
+slide for 7 s, past the 4-5 s ceiling above, which is why motion on every
+still (#542) matters. A faster `cut_density: high` option is planned (roadmap
+1.4) as a test arm, not a new default.
 
 ## 3. Design for sound-off as well as sound-on
 
@@ -364,8 +366,9 @@ the FTC `#ad` overlay above.
   (`config/publisher.yaml::synthetic_media_disclosure`). Turn it on for output
   that does meet the bar — AI-generated music, or AI-generated footage of a
   real place.
-- **TikTok**: TikTok requires a label on realistic AI content and reads C2PA
-  credentials. Since November 2025 viewers can choose to see less AI content,
+- **TikTok**: TikTok requires a label on realistic AI content and on
+  AI-generated speech, including a TTS voiceover, which every render here
+  carries (see `docs/compliance.md`). It reads C2PA credentials. Since November 2025 viewers can choose to see less AI content,
   so a labelled video reaches fewer viewers, and a study of about a million
   posts found disclosure cut engagement by 7-8%. The label is still mandatory
   where it applies. The
@@ -389,7 +392,7 @@ disclosure. AI-content disclosure is additive, not a replacement.
 reduce reach, and on TikTok the cost runs only through viewers who turn AI
 content down. All three platforms deprioritize unoriginal, templated,
 mass-produced output: YouTube's inauthentic-content policy (July 2025, with
-channel terminations in January 2026), Instagram's originality rules (30 April
+channel terminations in January 2026, https://thenextweb.com/news/youtube-ai-slop-crackdown-faceless-creators-collateral-damage), Instagram's originality rules (30 April
 2026: "unique text, creative edits, and voiceover" count, watermarks and speed
 changes do not), and TikTok's stricter For You feed standards (24 September
 2026). That is exactly the failure mode of an automated

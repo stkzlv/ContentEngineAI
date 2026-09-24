@@ -49,7 +49,7 @@ Two cautions apply throughout:
 - **The feed avoids repetition (A).** It avoids consecutive videos from the same creator or with the same sound. https://www.tiktok.com/transparency/en/recommendation-system
 - **No published weights.** The widely shared weight tables and "batches of 300-500 viewers" are folklore.
 - **For You feed eligibility (A).** Unoriginal content without new edits, other platforms' watermarks, static images and very short clips, QR codes, and engagement manipulation ("like-for-like", false incentives) are ineligible. A stricter update took effect on 24 September 2026. https://www.tiktok.com/community-guidelines/en/fyf-standards
-- **AI content (A).** Realistic AI content must be labelled. Since November 2025 viewers have a slider to see less AI content, so a labelled video's reachable audience shrinks by however many viewers turned it down. https://newsroom.tiktok.com/more-ways-to-spot-shape-and-understand-ai-content?lang=en
+- **AI content (A).** Realistic AI content and AI-generated speech, including a TTS voiceover, must be labelled. Since November 2025 viewers have a slider to see less AI content, so a labelled video's reachable audience shrinks by however many viewers turned it down. https://newsroom.tiktok.com/more-ways-to-spot-shape-and-understand-ai-content?lang=en
 - **Hashtags (A).** TikTok's own advice: "less is more", two or three relevant hashtags. https://www.tiktok.com/creator-academy/en/article/elements-of-tiktok-video?lang=en
 
 ### Instagram Reels

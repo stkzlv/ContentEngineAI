@@ -218,7 +218,7 @@ canonical doc when the numbers here and there ever diverge.
 **Shipped pycaps behaviour differs from this recommendation.** The block is
 anchored at the bottom with offset -0.20, so its bottom edge sits at 75% of
 the frame, below the 65% floor above, to stay clear of centred product video.
-Tracked in #99.
+Background in #99 (closed), which records why raising the block was dropped.
 
 **Line break strategy**: 3–5 words per line, max 2 lines on screen. Break
 on natural phrase boundaries (after verbs, before prepositions) — never
@@ -262,8 +262,9 @@ instead of cramming.
 
 **TikTok**: the most aggressive UI. Bottom 480 px eaten by
 like/comment/share/caption/sound. Right 180 px by icon column. Viewers can switch on
-TikTok's auto-captions, which would overlap burned-in captions; burned-in
-captions cannot be switched off, so keep them clear of the auto-caption band. Style preference: bold,
+TikTok's auto-captions, which can overlap burned-in captions, and burned-in
+captions cannot be switched off. Where TikTok draws its auto-captions is not
+documented here; check one test post with them on. Style preference: bold,
 colorful, karaoke.
 
 **YouTube Shorts**: progress bar at bottom, subscribe button bottom-center.
