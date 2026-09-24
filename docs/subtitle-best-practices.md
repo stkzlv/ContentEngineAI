@@ -8,8 +8,8 @@ Opus Clip, Captions.ai, TikTok creator tooling, WCAG, and subtitling
 research — see the sources at the bottom.
 
 **Audience**: 30–60 second 9:16 vertical e-commerce product videos watched
-on mobile, often with sound off. Captions aren't a nice-to-have — for a
-large fraction of viewers they *are* the content.
+on mobile. Many viewers watch muted, though most on TikTok spend time with sound on.
+For muted viewers the captions *are* the content.
 
 **Related docs**:
 - [promotional-video-best-practices.md](promotional-video-best-practices.md)
@@ -25,6 +25,8 @@ large fraction of viewers they *are* the content.
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer
   (trending vs original audio, voiceover/music levels, ducking).
+- [creator-research.md](creator-research.md): graded 2026 evidence on sound-on rates,
+  moderate stimulation, flashes and sound effects that bears on caption design.
 
 Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 `pycaps` labels.
@@ -51,8 +53,8 @@ Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 
 For promotional / e-commerce video, the
 [promotional-video-best-practices.md](promotional-video-best-practices.md)
-companion adds 4 more rules covering hook content, CTA staging, FTC
-disclosure, and trust signals. Apply both lists together.
+companion adds its own cheat-sheet covering the hook, pacing, trust, the
+closing line, CTA staging and disclosure. Apply both lists together.
 
 ---
 
@@ -179,9 +181,12 @@ as a brief overlay beside the key word.
 punctuation. Keep apostrophes (`don't`, `it's`) and hyphens in compound
 words.
 
-**Sound effects on captions**: pop/whoosh on segment entrance is
-standard on TikTok. Keep them subtle (-18 dB relative to voiceover) and
-only trigger on emphasized words — every-word SFX becomes fatiguing fast.
+**Sound effects on captions**: sparse or none. No retention study supports
+them, and editors agree an effect on every cut is worse than none. Reserve
+them for the hook, the reveal and the CTA. The pycaps template effects are
+muted by default (`mute_template_sound_effects: true`). Keep the total effect
+load moderate: engagement follows an inverted U with stimulation, and caption
+motion counts toward it (creator-research.md section 4).
 
 **Safety limits**:
 - Cap scale pulses at 1.15×
@@ -210,6 +215,11 @@ band y=900-1150, block center ~y=1000 (~52%), hard floor y=1250 (65%),
 horizontal x=60..900. One design covers all three platforms. Defer to the
 canonical doc when the numbers here and there ever diverge.
 
+**Shipped pycaps behaviour differs from this recommendation.** The block is
+anchored at the bottom with offset -0.20, so its bottom edge sits at 75% of
+the frame, below the 65% floor above, to stay clear of centred product video.
+Background in #99 (closed), which records why raising the block was dropped.
+
 **Line break strategy**: 3–5 words per line, max 2 lines on screen. Break
 on natural phrase boundaries (after verbs, before prepositions) — never
 split noun phrases or compound names.
@@ -224,8 +234,9 @@ boundaries not word boundaries.
 
 ## 5. Timing and reading
 
-**Vanilla Whisper rounds word timestamps to whole seconds** — the
-timestamps are unreliable for karaoke-style captions. Two viable fixes:
+**Vanilla Whisper's word timestamps drift by tens to hundreds of
+milliseconds** (cross-attention alignment), enough to make karaoke
+highlighting visibly early or late. Two viable fixes:
 
 - **WhisperX**: wav2vec2 forced alignment on top of Whisper output. Most
   accurate, drop-in replacement.
@@ -250,9 +261,10 @@ instead of cramming.
 ## 6. Platform-specific nuances
 
 **TikTok**: the most aggressive UI. Bottom 480 px eaten by
-like/comment/share/caption/sound. Right 180 px by icon column. TikTok's
-auto-captions are on by default in 2026 — your custom captions must look
-clearly better or viewers toggle yours off. Style preference: bold,
+like/comment/share/caption/sound. Right 180 px by icon column. Viewers can switch on
+TikTok's auto-captions, which can overlap burned-in captions, and burned-in
+captions cannot be switched off. Where TikTok draws its auto-captions is not
+documented here; check one test post with them on. Style preference: bold,
 colorful, karaoke.
 
 **YouTube Shorts**: progress bar at bottom, subscribe button bottom-center.

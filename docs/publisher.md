@@ -769,7 +769,7 @@ export PUBLISHER_MAX_RETRIES=5
   - Both are per render, not per config: `TikTokContentSettings.for_render()` returns `"none"` / `false` for a render with no material connection, such as a topic video with no affiliate link
   - `content_preview_confirmed`: `true` (user confirmed preview)
   - `express_consent_given`: `true` (user gave consent)
-  - `video_made_with_ai`: `true` (AI-generated-content label). On by default because every render carries an AI TTS voiceover, which TikTok names explicitly, unlike YouTube. Sent flat beside `tiktokSettings`, where the SDK models it, not inside it.
+  - `video_made_with_ai`: `true` (AI-generated-content label). On by default. TikTok's current guidelines exempt generic TTS narration, so the label is voluntary here; whether to keep it is #558. Sent flat beside `tiktokSettings`, where the SDK models it, not inside it.
 
 These are configured in `TikTokContentSettings` dataclass (`src/publisher/models.py`)
 

@@ -2,17 +2,17 @@
 
 The sound-on layer for short-form vertical promotional video. The
 [promotional-video-best-practices.md](promotional-video-best-practices.md)
-doc treats sound-off as the primary audience (85% of views); this doc covers
-the other 15% and the parts of the audio track the algorithm reads even when
-the viewer has the sound off.
+doc covers design for muted viewers. This doc covers the audio track,
+which reaches most TikTok viewers (93% of US users spend time with sound on,
+in TikTok's own 2020 data; muted viewing is more common elsewhere) and which
+TikTok's speech indexing reads even when a viewer has the sound off.
 
 **Audience**: 30-60 second 9:16 vertical product videos for TikTok, Instagram
 Reels, and YouTube Shorts.
 
 **Related docs**:
 - [promotional-video-best-practices.md](promotional-video-best-practices.md)
-  -- promo strategy; treats captions as the primary channel for the sound-off
-  majority.
+  -- promo strategy, including captions for muted viewers.
 - [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
   the how-to counterpart: answer-first structure, search discovery,
   and why durability needs a longer measurement window.
@@ -20,14 +20,16 @@ Reels, and YouTube Shorts.
   including the timing smoother that leads the audio.
 - [tts-voice-profiles.md](tts-voice-profiles.md) -- TTS voice selection and the
   voice-profile config.
+- [creator-research.md](creator-research.md): graded 2026 evidence on sound-on rates,
+  the AI-voice engagement gap, tempo, beat-synced cuts and sparse effects.
 
 ---
 
 ## The rules that matter (cheat-sheet)
 
 1. **Audio is a search signal even on mute.** TikTok 2026 transcribes the
-   spoken track via ASR and indexes the transcript. The hook keyword must land
-   in the first 5 s of spoken audio, not just on-screen.
+   spoken track via ASR and indexes the transcript. Say the search phrase in the
+   first spoken line, and repeat it on screen and at the start of the caption.
 2. **Voiceover sits at -3 to -6 dB peak (~-14 LUFS integrated).** Clear,
    foreground, never fighting the music.
 3. **Music ducks 18-24 dB under the voice.** Background music sits around
@@ -38,7 +40,9 @@ Reels, and YouTube Shorts.
 5. **Original audio over borrowed trending sound for product video.** A clear
    product voiceover beats a trending song the viewer can't act on. Trending
    sound helps discovery only inside its first 3-7 day window and rarely fits a
-   narration-led review.
+   narration-led review. Original spoken audio had the largest modelled effect
+   on likes in a 9,654-video brand study, and TikTok's feed avoids consecutive
+   videos with the same sound.
 6. **Normalize to each platform's loudness target** so the video isn't
    auto-attenuated louder or quieter than the feed around it.
 
@@ -68,7 +72,7 @@ Mix targets converge across audio-for-video guidance:
 | Integrated loudness (voice) | ~-14 LUFS | Matches streaming/social loudness norms |
 | Music under voice | -25 to -30 dB | 18-24 dB below the voiceover |
 | Music in voice-free beats | -6 to -10 dB | Intro sting, outro, B-roll moments |
-| Sound effects (caption pops) | ~-18 dB rel. voice | Only on emphasized words, not every segment |
+| Sound effects | ~-18 dB rel. voice | Sparse: the hook, the reveal and the CTA only. The pycaps template effects are muted by default (`mute_template_sound_effects`). |
 
 **Pipeline mapping.** Levels live in `audio_settings` in
 `config/video_production.yaml`: `music_volume_db` (default -24.0) and
@@ -147,8 +151,15 @@ The first 3 seconds need an audio event, not just a visual one:
 
 Align the audio hook with the visual hook and the burned-in hook overlay so the
 opening beat lands once, hard, across all three channels (audio, on-screen
-text, caption). Mismatched audio and visual hooks split attention in the
-1.7-second decision window.
+text, caption). Mismatched audio and visual hooks split attention in the first seconds,
+where the stop-or-swipe decision is made.
+
+**Voice and music choices.** AI voiceovers drew lower engagement than human
+voices on real TikTok ads, and a lower-pitched AI voice narrowed the gap
+(grade A). Tempo shifts mood rather than attention, and cuts on accented
+downbeats feel better. [creator-research.md](creator-research.md) section 5
+has the sources, and #545 and #546 specify the voice chain and beat-snapped
+cuts.
 
 ## 5. Platform loudness normalization
 
