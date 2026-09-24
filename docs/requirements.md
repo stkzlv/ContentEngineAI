@@ -317,7 +317,7 @@ pipeline state, rather than each consumer re-deriving it from config.
 - Scripts name the product the way a person would say it aloud. Model and SKU designations are never spoken. The short alias derived from the listing title is offered as a suggestion rather than an instruction, because it is auto-trimmed and can come out as a fragment carrying a part number; when it does not read as a spoken name, the plain category noun is used instead.
 - The per-platform caption generator receives the rendered spoken script and mirrors the script's closing engagement-bait line into the caption body before the hashtag block. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s for engagement bait). When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
 - A generated script can be checked after generation for common machine-writing phrases, sentence length and a word count derived from the target duration, re-entering the retry loop on failure. Off by default. (planned, #548)
-- The search phrase is spoken in the first line, shown in the hook headline and placed at the start of every platform caption, and a report shows how often all three hold. (planned, #548)
+- The search phrase is spoken in the first line, shown in the hook headline and placed at the start of every platform caption (off by default until the readout), and a report shows how often all three hold. (planned, #548)
 - No configured call to action or closing-line example asks viewers to share, tag, vote or reply with a specific word; closing questions ask for a choice or an experience. (planned, #549)
 
 ### TTS Voice Profiles
