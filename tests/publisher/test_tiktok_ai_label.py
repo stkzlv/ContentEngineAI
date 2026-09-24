@@ -1,10 +1,8 @@
 """TikTok's AI-generated-content label reaches every TikTok payload.
 
-TikTok requires the label for AI-generated speech and extends it to AI
-voiceover even when the footage is real; every render here carries an AI TTS
-voiceover. Undisclosed AI content is auto-labelled from C2PA credentials and
-an auto-flag suppresses distribution, so the label protects reach rather than
-costing it.
+The label is on by default. TikTok's 2026-H2 guidelines exempt generic TTS
+narration, which is all this pipeline uses, so the label is voluntary here and
+#558 decides whether to keep it. Until then it has to reach every payload.
 """
 
 from src.publisher.models import TikTokContentSettings

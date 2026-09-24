@@ -408,7 +408,7 @@ the discipline is using them.
 **2026 platform shifts a 2025 playbook would miss.** TikTok's US operation was
 divested to a US joint venture in January 2026 and its recommendation algorithm
 is being retrained on US-only data, so US-reach assumptions are provisional. Instagram removed the longer-Reels penalty (recommends up to ~3 min
-to non-followers), names watch time, likes per reach and sends per reach as its top signals, with sends weighing slightly more for viewers who do not follow the account, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
+to non-followers), names, as quoted, watch time, likes per reach and sends per reach as its top signals, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
 guidance now hurts reach.
 
 ## 8. Honest gaps in the evidence

@@ -8,7 +8,7 @@ Opus Clip, Captions.ai, TikTok creator tooling, WCAG, and subtitling
 research — see the sources at the bottom.
 
 **Audience**: 30–60 second 9:16 vertical e-commerce product videos watched
-on mobile. Many viewers watch muted, though most on TikTok keep sound on.
+on mobile. Many viewers watch muted, though most on TikTok spend time with sound on.
 For muted viewers the captions *are* the content.
 
 **Related docs**:

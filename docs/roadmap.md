@@ -22,7 +22,7 @@ When the script language is not English, the disclosure must match. Add per-lang
 
 ## Phase 1 — Hook and retention surgery (Now)
 
-The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engagement-bait closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile), plus hook-overlay hardening (frame-fit wrap and shrink, apostrophe- and percent-safe rendering via `textfile=`) and the authored hook headline (1.9). Remaining: a Gen Z cut-density profile (1.4) and the A/B measurement layer (1.7).
+The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile), plus hook-overlay hardening (frame-fit wrap and shrink, apostrophe- and percent-safe rendering via `textfile=`) and the authored hook headline (1.9). Remaining: a Gen Z cut-density profile (1.4) and the A/B measurement layer (1.7).
 
 ### 1.4 High-density cut profile
 
@@ -74,7 +74,7 @@ Three audio-side techniques from the creator research (`docs/creator-research.md
 
 ### 1.14 Remove AI-slop signals
 
-Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made, YouTube's inauthentic-content policy names image slideshows, and TikTok's Creator Rewards criteria name slide videos, the shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
+Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made. YouTube's inauthentic-content policy names image slideshows and TikTok's Creator Rewards criteria name slide videos, the shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
 
 **Done when:** each item is enabled on measured results or left off with the reason recorded, and the TikTok label decision is written down.
 
@@ -184,7 +184,7 @@ After publishing a Reel, the publisher automatically schedules a Story re-share 
 
 **Done when:** every Reel published triggers an automatic Story re-share with a link sticker, confirmed live on the IG account.
 
-### 4.2 YouTube engagement-bait pinned comment
+### 4.2 YouTube closing-question pinned comment
 **Shipped in 0.60.0**, except literal pinning, which the SDK does not expose. The shipped YouTube first-comment template is `{closing_line}`.
 
 
@@ -192,7 +192,7 @@ Generate the YouTube first comment from the script's closing fork — the spec-c
 
 This is also the only sensible use of that slot. YouTube renders URLs in Shorts descriptions and Shorts comments as plain text, not links, to limit spam, and every render this pipeline produces is classified as a Short (vertical, well under the duration ceiling). A destination URL placed in either surface is dead text. The clickable paths off a Short are the channel profile links and the Related Video slot, so the job of the comment is to earn a profile visit, not to carry a link.
 
-**Done when:** every YouTube Short publishes with an engagement-bait pinned comment derived from the script, and no publish path puts a destination URL in a YouTube Shorts description or comment expecting it to be clickable.
+**Done when:** every YouTube Short publishes with a closing-question pinned comment derived from the script, and no publish path puts a destination URL in a YouTube Shorts description or comment expecting it to be clickable.
 
 ### 4.3 Comment-reply video mode
 
@@ -228,7 +228,7 @@ Scope note, corrected: since July 2026 YouTube accepts custom Shorts thumbnails 
 
 ### 4.8 Episodic series framing per pillar
 
-Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system. Each episode must stand alone: TikTok's feed standards exclude a payoff withheld to force a follow ("follow for part 2"), so link episodes through YouTube's related-video field or a playlist instead.
+Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system. Each episode must stand alone: TikTok's feed standards exclude false incentives for following, so a payoff promised only for a follow ("follow for part 2") is a risk, so link episodes through YouTube's related-video field or a playlist instead.
 
 **Done when:** published titles/captions carry a per-pillar episode number that increments across the back-catalogue.
 
@@ -310,7 +310,7 @@ Wire up Instagram's native affiliate product tagging through the publisher when 
 
 ### 6.4 YouTube end-screen subscribe overlay
 
-Add an end-screen overlay step in `src/video/producer/` that bakes a subscribe CTA on the last few seconds. End screens are long-form-only — they don't appear on Shorts under 60s — so this depends on the long-form profile (6.1) shipping first. Pinned-comment subscribe asks can ride on the existing publisher path but underperform engagement-bait pinned comments (Phase 4.2), so end-screens are the better long-term lever.
+Add an end-screen overlay step in `src/video/producer/` that bakes a subscribe CTA on the last few seconds. End screens are long-form-only — they don't appear on Shorts under 60s — so this depends on the long-form profile (6.1) shipping first. Pinned-comment subscribe asks can ride on the existing publisher path but underperform closing-question pinned comments (Phase 4.2), so end-screens are the better long-term lever.
 
 ### 6.5 Zernio SDK migration
 

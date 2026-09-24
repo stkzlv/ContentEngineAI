@@ -8,7 +8,7 @@ Not every platform can carry a link here. YouTube renders URLs in Shorts
 comments as plain text, and any 9:16 clip under the duration ceiling is
 classified as a Short, so a destination URL in a YouTube first comment is
 inert. The template for that platform uses ``{closing_line}`` instead: the
-script's engagement-bait closing beat, which earns replies and profile visits.
+script's closing question or claim, which earns replies and profile visits.
 The profile is the only clickable route off a Short.
 """
 
@@ -49,9 +49,9 @@ _CTA_MARKERS = (
 
 
 def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
-    """Return the script's engagement-bait closing beat, or None.
+    """Return the script's closing beat (question or claim), or None.
 
-    Every template closes with the engagement-bait beat immediately before one
+    Every template closes with that beat immediately before one
     CTA line, so the beat is found by position: strip trailing CTA sentences and
     take what is left at the end. It is a two-option question on personal and
     storytelling templates and a debatable claim on analytical ones; both invite

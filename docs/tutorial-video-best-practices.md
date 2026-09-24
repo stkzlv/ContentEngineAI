@@ -8,7 +8,7 @@ the difference is what the video is for, and that changes the structure, the
 length band, the visual source, and which metric tells you it worked.
 
 **Audience**: problem-first tech-help, fix-it, and explainer content served
-via TikTok, Instagram Reels, and YouTube Shorts. Often watched muted, though most TikTok viewers keep sound on.
+via TikTok, Instagram Reels, and YouTube Shorts. Often watched muted, though most TikTok users spend time with sound on.
 
 **Related docs**:
 - [promotional-video-best-practices.md](promotional-video-best-practices.md) —
@@ -97,7 +97,7 @@ The evidence behind the bands (the bands themselves are an inference, grade C):
   https://dl.acm.org/doi/10.1145/2556325.2566239
 - **Tutorial viewers take what they need and leave (A).** In the same study,
   viewers watched 2-3 minutes of a tutorial regardless of its length,
-  and re-watched them more than lectures. Length matters
+  and re-watched tutorials more than lectures. Length matters
   less than being able to find the step. These were motivated learners, not
   feed scrollers, so treat the numbers as an upper bound on patience.
 - **Fast speech is fine (A).** Engagement rose with speaking rate; viewers
@@ -279,11 +279,11 @@ applied to a 30-90 s video:
 | Redundancy | 0.87 | Full captions plus narration plus busy footage overloads; during the steps, show the menu path, not only a transcript. Captions still help muted and second-language viewers, so this is a balance |
 | Spatial contiguity | 0.79 | Put the label next to the thing it names |
 | Personalization | 0.79 | Conversational "you"; the templates already do this |
+| Voice | 0.74 | Human voices beat machine voices in the studies reviewed, which predate modern TTS |
 | Coherence | 0.70 | Remove footage that does not teach; decorative material lowers learning |
 | Segmenting | 0.70 | One step per visual segment, with a counter ("2/4") |
 | Signaling | 0.46 | Highlight the control being tapped |
 | Pre-training | 0.46 | Name the starting place first ("everything is in Settings, Battery") |
-| Voice | 0.74 | Human voices beat machine voices in the studies reviewed, which predate modern TTS |
 
 Beyond the table:
 
@@ -350,8 +350,8 @@ Yes, when the graphic explains; no when it decorates.
   drawn tutorials were more engaging than slides or screencasts.
 - **Decorative graphics hurt (A).** Interesting but irrelevant material lowers
   learning. Every graphic must encode a fact from the script.
-- **Graphics count as transformation (A).** YouTube and Instagram credit
-  substantive edits and contextual overlays as original. The same five cards
+- **Graphics count as transformation (A).** YouTube credits substantive
+  edits, and Instagram counts unique text and creative edits, as original. The same five cards
   with swapped words in every video would read as a template, so vary the
   layout and tie the geometry to the content.
 
