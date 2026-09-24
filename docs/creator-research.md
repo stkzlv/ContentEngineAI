@@ -13,7 +13,7 @@ Most "technique X adds N% retention" figures online come from tool vendors and p
 | Grade | Meaning |
 |---|---|
 | **A** | Peer-reviewed or registered research, or a platform's own policy or documentation |
-| **B** | A large observational dataset with a stated method, or a platform's first-party ad research. Correlation, not cause. |
+| **B** | A large observational dataset with a stated method, a preprint or working paper, agency research, or a platform's first-party ad research. Correlation, not cause. |
 | **C** | A creator's or vendor's claim, often with one data point or no method |
 
 Two cautions apply throughout:
@@ -25,7 +25,7 @@ Two cautions apply throughout:
 
 1. **Win the first second.** The first gate on every platform is whether the viewer stops or swipes. Frame 0 should be a finished composition: the product or the result, plus the hook text. No fade-in, no preamble.
 2. **Variation between videos is a defence, not polish.** YouTube's "inauthentic content" policy, TikTok's For You feed standards and Instagram's originality rules all target templated output with minimal variation. An automated pipeline is the exact profile they look for.
-3. **End on the peak.** A tail after the last line (fading music, a standalone CTA card) is a measurable exit point. Cut hard after the final spoken beat.
+3. **End on the peak.** A tail after the last line (fading music, a standalone CTA card) looks like an exit point; one creator measured it, nobody has at scale. Cutting it is cheap to test.
 4. **Keep effects moderate.** Stimulation follows an inverted U: moderate intensity gets the most likes, shares and comments, heavy effects get fewer.
 5. **Put motion on every still.** TikTok lists static images as low-quality content. Slow, varied motion on every image is close to mandatory.
 6. **Ask genuine questions, never bait.** A choice or experience question is safe. Asking for a specific word, emoji, share or tag is demoted by Meta and TikTok.
@@ -85,21 +85,21 @@ Two cautions apply throughout:
 - **Foreshadow, then progress visibly (C).** Hoyos uses "but" and "then" beats and a visible progression ("three steps") so viewers stay to the end.
 - **"But" and "therefore", never "and then" (C).** A screenwriting rule that suits a 90-word script: each sentence causes or complicates the next. https://thescriptlab.com/features/screenwriting-101/13636-how-south-park-creators-plot-better-scripts/
 - **Pay off the promise immediately (C).** The leaked MrBeast production memo, written for long-form: the video must confirm what the thumbnail promised at once, and re-engage with a new high point at planned intervals. For Shorts that means the hook headline and first frame must match the title and cover, and one mid-video "re-hook" around the middle. https://simonwillison.net/2024/Sep/15/how-to-succeed-in-mrbeast-production/
-- **Storytelling outperforms other types on views (A, small study).** A four-month field experiment across 202 TikTok posts. https://mpra.ub.uni-muenchen.de/123280/1/MPRA_paper_123280.pdf
+- **Storytelling outperforms other types on views (B, working paper, small study).** A four-month field experiment across 202 TikTok posts. https://mpra.ub.uni-muenchen.de/123280/1/MPRA_paper_123280.pdf
 - **One honest trade-off is supported (A).** Two-sided messages raise credibility, best when the negative is small, real and tied to a positive. https://www.sciencedirect.com/science/article/abs/pii/S0167811606000267
 - **Pace (weak evidence).** No study sets an optimal words-per-minute for Shorts. 150-170 WPM (about 80-125 words for 30-45 seconds) is the common practice. Lab work found fast speech reduced listeners' ability to judge arguments. https://journals.sagepub.com/doi/10.1177/01461672952110006
 - **Length (B).** Hoyos targets 34 seconds. Galloway found Shorts that held viewers past 40 seconds were favoured. 30-45 seconds is defensible; lengthen only when the retention curve holds.
-- **Scripts that sound machine-written cost trust (A, B).** The textual tells are well catalogued: "it's not X, it's Y", reflexive lists of three, "delve", "game-changer", "seamless". https://www.pangram.com/signs-of-ai-writing
+- **Machine-written phrasing has known tells (C).** Whether they cost engagement is unmeasured; the AI-disclosure finding in section 1 is about labels, not phrasing. The tells are well catalogued: "it's not X, it's Y", reflexive lists of three, "delve", "game-changer", "seamless". https://www.pangram.com/signs-of-ai-writing
 
 ## 4. Editing and visual effects
 
-- **Moderate stimulation wins (A).** A 2026 study of 1,200 rated short videos, validated on 14,492 more, found message sensation value (cuts, motion, sound and text combined) raises engagement up to a point, then heavy effects reduce likes, shares and comments. https://arxiv.org/abs/2604.19995
-- **Filters and pace (A, one study).** In 9,654 brand TikToks, original spoken audio had the largest modelled effect on likes, having no visual filter predicted better performance, and editing pace had only modest predictive value. https://arxiv.org/html/2606.16053
+- **Moderate stimulation wins (B, preprint).** A 2026 study of 1,200 rated short videos, validated on 14,492 more, found message sensation value (cuts, motion, sound and text combined) raises engagement up to a point, then heavy effects reduce likes, shares and comments. https://arxiv.org/abs/2604.19995
+- **Filters and pace (B, preprint, one study).** In 9,654 brand TikToks, original spoken audio had the largest modelled effect on likes, having no visual filter predicted better performance, and editing pace had only modest predictive value. https://arxiv.org/html/2606.16053
 - **A visual change every 3-5 seconds, not hyper-cutting (C, measured on four videos).** Ali Abdaal's Shorts change visual state about every 5 seconds, with list items every 3 seconds and at most one punch-in zoom. https://www.writepanda.ai/blog/how-to-edit-shorts-like-ali-abdaal/ . "A cut every 2 seconds" has no measured support.
 - **Transitions (B, ads).** In TikTok's ad coding, seamless transitions gave 14% more view time and surprising transitions 53% more brand recall.
 - **Motion on stills (A policy, C timing).** TikTok's feed standards treat static images as low quality. How long a still can hold before viewers leave is unmeasured.
 - **Callouts count as transformation (A for originality).** Instagram names "creative graphics or contextual overlays" among the edits that make content original. No retention data exists for arrows or circles.
-- **Colour (A, weak).** Filters predicted worse performance in the brand study. Keep the grade neutral with mild contrast.
+- **Colour (B, preprint, weak).** Filters predicted worse performance in the brand study. Keep the grade neutral with mild contrast.
 - **Progress bars (C).** Only the vendors that sell them report gains, and a bar on every video is a template tell.
 - **Flashes (A, safety).** Never more than three flashes per second (WCAG 2.3.1). https://w3c.github.io/wcag21/understanding/three-flashes-or-below-threshold.html
 - **Automation pitfall.** FFmpeg `zoompan` rounds positions to whole pixels, so slow moves shudder unless the image is upscaled first or animated with a sub-pixel `crop`.
@@ -108,7 +108,7 @@ Two cautions apply throughout:
 
 - **Most TikTok viewers have sound on (B, older).** 93% of users keep sound on, which makes voice, music and effects at least as important as captions. https://ads.tiktok.com/business/en/blog/kantar-report-how-brands-are-making-noise-and-driving-impact-with-sound-on-tiktok
 - **AI voice carries a measured penalty that pitch narrows (A, ads).** AI voiceovers drew lower engagement than human voices on real TikTok ads, and the gap narrowed with a lower-pitched AI voice. https://www.sciencedirect.com/science/article/abs/pii/S0268401225000945
-- **Listeners often cannot tell (A).** WPP Media found listeners identified generic AI voices less than half the time. AI voices matched human ones on attention and purchase intent, but voices believed human scored higher on relatability. Prosody aligned with the information structure raised human-likeness. https://www.wppmedia.com/news/ai-voices-audio-ads
+- **Listeners often cannot tell (B, agency research).** WPP Media found listeners identified generic AI voices less than half the time. AI voices matched human ones on attention and purchase intent, but voices believed human scored higher on relatability. Prosody aligned with the information structure raised human-likeness. https://www.wppmedia.com/news/ai-voices-audio-ads
 - **Tempo shifts mood, not attention (A).** Fast music (108 BPM and up) raised arousal and purchase intent in short ad studies, while an EEG study found tempo did not change attention. https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1236006/full
 - **Cuts on the beat feel better (A).** Cuts on accented downbeats, even unnoticed ones, increase perceptual pleasure. https://www.sciencedirect.com/science/article/pii/S030439402200180X
 - **Sound effects: sparse, not on every cut (C).** No retention study exists. Editors agree an effect on every cut is worse than none. Reserve them for the hook, the reveal and the CTA.
@@ -131,7 +131,7 @@ Two cautions apply throughout:
 
 - **Frequency (B, correlational).** Buffer's data across 100,000+ users: 3-5 posts a week roughly doubles follower growth over 1-2, with reach per post compressing as frequency rises. https://buffer.com/resources/social-media-frequency-guide/
 - **Replying to comments (B).** A within-account comparison across about 2 million posts found 21% more engagement on Instagram posts that got replies, with causation uncertain. https://buffer.com/resources/instagram-comments-engagement/
-- **A closing prompt drives comments (A, one study).** Endings that invite a response were the main comment predictor in the brand TikTok study.
+- **A closing prompt drives comments (B, preprint, one study).** Endings that invite a response were the main comment predictor in the brand TikTok study.
 - **Consistent format, varied content.** A recognisable format helps (MKBHD, Khaby Lame), but templated sameness is what the inauthentic-content rules target. Keep the format, vary everything inside it.
 - **"Follow for part 2" is a risk (A).** TikTok's feed standards exclude false incentives and payoffs withheld to force a follow. An honest, self-contained series linked by YouTube's related video or a playlist is fine.
 

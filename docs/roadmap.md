@@ -26,7 +26,7 @@ The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, engag
 
 ### 1.4 High-density cut profile
 
-Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2. The creator research (`docs/creator-research.md` section 4) tempers it: stimulation follows an inverted U, measured top Shorts change visual state about every 3-5 seconds rather than every 2, and "a cut every 2 seconds" has no measured support. Build it as an option to test, not a new default.
+Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2. The creator research (`docs/creator-research.md` section 4) tempers it: stimulation follows an inverted U, one creator's Shorts, measured frame by frame, change visual state about every 3-5 seconds rather than every 2, and "a cut every 2 seconds" has no measured support. Build it as an option to test, not a new default.
 
 **Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
 
@@ -152,7 +152,7 @@ Score and filter product candidates before rendering, using the data the scraper
 
 ### 3.8 Bait-safe CTAs and closing lines
 
-Meta demotes share, tag and vote requests and specific-reply asks; TikTok's feed standards exclude false incentives. One bundled CTA asks for a share. A test that fails on bait patterns in the CTA pools and closing-line examples, then a pool change after the reach test. Tracked in #549.
+Meta demotes share, tag and vote requests and specific-reply asks; TikTok's feed standards exclude false incentives. Both CTA pools carry a share request. A test that fails on bait patterns in the CTA pools and closing-line examples, then a pool change after the reach test. Tracked in #549.
 
 **Done when:** no configured CTA or closing-line example matches a bait pattern, guarded by a test.
 
@@ -348,8 +348,8 @@ Concrete gates for the 1.0.0 release:
 
 **Roadmap items in scope for 1.0.0**
 - All Phase 0 items shipped (compliance baseline; gating).
-- All Phase 1, 2, and 3 items shipped.
-- At least four of six Phase 4 items shipped or in review.
+- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.11, 1.12, 1.13, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
+- At least half of the Phase 4 items shipped or in review.
 - Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
 
 **Real-world proof**

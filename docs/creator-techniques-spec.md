@@ -6,7 +6,7 @@ The technical design for each requirement drawn from [creator-research.md](creat
 
 - **Off by default when it changes output.** The format-vs-format reach test needs the script, voice and sound held constant until its readout (#540). Anything that changes what a render looks or sounds like ships behind a switch that defaults to today's behaviour, and `tests/test_reach_test_holdout.py` gains a check for it. Measurement-only work (#547, #551) can land at any time.
 - **Byte-identical when off.** Each spec's off state must leave the FFmpeg command, the prompt or the payload exactly as it is today, pinned by a test.
-- **Seeded variation.** A choice drawn per render uses a salted MD5 of the product id (`<product_id>:<purpose>`), the pattern the fonts, voices, CTAs and pauses already use. A product renders the same way every time, and a batch varies.
+- **Seeded variation.** A choice drawn per render uses a salted MD5 of the product id (`<product_id>:<purpose>`), the pattern the CTAs and pauses already use (fonts and voices hash the bare product id with different slices). A product renders the same way every time, and a batch varies.
 - **Record what was chosen.** Every drawn choice goes into `pipeline_state.json` beside `script_template` and `cta`, and is mirrored into the step entry so a truncating resume keeps it. #547 turns these records into a variety report, and #551 segments metrics by them.
 - **Measure before enabling.** Each production spec lists the check that decides whether to enable it after the readout. Most of the evidence is creator opinion or ad research, so the pipeline's own analytics decide.
 
@@ -63,7 +63,7 @@ The technical design for each requirement drawn from [creator-research.md](creat
 - Applied in `build_mix` to the voice chain before the `volume` stage: `highpass,equalizer,acompressor,deesser,highshelf,alimiter`. Captions are transcribed from the TTS output file, so the processed audio never reaches Whisper; the transcript is unchanged by construction.
 - Record `voice_chain` (on or off) and the voice name per render, so #551 can compare voices and chains.
 
-**Tests.** The filter clause matches the configured parameters; integrated loudness of a mixed test clip stays within 0.5 LU of the target with the chain on and off; off produces today's command.
+**Tests.** The filter clause matches the configured parameters; integrated loudness of a mixed test clip with the chain on stays within 0.5 LU of the same clip with the chain off (the mix already lands about 1 LU under the target, so compare the two, not either with the target); off produces today's command.
 
 **Enable when.** A voice-by-chain comparison over at least 20 posts per cell shows no loss; the research suggests also trying a lower-pitched voice.
 
@@ -102,7 +102,8 @@ The technical design for each requirement drawn from [creator-research.md](creat
 - `script_validation.lint`: `enabled` (default false), `banned_phrases` (a list: "it's not X, it's Y" shapes as regexes, "game-changer", "say goodbye to", "elevate", "seamless", "delve", "whether you're"), `max_sentence_words` (default 16), `max_words_per_sec` (default 2.8, applied to the profile's target duration).
 - Run inside the existing `_validate` closure, so a failing script re-enters the retry loop like a missing CTA, with its own reason string. The last-resort fallback today rescues only a script whose sole defect is the CTA; extend it so a script that fails only the lint also ships (with a warning) rather than losing the render.
 - Prompt rules for the hook's concreteness and the "but/therefore" chain render into `{CTA_RULE}` after the existing rules, like naturalism, behind `script_templates.hook_rules.enabled` (default false).
-- Search-phrase report: the search phrase (product keyword or topic keyword) checked against the first spoken sentence, the hook headline and the first 60 characters of each platform caption, counted per render in the #547 report. Measurement only.
+- Search-phrase placement: a prompt rule for the hook headline and each platform caption prompt to lead with the search phrase (the product keyword or the topic keyword), behind the same switch as the hook rules. The first spoken sentence already carries it through the existing audio-keyword rule.
+- Search-phrase report: the phrase checked against the first spoken sentence, the hook headline and the first 60 characters of each platform caption, counted per render in the #547 report. The report is measurement only and can land before the readout; the placement rules wait for it.
 
 **Tests.** Each banned shape rejects a fixture script; the length caps reject an over-long script; off leaves `_validate` unchanged; the report counts a fixture where the phrase is missing from the caption.
 
@@ -110,7 +111,7 @@ The technical design for each requirement drawn from [creator-research.md](creat
 
 ## #549 Remove engagement-bait lines from the CTA pools
 
-**Today.** The product pool includes "Share with someone who needs this." Meta lists share requests as engagement bait.
+**Today.** Both pools carry a share request: "Share with someone who needs this." in `cta_options` and "Share it with whoever needs it." in `cta_options_topic`. Meta lists share requests as engagement bait.
 
 **Design.**
 - A bait-pattern list in a test (share, tag, vote, "comment <word>", emoji requests, follow-for-reward), checked against `cta_options`, `cta_options_topic` and the closing-line examples in every script template.
@@ -121,13 +122,13 @@ The technical design for each requirement drawn from [creator-research.md](creat
 
 ## #550 YouTube titles for products; Instagram hashtag range
 
-**Today.** Product videos go to YouTube with the store listing title, cut to fit (the metadata validation warns on `data.json` titles over 100 characters). The Instagram block in `config/ai_services.yaml` asks for 15-30 hashtags, while posts actually carry 4 or 5.
+**Today.** Product videos go to YouTube with the store listing title, cut to fit (the metadata validation warns on `data.json` titles over 100 characters). Three places set the Instagram hashtag range: `platform_metadata.instagram` and `platform_metadata_config` in `config/ai_services.yaml` (both 15-30), and `PLATFORM_LIMITS[Platform.INSTAGRAM]` in `src/publisher/models.py` (5-30), which `validate_limits` checks at publish. Posts actually carry 4 or 5.
 
 **Design.**
 - Find the path that sets the YouTube title for a product render (the metadata loader reads `title` from the product record) and have it use the generated YouTube title from the platform metadata step, bounded by `title_length_max`, keyword first. Fall back to a shortened listing title only when generation failed.
-- Set the Instagram `hashtag_count_min/max` to 3 and 5, and correct the comments. Trace which step currently caps Instagram at 5, and make the config value the one that decides.
+- Set all three Instagram ranges to 3-5 and correct the comments, so a 3- or 4-hashtag post no longer fails `validate_limits`. Trace which step currently caps Instagram at 5, and make one source decide, with the others derived from it or asserted equal by a test.
 
-**Tests.** A product render's YouTube payload title is the generated one and within the maximum; the Instagram generator never returns more than 5 hashtags.
+**Tests.** A product render's YouTube payload title is the generated one and within the maximum; the Instagram generator never returns more than 5 hashtags, and `validate_limits` accepts 3, 4 and 5.
 
 **Reach test.** Titles and hashtags are held constant across both arms by the protocol. The title fix applies only to the product arm, so it waits for the readout; the hashtag config alignment changes nothing that ships and can land.
 
@@ -147,12 +148,11 @@ The technical design for each requirement drawn from [creator-research.md](creat
 
 ## #552 Cover frames, including YouTube Shorts thumbnails
 
-**Today.** No cover is produced. Roadmap 4.7 says YouTube does not accept Shorts thumbnails; since July 2026 it does, on desktop for Partner Program channels.
+**Today.** No cover is produced. Since July 2026 YouTube accepts custom Shorts thumbnails on desktop for Partner Program channels; roadmap 4.7 records this.
 
 **Design.**
 - After assembly, render `cover.jpg` at 1080x1920 from the frame 0 composition: the hero image and the hook headline, with the headline inside the centred 3:4 area Instagram's grid crops to.
 - Pass the cover in the publish payload for every platform the provider accepts one for. Check the provider's API for a Shorts thumbnail field; if it has none, record the gap and keep frame 0 as the YouTube lever.
-- Correct roadmap 4.7's YouTube note.
 
 **Tests.** Every render writes a cover of the right size with the headline inside the 3:4 area; the payload carries it where supported.
 
