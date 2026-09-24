@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Added research on how projects organize roadmaps, requirements, design documents and decision records, with a comparison against this repository's docs.
+
 ## [0.127.1] - 2026-09-24
 
 ### Documentation
