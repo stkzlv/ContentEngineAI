@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A research guide collects what successful short-form creators and the platforms' own statements say about hooks, structure, editing, sound, endings, packaging and ranking, with every claim graded by its evidence.
 - A technical spec turns that research into eleven planned requirements, each tracked by an issue and designed to ship off by default until the reach test reads out, and the roadmap links them to its existing items.
 - A second research guide covers what makes short video read as AI slop and what this pipeline should avoid, with four more planned requirements and one evaluation; it also found that TikTok's current guidelines do not require an AI label for generic text-to-speech, which the compliance notes now flag for a decision.
+- The tutorial guide now sets length by the number of steps, explains why stock footage under a spoken step makes a tutorial feel generic, and says which explanatory graphics are worth building, with three planned requirements.
 - The promotional, tutorial, audio and subtitle guides now agree with that research: most TikTok viewers keep sound on, cut pace is moderate rather than frantic, closing lines ask genuine questions instead of baiting, and the AI-label and originality rules reflect the 2025-2026 platform changes.
 
 ## [0.127.0] - 2026-09-24

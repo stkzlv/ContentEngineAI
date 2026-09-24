@@ -77,14 +77,35 @@ right for promo, flattens exactly the moment that needed room.
 
 ## 2. Length
 
-Published guidance clusters at **25-40 s for tutorial Shorts**, against
-21-34 s for entertainment, with educational formats stretching to 60 s and
-occasionally 90 s when the topic needs it. YouTube Shorts accepts up to
-3 minutes, which is not a reason to use it.
+**Length follows the number of steps, not a fixed word count.** A fixed
+~100-word script is about 37 s whatever the task, which is itself part of the
+generic feel: a one-step shortcut gets padded and a six-step fix gets cut.
 
-Treat the band as a constraint on scope, not a target to fill. A fix that
-genuinely needs 90 seconds is usually two videos: one that answers the common
-case, one that handles the exception.
+| Tutorial type | Example | Steps | Duration | Words |
+|---|---|---|---|---|
+| Single setting or shortcut | "Screenshot on a Pixel: Power + Volume Down" | 1-2 | 15-30 s | 40-80 |
+| Multi-step fix | "Stop an iPhone overheating while it charges" | 3-6 | 40-75 s | 110-200 |
+| Concept explainer | "Why wifi drops at night" | a cause, then 1-2 checks | 35-60 s, ending in one testable action | 100-160 |
+| More than 6 steps, or forks by device | "Fix wifi drops" in general | - | a numbered series, one per device or cause, or long-form with chapters | - |
+
+The evidence behind the bands (the bands themselves are an inference, grade C):
+
+- **Short holds attention (A).** Across 6.9 million edX sessions, median
+  engagement was near 100% for videos under 6 minutes and fell sharply after.
+  https://dl.acm.org/doi/10.1145/2556325.2566239
+- **Tutorial viewers take what they need and leave (A).** In the same study,
+  viewers watched 2-3 minutes of a tutorial regardless of its length,
+  re-watched more than lectures, and paused at step boundaries. Length matters
+  less than being able to find the step. These were motivated learners, not
+  feed scrollers, so treat the numbers as an upper bound on patience.
+- **Fast speech is fine (A).** Engagement rose with speaking rate; viewers
+  followed even 254 words per minute. Add pauses between steps, not within
+  them.
+- **Platform limits are not targets.** YouTube Shorts accept up to 3 minutes
+  since October 2024 (A); Reels and TikTok allow longer.
+
+A Short loops, which helps re-watching one step, but a viewer cannot jump to
+step 5, so a many-step fix belongs in a series or a chaptered long-form video.
 
 ## 3. Visual source when there is no product to show
 
@@ -128,6 +149,10 @@ global defaults.
 The footage tracks the script as a whole, not the sentence playing over it, so
 "one instruction per visual change" is only partly met. Matching each shot to
 the instruction it illustrates needs a search per segment.
+
+That gap is the main reason these renders read as generic. Section 9 sets the
+order to move to: a real capture or a UI mockup per step, a diagram for a
+concept, and stock only for the opening symptom (#560).
 
 ## 4. Discovery: search-first, not feed-first
 
@@ -234,7 +259,117 @@ a tutorial that gets a fact wrong costs the reason the viewer came.
   needs the same on-frame plus first-line caption disclosure as a product
   video.
 
-## 8. Honest gaps in the evidence
+## 8. What makes a short tutorial useful
+
+Diagnosis of this pipeline's own topic renders: the picture has nothing to do
+with what the voice says, and the advice is what most viewers already know. A
+reviewed render ("Why your router needs a reboot") ran 24 s over stock photos
+of a raised hand, legs among cables and a stressed man at a laptop, while the
+voice said "unplug the power for thirty seconds". The learning-science
+evidence ranks exactly that as the most damaging design error.
+
+Effect sizes from Mayer's 2017 review (A, https://doi.org/10.1111/jcal.12197),
+applied to a 30-90 s video:
+
+| Principle | d | What it means here |
+|---|---|---|
+| Temporal contiguity | 1.30 | The visual for step N is on screen while step N is spoken |
+| Redundancy | 0.87 | Full captions plus narration plus busy footage overloads; during the steps, show the menu path, not only a transcript. Captions still help muted and second-language viewers, so this is a balance |
+| Spatial contiguity | 0.79 | Put the label next to the thing it names |
+| Personalization | 0.79 | Conversational "you"; the templates already do this |
+| Coherence | 0.70 | Remove footage that does not teach; decorative material lowers learning |
+| Segmenting | 0.70 | One step per visual segment, with a counter ("2/4") |
+| Signaling | 0.46 | Highlight the control being tapped |
+| Pre-training | 0.46 | Name the starting place first ("everything is in Settings, Battery") |
+
+Beyond the table:
+
+- **Show the task done, then recap it (A, small sample).** Demonstration
+  tutorials built procedural skill, and a short recap beat demonstration alone.
+  In a Short the recap is the last 2-3 s: the whole path on one card.
+- **First-person view, not a presenter (A).** Showing an instructor did not
+  improve learning; showing the task as the viewer sees it did. Faceless is not
+  the problem.
+- **Be specific (C).** An exact menu path plus the device and OS version, said
+  once and shown on screen, is what separates a tutorial from advice and makes
+  it checkable.
+- **Show the result, and name the common mistake (C).** "Don't hold Power too
+  long, or you get the power menu" adds information stock footage cannot carry.
+
+**Topic filter (C).** Accept a topic only if it is specific (one device family
+or app, one outcome), searchable (phrased the way people type it),
+demonstrable (a visible path or result) and surprising or non-default (a
+hidden setting, a shortcut, a counter-intuitive cause). "Screenshot anything
+on any device" fails "specific" and should be a series. "Why wifi drops at
+night" has many causes and cannot be shown with stock footage; pick one cause
+and one check. Every step should cite a vendor support page before the video
+renders, and a topic whose steps cannot be sourced is dropped. Tracked in
+#559.
+
+## 9. Visuals must show the step being spoken
+
+The visual for each step comes from the step, timed to its narration, not
+from a keyword search over the whole script. In order of preference:
+
+1. **A real screen capture** where it can be automated. On Android, an
+   emulator driven over adb records with `screenrecord` (MP4, 180 s maximum)
+   and draws each touch with Developer options > Show taps. Stock Android
+   differs from Samsung and Pixel skins, and routers, Windows and iOS need
+   another source.
+2. **A rendered UI mockup** with the exact labels from the source page,
+   rendered in the headless Chromium the caption engine already runs. It must
+   stay generic in its phone chrome and exact in its labels.
+3. **A diagram** for a concept (section 10).
+4. **Stock footage only for the opening symptom** (a spinner, a hot phone), at
+   most about 3 s, and never under a step.
+
+End on the result, then a 2-3 s recap card with the full path. Tracked in
+#560.
+
+## 10. Infographics and simple animation
+
+Yes, when the graphic explains; no when it decorates.
+
+- **Signaling works (A).** Arrows, highlights and labels: d = 0.52 in Mayer's
+  lab, g of about 0.38 across a meta-analysis of 29 studies.
+  https://link.springer.com/article/10.1007/s11423-020-09748-7
+- **Animation beats static pictures, most for procedures (A).** d = 0.37
+  overall and d = 1.06 for procedural-motor knowledge, larger when the
+  animation shows the content itself rather than decorating it. "Tap here,
+  then here" is procedural. https://www.sciencedirect.com/science/article/abs/pii/S0959475207001077
+- **Keep each graphic short and single (A).** Animation loses its advantage on
+  long sections because working memory overloads: one idea per graphic, on
+  screen long enough to read.
+- **Build-on drawing beats static slides (B).** In the edX data, continuously
+  drawn tutorials were more engaging than slides or screencasts.
+- **Decorative graphics hurt (A).** Interesting but irrelevant material lowers
+  learning. Every graphic must encode a fact from the script.
+- **Graphics count as transformation (A).** YouTube and Instagram credit
+  substantive edits and contextual overlays as original. The same five cards
+  with swapped words in every video would read as a template, so vary the
+  layout and tie the geometry to the content.
+
+The graphic types worth building first, for tech help:
+
+| Type | Why | Data | Note |
+|---|---|---|---|
+| Menu-path breadcrumb | Signaling plus segmenting | The path segments | Revealed segment by segment with the voice |
+| Step card with counter | Segmenting | Step number, total, a short action | Doubles as progress |
+| Callout on a real screenshot | Signaling on real content | A box on a known capture | Never guessed on stock footage |
+| Spec or comparison card | Signaling on numbers | Values from the scraped data | For product videos; never LLM-invented specs |
+| Before/after split | A concrete comparison | Two real states | Speed test, cluttered and clean menu |
+| Checklist ("do this, not that") | Segmenting, coherence | Items with a state | Low risk |
+| Simulated phone tap path | Procedural animation | Screens and taps | Later; generic chrome, exact labels |
+| Parametric concept diagram | Build-on animation | Numbers only | Later; the template draws, the LLM supplies numbers |
+
+Build them as HTML and CSS templates rendered to transparent images in the
+existing Chromium and animated with FFmpeg overlays, driven by a validated
+JSON spec from the script step. One graphic on screen at a time, about eight
+words at most, at least 1.5 s per new text segment, and a failed graphic is
+skipped rather than losing the render. No AI image generation for anything the
+viewer must read: it garbles text and invents UI. Tracked in #561.
+
+## 11. Honest gaps in the evidence
 
 Most published short-form guidance is vendor marketing for editing tools, and
 this doc's sourcing is weaker than it looks.
@@ -259,6 +394,12 @@ this doc's sourcing is weaker than it looks.
 - **Nothing here is a substitute for an A/B on your own channel.** Two arms,
   interleaved by day, same voice and cadence, differing only in format.
   Sequential comparison confounds the format change with whatever else moved.
+- No peer-reviewed study covers feed-served short tutorials by length; the
+  length guidance transfers from MOOC and marketing data.
+- No published comparison of stock footage against screen capture exists for
+  Shorts; the pipeline would have to measure it.
+- The human-over-machine voice effect (d = 0.74) comes from studies that
+  predate modern TTS.
 
 ## Sources
 

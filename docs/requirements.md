@@ -286,6 +286,9 @@ pipeline state, rather than each consumer re-deriving it from config.
 - A topic draws only from profiles whose visuals come entirely from stock. A profile that draws product imagery is refused before the run starts, because it would gather nothing and fail per product mid-run, reported as a render failure rather than as the configuration error it is
 - On a run carrying both kinds of record each draws from its own pool, so no single profile has to serve both. A fixed profile cannot, and one that draws no stock media is refused rather than applied to the products and silently swapped for the topics
 - `--process-all-products` is refused only on a topics-only run, which is the one that narrows the shared pool
+- A topic script can be built from a sourced step list (action, exact UI path, expected result, vendor source per step), with its length set by the step count and unsourced steps refused; topics that fork by device become a series. Off by default. (planned, #559)
+- Each tutorial step can be shown as it is spoken, by a screen capture, a UI mockup with the exact labels or a diagram, with stock footage limited to the opening symptom and the video ending on the result and a path recap. Off by default. (planned, #560)
+- Tutorials can carry templated explanatory graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, skipped rather than failing the render. Off by default. (planned, #561)
 
 ### Media Validation
 - Scraper validates media against producer profile requirements
