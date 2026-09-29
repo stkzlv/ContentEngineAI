@@ -378,9 +378,15 @@ async def test_auto_scheduling_assigns_unique_slots_per_product(
         written = ScheduleManager(
             schedule_path=temp_outputs_dir / "state" / "schedule.json"
         ).entries
+        # The slot index is the position of the slot's weekday in the
+        # fixture's slot list, so it depends on the day the test runs.
+        slot_days = [
+            slot["day_of_week"]
+            for slot in mock_publisher_config["recurring_schedule"]["slots"]
+        ]
         assert [(e.product_id, e.scheduled_time, e.slot_index) for e in written] == [
-            ("B0TEST1", times[0], 0),
-            ("B0TEST2", times[1], 1),
+            (pid, t, slot_days.index(t.strftime("%A").lower()))
+            for pid, t in zip(["B0TEST1", "B0TEST2"], times, strict=True)
         ]
         assert all(e.status == "scheduled" for e in written)
 
