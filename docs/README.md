@@ -22,12 +22,11 @@ A folder is created when its first file moves in. Pages that still sit at the to
 
 | Page | Belongs in |
 |---|---|
-| `requirements.md`, `compliance.md` | `requirements/` |
 | `creator-techniques-spec.md` | `design/` |
 | `ai-slop-research.md`, `creator-research.md`, `documentation-practices-research.md`, `audio-best-practices.md`, `promotional-video-best-practices.md`, `subtitle-best-practices.md`, `tutorial-video-best-practices.md` | `research/` |
 | `installation.md`, `batch-processing.md`, `troubleshooting.md` | `guides/` |
 | `configuration.md`, `zernio-client.md`, `lnkbio-api.md` | `reference/` |
-| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md` | `explanation/` |
+| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md` | `explanation/` |
 | `publisher.md`, `video-producer.md`, `scraper.md` | split across `guides/`, `reference/` and `explanation/` |
 | `development.md`, `linting.md`, `testing.md`, `versioning.md` | `contributing/` |
 
@@ -40,7 +39,7 @@ A folder is created when its first file moves in. Pages that still sit at the to
 
 ## Statuses
 
-Requirements use `shipped`, `planned (#N)`, `held` or `deprecated`. A `held` requirement names the setting that turns it on and the condition for turning it on.
+Requirements use `shipped`, `partial`, `planned #N`, `planned (decision NNNN)`, `held` or `deprecated`; [the requirements index](requirements/README.md) defines each.
 
 Design docs use `Draft`, `Accepted`, `Implemented` or `Superseded by NNNN`. Decision records use `Accepted` or `Superseded by NNNN`.
 

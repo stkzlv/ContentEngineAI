@@ -101,7 +101,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Development](docs/development.md) | Dev setup and contribution workflow |
 | [Testing](docs/testing.md) | Test framework and coverage |
 | [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
-| [Requirements](docs/requirements.md) | Project requirements and specs |
+| [Requirements](docs/requirements/README.md) | What the system must do, by area, with ids and statuses |
 | [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
 | [Promotional Video Best Practices](docs/promotional-video-best-practices.md) | Hook, cut cadence, CTA, FTC disclosure, trust signals (engine-agnostic) |
 | [Tutorial Video Best Practices](docs/tutorial-video-best-practices.md) | How-to format: answer-first structure, length, stock visuals, search discovery, durability metrics |

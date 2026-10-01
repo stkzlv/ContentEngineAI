@@ -2,7 +2,7 @@
 
 Pydantic drops unknown keys by default, and a dropped key in a profile is
 invisible: the render succeeds using the global value, so the profile appears
-to work while its override does nothing. `docs/requirements.md` has claimed
+to work while its override does nothing. The requirements doc has claimed
 strict validation for profiles since before the model had it.
 """
 

@@ -69,7 +69,7 @@ ALSO = (Path("CLAUDE.md"), Path("GEMINI.md"), Path("README.md"))
 # (`pycaps_engine/renderer.py`), which is a literal in the source, not a key.
 #
 # Deliberately not a bare `legacy`: that word exempts the lines most likely to
-# be wrong. `docs/requirements.md` used to read "Legacy flat per-profile keys
+# be wrong. The requirements doc used to read "Legacy flat per-profile keys
 # (...) still load with a deprecation warning", which was false the moment
 # this branch landed and which a `legacy` alternative waves through.
 #

@@ -131,6 +131,16 @@ make test          # Run all tests with coverage
 - **Testing**: Describe how you tested your changes
 - **Documentation**: Update relevant documentation files; [the documentation map](docs/README.md) says where each kind belongs
 
+### Documentation
+
+- Put extended documentation in `docs/`; [the documentation map](docs/README.md) says which folder holds what.
+- Update the docs in the same pull request as the code, including the requirement the change affects.
+- Write GitHub-Flavored Markdown, with relative links between docs.
+- Give code examples their context and the output they produce.
+- Keep the README to the project's purpose, key features, a quick start and links to the detailed docs.
+- Follow Keep a Changelog for `CHANGELOG.md`. Besides its standard sections, the file uses Documentation, Dependencies and Notes.
+- Keep the root community files: README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CHANGELOG and LICENSE.
+
 ### Code Review Process
 
 1. Maintainers will review your PR

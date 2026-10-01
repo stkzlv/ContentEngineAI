@@ -1,6 +1,6 @@
 # Creator Techniques: Technical Specs
 
-The technical design for each requirement drawn from [creator-research.md](creator-research.md) and [ai-slop-research.md](ai-slop-research.md). The requirements themselves are in [requirements.md](requirements.md), marked `(planned, #N)`. One section per issue.
+The technical design for each requirement drawn from [creator-research.md](creator-research.md) and [ai-slop-research.md](ai-slop-research.md). The requirements themselves are in [the requirement files](requirements/README.md), with the status `planned #N`. One section per issue.
 
 ## Rules that apply to every spec
 

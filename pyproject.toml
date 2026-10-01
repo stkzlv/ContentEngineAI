@@ -276,6 +276,7 @@ markers = [
     "external: Tests requiring external services",
     "mock: Tests using mocks",
     "asyncio: Async tests",
+    "req(*ids): requirement ids from docs/requirements/ that the test checks",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
