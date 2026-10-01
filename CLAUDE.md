@@ -40,7 +40,7 @@ find . -name '*.private.md' -not -path './.venv/*' -not -path './outputs/*'
 - Items and structure stay aligned. When an item is added, removed, reordered, or changes horizon in one file, mirror it in the other.
 - Public describes the capability. Private adds motivation, constraints, and decisions.
 - `Done when` criteria may differ: public stays generic and testable; private can reference signals (metrics, sample sizes, thresholds specific to the contributor's use case).
-- The same rule applies to any other paired docs (e.g., `docs/strategy.md` + `docs/strategy.private.md`).
+- The same rule applies to any other paired docs.
 
 **Never leaks into the public tree**:
 - Content or direct quotes from any `*.private.md` file.
@@ -200,6 +200,7 @@ After every context compaction (session continuation), run `/github-workflow` to
 - Create implementation plans for features/fixes before coding
 
 **Important Documentation**:
+- **docs/README.md**: the documentation map. Which folder holds which kind of document (roadmap, requirements, design docs, decision records, guides), the statuses, and the issue-first workflow. Read it before adding or moving a doc.
 - **CONTRIBUTING.md**: GitHub Flow workflow, branch naming, code style, testing requirements
 - **docs/development.md**: Architecture, performance optimization, component development, debugging
 - **docs/versioning.md**: Semantic versioning rules, release process, version support policy

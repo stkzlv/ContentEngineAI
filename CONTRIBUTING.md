@@ -129,7 +129,7 @@ make test          # Run all tests with coverage
 - **Title**: Use conventional commit format (`feat:`, `fix:`, `docs:`, etc.)
 - **Description**: Explain what changes you made and why
 - **Testing**: Describe how you tested your changes
-- **Documentation**: Update relevant documentation files
+- **Documentation**: Update relevant documentation files; [the documentation map](docs/README.md) says where each kind belongs
 
 ### Code Review Process
 
