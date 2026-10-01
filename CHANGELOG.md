@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Added research on how projects organize roadmaps, requirements, design documents and decision records, with a comparison against this repository's docs.
+- A documentation map in `docs/README.md` says which folder holds each kind of document, and `docs/decisions/` starts with records of five standing decisions: the docs structure, output changes shipping off by default, configuration precedence, the caption engine, and tolerated duplicates.
+- A test checks that every relative link in the docs and every `docs/` path cited from code and config resolves, so moving a page can't leave dead links behind.
 
 ## [0.127.1] - 2026-09-24
 
