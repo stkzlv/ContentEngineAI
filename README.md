@@ -77,6 +77,7 @@ See [Installation](docs/installation.md) for complete setup instructions.
 
 | Guide | Description |
 |-------|-------------|
+| [Documentation map](docs/README.md) | Where each kind of document lives, and the decision records |
 | [Installation](docs/installation.md) | Setup guide with prerequisites and API keys |
 | [Configuration](docs/configuration.md) | YAML config reference and CLI overrides |
 | [Scraper](docs/scraper.md) | Product data extraction from Amazon |
