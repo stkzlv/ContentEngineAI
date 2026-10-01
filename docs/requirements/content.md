@@ -1,0 +1,189 @@
+# Content requirements
+
+Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the requirements index](README.md).
+
+## AI services
+
+- **REQ-CNT-001** `shipped` The producer generates text with Gemini as the primary provider and falls back to OpenRouter when every Gemini model fails.
+- **REQ-CNT-002** `shipped` When the producer falls back to OpenRouter, it discovers the free models and excludes blocklisted models, models below a minimum context length, models that do not output text and models that reason in their output by default.
+- **REQ-CNT-003** `shipped` The config sets the LLM retry policy, the validation thresholds and the model blocklist.
+- **REQ-CNT-004** `shipped` The producer gives each configured model a bounded number of attempts before it moves to the next model.
+- **REQ-CNT-005** `shipped` If LLM calls fail repeatedly, a circuit breaker stops further calls for a configured cool-down.
+- **REQ-CNT-006** `shipped` If a generated video description is longer than `description_validation.max_chars` (default 900), the producer rejects it as model reasoning and tries the next model.
+
+## Script templates
+
+- **REQ-CNT-007** `shipped` The producer ships several script templates with distinct styles (curiosity hook, problem-solution, storytelling, comparison and others).
+- **REQ-CNT-008** `shipped` Templates instruct calm, conversational delivery, with no high-energy, hype or clickbait phrasing.
+- **REQ-CNT-009** `shipped` The producer selects a template per product deterministically, so a product gets the same template on every run.
+- **REQ-CNT-010** `shipped` Where `script_templates.template_pool` lists templates, the producer selects only from them; an empty pool means every template.
+- **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
+- **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
+- **REQ-CNT-013** `partial` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
+  - Gap: `--script-template` is applied before the topic-or-product check, so a forced product template runs on a topic, and the reverse.
+- **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
+- **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
+
+## Product script rules
+
+- **REQ-CNT-016** `shipped` Every product template instructs the LLM to open with a conversational hook that carries the long-tail search keyword (product category, price band, audience cue or pain point) within the first five seconds of speech.
+- **REQ-CNT-017** `shipped` The product hook rule lists six hook patterns (price-first reveal, regret or contrarian, POV, outcome-first, numbered teardown, comparison) and names the literal search-query shape as an anti-pattern.
+- **REQ-CNT-018** `shipped` Every product template instructs the LLM to state a concrete fact, result or observation about the product in the first line, and names setup framings ("Today I'll show you", "In this video") as anti-patterns.
+- **REQ-CNT-019** `shipped` Every product template instructs the LLM to end the script with one short closing question or claim right before the call to action.
+- **REQ-CNT-020** `shipped` Personal and storytelling templates close on a two-option opinion question; analytical and comparison templates close on a debatable but defensible spec claim.
+- **REQ-CNT-021** `shipped` Where the product description states a measurement that can be quoted verbatim with its unit as a whole word, analytical templates close on a claim about that measurement.
+  - Why: the spec branch gives no worked closing line, because a worked example gets copied onto products it does not fit.
+- **REQ-CNT-022** `shipped` Where the description states no such measurement, analytical templates close on a material, shape or use claim that carries no numbers.
+- **REQ-CNT-023** `shipped` Every product template instructs the LLM to include one trade-off or limitation of the product, one sentence at most.
+- **REQ-CNT-024** `shipped` Scripts name the product the way a person says it aloud and never speak model or SKU designations.
+- **REQ-CNT-025** `shipped` The template offers the short product alias as a suggestion, and the script uses the plain category noun when the alias does not read as a spoken name.
+
+## Topic script rules
+
+- **REQ-CNT-026** `shipped` Every topic template instructs the LLM to state the fix within the first three seconds.
+- **REQ-CNT-027** `shipped` Every topic template instructs the LLM to speak the search phrase within the first five seconds.
+- **REQ-CNT-028** `shipped` Every topic template asks for one instruction per sentence.
+- **REQ-CNT-029** `shipped` Every topic template forbids inventing a product to recommend.
+- **REQ-CNT-030** `shipped` A topic script gives a menu path or a URL only when it can state it exactly (the labels in order, or the address in full) for a platform it names; otherwise it gives an observable on the device or says that it differs by device.
+- **REQ-CNT-031** `shipped` A topic script closes on the result rather than on a debatable spec claim.
+- **REQ-CNT-032** `shipped` A topic script carries one honest limit, placed among the steps rather than after them.
+  - Why: a limit read last becomes the final spoken line before the call to action and leaves the viewer unsure the fix worked.
+
+## Call to action and closing line
+
+- **REQ-CNT-033** `shipped` Every script, product or topic, ends on exactly one configured call to action, verbatim, as its final sentence (`script_templates.cta_options` for products, `cta_options_topic` for topics).
+- **REQ-CNT-034** `shipped` The producer chooses one call to action per record, reproducibly, and renders only that line into the template rules.
+- **REQ-CNT-035** `shipped` If a script's last sentence is not a configured call to action, validation rejects the script and the producer retries.
+- **REQ-CNT-036** `shipped` If every attempt misses the call to action, the producer ships the first otherwise complete script with the chosen line appended, or substituted for a last sentence that reads as a paraphrased call to action, and logs a warning.
+- **REQ-CNT-037** `shipped` When `--cta <line>` (or `script_templates.fixed_cta`) names a configured option, every record closes on that line; a line that is not configured is ignored.
+- **REQ-CNT-038** `shipped` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
+- **REQ-CNT-039** `shipped` The per-platform caption generator places the script's closing line in the caption body, before the hashtag block.
+- **REQ-CNT-040** `shipped` When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
+- **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote or reply with a specific word; closing questions ask for a choice or an experience.
+  - On when: the call-to-action pools are edited after the reach-test readout (#540).
+
+## Script naturalism and signature
+
+- **REQ-CNT-042** `shipped` When `script_templates.naturalism.intensity` is 0, the script prompt is unchanged.
+- **REQ-CNT-043** `held` Where `script_templates.naturalism.intensity` is 1 or 2, scripts use contractions, spoken fillers and one emotional beat, and at 2 also one self-correction of wording.
+  - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
+- **REQ-CNT-044** `held` Where naturalism is on, filler never lands in the first sentence, inside a number, name or claim, or in or after the call to action, and uses words the captions carry rather than sounds speech recognition drops.
+  - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
+- **REQ-CNT-045** `held` Where an author signature is configured, a script carries an opener that starts the first sentence, one transition where the script turns, and a sign-off right before the call to action.
+  - On when: the `script_templates.signature` pools (`openers`, `transitions`, `signoffs`) are filled after the reach-test readout, in stages (#540); empty pools mean off.
+- **REQ-CNT-046** `held` Each signature element is drawn per product, reproducibly, below `script_templates.signature.use_rate`, so the signature recurs without appearing in every render.
+  - On when: the `script_templates.signature` pools are filled after the reach-test readout, in stages (#540).
+- **REQ-CNT-047** `held` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
+  - On when: the `script_templates.signature` pools are filled after the reach-test readout, in stages (#540).
+
+## Script checks
+
+- **REQ-CNT-048** `shipped` If a generated script does not end with terminal punctuation, the producer treats it as truncated and retries.
+- **REQ-CNT-049** `shipped` When a script is generated, the producer checks its falsifiable claims: a topic script with one grounded web search, a product script against the scraped title and description, prices excluded.
+- **REQ-CNT-050** `shipped` When the check flags claims, the producer revises at most `script_fact_check.max_flags_to_revise` sentences (default 3) and refuses a revision whose length differs from the original by more than `script_fact_check.max_length_drift` (default 25%).
+- **REQ-CNT-051** `shipped` If the fact check or the revision fails for any reason, the producer ships the original script.
+- **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
+- **REQ-CNT-053** `planned #548` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries.
+  - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
+- **REQ-CNT-054** `planned #548` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
+  - On when: `script_templates.hook_rules.enabled` is set after the reach-test readout (#540).
+- **REQ-CNT-055** `planned #548` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
+
+## Voice profiles
+
+- **REQ-CNT-056** `shipped` The producer synthesises speech with Gemini TTS or Google Cloud TTS.
+- **REQ-CNT-057** `shipped` The config defines named voice profiles, each with style direction, voice preferences and text markup rules.
+- **REQ-CNT-058** `shipped` A voice profile can direct tone, energy and pacing.
+- **REQ-CNT-059** `shipped` The default voice profile delivers calm, confident speech rather than high energy.
+- **REQ-CNT-060** `shipped` A voice profile can set speaking rate and pitch.
+- **REQ-CNT-061** `shipped` Where a profile has markup rules, the producer inserts pause tags at sentence boundaries (periods, exclamation marks and question marks).
+- **REQ-CNT-062** `held` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
+  - On when: `default_voice_profile` or `voice_profile_pool` selects a profile with a `pause_plan` (such as `charon_varied`) after the reach-test readout, in stages (#540).
+- **REQ-CNT-063** `shipped` The config rejects a pause plan that uses a tag not measured as silent, so no tag text reaches the captions.
+- **REQ-CNT-064** `shipped` The producer selects a voice profile per product deterministically, so a product gets the same voice on every run.
+- **REQ-CNT-065** `shipped` The producer resolves the voice profile in this order: `--voice-profile`, a draw from `voice_profile_pool`, the pinned `default_voice_profile`, a draw from all profiles.
+- **REQ-CNT-066** `shipped` Where `default_voice_profile` is set and `voice_profile_pool` is empty, every render uses the pinned profile.
+- **REQ-CNT-067** `shipped` Where `voice_profile_pool` lists profiles, selection is restricted to them.
+- **REQ-CNT-068** `shipped` When `--voice-profile <name>` names a configured profile, the render uses it; an unknown name logs a warning and selection continues down the order.
+- **REQ-CNT-069** `shipped` The producer records the voice profile name and the selected voice per render.
+- **REQ-CNT-070** `shipped` The producer tries the voice profile's own provider first, then each provider in `provider_order`.
+- **REQ-CNT-071** `shipped` When a Gemini voice fails, the producer strips the inline markup tags before it sends the text to a fallback provider, so no tag is spoken.
+- **REQ-CNT-072** `shipped` Google Cloud voice choice falls back through ranked voice families (by default Chirp3, then Chirp, then Neural2, then any en-US voice).
+- **REQ-CNT-073** `planned #545` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
+  - On when: a voice-by-chain comparison after the reach-test readout shows no loss.
+- **REQ-CNT-074** `planned #545` The producer records per render whether the voice chain was on, beside the voice name.
+- **REQ-CNT-075** `planned #556` Where TTS normalisation is enabled, numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only.
+  - On when: `tts_normalisation.enabled` is set after the reach-test readout, once a probe has measured which strings the voice misreads.
+- **REQ-CNT-076** `planned #556` Where TTS normalisation is enabled, the script file and state keep the written form, and the captions show what the voice said.
+
+## Background music
+
+- **REQ-CNT-077** `shipped` The music chain tries each provider configured in `audio_providers` in order and falls back to local stock files.
+- **REQ-CNT-078** `shipped` The default chain is Jamendo, then Freesound, then local stock files.
+- **REQ-CNT-079** `shipped` The producer requests tracks whose duration matches the voiceover length.
+- **REQ-CNT-080** `shipped` Each music provider has its own circuit breaker.
+- **REQ-CNT-081** `shipped` The producer records the chosen track's attribution: source, author, license URL and track id.
+- **REQ-CNT-082** `shipped` A candidate track is downloaded once within a bounded timeout, and a failed download moves to the next candidate rather than retrying the same URL.
+- **REQ-CNT-083** `shipped` The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent, the chain falls back to local stock files.
+- **REQ-CNT-084** `shipped` Where a provider ranks by popularity or rating alone, the producer accepts a candidate only when the query's terms match the track's tags or title.
+- **REQ-CNT-085** `shipped` A query term matches any word it begins ("chill" matches "chillout"), and a provider that drew its own query is judged against that query.
+- **REQ-CNT-086** `shipped` If no candidate from a provider matches the mood, the chain moves to the next provider rather than accept a mismatch.
+- **REQ-CNT-087** `shipped` The audio summary names the terms the chosen track matched.
+
+## Jamendo
+
+- **REQ-CNT-088** `shipped` The Jamendo provider authenticates with a client id only, without OAuth2.
+- **REQ-CNT-089** `shipped` The Jamendo provider searches in `fuzzytags` mode by default (any tag matches), and `search_mode` can switch it to `tags` (all tags match) or `search` (free text).
+- **REQ-CNT-090** `shipped` Jamendo searches request instrumental tracks within the duration window, ordered by the month's popularity.
+- **REQ-CNT-091** `shipped` If Jamendo returns no tracks, the provider retries a bounded number of times with a fresh query each time, and reports no tracks only after a run of empty answers.
+- **REQ-CNT-092** `shipped` Where `search_queries` lists queries, the Jamendo provider draws one at random for each search attempt.
+- **REQ-CNT-093** `shipped` The Jamendo provider prefers the track's download URL and falls back to the stream URL when download is not allowed.
+
+## Freesound
+
+- **REQ-CNT-094** `shipped` The Freesound provider uses OAuth2 for full-quality downloads and falls back to API-key previews.
+- **REQ-CNT-095** `shipped` The Freesound provider refreshes the access token `freesound_token_refresh_buffer_sec` (default 60 seconds) before it expires.
+- **REQ-CNT-096** `shipped` When the Freesound provider refreshes its token, it writes the rotated refresh token to `.env` in place of the old one.
+  - Why: the service invalidates the old refresh token on use.
+- **REQ-CNT-097** `shipped` If a token refresh fails, the provider attempts it once per run, logs one warning with the fitting remedy (the OAuth2 setup tool for a rejected token, none for an unreachable endpoint) and uses previews for the rest of the run.
+- **REQ-CNT-098** `shipped` A setup tool guides the manual Freesound authorize step and writes the refresh token to `.env`.
+- **REQ-CNT-099** `shipped` The Freesound provider searches with a duration filter and falls back to a general search.
+
+## Final mix
+
+- **REQ-CNT-100** `shipped` The producer masters the final mix to a loudness target (default -14 LUFS, true peak -1 dBFS).
+- **REQ-CNT-101** `shipped` Where `music_ducking_enabled` is true, the music level drops while narration plays and recovers in the gaps; it is off by default.
+
+## Content pillars
+
+- **REQ-CNT-102** `shipped` Pillars are named themes that group keywords and script templates; a keyword or a template can sit under more than one pillar.
+- **REQ-CNT-103** `shipped` Pillars are the keys of `batch.keywords` in `config/scraper.yaml` and of the `script_templates` pillar maps (`pillars`, `pillar_preambles`, `pillar_audiences` and their `_topic` variants) in `config/ai_services.yaml`; the bundled config ships `value`, `novelty` and `utility`.
+- **REQ-CNT-104** `shipped` Users can rename, add or remove pillars in config without code changes.
+- **REQ-CNT-105** `shipped` Where `batch.keywords` is a map keyed by pillar, each scraped product carries its source keyword's pillar to the producer.
+- **REQ-CNT-106** `shipped` `batch.keywords` also accepts a flat list, which attaches no pillar.
+- **REQ-CNT-107** `partial` A keyword listed under more than one pillar carries each of those pillars.
+  - Gap: the keyword keeps only the last pillar it is listed under, although it is searched once per listing.
+- **REQ-CNT-108** `shipped` A keyword passed on the command line carries its configured pillar, and a keyword not in the config carries none.
+- **REQ-CNT-109** `shipped` A template can be listed under several pillars in `script_templates.pillars`.
+- **REQ-CNT-110** `shipped` A render's pillar is `--pillar` when passed, else the pillar an earlier run recorded, else the product's keyword pillar.
+- **REQ-CNT-111** `shipped` Where a product render has a pillar, the producer selects deterministically from that pillar's templates instead of the full pool.
+- **REQ-CNT-112** `shipped` `--pillar <name>` narrows the product template pool, sets the prompt preamble and sets the audience hint for the run.
+  - Why: a pillar shapes the script only; it does not filter which products a run includes, and nothing balances products across pillars.
+- **REQ-CNT-113** `shipped` The producer and the batch both accept `--pillar`.
+- **REQ-CNT-114** `shipped` The script prompt stacks, in order: the narrator profile (`script_templates.narrator_profile`), the pillar preamble when a pillar is set (`pillar_preambles`, or `pillar_preambles_topic` on a topic render), then the template with the product data.
+- **REQ-CNT-115** `shipped` The platform caption generators (YouTube, TikTok, Instagram) receive the same narrator profile and pillar preamble as the script.
+- **REQ-CNT-116** `shipped` When a pillar is set, the `{AUDIENCE}` placeholder takes `script_templates.pillar_audiences[pillar]` (or `pillar_audiences_topic[pillar]` on a topic render) instead of `target_audience`.
+- **REQ-CNT-117** `shipped` If the pillar's audience entry is missing or empty, `{AUDIENCE}` falls back to `target_audience`.
+- **REQ-CNT-118** `shipped` If `--pillar` names a pillar configured in none of the pillar maps, the run logs an info-level hint listing the configured pillars and continues with no template filter, preamble or audience override.
+- **REQ-CNT-119** `shipped` Whenever the producer generates a script, it writes the full prompt to `outputs/<id>/temp/script_prompt.txt`.
+- **REQ-CNT-120** `shipped` The producer records the render's pillar in `pipeline_state.json`, and a resumed run keeps it.
+- **REQ-CNT-121** `shipped` Subtitle styling and the TTS voice are the same for every pillar.
+- **REQ-CNT-122** `shipped` The bundled pillar preambles frame a `value` video around the deal, a `novelty` video around discovery and a `utility` video around the problem and its solution.
+- **REQ-CNT-123** `shipped` The bundled audience hints target budget-conscious shoppers for `value`, curious early discoverers for `novelty` and practical problem-solvers for `utility`.
+
+## Prompt hygiene
+
+- **REQ-CNT-124** `shipped` The producer Unicode-normalises product titles and descriptions before they enter a prompt, folding mathematical-alphabet bold characters to plain ASCII.
+- **REQ-CNT-125** `shipped` The producer replaces em dashes in the description with commas and en dashes with hyphens before prompting.
+- **REQ-CNT-126** `shipped` Templates receive both the full product title (`{FULL_PRODUCT_NAME}`) and a short alias of a few words taken from the listing title (`{SHORT_PRODUCT_NAME}`).
+- **REQ-CNT-127** `shipped` The narrator profile instructs the LLM to paraphrase a feature in its own words when the description carries a banned phrase or marketing fluff, rather than quote it.

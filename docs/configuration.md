@@ -1314,7 +1314,7 @@ llm_settings:
 
 **Pillar resolution order:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/cli.py`, then the pillar a previous run of the same product recorded, then the product record's own value, which the scraper attaches from the source keyword's configured group. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes.
 
-See [Requirements](requirements.md) "Content Pillars" for the behavior contract.
+See [the content requirements](requirements/content.md#content-pillars) for the behavior contract.
 
 </details>
 

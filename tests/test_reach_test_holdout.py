@@ -10,14 +10,18 @@ enabled after the readout.
 
 from __future__ import annotations
 
+import pytest
+
 from src.video.config import load_video_config_modular
 
 
+@pytest.mark.req("REQ-CNT-043", "REQ-CNT-044")
 def test_script_naturalism_is_off() -> None:
     settings = load_video_config_modular().llm_settings
     assert settings.script_templates.naturalism.intensity == 0
 
 
+@pytest.mark.req("REQ-CNT-062")
 def test_the_selected_voice_keeps_uniform_pauses() -> None:
     """A pause plan on the voice the pipeline selects would change the
     treatment arm's delivery. The varied profile exists to be tried by name.
@@ -29,6 +33,7 @@ def test_the_selected_voice_keeps_uniform_pauses() -> None:
         assert tts.voice_profiles[name].pause_plan is None, name
 
 
+@pytest.mark.req("REQ-CNT-045", "REQ-VID-027")
 def test_the_author_signature_is_off() -> None:
     config = load_video_config_modular()
     assert not config.llm_settings.script_templates.signature.configured
