@@ -1,513 +1,289 @@
 # Roadmap
 
-Last updated: 2026-09-24
+Where ContentEngineAI is going, grouped into phases by horizon: **Now**, **Next** and **Later**. Items are aspirational, not commitments, and the order within a phase is rough priority. Each item states the outcome and links to where the detail lives: its issue, its [design doc](design/README.md) and its [requirements](requirements/README.md). What has shipped is in the [CHANGELOG](../CHANGELOG.md).
 
-Forward-looking work on ContentEngineAI, grouped into phases by horizon. Items are aspirational, not commitments. Order within each phase is rough priority.
+Issues and pull requests are welcome on any item. To pick one up, open an issue first so the scope can be agreed.
 
-The phases are sequenced so each one builds on the previous. Phase 0 is the disclosure-compliance baseline that every promotional render needs to satisfy and has to land before anything else ships. Phase 1 fixes the retention foundation (hook quality and 3-second hold). Phase 2 organises content by theme. Phase 3 makes attribution and CTAs measurable. Phase 4 layers per-platform optimisations. Phase 5 closes the analytics loop. Phase 6 captures unlocks blocked on platform thresholds or features.
+Output-changing items ship off by default and are turned on only on measured results ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)).
 
-Issues and PRs are welcome on any item. If you want to pick something up, open an issue first so we can talk through scope.
+## Phase 0: Disclosure compliance baseline (Now, gates 1.0.0)
 
-## Phase 0 — Disclosure compliance baseline (partial, blocking)
-
-Targeted to gate the 1.0.0 release. Creators using the pipeline for affiliate marketing have legal disclosure obligations under the FTC Endorsement Guides (any US-facing content), the Amazon Associates Operating Agreement (any Amazon affiliate program participant), and per-platform policy (TikTok / Instagram / YouTube). Compliance is not a polish item: FTC penalties reach $53,088 per violation per post in 2025 and Amazon Associates enforces with account termination, no warning. The pipeline should make compliance the default render output, not a per-video checklist.
-
-The persistent on-frame overlay, first-line caption disclosure, platform-tag audit, regression suite, `docs/compliance.md`, and affiliate program literal phrase shipped together. What remains gates 1.0.0:
+Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags and the affiliate phrase have shipped; see [docs/compliance.md](compliance.md).
 
 ### 0.4 Localized disclosure variants
 
-When the script language is not English, the disclosure must match. Add per-language disclosure variants keyed off the existing TTS / script language: `en` → `#ad`, `es` → `#publi` or `#publicidad`, etc. Required by FTC's same-language rule and by Spain's Royal Decree 444/2024 for creators in the EU. A config-load-time validator should warn (not silently default) when the configured disclosure language doesn't match the script language for a given run.
+The disclosure matches the script language (`#ad` in English, `#publi` in Spanish), as the FTC's same-language rule and Spain's Royal Decree 444/2024 require.
 
-**Done when:** a Spanish-language render emits a Spanish-language disclosure overlay and caption first line; an English render emits English; mismatches raise a config-load warning.
+**Done when:** a Spanish render emits a Spanish overlay and caption line, an English render English, and a language mismatch raises a config-load warning. No issue yet.
 
-## Phase 1 — Hook and retention surgery (Now)
+## Phase 1: Hook and retention (Now)
 
-The foundational items shipped across 0.48.0-0.51.x (audio-keyword opener, closing line, caption mirror, punchline-first opener with visual interrupt, burned-in hook overlay, short profile), plus hook-overlay hardening (frame-fit wrap and shrink, apostrophe- and percent-safe rendering via `textfile=`) and the authored hook headline (1.9). Remaining: a Gen Z cut-density profile (1.4) and the A/B measurement layer (1.7).
+Hold the viewer past the opening seconds and keep output varied enough that platforms don't treat it as mass-produced.
 
 ### 1.4 High-density cut profile
 
-Add a `cut_density: high` profile setting in `config/video_production.yaml` that drops the minimum slide duration to 1.5-3s and adds a transition (whip pan, hard cut, zoom punch) between every slide. Useful for younger audiences on platforms whose feeds reward visual energy density. Keep the existing slow-cut profile available for use cases where it fits better. Strategy and shot-length bands are in `docs/promotional-video-best-practices.md` section 2. The creator research (`docs/creator-research.md` section 4) tempers it: stimulation follows an inverted U, one creator's Shorts, measured frame by frame, change visual state about every 3-5 seconds rather than every 2, and "a cut every 2 seconds" has no measured support. Build it as an option to test, not a new default.
+An optional profile with 1.5-3 s slides and a transition between each, built as an option to test rather than a default. The creator research finds stimulation follows an inverted U, so faster is not assumed better.
 
-**Done when:** a high-density profile renders without subtitle desync and is selectable per platform.
+**Done when:** a high-density profile renders without subtitle desync and is selectable per platform. No issue yet.
 
 ### 1.7 Hook-variant A/B measurement
 
-The cold-open variant framework already selects one of several hook variants per product and writes it to `pipeline_state.json`. Persist that variant into the published-products registry (a `hook_variant` column) and surface it in the analytics reports so per-variant retention is measurable. Hook hold is the primary retention lever; without per-variant data there's no way to learn which opener holds past the 3-second mark. Pairs with the high-density cut profile (1.4) as the two retention experiments. Note this is the measurement layer; 1.2 and 1.4 are the production layers. The first-seconds metrics it needs (viewed vs swiped away, engaged views) are #551. Instagram Trial Reels, which show a Reel to non-followers first, are the one native A/B lever until YouTube's Shorts cut-testing arrives in 2027; check whether the publishing provider can post them.
+The registry records each video's hook variant and a report segments retention by it. It needs the first-seconds metrics of 5.6. Instagram Trial Reels, shown to non-followers first, are the one native A/B lever; check whether the publishing provider can post them.
 
-**Done when:** the registry carries the hook variant per video and a report segments retention by hook variant.
+**Done when:** the registry carries the hook variant per video and a report segments retention by it. No issue yet.
 
 ### 1.8 Loop-friendly ending
 
-Optionally match the final frame to the opening frame so the clip loops seamlessly on autoplay. Replay rate is a ranking signal on short-form feeds, and since March 2025 every replay counts as a Shorts view. Config flag per profile, off by default. Tracked with the end-on-the-peak ending in #543.
+End on the peak, with an optional seamless loop to the opening frame. [Design 0002](design/0002-end-on-the-peak.md), #543.
 
-**Done when:** a profile with the loop flag renders a video whose last frame matches its first within a tolerance, selectable per profile.
+**Done when:** a profile with the loop flag renders a last frame that matches its first within a tolerance.
 
-### 1.9 Authored hook headline (de-duplicate hook vs captions) — shipped
+### 1.10 Output-variety guard
 
-The burned-in hook overlay reused the script's first spoken sentence, which the running captions also transcribe, so for the hook window the viewer read the same words twice (top overlay plus bottom captions) — redundant clutter. A distinct short headline (punchline-first, keyword front-loaded, capped by `hook_overlay.max_words`) is now generated separately from the spoken line and rendered as the hook, matching the pattern the AI caption tools use (a designed headline above running captions). Falls back to first-sentence extraction when no headline is available. Strategy in `docs/promotional-video-best-practices.md` section 1.
+Selection spreads renders across the variant dimensions (hook, template, voice, cut density, cold open), and a report shows recent-render variety. [Design 0006](design/0006-render-choices-and-variety-report.md), #547.
 
-**Done when:** the hook overlay renders an authored headline distinct from the caption text, with a first-sentence fallback. Met.
-
-### 1.10 Output-variety guard (reach preservation)
-
-Platforms deprioritise unoriginal, templated, mass-produced output (YouTube's 2025 "inauthentic content" policy; the equivalent unoriginality signal on TikTok and Instagram). An automated pipeline that renders the same shapes repeatedly is the exact failure mode. The variant frameworks already exist (hook pattern, script template, voice, cut density, cold-open variant); the item is to select across them so aggregate output stays varied, and to surface a "sameness" check (e.g. recent-render template/voice/hook distribution) in the analytics reports. Reach preservation, not polish. Background in `docs/promotional-video-best-practices.md` section 7 and `docs/creator-research.md` section 1 (Instagram stopped recommending unoriginal accounts to non-followers in April 2026). Tracked in #547.
-
-**Done when:** a batch run spreads renders across the variant dimensions and a report shows the recent-render variety distribution.
+**Done when:** a batch spreads renders across the variant dimensions and a report shows their distribution.
 
 ### 1.11 Humanization layer
 
-Complements 1.10: that item varies the content dimensions, this one adds human texture and authored identity. Three pieces, each shipped behind a switch that stays off until the reach test reads out: conversational naturalism in the script (#438), context-varied TTS pauses using only tags measured as silent (#439), and a recurring author signature with an optional audio sting (#440). Enabling them is #540; naturalism needs re-measuring first (#541).
+Conversational naturalism, context-varied pauses and an author signature are built and held off. Enabling them is #540; naturalism is re-measured first (#541).
 
 **Done when:** each piece is enabled with a measured setting or left off with the reason recorded.
 
 ### 1.12 Motion on every still
 
-YouTube's inauthentic-content policy names image slideshows and TikTok's Creator Rewards criteria name slide videos, and the settle-zoom covers only the first image. Slow, varied, jitter-free motion on every still, drawn per product. Off by default until the reach test reads out. Tracked in #542.
+Slow, varied, jitter-free motion on every still image. [Design 0001](design/0001-motion-on-every-still.md), #542.
 
 **Done when:** a still-image profile renders motion on every still, varied between products, with the default unchanged.
 
-### 1.13 Sound design: sparse effects, voice polish, beat-snapped cuts
+### 1.13 Sound design
 
-Three audio-side techniques from the creator research (`docs/creator-research.md` section 5), each optional and off by default: sparse event sound effects on the reveal and the CTA (#544), a processing chain for the TTS voice (#545), and cuts snapped to music beats (#546). The AI-voice finding (a measured engagement gap that a lower-pitched voice narrows) makes the voice work the higher priority.
+Sparse event sound effects (#544), a voice processing chain (#545) and beat-snapped cuts (#546), each optional. Designs [0003](design/0003-sparse-sound-effects.md), [0004](design/0004-voice-processing-chain.md) and [0005](design/0005-beat-snapped-cuts.md).
 
-**Done when:** each option renders as specified in `docs/creator-techniques-spec.md`, and a batch comparison decides which to enable.
+**Done when:** each option renders as designed and a batch comparison decides which to enable.
 
 ### 1.14 Remove AI-slop signals
 
-Looking fully automated is itself the penalty: when viewers suspect AI, trust falls about half whether or not the content is AI-made. YouTube's inauthentic-content policy names image slideshows and TikTok's Creator Rewards criteria name slide videos, the shape this pipeline produces. Research in `docs/ai-slop-research.md`. The work: prefer clean product images over seller infographics (#554), do not reuse stock clips across recent renders (#555), normalise numbers and units before TTS (#556), evaluate a distinctive or owned narrator voice (#557), and revisit the TikTok AI label, which the current guidelines do not require for generic TTS (#558). Motion on every still (#542), the variety report (#547) and the script lint (#548) cover the rest. Output changes ship off until the reach test reads out.
+Clean product images (#554), no stock-clip reuse (#555), TTS text normalisation (#556), a narrator-voice evaluation (#557) and the TikTok AI-label decision (#558). Designs 0012 to 0016; research in [docs/ai-slop-research.md](ai-slop-research.md).
 
-**Done when:** each item is enabled on measured results or left off with the reason recorded, and the TikTok label decision is written down.
+**Done when:** each item is enabled on measured results or left off with the reason recorded, and the label decision is written down.
 
-## Phase 2 — Non-affiliate pillar mode (Now/Next)
+## Phase 2: Non-affiliate and tutorial content (Now/Next)
 
-Targeted for weeks 3-4. The pillar system itself shipped in 0.43.0 (default pillars: `value`, `novelty`, `utility`; keyword pool grouped by pillar in `config/scraper.yaml`; templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` flag on both `src/video/producer/cli.py` and `src/pipeline/cli.py`; per-pillar preambles and audiences). What's still missing: an opt-out for affiliate URL injection so the same pipeline can carry an educational track.
+Topic renders and per-profile stock keywords have shipped. What remains is making tutorials useful and letting a pillar opt out of affiliate links.
 
-### 2.2 Non-affiliate pillar mode (educational / how-to track)
+### 2.2 Non-affiliate pillar mode
 
-Add a `non_affiliate: true` flag at the pillar level. When set, the publisher skips appending the affiliate URL and skips the link-in-bio registration. Lets creators run an educational or how-to track alongside an affiliate track from the same pipeline. Educational content earns trust and search SEO; the audio script can still mention specific products by name (audio-keyword crossover indexes the video for both the help query and the product query) without an explicit affiliate push.
+A pillar flag that skips the affiliate URL and the link-in-bio registration, so an educational track runs beside the affiliate one.
 
-**Done when:** a video produced under a `non_affiliate: true` pillar publishes with platform-appropriate captions, no affiliate URL, and no bio-link registration, while still naming products in the spoken script.
-
-### 2.3 Per-profile stock media keywords
-**Shipped in 0.63.0.** `stock_media_keywords` is declared on `VideoProfile`, preferred by the gather step, and used by `slideshow_stock`.
-
-
-`media_settings.stock_media_keywords` is global. It is declared on the settings model but not on `VideoProfile` and not in the `_collect_overrides` map, so a profile-level override is silently dropped (the same silent-drop class documented for other profile fields). That makes it impossible to run two profiles with different stock footage at the same time: a how-to profile searching "router, desk setup" and a product profile searching something else need one global value between them.
-
-Blocks any concurrent comparison of two visual treatments, because the only way to change the keywords today is to edit global config between runs.
-
-**Done when:** a profile can set `stock_media_keywords`, a run under that profile searches those terms, and two profiles with different keyword sets can run back to back without editing global config.
-
-### 2.4 Topic-driven render input
-**Shipped in 0.79.0.** `--topic` exists on both the producer and the global batch, with `--topics-file` and a configured topic pool.
-
-
-The producer requires a scraped product directory with a `data.json`. How-to content has no product to scrape, so there is no way to render a video about a problem rather than a thing.
-
-Smaller than it sounds: the producer already falls back to the title when no product id is present, and a stock-only visual profile already works via `use_scraped_images: false`. What is missing is a supported way to create the input record without the scraper. Add a topic input (a title, a description, and optional keywords) that produces the same record shape the producer already consumes.
-
-Deliberately not a content-source abstraction. There is one live source today; add the second directly and let a third reveal the seam worth abstracting.
-
-**Done when:** `--topic "how to fix X"` (or an equivalent input file) produces a rendered, publishable video with no scraper run and no product directory.
+**Done when:** a video under a non-affiliate pillar publishes with no affiliate URL and no bio link, while still naming products in the script. No issue yet.
 
 ### 2.5 Useful tutorials
 
-Topic renders read as generic: the picture rarely shows the step being spoken, and the advice is what most viewers already know. Research in `docs/tutorial-video-best-practices.md` sections 2 and 8-10. Scripts built from a sourced step list and sized by step count (#559), a visual per step timed to its narration (#560), and templated explanatory graphics (#561). Output changes ship off until the reach test reads out.
+Scripts built from a sourced step list and sized by step count (#559), a visual per step timed to its narration (#560), and templated explanatory graphics (#561). Designs [0017](design/0017-tutorial-step-lists.md), [0018](design/0018-tutorial-step-visuals.md) and [0019](design/0019-tutorial-graphics.md).
 
-**Done when:** a topic render shows each step as it is spoken, carries sourced steps and a length set by their count, and uses graphics that encode script facts, enabled on measured results.
+**Done when:** a topic render shows each step as it is spoken, with sourced steps, a length set by their count, and graphics that encode script facts, enabled on measured results.
 
-## Phase 3 — Conversion infrastructure (Now/Next)
+## Phase 3: Conversion infrastructure (Next)
 
-Targeted for weeks 5-6. Once retention is up and pillars exist, attribution and CTAs become measurable.
+Make attribution and calls to action measurable.
 
 ### 3.1 UTM tagging at publish
 
-Append `utm_source`, `utm_medium`, `utm_campaign` query parameters to affiliate URLs at publish time, with values keyed off the target platform and the video's pillar. Configurable on/off per platform in `config/publisher.yaml`. Skip when the destination is the link-in-bio service itself.
+Platform- and pillar-keyed UTM parameters on affiliate URLs, configurable per platform, skipped for the link-in-bio destination.
 
-**Done when:** every cross-platform post ships with platform-tagged links, and click attribution becomes possible at the analytics layer.
+**Done when:** every post ships with platform-tagged links that the analytics layer can attribute. No issue yet.
 
-### 3.2 Price-anchored CTA template system
+### 3.2 Price-anchored calls to action
 
-Add a CTA template system to the publisher with platform-specific defaults. Sub-$50 products use action-band wording ("Shop Now", "$X here →"); $50+ products use trust-band wording ("Learn More", "Link in bio"). Wire the price band into the publisher metadata generation (the scraper already pulls price; thread it through). Add an emoji-arrow overlay sticker in the final 3 seconds of every video pointing at the bio-link area on each platform's UI. CTA placement defaults to bottom-center, slightly above the native button area (the bottom 12% of frame is clipped by username/caption on TikTok).
+Call-to-action wording chosen by price band, with an end-of-video arrow pointing at the bio link.
 
-**Done when:** every video ends with a price-anchored CTA in TTS, on-screen text, and emoji-arrow overlay, with band-appropriate wording.
+**Done when:** every video ends with a band-appropriate call to action in voice, on-screen text and the arrow overlay. No issue yet.
 
 ### 3.3 A/B caption variants
 
-Add an `ab_variant` field to the publish step that selects A or B per product via deterministic salted MD5. Two variant pools per platform (`cta_variants_a`, `cta_variants_b`) in `config/publisher.yaml`. Persist the chosen variant in the registry so downstream analytics can compute conversion per variant.
+A reproducible per-product caption variant, recorded in the registry for per-variant conversion.
 
-**Done when:** the registry has an `ab_variant` column, the publisher logs which variant was used, and one A/B test is in flight.
+**Done when:** the registry records the variant per post and one A/B test is running. No issue yet.
 
 ### 3.4 Hashtag pools per pillar
 
-Add `hashtag_pools` to `config/publisher.yaml`, keyed by pillar and platform. Per-platform caps reflect 2026 platform rules: Instagram has a hard 5-tag limit on Posts and Reels (Meta change, December 2025), TikTok favours 4-8 with volume bias, YouTube hashtags barely matter beyond the top 3 in description. Each post draws a baseline pillar-relevant set plus 2-3 product-specific tags from the LLM-generated metadata. Removes the need to curate hashtags per video.
+Pillar- and platform-keyed hashtag pools, within each platform's own cap. Builds on the hashtag rework in #567.
 
-**Done when:** every published video carries a pillar-appropriate, platform-capped hashtag set, no manual curation.
+**Done when:** every post carries a pillar-appropriate, platform-capped hashtag set without manual curation.
 
 ### 3.5 Cross-platform watermark check
 
-Add a smoke test in `src/publisher/` that asserts the platform-bound video file path matches the original render output, not a TikTok-source-derived file. Logs the file checksum for cross-platform comparison. Meta's 2026 originality rules de-rank Instagram content with TikTok watermarks, so the publisher must provably use the source render, not a re-downloaded copy.
+A test that every platform publishes the source render, never a re-downloaded copy carrying another platform's watermark.
 
-**Done when:** the test exists and passes, and each platform publisher provably uses the source render.
+**Done when:** the test exists and each platform path provably uses the source render. No issue yet.
 
 ### 3.6 Instagram Reels delivery audit
 
-Verify the Instagram path in the publisher posts as a Reel, not as a Feed Post. Zernio accepts separate `instagramSettings` for each format. Add a regression test that asserts the payload carries the Reels flag.
+The Instagram path posts as a Reel, guarded by a payload test.
 
-**Done when:** the next batch publishes to IG as Reels, confirmed end-to-end, with a test in place to prevent drift.
+**Done when:** Instagram posts publish as Reels, confirmed end to end, with a test against drift. No issue yet.
 
-### 3.7 Pre-production conversion gate in the scraper
+### 3.7 Pre-production conversion gate
 
-Score and filter product candidates before rendering, using the data the scraper already pulls (price, rating, review count, stock, Prime/shipping). Drop weak-converting candidates up front: rating below a floor, thin review count, out of stock, price outside a configurable impulse band. Renders are expensive; spending them on products that won't convert is the largest avoidable waste in the funnel. This sits upstream of the listing-drift diagnostic (5.2), which only monitors drift after publish. Thresholds live in `config/scraper.yaml`.
+The scraper drops weak candidates (low rating, thin reviews, out of stock, price outside a band) before rendering, with the reason logged.
 
-**Done when:** a scrape run rejects below-threshold products before the producer stage, with the rejection reason logged.
+**Done when:** a scrape rejects below-threshold products before the producer stage. No issue yet.
 
-### 3.8 Bait-safe CTAs and closing lines
+### 3.8 Bait-free closing lines
 
-Meta demotes share, tag and vote requests and specific-reply asks; TikTok's feed standards exclude false incentives. Both CTA pools carry a share request. A test that fails on bait patterns in the CTA pools and closing-line examples, then a pool change after the reach test. Tracked in #549.
+No configured call to action or closing line matches an engagement-bait pattern, guarded by a test. [Design 0008](design/0008-bait-free-closing-lines.md), #549.
 
-**Done when:** no configured CTA or closing-line example matches a bait pattern, guarded by a test.
+**Done when:** no configured call to action or closing-line example matches a bait pattern.
 
 ### 3.9 Script lint and search-phrase placement
 
-A post-generation lint for machine-writing tells, sentence length and pace, and a report of whether the search phrase is spoken first, shown in the hook headline and placed at the start of the caption. Tracked in #548.
+A lint for machine-writing tells and pace, and a report of where the search phrase lands. [Design 0007](design/0007-script-lint.md), #548.
 
-**Done when:** the lint rejects the listed shapes when enabled, and the report counts search-phrase placement per render.
+**Done when:** the lint rejects the listed shapes when enabled and the report counts placement per render.
 
-## Phase 4 — Per-platform optimisations (Next)
+## Phase 4: Per-platform optimisations (Next)
 
-Targeted for the following quarter. Builds on Phases 1-3.
+### 4.1 Instagram Stories re-share with link sticker
 
-### 4.1 Instagram Stories auto-publish with link sticker
+Each Reel is re-shared as a Story with a link sticker, opt-in per pillar.
 
-After publishing a Reel, the publisher automatically schedules a Story re-share with a link sticker pointing at the same destination URL. Optional poll or quiz sticker for engagement signal. The link sticker is open to all Instagram accounts regardless of follower count (changed in 2021), so this is a near-zero-threshold reach and CTR unlock. Make this opt-in per pillar so non-affiliate pillars don't carry an affiliate link sticker.
-
-**Done when:** every Reel published triggers an automatic Story re-share with a link sticker, confirmed live on the IG account.
-
-### 4.2 YouTube closing-question pinned comment
-**Shipped in 0.60.0**, except literal pinning, which the SDK does not expose. The shipped YouTube first-comment template is `{closing_line}`.
-
-
-Generate the YouTube first comment from the script's closing fork — the spec-correction or two-option fork phrased as a direct question. Don't pin a "subscribe" CTA; pinned subscribe asks underperform, and the closing 5s of the video already carries a script-level subscribe CTA. End screens are not available on Shorts (long-form only), so the pinned comment is the equivalent placement.
-
-This is also the only sensible use of that slot. YouTube renders URLs in Shorts descriptions and Shorts comments as plain text, not links, to limit spam, and every render this pipeline produces is classified as a Short (vertical, well under the duration ceiling). A destination URL placed in either surface is dead text. The clickable paths off a Short are the channel profile links and the Related Video slot, so the job of the comment is to earn a profile visit, not to carry a link.
-
-**Done when:** every YouTube Short publishes with a closing-question pinned comment derived from the script, and no publish path puts a destination URL in a YouTube Shorts description or comment expecting it to be clickable.
+**Done when:** every Reel triggers a Story re-share with a link sticker. No issue yet.
 
 ### 4.3 Comment-reply video mode
 
-Add a `--mode reply` option to the producer that takes a parent video ID, a comment text, and a product ID, and produces a 10-15s response clip with the comment text overlaid and the product image/video. Doesn't auto-publish; surfaces the rendered clip in `outputs/<asin>/reply_drafts/` for manual review and submission. Future hook: an analytics step that scans recent comments for product questions and pre-draws reply videos.
+A producer mode that renders a short reply clip from a comment, a product and a parent video, into a drafts folder for manual review.
 
-**Done when:** producer renders a reply-mode video from a comment text + product ID + parent video ID, output to a drafts folder.
+**Done when:** the producer renders a reply clip to a drafts folder. No issue yet.
 
-### 4.4 Amazon Influencer Storefront publisher target
+### 4.4 Amazon Influencer Storefront target
 
-Add the Amazon Influencer Storefront as a publisher target alongside YouTube, TikTok, and Instagram. The storefront accepts MP4 uploads; videos appear on relevant product detail pages and earn commission from on-Amazon traffic the creator didn't drive. The same render output that goes to YouTube can go to the storefront in v1; trim to under 60s if the storefront video length cap requires it (verify at integration time). Maps products to storefront slots (one or two products per uploaded video). Eligibility for the Amazon Influencer Program is separate from Amazon Associates and uses "demonstrated social influence" rather than a formal follower minimum.
+Upload each render to a configured Amazon Influencer Storefront beside the social platforms.
 
-**Done when:** the publisher uploads each rendered video to a configured Amazon Influencer Storefront alongside the other platforms.
+**Done when:** the publisher uploads each render to the storefront. No issue yet.
 
-### 4.5 Amazon OneLink localisation wrapper
+### 4.5 Amazon OneLink localisation
 
-Wrap every Amazon affiliate URL with the OneLink redirect at publish time so non-US viewers get routed to their local Amazon storefront automatically. Verify the wrapped URL preserves the affiliate tracking ID across locales. Free Amazon feature; recovers the share of traffic that lands on the wrong-region store.
+Wrap affiliate URLs with OneLink so non-US viewers reach their local store with the tracking id kept.
 
-**Done when:** non-US clicks route to the correct local Amazon storefront with tracking ID preserved.
+**Done when:** non-US clicks reach the local store with the tracking id preserved. No issue yet.
 
 ### 4.6 Link-in-bio funnel hygiene
 
-Update the link-in-bio integration in `src/publisher/link_in_bio/` so adding a new product rotates the featured slot rather than appending. Industry baseline: link-in-bio hubs see 20-40% click-through to the top destination URL when only 2-3 links are present; the first 3 positions get ~130% higher CTR than positions 4-10. Cap the bio at the most recent featured product plus an "all products" fallback.
+A new product rotates the featured slot rather than appending, so the bio carries two or three links.
 
-**Done when:** the bio shows at most 2-3 links at any time, with the most recent product as the featured slot.
+**Done when:** the bio shows at most three links, with the newest product featured. No issue yet.
 
-### 4.7 Cover / poster-frame generation
+### 4.7 Cover frames
 
-Generate a cover frame for each video (hero product image plus a bold three-word title) and set it as the poster frame. The Reels grid and the profile page drive browse-tab click-through and the follow decision; right now nothing controls the thumbnail. Reuses the hook text and the product image the producer already has.
+A cover image per render, set as the poster where the platform accepts one. [Design 0011](design/0011-cover-frames.md), #552.
 
-Scope note, corrected: since July 2026 YouTube accepts custom Shorts thumbnails from Partner Program channels; the swipe feed autoplays the video, so the thumbnail matters off-feed. Whether the publishing provider exposes that field is open. Instagram's profile grid crops covers to 3:4, so the headline belongs in the centred 3:4 area. The first frame stays the main lever in the feed, which is why it carries the hook. Tracked in #552.
+**Done when:** every render produces a cover and the publish payload sets it on the platforms that accept one.
 
-**Done when:** every render produces a cover image and the publish payload sets it as the poster on the platforms that accept one.
+### 4.8 Episodic series framing
 
-### 4.8 Episodic series framing per pillar
+A per-pillar episode counter in titles and captions, with each episode standing alone.
 
-Add a per-pillar counter to the registry and thread it into title/caption templates (for example "Pillar pick #12"). Series framing is a documented return-viewership driver and targets the follower/subscriber conversion gap. Builds on the existing pillar system. Each episode must stand alone: TikTok's feed standards exclude false incentives for following, so a payoff promised only for a follow ("follow for part 2") is a risk, so link episodes through YouTube's related-video field or a playlist instead.
+**Done when:** titles and captions carry a per-pillar episode number. No issue yet.
 
-**Done when:** published titles/captions carry a per-pillar episode number that increments across the back-catalogue.
+### 4.9 Product titles per platform
 
-### 4.9 Product titles and hashtag caps per platform
+A short written YouTube title for product videos, keyword first. [Design 0009](design/0009-product-titles.md), #550. Hashtag caps per platform are #567.
 
-Product videos go to YouTube with the store listing title cut to fit, where trending Shorts titles run 20-40 characters with the keyword first; and the Instagram config asks for 15-30 hashtags against the platform's 5-hashtag cap. Tracked in #550.
+**Done when:** product videos carry a written YouTube title within the configured maximum.
 
-**Done when:** product videos carry a written YouTube title within the configured maximum, and every platform's hashtag range respects its cap.
-
-## Phase 5 — Analytics and continuous learning (Next)
-
-Targeted for the following quarter. Closes the loop between pipeline output and platform signals.
+## Phase 5: Analytics and learning (Next)
 
 ### 5.1 Analytics module
 
-A module that owns per-post performance history: captures metrics on a schedule, stores them locally, and reports segmented by the dimensions the pipeline already varies (content format, pillar, template, voice profile, hook variant).
+A local store owns per-post performance history, captured on a schedule that follows each source's expiry. [Design 0020](design/0020-analytics-history.md).
 
-**Own the history.** Every upstream expires, so the local store is the system of record and the providers are sources feeding it. The scheduling API's per-post timeline stops reaching back after roughly five weeks: past that, a post's rows begin at a recent date instead of at its publication, and `from_date` does not widen it. That is a property of the scheduler, not of the platforms, but the same shape appears elsewhere — one platform's post data freezes a year after publication and its watch-time fields empty out after a week of no engagement. A figure not captured while it was reachable is not recoverable later.
+**Done when:** a scheduled capture writes readings without losing figures already taken, and one command reports performance by content format.
 
-**Capture cadence follows expiry, not convenience.** Most of a short-form post's views arrive within the first day or two, so the early curve needs frequent sampling and the tail needs very little. Two constraints shape the schedule rather than taste: one platform's analytics rows take 48-72 hours to finalise, so a same-day pull records figures that are still settling; and one platform exposes only lifetime counters with no daily series at all, which means its day-N figures exist only as differences between snapshots this module took. Store readings append-only and derive deltas rather than overwriting.
+### 5.2 Listing drift diagnostic
 
-**Start with the scheduler, because it is already authenticated.** It exposes more than the pipeline currently reads: per-video daily views for one platform, account insights and demographics for another, plus content decay, posting frequency, and best-time-to-post. The first useful version reads those through the existing client. Only the affiliate-program and link-in-bio halves need their own sources.
+Flag published products whose listing drifted (price up, out of stock, rating down), with a hook to drop them from the bio.
 
-**Retention is the metric worth adding next, and it is platform-asymmetric.** The pipeline's weakest measured link is whether a viewer stays past the opening seconds, and nothing currently measures it. One platform's analytics API exposes a full retention curve per video, another reports average watch time and the share of viewers who leave within the first three seconds, and a third offers no watch-time signal on its generally available API at all. Any hook comparison is therefore two-platform evidence, and the module should say so rather than averaging across a gap.
+**Done when:** a report flags drifted listings and offers a remove-from-bio action. No issue yet.
 
-**Going direct is a later step, not a first one.** Platform APIs hold far longer history than the scheduler and are the only route to retention data, but each needs its own OAuth app, and one of them requires a business account plus an access application. Paid aggregators exist and a couple are genuinely developer-usable, but they do not remove the need for a local snapshot table, which is the part that actually solves history. Build the store first; decide per platform afterwards whether the extra metrics justify their own integration.
+### 5.3 Segmented performance reports
 
-**Done when:** a scheduled capture writes per-post readings to a local store without losing figures already taken, and a single command reports performance segmented by content format.
+Reports per pillar, template, voice, caption variant and hook style over rolling four-week windows.
 
-### 5.2 Listing-side drift diagnostic
+**Done when:** one command answers which pillar converts best on a platform over the last four weeks. No issue yet.
 
-Add a diagnostic step to the analytics tool that pulls the current state of every recently-published product's source listing (price, stock, availability flags, rating, review count) and flags products whose state has drifted from as-published thresholds (price up >15%, out of stock, rating dropped below 4.0, return-rate badge added). Per-product alert in the weekly report. Optional hook: a publisher endpoint to remove a flagged product from the link-in-bio rotation.
+### 5.4 Reach by content-format arm
 
-**Done when:** the dashboard flags drifted listings and exposes a "remove from bio" hook for manual action.
+Join performance, keyed by post, with the format arm, keyed by product, through the publish history.
 
-### 5.3 Per-pillar / per-CTA / per-hook performance reports
-
-Add report types to the analytics tool for: per-pillar conversion, per-template engagement, per-voice watch-through (historical baseline; mostly constant after voice pinning), per-A/B-variant CTA click rate, per-hook style retention. 4-week rolling windows so seasonality doesn't pollute the comparison.
-
-**Done when:** the user can answer "which pillar converts best on platform X over the last 4 weeks" with a single command.
-
-### 5.4 Reach segmented by content-format arm
-
-The registry records the content format each video was produced under, and a summary command counts published products per arm. What does not exist is the join: performance figures are keyed by post, the arm is keyed by product, and nothing brings them together. So the question a format experiment exists to answer -- does one arm hold reach better than the other -- cannot currently be answered by any command.
-
-The join runs through the publish history, which maps a product and platform to the post that carried it. Rows written before the arm existed report as unlabelled rather than being folded into either side.
-
-**Done when:** one command reports day-N and durability figures grouped by content-format arm, and states how many measured posts it could not place.
-
-### 5.5 Day-N and durability metrics -- shipped
-
-Day-2 and day-7 views and a 30-day durability ratio per post, stored locally, with a command that captures them and ranks by durability. Shipped across 0.68.0 and 0.71.1.
-
-Recorded here because the item was written on an assumption that turned out to be false, and the correction is the reusable part. It originally read that the scheduler returns a cumulative per-post timeline, "so any day-N figure is a lookup rather than a scheduled job". Measured against the live API, the opposite holds: the timeline stops reaching back after roughly five weeks, so day-2 and day-7 are available only while the post is young enough. They are a scheduled job or they are nothing, which is why 5.1 is built around capture cadence rather than around querying on demand.
-
-The two figures answer different questions. A 7-day window captures the launch curve for every video and cannot distinguish content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio. See [tutorial-video-best-practices.md](tutorial-video-best-practices.md).
+**Done when:** one command reports day-N and durability figures by format arm and states how many posts it could not place. No issue yet.
 
 ### 5.6 First-seconds metrics
 
-The first gate on every platform is whether the viewer stops or swipes, and since March 2025 raw Shorts views include replays. Store each first-seconds and quality metric the APIs expose (engaged views and viewed vs swiped away on YouTube, completion on TikTok, sends per reach on Instagram) and segment it by format arm and render choice. The enable-when checks in `docs/creator-techniques-spec.md` read these. Tracked in #551.
+Store every first-seconds and quality metric the platforms expose, segmented by format arm and render choice. [Design 0010](design/0010-first-seconds-metrics.md), #551.
 
-**Done when:** the metrics store carries each available metric per post, with unavailable ones recorded as unknown, and the reports segment them.
+**Done when:** the store carries each available metric per post, unavailable ones as unknown, and the reports segment them.
 
-## Phase 6 — Threshold-gated unlocks (Later)
+## Phase 6: Threshold-gated unlocks (Later)
 
-Blocked on platform features, eligibility, or earlier items landing.
+Blocked on platform features, eligibility, or earlier items.
 
-### 6.1 Long-form profile (60-120s)
-
-Add a long-form profile (`slideshow_long_60s` or `video_long_90s`) to `config/video_production.yaml` with longer slide durations and a longer script template variant. Useful for YouTube long-form, TikTok Creator Rewards eligibility (which requires 60s+ videos), and platforms that reward depth over brevity. Word-count budget assumes ~150-180 wpm TTS pacing. Pairs with the Shorts-to-long-form bridge: the algorithmic Shorts→long-form recommendation spillover ended in late 2025, so the bridge is now user-driven via explicit CTAs and channel-page landing experience.
-
-### 6.2 TikTok Shop product tagging in publisher
-
-Add support for TikTok Shop product tags in the publisher payload. Requires the user's TikTok Shop affiliate approval and Shop-eligible product listings. Once enabled, posts in supported regions can carry tappable product cards, replacing or complementing the bio-link CTA.
-
-### 6.3 Instagram native affiliate product tagging
-
-Wire up Instagram's native affiliate product tagging through the publisher when the user's account meets the threshold (1K followers + Pro account) and Instagram has rolled the affiliate program out to the user's market. As of mid-2026 the affiliate program is live in only a small number of markets; check current availability before building. Solves the bio-click drop-off because the tag is in-feed.
-
-### 6.4 YouTube end-screen subscribe overlay
-
-Add an end-screen overlay step in `src/video/producer/` that bakes a subscribe CTA on the last few seconds. End screens are long-form-only — they don't appear on Shorts under 60s — so this depends on the long-form profile (6.1) shipping first. Pinned-comment subscribe asks can ride on the existing publisher path but underperform closing-question pinned comments (Phase 4.2), so end-screens are the better long-term lever.
-
-### 6.5 Zernio SDK migration
-
-Migrate from the legacy `late-sdk` package to `zernio-sdk`, rename `LATE_API_KEY` to `ZERNIO_API_KEY`, and update imports under `src/publisher/late/`. The old package keeps working during the SDK grace period; do this when the publisher gets its next substantive change so the migration rides on existing testing.
-
-### 6.6 Pycaps follow-ups
-
-Open items tracked as GitHub Issues with the `pycaps` label: AI word tagging via the Gemini key (in flight), two-part subtitles plus pycaps hybrid, CSS renderer integration test in CI, custom project template, WhisperX upgrade.
+- **6.1 Long-form profile (60-120 s)**, for YouTube long-form and TikTok's 60-second Creator Rewards threshold.
+- **6.2 TikTok Shop product tags**, once the account is Shop-approved.
+- **6.3 Instagram native affiliate tags**, once the account and market qualify.
+- **6.4 YouTube end-screen subscribe overlay**, which needs 6.1, since Shorts have no end screens.
+- **6.5 Zernio SDK migration**, from `late-sdk` to `zernio-sdk`, with the publisher's next substantive change.
+- **6.6 Pycaps follow-ups**, tracked as issues with the `pycaps` label.
 
 ## Toward 1.0.0
 
-The current line is `0.96.x`, status pre-production. Most of the feature surface is built. What stands between today and 1.0.0 is consolidation: API stability, test coverage at target, distribution, and proof that the pipeline runs reliably at volume.
-
-Concrete gates for the 1.0.0 release:
+Most of the feature surface is built. What stands between the pre-production line and 1.0.0 is consolidation: API stability, test coverage, distribution, and proof that the pipeline runs reliably at volume.
 
 **API stability**
-- Config schema frozen for one full minor cycle. No breaking field renames or removals; new fields are additive with sensible defaults.
-- CLI flags stable across producer, scraper, publisher, and global batch. Removals go through a one-release deprecation with a `DeprecationWarning`.
+- Config schema frozen for one full minor cycle. New fields are additive with sensible defaults.
+- CLI flags stable across producer, scraper, publisher and global batch. Removals go through a one-release deprecation with a `DeprecationWarning`.
 - Public Python entry points (`src/pipeline.global_batch`, `src/video.producer.cli`, `src/scraper.amazon.scraper`, `src/publisher.late.cli`) treated as a stable surface; signature changes need a major bump.
-- Every flag pair shared between a standalone module CLI and the global batch stays in sync (same names, choices, and override keys), enforced in CI by a parity test.
+- Every flag pair shared between a standalone module CLI and the global batch stays in sync, enforced in CI by a parity test.
 
 **Test coverage on the critical paths**
-- Critical-path coverage is the gate, not a global percentage: scraper end-to-end, producer end-to-end, and publisher per-platform each covered by unit + integration tests, at >=80% module-level on those paths.
-- Overall line coverage holds a realistic floor (the `--cov-fail-under=50` gate in pytest's `addopts`) and trends up as files get touched. The >=90% target stated in `docs/testing.md` is a post-1.0.0 aspiration, not a release blocker: chasing it across the whole tree is high-effort, low-signal, and would crowd out feature work.
-- One real-API smoke test in CI that exercises scrape → produce → publish on a fixture ASIN with sandbox credentials. Marked optional so forks without secrets stay green.
+- Critical-path coverage is the gate, not a global percentage: scraper, producer and per-platform publisher each covered by unit and integration tests, at 80% or more on those modules.
+- Overall line coverage holds the `--cov-fail-under=50` floor and trends up. The 90% target in `docs/testing.md` is post-1.0.0.
+- One real-API smoke test in CI that runs scrape, produce and publish on a fixture product with sandbox credentials, optional so forks without secrets stay green.
 
 **Documentation completeness**
-- Installation guide tested from a clean Linux box and a clean macOS box, top to bottom, by someone who hasn't seen the project before.
-- Configuration reference covers every YAML field with type, default, and at least one example.
-- Troubleshooting guide includes the top issues from the issue tracker.
-- A working quickstart that takes a fresh clone to a published video on a sandbox account in under 5 minutes of human time (modulo download speeds and API latency).
+- The installation guide is tested from a clean Linux box and a clean macOS box by someone new to the project.
+- The configuration reference covers every YAML field with type, default and an example.
+- The troubleshooting guide covers the top issues from the tracker.
+- A quickstart takes a fresh clone to a published video on a sandbox account in under 5 minutes of human time.
 
 **Operational maturity**
-- A documented performance baseline: seconds per product at default profile, peak RSS, approximate Google API cost per video. Tracked in CI with a regression alert at >=20% slowdown over a 10-run window (the report types in `tools/performance_report.py` already exist).
-- Structured logging with consistent field names across modules. Module summaries (already standardized in 0.35.0) extended to cover every long-running step.
-- Every external integration has a configured circuit breaker and retry policy; defaults documented, overrides exposed in YAML.
+- A documented performance baseline (seconds per product, peak RSS, API cost per video), tracked in CI with an alert at a 20% slowdown over 10 runs.
+- Structured logging with consistent field names across modules.
+- Every external integration has a circuit breaker and retry policy, with defaults documented and overrides in YAML.
 
 **Distribution**
-- PyPI package buildable, installable in a clean venv, and runnable with documented system deps (FFmpeg, Playwright Chromium). Decide whether to pin or extras-gate the heavy optional pieces (pycaps).
-- Docker image published with all system deps baked in, ideally one for CPU-only and one for CUDA.
-- Versioning policy in `docs/versioning.md` updated to reflect the 1.0.0 promise.
+- A PyPI package installable in a clean venv and runnable with documented system dependencies (FFmpeg, Playwright Chromium), with a decision on extras-gating pycaps.
+- A Docker image with all system dependencies, ideally CPU-only and CUDA variants.
+- `docs/versioning.md` updated for the 1.0.0 promise.
 
 **Security and dependencies**
-- Bandit and Safety stay clean (already enforced).
-- Secret masking covers every log path; one test asserts no env-var values appear in produced log files.
-- No HIGH or CRITICAL CVEs in pinned dependencies for more than 7 days; Dependabot batched into patch releases per existing workflow.
+- Bandit and Safety stay clean.
+- Secret masking covers every log path, with a test that no env-var value appears in a log file.
+- No HIGH or CRITICAL CVE in pinned dependencies for more than 7 days.
 
-**Roadmap items in scope for 1.0.0**
-- All Phase 0 items shipped (compliance baseline; gating).
-- All Phase 1, 2, and 3 items shipped, except the experiments held for the reach-test readout (1.4, 1.8, 1.11, 1.12, 1.13, 1.14, 2.5, 3.8 and 3.9), which ship off by default and are enabled only on measured results.
-- At least half of the Phase 4 items shipped or in review.
-- Phase 6 items are explicitly out of scope; they're 1.x material once their gates clear.
+**Roadmap items in scope**
+- Every Phase 0 item.
+- Every Phase 1, 2 and 3 item, except the experiments held for the reach-test readout (1.4, 1.8, 1.11, 1.12, 1.13, 1.14, 2.5, 3.8 and 3.9), which ship off and are enabled only on measured results.
+- At least half of Phase 4 shipped or in review.
+- Phase 6 is out of scope.
 
 **Real-world proof**
-- The pipeline has produced and successfully published a meaningful volume of videos (target: 100+) end-to-end across all three target platforms.
-- Subtitled videos render correctly on TikTok, YouTube Shorts, and Instagram Reels under manual QA on each platform's safe-zone overlays.
-- Affiliate links land in the link-in-bio destination automatically with no manual cleanup.
-
-When all gates are green, the next release is `1.0.0`. Anything not on this list is a 1.x or 2.x conversation.
+- 100 or more videos produced and published end to end across all three platforms.
+- Subtitled videos render correctly under manual QA on each platform's safe-zone overlays.
+- Affiliate links land in the link-in-bio destination with no manual cleanup.
 
 ## Update rules
 
-- Each shipped item moves to the Shipped section at the bottom (append-only) with a one-line summary and the release version.
-- Items dropped from the roadmap also get a one-line note in the same section, with the reason.
-- Don't let Phase 6 accumulate without bound. If something sits there for two quarters with no movement, either prune it or rewrite the description to reflect the actual blocker.
-
-## Shipped
-
-Backfilled from the changelog (0.1.0 through 0.42.x). Grouped by theme rather than version, with the release range that delivered each capability.
-
-**Core pipeline (0.1.0 - 0.2.x)**
-- Initial open-source release: Amazon scraper, multi-provider AI services, FFmpeg video assembly, audio-synced subtitles, background music, batch processing.
-- AI-generated platform-aware video descriptions with `#ad` disclosure baked in.
-
-**Subtitle configuration and styling (0.3.x - 0.8.x)**
-- Deterministic per-product font and color randomization with style presets (`minimal`, `modern`, `bold`, `random`); `--preset` CLI override.
-- Unified subtitle configuration with anchor-based positioning (`top`, `center`, `bottom`, `above_content`, `below_content`) and content-aware mode.
-- One-effect-per-video rule enforced across all presets.
-- Two-part subtitle system: upper line for affiliate URLs or product titles, lower line for voiceover, independently styled.
-
-**Configuration architecture (0.4.x - 0.5.x, 0.13.x - 0.14.x)**
-- Modular YAML split (core, video_production, ai_services, subtitles, performance, scraper, publisher, url_shortener, pipeline).
-- Three-tier precedence: CLI > environment > YAML, validated by Pydantic at startup.
-- Producer and scraper modules split into focused submodules; type-safe configuration models throughout.
-
-**Scraper (0.7.x, 0.12.x, 0.21.x, 0.26.x, 0.28.x, 0.34.x)**
-- URL shortening via PicSee.io with provider-agnostic registry.
-- M3U8/HLS video extraction with strict product filtering.
-- Platform detection registry pattern with Amazon ASIN validation.
-- Two-tier product limits (`max_products` + `products_per_keyword`).
-- Full-URL and shortened-URL input support (tr.ee, amzn.to, etc.); `--input-file` and `--batch-size` CLI options.
-- Global batch page retry when products fail media validation.
-
-**Video producer (0.10.x - 0.12.x, 0.16.x, 0.27.x, 0.30.x)**
-- Multiple video assembly modes (`product_video_sequential`, `slideshow_images1`, `slideshow_images2`).
-- CTA-based timing for upper subtitles with configurable keyword detection.
-- Assembler split from a 3,311-line monolith into 7 focused modules.
-- Script template system: 15 prompt variants with deterministic per-product selection via salted MD5.
-- TTS voice profiles (`soft_intimate`, `calm_confident`, `gentle_storyteller`, etc.) with Gemini TTS provider added alongside Google Cloud TTS, automatic fallback.
-- Inline markup preprocessing for sentence-boundary pauses.
-- LLM provider fallback chain: Gemini primary, OpenRouter fallback with free-model discovery.
-
-**Subtitle engines and timing (0.35.x - 0.42.x)**
-- Platform-aware safe zones for TikTok, YouTube Shorts, and Instagram Reels.
-- Optional pycaps animated subtitle engine alongside the FFmpeg path; CSS and pictex renderers.
-- Whisper timing post-processing (min duration, gap merge, segment-end hold, audio lead).
-- Style presets as the single source of truth for subtitle styling.
-- Font and color pools moved from Python enums to YAML (data, not code).
-- Subtitle config consolidated into a single strict `SubtitleSettings` Pydantic model with deep-merge profile overrides.
-
-**Audio (0.34.x, 0.42.x)**
-- Audio provider platform with `BaseAudioProvider` ABC and `AudioManager` chain.
-- Jamendo Music provider (CC-licensed, `fuzzytags` search); Freesound provider as fallback; local files as last resort.
-- TTS final-word truncation fix via accurate `silenceremove` semantics.
-
-**Platform metadata (0.17.x, 0.23.x)**
-- Platform-specific metadata generation: YouTube (5000-char descriptions), TikTok (2200-char captions), Instagram (2200-char captions).
-- Metadata cache with TTL, A/B testing scaffolding, batch generation, multi-format export, trend-aware hashtag merging.
-
-**Publisher (0.18.x - 0.19.x, 0.22.x, 0.24.x, 0.29.x, 0.33.x, 0.38.x)**
-- Zernio integration (formerly Late) with multi-platform support: YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn.
-- Auto-scheduling with occupied-slot detection across an 8-week lookahead.
-- Post-publication cleanup with safety checks.
-- Multi-account support, conflict resolution with alternatives, retry queue, webhook handler with HMAC verification.
-- Platform-specific publishing mode (separate posts per platform with optimized metadata).
-- Link-in-bio integration via lnk.bio, with affiliate URL fallback and image fallback.
-- Published-products registry (JSON + CSV) with rebuild support.
-- First-comment support for YouTube and Instagram (affiliate links posted as the first comment).
-- TikTok branded-content disclosure handled automatically.
-
-**Pipeline orchestration (0.15.x, 0.19.x, 0.25.x)**
-- Global batch pipeline: scrape → produce → publish in a single command.
-- Pipeline resume from last successful phase via `--resume`.
-- Dry-run mode (`--dry-run`) and JSON output format for machine consumption.
-- Webhook notifications on phase completion and pipeline events.
-
-**Resilience and operations (0.20.x, 0.31.x)**
-- Network retry decorator with exponential backoff for HTTP requests.
-- Circuit breaker pattern with pre-configured breakers for Freesound, Pexels, OpenRouter, Google STT, Scraper.
-- Secret masking filter applied to all log handlers.
-- Performance monitoring with summary, trends, detailed, comparison, and regression report types via `tools/performance_report.py`.
-
-**Quality (0.9.x, 0.22.x, 0.31.x)**
-- Compliance test suite (114 tests) validating all documented requirements.
-- Comprehensive test coverage for video producer, scraper, publisher, audio, AI metadata modules.
-- Performance regression detection with configurable window and threshold.
-
-**Content pillars and prompt hygiene (0.43.x)**
-- Content pillars system. Default pillars `value`, `novelty`, `utility`. Keyword pool grouped by pillar in `config/scraper.yaml`; script templates mapped to pillars in `config/ai_services.yaml::script_templates.pillars`; `--pillar` on both producer CLI and global batch.
-- Per-pillar runtime preamble (`script_templates.pillar_preambles`) and per-pillar audience override (`script_templates.pillar_audiences`).
-- Channel-wide narrator profile (`script_templates.narrator_profile`) prepended to every script prompt, with anti-AI-tells list, banned phrases, single-CTA rule, persona anchor, voice example.
-- `{SHORT_PRODUCT_NAME}` placeholder resolved by a brand-plus-model heuristic in `format_prompt`.
-- NFKC normalization of product titles and descriptions before prompt injection (kills Amazon's mathematical-alphabet bold tricks); em/en dash replacement in descriptions.
-- Honest-tradeoff clause: per-template `## Rules` block requires one short trade-off or limitation per script.
-- Phase 2.1 state-side: chosen pillar persists to `pipeline_state.json` for every produced video.
-
-**Pycaps subtitle engine maturity (0.44.x)**
-- AI word tagging via Gemini in pycaps. Reuses existing Gemini key. Built-in `neo-minimal` and `explosive` templates ship `type: ai` rules. Per-call errors governed by `pycaps.ai_tagging_on_error` (default `skip`).
-- Default subtitle engine flipped from FFmpeg to pycaps; bundled `pycaps.fallback_policy` is `fallback_ffmpeg` so forks without the optional pycaps group degrade silently.
-- Default pycaps template pool tightened to `["explosive", "word-focus"]` (50/50 AI-tagged / untagged); default template `explosive`.
-- `--pycaps-template NAME` now actually forces the named template (was silently no-op against multi-entry pools).
-- `make produce-lowpri` cgroup hardening with `MemorySwapMax=0` so producer memory pressure doesn't trigger systemd-oomd kills on unrelated session apps.
-
-**TTS voice pinning (0.45.x)**
-- Phase 2.3 default voice profile. `tts_config.default_voice_profile` pins one voice for unattended runs without a CLI flag. Voice selection precedence: CLI override > non-empty pool (random for A/B) > pinned default > random across all profiles. Bundled `default_voice_profile: charon`.
-
-**Phase 0 disclosure compliance baseline (0.46.x)**
-- Phase 0.1 persistent on-frame disclosure overlay (`#ad` by default, configurable text). Burned in a fixed corner of every produced video, full-clip duration, sized smaller than narration captions. Configurable per render so language-aware variants can ship without code changes.
-- Phase 0.2 first-line caption disclosure on every platform. Disclosure leads each caption on its own line ahead of the description and hashtag block. `#ad` deduped from hashtags so it never appears twice.
-- Phase 0.5 platform-tag audit completed: YouTube `containsSyntheticMedia: true` set on every publish payload alongside the TikTok branded-content flags already wired. Both were narrowed in 0.70.3 — the TikTok flags to renders carrying a material connection, and the YouTube flag to an opt-in config field defaulting off, since YouTube's policy does not cover AI narration or AI-written scripts.
-- Phase 0.6 cross-cutting disclosure regression suite at `tests/video/test_disclosure_stack.py` covers all four disclosure surfaces with consistency invariants.
-- Phase 0.7 `docs/compliance.md` describes the disclosure stack, regulator coverage, and the per-video manual workarounds for SDK gaps.
-- Phase 2.1 registry side: a `pillar` column on the published-products registry, since removed in 0.71.0 because nothing read it. `registry --summary` segments on `content_format` instead.
-
-**Affiliate program literal phrase (0.58.1)**
-- Phase 0.3 caption-body rendering of the configured affiliate program identification phrase via `config/publisher.yaml::affiliate_disclosure` (enabled, phrase, program). Defaults to the Amazon Associates text; non-Amazon programs can override the phrase and program name. Closing-frame overlay deferred.
-
-**Script template hook and closing rules (0.48.x)**
-- Phase 1.1 long-tail audio keyword required in line 1 of every script template. Six proven hook patterns listed in each template's Rules block; literal Google-query shape called out as anti-pattern.
-- Phase 1.5 engagement-bait closing line required in every script template. Personal/storytelling templates use a two-option comment-fork; analytical/comparison templates use a debatable spec claim that invites a correction.
-
-**Caption-side mirror of the engagement-bait closing line (0.49.x)**
-- Per-platform caption generators receive the rendered spoken script and mirror its closing engagement-bait line into each caption body. Same line in spoken audio + on-screen subtitle + caption text (Rule of 3s). Empty or missing script produces a normal caption with no closing line.
-
-**Hook retention surgery and short profile (0.50.0)**
-- Phase 1.2 punchline-first opener. Anti-setup clause across all 15 script templates so line 1 states a concrete fact instead of a setup framing. Pre-motion (Ken Burns settle-zoom) on the first image segment (`first_frame_pre_motion` + `pre_motion_peak_zoom`). Burned-in hook overlay renders the first sentence of the spoken script as centre-upper static text on the first 1.5 s, drawn after subtitles and before the disclosure rewrite. Long hooks wrap to at most two lines and shrink the font to fit the frame width. Cold-open variant rotation framework: three named variants selected per product via salted MD5 and persisted to `pipeline_state.json` for analytics. Hook-line lead in the subtitle timing smoother (first 3 words led by an extra 200 ms on top of the base lead).
-- Phase 1.3 short profile and per-platform routing. New `slideshow_short_20s` (15-30 s canvas at ~50-60 word script budget). `profiles: <platform>: <profile>` mapping in `config/publisher.yaml` routes each platform to a named profile; the publisher prefers `video_<asin>_<profile>.mp4` and falls back to the first matching render when unset.
-- Phase 1.5 closing-line rule pivot. The 8 analytical templates now branch the spec-correction close on whether the description carries a contestable performance number; passive products close with a material-or-use claim instead. Fixes a fabrication case where the LLM invented numeric specs on products that didn't have them.
-
-**Pillar infrastructure and caption voice (0.51.0)**
-- Keyword-to-pillar attachment in the scraper config. Keywords in `config/scraper.yaml` are a dict keyed by pillar; each scraped product carries the pillar through to the producer and registry without `--pillar`.
-- Narrator profile and pillar preamble shared with platform caption generators (YouTube, TikTok, Instagram) so captions match the video's conversational voice.
-
-**Best-practices docs (0.44.x-0.50.x)**
-- Safe-zone docs aligned to 2026 platform specs. `docs/platform-safe-zones.md` is the canonical source; subtitle and promo docs cite it. Refreshed for Meta's March 2026 Reels unification (14% top, 35% bottom) and TikTok's Jan 2026 playlist button.
-
-**Safe-zone runtime alignment (0.51.3)**
-- Phase 1.6 runtime constant refresh. `src/video/config/constants.py` and `config/subtitles.yaml` safe-zone defaults now match the 2026 cross-platform union (top 270 / bottom 1250 / left 60 / right 900 on 1080x1920). The old bottom of 1440px let captions land inside Reels' interactive zone. A single cross-platform render clamps to the union, not one platform. The pycaps engine's deliberate lower-third offset is unchanged.
-- New `docs/audio-best-practices.md`: the sound-on layer (trending vs original audio, voiceover/music mix levels, ducking, audio hook, platform loudness).
-- New cut-cadence section in `docs/promotional-video-best-practices.md` (shot-length bands, transition vocabulary) backing the high-density cut profile (1.4).
+- An item is an outcome with a horizon, a "done when" and a link to its issue or design doc. Detail goes in the design doc or the issue, not here.
+- A shipped item leaves the roadmap; the CHANGELOG records it. A dropped item leaves with a one-line reason on its issue.
+- An item that sits in Phase 6 for two quarters without movement is pruned or rewritten to name its real blocker.

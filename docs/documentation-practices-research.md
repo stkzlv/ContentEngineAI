@@ -128,7 +128,7 @@ What they share:
 |---|---|---|
 | Goals | `docs/roadmap.md`, plus the private overlay | The roadmap carries specification detail. Best practice is a short themes-and-horizons page linking to issues and specs. |
 | Requirements | A single `requirements.md`: behaviour bullets, planned items tagged `(planned, #N)` | No stable ids, no acceptance criteria, shipped and planned mixed in one list, no EARS-style form. Nothing can check coverage. |
-| Design | `docs/creator-techniques-spec.md`, one file for 21 items | Should be one numbered design doc per feature with a status header (Draft / Accepted / Implemented / Superseded), goals and non-goals, alternatives, and rollout (off-by-default, then the graduation criterion). |
+| Design | A single technical-spec file covering 21 items | Should be one numbered design doc per feature with a status header (Draft / Accepted / Implemented / Superseded), goals and non-goals, alternatives, and rollout (off-by-default, then the graduation criterion). |
 | Decisions | Scattered across `docs/notes/`, the CHANGELOG, the roadmap and the private business `decisions.md` | No ADRs. `docs/notes/` is closer to a defect and lessons log, which is valuable but a different thing. |
 | Architecture | `docs/architecture.md`, one long file | Could follow arc42's sections, with C4 context and container diagrams in Mermaid. |
 | Work | GitHub issues with a `follow-up` label; issue and PR templates exist | Issues don't cite requirement ids; there is no status field linking issue -> design doc -> requirement. |
