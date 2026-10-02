@@ -8,7 +8,10 @@
 
 The voiceover enters the mix with only a volume adjustment.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- The usual polish chain for TTS is a high-pass filter, a small cut at a harsh 2-4 kHz peak, gentle compression, de-essing, a slight air shelf and a limiter. [C]
+- AI voiceovers drew lower engagement than human voices on real TikTok ads, and a lower-pitched AI voice narrowed the gap. [A] [International Journal of Information Management](https://www.sciencedirect.com/science/article/abs/pii/S0268401225000945)
 
 ## Goals
 

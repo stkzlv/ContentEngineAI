@@ -8,7 +8,9 @@
 
 Segment boundaries come from the assembly strategy and the voiceover length; the music is chosen independently in the `download_music` step.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Cuts on accented downbeats, even unnoticed ones, increase perceptual pleasure in a lab study. [A] [Neuroscience Letters](https://www.sciencedirect.com/science/article/pii/S030439402200180X)
 
 ## Goals
 

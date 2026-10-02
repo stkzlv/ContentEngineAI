@@ -8,6 +8,10 @@
 
 Visual planning is one keyword search over the script. The detailed design is in the issue body, from sections 2 and 8 to 10 of [tutorial-video-best-practices.md](../tutorial-video-best-practices.md). This doc records how it fits the [rules every design follows](README.md#rules-that-apply-to-every-design).
 
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Meta lists borders, captions, speed changes and narration over existing footage as not meaningful edits, so narrating stock footage is not original on its own. [A] [Meta](https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/)
+
 ## Goals
 
 - Each tutorial step is shown as it is spoken.

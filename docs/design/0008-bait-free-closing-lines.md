@@ -8,7 +8,12 @@
 
 Both pools carry a share request: "Share with someone who needs this." in `cta_options` and "Share it with whoever needs it." in `cta_options_topic`. Meta lists share requests as engagement bait.
 
-The finding comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Meta demotes posts that ask for specific words, emojis, votes, shares or tags, demotes repeat offenders harder, and exempts genuine requests for advice or opinions. [A] [Meta engagement-bait guidelines](https://transparency.meta.com/features/approach-to-ranking/content-distribution-guidelines/engagement-bait/)
+- TikTok's For You feed excludes engagement manipulation ("like-for-like" promises, false incentives for gifting or following), so a payoff promised only for a follow ("follow for part 2") is a risk. [A] [TikTok For You feed standards](https://www.tiktok.com/community-guidelines/en/fyf-standards)
+- TikTok's Creator Rewards criteria exclude content "primarily designed to attract followers, likes, or advertisement clicks". [A] [TikTok Creator Rewards eligibility](https://www.tiktok.com/creator-academy/article/eligibility)
+- In a preprint on 30 Estonian brand accounts, call-to-action type was the main comment predictor, led by engagement bait; no study isolates a genuine closing question. [B]
 
 ## Goals
 

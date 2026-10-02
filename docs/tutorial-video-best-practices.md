@@ -16,8 +16,9 @@ via TikTok, Instagram Reels, and YouTube Shorts. Often watched muted, though mos
   there about hooks, legibility without sound, and disclosure applies here;
   only the sections below differ.
 - [subtitle-best-practices.md](subtitle-best-practices.md) — caption design.
-- [creator-research.md](creator-research.md): graded 2026 evidence on ranking signals,
-  search placement, the Shorts view-count change and what to measure.
+- [Evidence grades](design/README.md#evidence-grades): what the `(A)`,
+  `(B)` and `(C)` marks below mean. [Design 0010](design/0010-first-seconds-metrics.md)
+  carries the evidence on ranking signals and what to measure.
 - [platform-safe-zones.md](platform-safe-zones.md) — UI overlay zones.
 
 ---
@@ -123,7 +124,7 @@ are telling them to change.
 **Generated visuals**, which can depict a specific state but need a
 generation step and, when they look realistic, carry platform
 AI-disclosure obligations. On TikTok a label narrows reach slightly (see
-creator-research.md section 1); generic TTS narration alone needs none.
+[design 0016](design/0016-tiktok-ai-label.md)); generic TTS narration alone needs none.
 
 **Screen recordings**, which are what tutorials actually want, because the
 instruction and the visual are the same artifact. They also conflict hardest
@@ -166,7 +167,15 @@ distinction changes what to optimise.
 - **Search phrase in three places.** The first spoken line, the on-screen text
   and the start of the caption. Platforms transcribe audio and read on-screen text.
 - **Description.** Two or three sentences carrying the target phrase.
-- **Hashtags.** Two or three on TikTok (its own advice), at most five on Instagram (a hard cap since December 2025). They categorise; they do not add reach.
+- **Hashtags.** Two or three on TikTok (its own advice: "less is more") (A,
+  [TikTok Creator Academy](https://www.tiktok.com/creator-academy/en/article/elements-of-tiktok-video?lang=en)),
+  at most five on Instagram (a hard cap since December 2025) (A,
+  [Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/)).
+  They categorise; they do not add reach, so "hashtags boost Instagram reach"
+  is not supported. YouTube ignores every hashtag on a video that carries more
+  than 60 (A).
+- **Caption length.** Instagram posts under 30 words had higher engagement
+  across 9.1 million posts (B, [Socialinsider](https://www.socialinsider.io/blog/instagram-caption-length/)).
 - **Topical clustering.** Consecutive videos answering adjacent questions in
   one theme build topical authority; scattered one-off topics do not.
 
@@ -195,7 +204,8 @@ analytics APIs commonly expose a per-post timeline or a content-decay
 endpoint, which makes this a query rather than a project.
 
 On YouTube, every play and replay has counted as a Shorts view since
-31 March 2025, while "engaged views" exclude replays. Loops inflate raw
+31 March 2025, while "engaged views" exclude replays (A,
+[YouTube Help community](https://support.google.com/youtube/thread/333869549)). Loops inflate raw
 counts, so compare engaged views and "viewed vs swiped away" where you can,
 and note which one a comparison used.
 
@@ -309,7 +319,9 @@ on any device" fails "specific" and should be a series. "Why wifi drops at
 night" has many causes and cannot be shown with stock footage; pick one cause
 and one check. Every step should cite a vendor support page before the video
 renders, and a topic whose steps cannot be sourced is dropped. Tracked in
-#559.
+#559. Keep out health, finance and legal advice: YouTube's July 2026
+clarification of its inauthentic-content policy added AI personas giving that
+advice (A, [Tubefilter](https://www.tubefilter.com/2026/07/13/youtube-inauthentic-content-monetization-policy-update/)).
 
 ## 9. Visuals must show the step being spoken
 
@@ -351,7 +363,9 @@ Yes, when the graphic explains; no when it decorates.
 - **Decorative graphics hurt (A).** Interesting but irrelevant material lowers
   learning. Every graphic must encode a fact from the script.
 - **Graphics count as transformation (A).** YouTube credits substantive
-  edits, and Instagram counts unique text and creative edits, as original. The same five cards
+  edits, and Instagram counts unique text and creative edits, as original
+  ([TechCrunch](https://techcrunch.com/2026/04/30/instagram-restricts-reach-of-content-aggregators-in-new-crackdown/)).
+  No retention data exists for arrows or circles. The same five cards
   with swapped words in every video would read as a template, so vary the
   layout and tie the geometry to the content.
 

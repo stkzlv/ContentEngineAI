@@ -10,6 +10,16 @@
 
 Every drawn choice in the other designs goes into `pipeline_state.json` (see [the rules every design follows](README.md#rules-that-apply-to-every-design)). This design turns those records into a variety report, and [0010](0010-first-seconds-metrics.md) segments metrics by them.
 
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- YouTube renamed "repetitious" to "inauthentic content" in July 2025; similar or repetitive content across uploads is its central category, and the policy names "generic or unoriginal templates giving the impression of mass production" while channels using AI stay eligible. [A] [YouTube inauthentic-content policy](https://support.google.com/youtube/answer/1311392)
+- Journalists' reconstructions of YouTube's detection name upload frequency against production complexity, format similarity, and uniform titles and descriptions. [C] [Tech Times](https://www.techtimes.com/articles/320629/20260715/youtube-wiped-35m-subscribers-over-ai-slop-now-its-judging-your-taste.htm)
+- TikTok's For You feed excludes reused content without creative edits and low-quality or minimally edited content. [A] [TikTok For You feed standards](https://www.tiktok.com/community-guidelines/en/fyf-standards)
+- Automation used to send repetitive content is a TikTok spam rule. [A]
+- TikTok's feed avoids consecutive videos from the same creator or with the same sound. [A] [TikTok transparency center](https://www.tiktok.com/transparency/en/recommendation-system)
+- Since 30 April 2026, Instagram accounts that mainly post content they did not create or meaningfully edit are not recommended to non-followers; Meta asks for "fresh information, analysis, or substantial improvements". [A] [TechCrunch, 30 April 2026](https://techcrunch.com/2026/04/30/instagram-restricts-reach-of-content-aggregators-in-new-crackdown/)
+- Mass producibility is one of three defining features of AI slop. [B] [arXiv 2601.06060](https://arxiv.org/abs/2601.06060)
+
 ## Goals
 
 - Every choice that shapes a render is recorded.

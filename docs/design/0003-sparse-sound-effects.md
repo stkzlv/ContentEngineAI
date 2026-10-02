@@ -8,7 +8,12 @@
 
 The mix is voiceover, music and (optionally) the signature sting, built by `AudioFilterBuilder.build_mix`.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Message sensation value (cuts, motion, sound and text combined) raises engagement up to a point, then heavy effects reduce likes, shares and comments, in a 2026 preprint of 1,200 rated short videos validated on 14,492 more. [B] [arXiv 2604.19995](https://arxiv.org/abs/2604.19995)
+- No retention study measures sound effects; editors agree an effect on every cut is worse than none, so effects are reserved for the hook, the reveal and the CTA. [C]
+- No public controlled study measures the organic retention effect of an individual edit effect (zooms, effects, transitions) on Shorts or Reels, so the pipeline's own A/B data decides.
+- Not supported: any unsourced "+N% retention" figure for an effect.
 
 ## Goals
 

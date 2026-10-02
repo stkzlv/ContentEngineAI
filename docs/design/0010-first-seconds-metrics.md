@@ -10,6 +10,17 @@ The sweep reads view timelines through the scheduling provider and stores day-2 
 
 The other designs' rollout checks (swipe-away, completion, average percentage viewed) read the metrics this design stores.
 
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- YouTube ranks Shorts on whether the viewer chose to watch or swiped away, the share who viewed, average view duration and percentage viewed, likes and survey responses. [A] [YouTube Help](https://support.google.com/youtube/answer/11914225)
+- YouTube Studio shows "viewed vs swiped away" per Short, the first gate. [A] [YouTube Help community](https://support.google.com/youtube/community-video/273390203/new-youtube-shorts-metric-viewed-vs-swiped-away)
+- Since 31 March 2025 every Shorts play and replay counts as a view and "engaged views" (which monetisation uses) exclude them, so raw counts are inflated by loops. [A] [YouTube Help community thread](https://support.google.com/youtube/thread/333869549)
+- Across 5,400 Shorts on 33 channels, Shorts below 60% viewed-vs-swiped-away rarely performed well, and likes, comments and shares had no strong relationship with performance; the study is from 2023, before the view-count change. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
+- TikTok ranks on user interactions, video information and device settings, and finishing a longer video carries more weight than weak signals (2020 statement). [A] [TikTok newsroom](https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you)
+- Instagram's top signals are watch time, likes per reach and sends per reach, as quoted from Adam Mosseri. [B, secondary] [Hootsuite](https://blog.hootsuite.com/instagram-algorithm/)
+- In TikTok's coding of its ads, the first 2 seconds matter most for ad recall and the first 2.5 seconds for awareness (2021, paid ads). [B] [TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)
+- Not supported: fixed numeric weight tables for any platform, or TikTok's "batches of 300-500 viewers". No platform publishes its weights, so the reports segment raw metrics rather than scoring against invented weights.
+
 ## Goals
 
 - Store each first-seconds and quality metric a platform exposes, per post.
