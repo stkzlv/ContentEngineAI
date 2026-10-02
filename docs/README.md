@@ -22,7 +22,6 @@ A folder is created when its first file moves in. Pages that still sit at the to
 
 | Page | Belongs in |
 |---|---|
-| `creator-techniques-spec.md` | `design/` |
 | `ai-slop-research.md`, `creator-research.md`, `documentation-practices-research.md`, `audio-best-practices.md`, `promotional-video-best-practices.md`, `subtitle-best-practices.md`, `tutorial-video-best-practices.md` | `research/` |
 | `installation.md`, `batch-processing.md`, `troubleshooting.md` | `guides/` |
 | `configuration.md`, `zernio-client.md`, `lnkbio-api.md` | `reference/` |

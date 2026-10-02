@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requirements live in `docs/requirements/`, one file per area, each with a stable id and a status (shipped, partial, planned, held or deprecated); statements that contradicted the code are corrected, known gaps are marked partial, and shipped behaviour the old single file never stated is added.
 - Tests can cite the requirements they check with a `req` marker, and `python -m tools.requirements_coverage` lists the requirements no test cites.
 - The contributor documentation rules moved from the requirements into CONTRIBUTING.
+- Design docs live in `docs/design/`, one numbered file per feature with a status, goals, non-goals, design, alternatives and rollout.
+- The roadmap lists outcomes with a "done when" and links to issues and design docs; shipped items leave it, since the CHANGELOG records them.
 
 ## [0.127.1] - 2026-09-24
 

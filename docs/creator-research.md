@@ -2,7 +2,7 @@
 
 Research into the techniques behind successful short-form video: published teardowns of top creators, platform statements on how ranking works, and the few measured studies that exist. It complements the existing guides rather than repeating them, and [ai-slop-research.md](ai-slop-research.md) covers the other side: what gives automated output away. Hook text patterns and cut cadence are in [promotional-video-best-practices.md](promotional-video-best-practices.md), tutorial structure is in [tutorial-video-best-practices.md](tutorial-video-best-practices.md), caption typography is in [subtitle-best-practices.md](subtitle-best-practices.md), and voice and music levels are in [audio-best-practices.md](audio-best-practices.md).
 
-The requirements drawn from this research are in [the requirement files](requirements/README.md), each with the status `planned #N` in the area it belongs to, and the technical design for each is in [creator-techniques-spec.md](creator-techniques-spec.md).
+The requirements drawn from this research are in [the requirement files](requirements/README.md), each with the status `planned #N` in the area it belongs to, and the technical design for each is a [design doc](design/README.md).
 
 Researched September 2026.
 
