@@ -8,7 +8,11 @@
 
 No cover is produced. Since July 2026 YouTube accepts custom Shorts thumbnails from Partner Program channels; roadmap item 4.7 in [the roadmap](../roadmap.md) records this.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Partner Program creators can upload custom Shorts thumbnails since July 2026; the announcement does not say where they display, and the swipe feed autoplays the video itself. [A] [YouTube blog](https://blog.youtube/news-and-events/youtube-studio-custom-thumbnail-updates/)
+- The feed autoplays, so a cover barely affects feed reach; it matters for the profile grid, search and the follow decision, and Instagram's grid crops to 3:4. [A, C]
+- A video must confirm at once what its thumbnail promised, so the hook headline and first frame match the title and cover (advice written for long-form). [C] [MrBeast production memo](https://simonwillison.net/2024/Sep/15/how-to-succeed-in-mrbeast-production/)
 
 ## Goals
 

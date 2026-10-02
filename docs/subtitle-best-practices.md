@@ -25,8 +25,8 @@ For muted viewers the captions *are* the content.
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer
   (trending vs original audio, voiceover/music levels, ducking).
-- [creator-research.md](creator-research.md): graded 2026 evidence on sound-on rates,
-  moderate stimulation, flashes and sound effects that bears on caption design.
+- [Evidence grades](design/README.md#evidence-grades): what the `[A]`, `[B]`
+  and `[C]` marks below mean.
 
 Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 `pycaps` labels.
@@ -186,13 +186,15 @@ them, and editors agree an effect on every cut is worse than none. Reserve
 them for the hook, the reveal and the CTA. The pycaps template effects are
 muted by default (`mute_template_sound_effects: true`). Keep the total effect
 load moderate: engagement follows an inverted U with stimulation, and caption
-motion counts toward it (creator-research.md section 4).
+motion counts toward it [B] ([arXiv 2604.19995](https://arxiv.org/abs/2604.19995),
+a 2026 preprint; [design 0003](design/0003-sparse-sound-effects.md)).
 
 **Safety limits**:
 - Cap scale pulses at 1.15×
 - Cap color-flash frequency at 3 Hz
 - No full-screen flashes
-- WCAG 2.1 photosensitivity guideline: max 3 flashes per second
+- WCAG 2.1 photosensitivity guideline: max 3 flashes per second [A]
+  ([WCAG 2.3.1](https://w3c.github.io/wcag21/understanding/three-flashes-or-below-threshold.html))
 
 ## 4. Layout and positioning
 

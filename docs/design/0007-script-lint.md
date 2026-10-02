@@ -8,7 +8,17 @@
 
 `validate_script_completeness` checks truncation, length floors and the CTA; the narrator profiles carry banned-phrase prose, which the model may ignore.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Machine-written phrasing has well-catalogued tells ("it's not X, it's Y", reflexive lists of three, "delve", "game-changer", "seamless"); whether they cost engagement is unmeasured. [C] [Pangram](https://www.pangram.com/signs-of-ai-writing)
+- Superficial competence, a fluent veneer over little specific, checkable content, is one of three defining features of AI slop. [B] [arXiv 2601.06060](https://arxiv.org/abs/2601.06060)
+- Filler and fake urgency ("in today's video", "you won't believe") read as generic. [C]
+- A specific, verifiable fact or opinion is the "added information" every platform's originality criteria ask for. [A]
+- A registered meta-analysis of 8,977 headline tests found concreteness follows an inverted U: name the product, number or situation and withhold only the answer. [A] [Scientific Reports](https://www.nature.com/articles/s41598-024-81575-9)
+- "But" and "therefore", never "and then": each sentence causes or complicates the next, a screenwriting rule that suits a 90-word script. [C] [The Script Lab](https://thescriptlab.com/features/screenwriting-101/13636-how-south-park-creators-plot-better-scripts/)
+- No study sets an optimal words-per-minute for Shorts; 150-170 WPM is common practice, and lab work found fast speech reduced listeners' ability to judge arguments. [weak, ungraded] [Personality and Social Psychology Bulletin](https://journals.sagepub.com/doi/10.1177/01461672952110006)
+- TikTok reads captions, on-screen text and transcribed speech, so the search phrase goes in the first spoken line, the on-screen text and the start of the caption. [A for the mechanism, C for effect sizes]
+- Not supported: "300-500% more search views" from search-phrase placement; the figures are unsourced.
 
 ## Goals
 

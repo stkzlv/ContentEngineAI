@@ -8,7 +8,9 @@
 
 The sanitised script goes to the voice unchanged.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Misread names, numbers and units ("five thousand M A H") are widely cited as a giveaway of synthetic narration, with no study behind it; product scripts are full of them. [C]
 
 ## Goals
 

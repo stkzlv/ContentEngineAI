@@ -8,7 +8,9 @@
 
 Stock candidates come from the provider search and the relevance judge with no memory of earlier renders.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- YouTube's policy names "generic or unoriginal templates giving the impression of mass production"; identical zooms, mismatched stock and the same clips repeated are the specifics. [A for the policy, C for the specifics] [YouTube inauthentic-content policy](https://support.google.com/youtube/answer/1311392)
 
 ## Goals
 

@@ -8,7 +8,11 @@
 
 Product videos go to YouTube with the store listing title, cut to fit (the metadata validation warns on `data.json` titles over 100 characters).
 
-The finding comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Across 10,000 trending Shorts, the median title was about 8 words, 20-40 characters. [B]
+- YouTube's title and thumbnail testing excludes Shorts, and testing three cuts of a Short is announced for 2027, so a title change is judged on the pipeline's own analytics. [A] [YouTube Help](https://support.google.com/youtube/answer/16391400), [TechCrunch](https://techcrunch.com/2026/09/23/youtube-adds-new-creator-tools-like-video-a-b-testing-dynamic-thumbnails-and-live-dubbing/)
+- Not supported: A/B testing Shorts titles. The 2027 tool tests cuts, not titles.
 
 ## Goals
 

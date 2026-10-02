@@ -4,7 +4,8 @@ The sound-on layer for short-form vertical promotional video. The
 [promotional-video-best-practices.md](promotional-video-best-practices.md)
 doc covers design for muted viewers. This doc covers the audio track,
 which reaches most TikTok viewers (93% of US users spend time with sound on,
-in TikTok's own 2020 data; muted viewing is more common elsewhere) and which
+in TikTok Marketing Science's 2020 data [B], [TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en);
+muted viewing is more common elsewhere) and which
 TikTok's speech indexing reads even when a viewer has the sound off.
 
 **Audience**: 30-60 second 9:16 vertical product videos for TikTok, Instagram
@@ -20,8 +21,12 @@ Reels, and YouTube Shorts.
   including the timing smoother that leads the audio.
 - [tts-voice-profiles.md](tts-voice-profiles.md) -- TTS voice selection and the
   voice-profile config.
-- [creator-research.md](creator-research.md): graded 2026 evidence on sound-on rates,
-  the AI-voice engagement gap, tempo, beat-synced cuts and sparse effects.
+- [Evidence grades](design/README.md#evidence-grades): what the `[A]`, `[B]`
+  and `[C]` marks below mean. Designs [0003](design/0003-sparse-sound-effects.md)
+  (sparse effects), [0004](design/0004-voice-processing-chain.md) (voice chain),
+  [0005](design/0005-beat-snapped-cuts.md) (beat-snapped cuts) and
+  [0015](design/0015-narrator-voice-evaluation.md) (narrator voice) carry the
+  evidence for each.
 
 ---
 
@@ -41,8 +46,9 @@ Reels, and YouTube Shorts.
    product voiceover beats a trending song the viewer can't act on. Trending
    sound helps discovery only inside its first 3-7 day window and rarely fits a
    narration-led review. Original spoken audio had the largest modelled effect
-   on likes in a 9,654-video brand study, and TikTok's feed avoids consecutive
-   videos with the same sound.
+   on likes in a 9,654-video brand study [B] ([arXiv 2606.16053](https://arxiv.org/html/2606.16053)),
+   and TikTok's feed avoids consecutive videos with the same sound [A]
+   ([TikTok transparency center](https://www.tiktok.com/transparency/en/recommendation-system)).
 6. **Normalize to each platform's loudness target** so the video isn't
    auto-attenuated louder or quieter than the feed around it.
 
@@ -139,6 +145,8 @@ narration-led, so the trade-off is different:
   `instrumental` still passes, as a fallback tried after the fuller matches,
   so a query's mood words carry the choice only when a provider returns a
   track that has them.
+- **Generic or mood-mismatched music** is one of the tells that make an
+  automated video read as AI slop. [C]
 
 ## 4. The audio hook
 
@@ -155,11 +163,15 @@ text, caption). Mismatched audio and visual hooks split attention in the first s
 where the stop-or-swipe decision is made.
 
 **Voice and music choices.** AI voiceovers drew lower engagement than human
-voices on real TikTok ads, and a lower-pitched AI voice narrowed the gap
-(grade A). Tempo shifts mood rather than attention, and cuts on accented
-downbeats feel better. [creator-research.md](creator-research.md) section 5
-has the sources, and #545 and #546 specify the voice chain and beat-snapped
-cuts.
+voices on real TikTok ads, and a lower-pitched AI voice narrowed the gap [A]
+([design 0015](design/0015-narrator-voice-evaluation.md) has the source). Fast
+music (108 BPM and up) raised arousal and purchase intent in short ad studies,
+while an EEG study found tempo did not change attention: tempo shifts mood,
+not attention [A] ([Frontiers in Psychology](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1236006/full)).
+Cuts on accented downbeats feel better [A]. Designs
+[0004](design/0004-voice-processing-chain.md) and
+[0005](design/0005-beat-snapped-cuts.md) specify the voice chain and
+beat-snapped cuts.
 
 ## 5. Platform loudness normalization
 

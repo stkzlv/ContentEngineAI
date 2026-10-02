@@ -8,6 +8,10 @@
 
 The detailed design is in the issue body, from sections 2 and 8 to 10 of [tutorial-video-best-practices.md](../tutorial-video-best-practices.md). This doc records how it fits the [rules every design follows](README.md#rules-that-apply-to-every-design).
 
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- Hallucinated facts give automated output away; the topic and product fact checks guard them, and a sourced step list extends that to each step. [C]
+
 ## Goals
 
 - A topic script is written from a sourced step list, and its length follows the step count.

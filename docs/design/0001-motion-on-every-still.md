@@ -8,7 +8,13 @@
 
 `_build_ken_burns_filter` in `src/video/assembler/visual_builder.py` applies a settle-zoom to the first image only. Later stills are static.
 
-The technique comes from [creator-research.md](../creator-research.md).
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- YouTube's inauthentic-content policy names "image slideshows, templated storylines, or scrolling text with minimal or no narrative". [A] [YouTube inauthentic-content policy](https://support.google.com/youtube/answer/1311392)
+- TikTok's Creator Rewards criteria exclude "low-quality images, or slide videos". [A] [TikTok Creator Rewards eligibility](https://www.tiktok.com/creator-academy/article/eligibility)
+- TikTok's For You feed excludes low-quality or minimally edited content, under guidelines effective 24 September 2026. [A] [TikTok For You feed standards](https://www.tiktok.com/community-guidelines/en/fyf-standards)
+- Instagram counts "unique text, creative edits, and voiceover" as original since 30 April 2026, and watermarks and speed changes as not. [A] [TechCrunch, 30 April 2026](https://techcrunch.com/2026/04/30/instagram-restricts-reach-of-content-aggregators-in-new-crackdown/)
+- How long a still can hold before viewers leave is unmeasured. [C]
 
 ## Goals
 

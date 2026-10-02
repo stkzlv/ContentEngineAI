@@ -12,20 +12,18 @@ Each folder holds one kind of document, with its own reader and its own update r
 | `decisions/` | What was chosen, and what was rejected? | One numbered record per decision. Append-only: a later record supersedes an earlier one, and neither is deleted. |
 | `architecture.md` | How does the system fit together? | Kept current with the code. |
 | `notes/` | What broke in a module, and what catches it now? | One file per module, an entry per defect. Read the file before you change the module. |
-| `research/` | What does the evidence say? | Sourced research and best-practice pages that requirements and design docs cite. |
 | `guides/` | How do I do a task? | How-to pages for users and operators. |
 | `reference/` | What exactly does this flag or key do? | Configuration, CLI and API reference. |
-| `explanation/` | Why does the system behave this way? | Background on concepts that a guide or reference page would only state. |
+| `explanation/` | Why does the system behave this way? | Background on concepts and defaults that a guide or reference page would only state, with the evidence and sources behind them. |
 | `contributing/` | How do I work on this repository? | Development setup, linting, testing and versioning. |
 
 A folder is created when its first file moves in. Pages that still sit at the top level of `docs/` belong in these folders:
 
 | Page | Belongs in |
 |---|---|
-| `ai-slop-research.md`, `creator-research.md`, `documentation-practices-research.md`, `audio-best-practices.md`, `promotional-video-best-practices.md`, `subtitle-best-practices.md`, `tutorial-video-best-practices.md` | `research/` |
 | `installation.md`, `batch-processing.md`, `troubleshooting.md` | `guides/` |
 | `configuration.md`, `zernio-client.md`, `lnkbio-api.md` | `reference/` |
-| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md` | `explanation/` |
+| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md`, and the four `*-best-practices.md` guides | `explanation/` |
 | `publisher.md`, `video-producer.md`, `scraper.md` | split across `guides/`, `reference/` and `explanation/` |
 | `development.md`, `linting.md`, `testing.md`, `versioning.md` | `contributing/` |
 

@@ -8,7 +8,12 @@
 
 The producer uses the downloaded listing images in listing order (`step_gather_visuals` reads `downloaded_images`). Most are marketing composites with dense text, and captions and the hook headline are drawn over them.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md), which found that looking fully automated is itself the penalty.
+Evidence ([evidence grades](README.md#evidence-grades)):
+
+- When readers suspected AI, trust fell about 50% whether or not the content was AI-made, and adjacent ads lost 14% in purchase consideration: being perceived as automated is the penalty. [B] [PPC Land on Raptive](https://ppc.land/raptive-study-shows-ai-content-cuts-reader-trust-by-half/)
+- In a February 2026 survey of 2,250 adults in the US, UK and Australia, 56% saw "AI slop" often, and half of Gen Z had blocked, muted or unfollowed a brand or creator whose content felt like slop. [B] [Sprout Social](https://sproutsocial.com/insights/press/social-media-is-now-the-top-source-for-breaking-news-new-sprout-social-research-finds/)
+- Seller listing images are usually marketing composites (dense text, spec icons, stock models), and captions plus a hook headline over them give three layers of text on one frame; no study measures this, it follows from the reuse and minimal-edit rules. [A for the rules, C for the specifics]
+- Meta lists borders, captions, speed changes and narration over existing material as not meaningful edits. [A] [Meta](https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/)
 
 ## Goals
 

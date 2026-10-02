@@ -18,9 +18,10 @@ served via TikTok, Instagram Reels, and YouTube Shorts. Watched with sound on by
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer:
   trending audio, voiceover/music mix levels, ducking.
-- [creator-research.md](creator-research.md): graded 2026 evidence on ranking
-  signals, hooks, pacing, endings, engagement bait, originality rules and AI
-  labels. Where the two disagree, the graded doc wins.
+- [Evidence grades](design/README.md#evidence-grades): what the `[A]`, `[B]`
+  and `[C]` marks on the claims below mean. The design docs carry the evidence
+  for each planned change; where a vendor figure here disagrees with a graded
+  claim, the graded claim wins.
 
 ---
 
@@ -44,7 +45,7 @@ ranking trigger," "84.3% of viral TikToks used a hook trigger" — trace to
 single un-sourced posts with no disclosed methodology. Treat them as narrative,
 not data; measure your own 2 s / 3 s view-through by hook style instead.)
 
-**Word budget**: 5-8 words for the on-screen headline. The spoken first line can run longer; the median spoken Shorts hook in one 4,148-hook sample was 11 words.
+**Word budget**: 5-8 words for the on-screen headline. The spoken first line can run longer: across 4,148 hooks from million-view videos the median Shorts hook was 11 words, a third used "you" or "your", and no single feature tracked with higher view tiers [B] ([Overseer](https://www.overseeros.com/blog/best-youtube-hooks)).
 
 **Patterns that work for product video specifically:**
 
@@ -56,6 +57,30 @@ not data; measure your own 2 s / 3 s view-through by hook style instead.)
 | Outcome-first | "This fixed my [pain] in 30 seconds" | Result hook; works on warm audiences |
 | Numbered teardown | "3 reasons I'm returning this" | Lists promise structure → lower cognitive cost |
 | Comparison | "$15 vs $200 — same thing?" | Pattern interrupt + value framing |
+
+Evidence behind the patterns:
+
+- Each negative word raised click-through by about 2.3% across 105,000
+  headline variants, which supports honest "mistake" and "don't buy" hooks.
+  [A] [Nature Human Behaviour](https://www.nature.com/articles/s41562-023-01538-4)
+- Concrete beats mysterious: name the product, number or situation and
+  withhold only the answer; "you won't believe this" is past the optimum
+  ([design 0007](design/0007-script-lint.md) has the source). [A]
+- Across 14,424 videos from 355 accounts, spoken question hooks averaged
+  10.08 times account baseline views against 7.04 for statements, but only
+  specific, audience-targeted questions won, and topic confounds the result.
+  [B] [The Content Labs](https://thecontentlabs.app/blog/question-hooks-data-study)
+- Text overlay works best when it stands out from the frame while fitting its
+  style. [A] [Journal of Marketing](https://journals.sagepub.com/doi/10.1177/00222429251322773)
+- In TikTok's coding of its ads, the first 2 seconds matter most for ad recall
+  and the first 2.5 seconds for awareness (2021, paid ads, not organic reach).
+  [B] [TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)
+- Treat the opening like a thumbnail, the advice drawn from a 2023 study of
+  5,400 Shorts in which those below 60% viewed-vs-swiped-away rarely
+  performed well. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
+- The first frame must work on mute; one top Shorts creator keeps hooks at a
+  fifth-grade reading level and foreshadows the payoff within three seconds.
+  [C] [Creator Science podcast](https://podcast.creatorscience.com/jenny-hoyos/)
 
 **Caption-rendering implication**: the hook needs its own on-screen treatment,
 **distinct from the running captions**. Two shapes both work: a static title
@@ -112,6 +137,25 @@ still render identically, so today the pool adds no visual variety.
 Hook caption sizing and word budget converge across Captions.ai, OpusClip,
 and Submagic 2025-2026 guidance.
 
+**After the hook.** The script has to keep the hook's promise:
+
+- **Hook, retain, reward.** The hook earns the watch, the middle pays small
+  curiosity loops, the end fulfils the hook's promise. The testing method is
+  the part that suits automation: one fixed body with several hooks, then
+  iterate on the winners. [C] [Dickie Bush on Alex Hormozi](https://dickiebush.substack.com/p/i-invested-45000-in-alex-hormozis)
+- **Foreshadow, then progress visibly.** "But" and "then" beats and a visible
+  progression ("three steps") keep viewers to the end. [C] [Creator Science podcast](https://podcast.creatorscience.com/jenny-hoyos/)
+- **Pay off the promise at once, and re-hook once.** Confirm what the title
+  and cover promised immediately, and add one fresh high point around the
+  middle (advice written for long-form). [C] [MrBeast production memo](https://simonwillison.net/2024/Sep/15/how-to-succeed-in-mrbeast-production/)
+- **Storytelling outperformed other post types on views** in a four-month
+  field experiment across 202 TikTok posts (working paper, small study). [B]
+  [MPRA](https://mpra.ub.uni-muenchen.de/123280/1/MPRA_paper_123280.pdf)
+- **Length.** One top creator targets 34 seconds, and in 2023, when Shorts
+  were capped at 60 seconds, Shorts with an average view duration above 50
+  seconds averaged 4.1 million views. 30-45 seconds is defensible; lengthen
+  only when the retention curve holds. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
+
 **Audio is one search signal.** TikTok indexes spoken-audio transcripts
 alongside captions, on-screen text, and hashtags. Front-loading the hook
 keyword (product category, price band, audience cue, pain point) in the first
@@ -134,11 +178,11 @@ beat of visual change, at a moderate pace.
 
 **Shot-length bands.** Most published bands are vendor claims (grade C). The
 measured evidence points to moderate pace: stimulation follows an inverted U
-(see [creator-research.md](creator-research.md) section 4).
+[B] ([arXiv 2604.19995](https://arxiv.org/abs/2604.19995), a 2026 preprint).
 
 | Audience / profile | Cut every | Notes |
 |---|---|---|
-| Default | a visual change every 3-5 s, list items about every 3 s | Measured frame by frame on one creator's Shorts (grade C); a cut every 2 s has no measured support |
+| Default | a visual change every 3-5 s, list items about every 3 s | Measured frame by frame on four of one creator's Shorts [C] ([WritePanda](https://www.writepanda.ai/blog/how-to-edit-shorts-like-ali-abdaal/)); a cut every 2 s has no measured support |
 | First shot (hook) | change within 1-1.5 s | Signals pace immediately, see section 1 |
 | Hard ceiling | never hold a static frame past 4-5 s | Add a punch-in, cut, B-roll, or text pop |
 
@@ -157,6 +201,17 @@ slideshow, the slide change itself is the beat.
 - **J-cut / L-cut** -- audio leads or trails the video edit; smooths a
   narration handoff so the cut doesn't feel abrupt.
 
+In TikTok's ad coding, seamless transitions gave 14% more view time and
+surprising transitions 53% more brand recall (paid ads). [B] [TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)
+
+**Filters and pace.** In 9,654 brand TikToks, having no visual filter
+predicted better performance and editing pace had only modest predictive
+value (one preprint). Keep the grade neutral with mild contrast. [B]
+[arXiv 2606.16053](https://arxiv.org/html/2606.16053)
+
+**Progress bars: not supported.** Only the vendors that sell them report
+gains, and a bar on every video is a template tell. [C]
+
 **One transition style per video.** Mirrors the subtitle one-effect rule:
 mixing whip pans, zoom punches, and slides in one clip reads as amateur. Pick
 the cadence and the transition from the profile, not per-slide.
@@ -170,7 +225,7 @@ still (#542) matters. A faster `cut_density: high` option is planned (roadmap
 
 ## 3. Design for sound-off as well as sound-on
 
-**Muted viewing is common on some feeds, but not on TikTok: 93% of US TikTok users spend time with sound on (TikTok's own 2020 data).** Captions must stand alone for muted viewers, and voice, music and effects matter at least as much for everyone else. (The widely-cited
+**Muted viewing is common on some feeds, but not on TikTok: 93% of US TikTok users spend time with sound on (TikTok Marketing Science, 2020).** [B] ([TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)) Captions must stand alone for muted viewers, and voice, music and effects matter at least as much for everyone else. (The widely-cited
 "85% watch muted" traces to a 2016 Facebook, publisher-reported figure and does
 not describe TikTok.) Design every beat to work both ways: legible without
 sound, and carried by the voice for the majority who listen.
@@ -238,7 +293,9 @@ sound, and carried by the voice for the majority who listen.
   "obsessed") read as ad copy and now actively *reduce* trust.
 - **Trade-off mention** as its own beat (one segment dedicated to a
   downside) is the strongest trust signal in 2025-2026 data — the
-  de-influencing aesthetic without the negativity.
+  de-influencing aesthetic without the negativity. Two-sided messages raise
+  credibility, best when the negative is small, real and tied to a positive.
+  [A] [International Journal of Research in Marketing](https://www.sciencedirect.com/science/article/abs/pii/S0167811606000267)
 - **Source citations on factual claims** ("4.6★, 12k reviews") render
   well as small caption supers below the main caption line.
 
@@ -249,9 +306,13 @@ script template prompts (CHANGELOG `0.43.1`).
 
 One short closing question or claim that invites a genuine reply, right
 before the CTA, not replacing it. Comments are a weak ranking signal on Shorts
-(creator-research.md section 1); the line is for conversation and profile
-visits, not rank. Meta documents the demotion of comment, share, tag and vote
-baiting, and TikTok's For You feed standards exclude engagement manipulation.
+[B, 2023] ([Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html));
+the line is for conversation and profile visits, not rank. Meta documents the
+demotion of comment, share, tag and vote baiting [A] ([Meta](https://transparency.meta.com/features/approach-to-ranking/content-distribution-guidelines/engagement-bait/)),
+and TikTok's For You feed standards exclude engagement manipulation [A]
+([TikTok](https://www.tiktok.com/community-guidelines/en/fyf-standards)).
+[Design 0008](design/0008-bait-free-closing-lines.md) carries the rest of the
+evidence.
 Genuine requests for opinions or experiences are exempt, which is the line
 this beat has to stay on.
 
@@ -305,7 +366,9 @@ templates and spec-correction for analytical/comparison templates. See
 Caveat: a standalone end card after the last spoken line can become the
 "goodbye second" where viewers leave. One creator measured it; nobody has at
 scale. Test the CTA spoken over the final visual against a separate card
-(#543).
+([design 0002](design/0002-end-on-the-peak.md), #543). Shorts have no end
+screens; the substitute is the "related video" link. [A]
+[YouTube Help](https://support.google.com/youtube/answer/14075157)
 
 **Hard-CTA caption rendering:**
 
@@ -374,7 +437,8 @@ the FTC `#ad` overlay above.
   #558. It reads C2PA credentials. In November 2025 TikTok began testing a
   control to see less AI content, which would shrink a labelled video's
   audience, and a study
-  of about a million posts found disclosure cut engagement by 7-8%. The
+  of about a million posts found disclosure cut engagement by 7-8%
+  ([design 0016](design/0016-tiktok-ai-label.md) has the sources). The
   publisher sets this flag on every TikTok payload, on by default,
   configurable at `config/publisher.yaml::tiktok_settings.video_made_with_ai`.
   No manual per-render step is needed, and the setting applies on every
@@ -394,7 +458,7 @@ disclosure. AI-content disclosure is additive, not a replacement.
 **Originality is the real 2026 AI-reach risk.** YouTube says AI labels do not
 reduce reach; on TikTok the cost is the viewers who turn AI content down plus
 a measured 7-8% engagement drop. All three platforms deprioritize unoriginal, templated,
-mass-produced output: YouTube's inauthentic-content policy (July 2025, with
+mass-produced output ([design 0006](design/0006-render-choices-and-variety-report.md) has the sources): YouTube's inauthentic-content policy (July 2025, with
 channel terminations in January 2026, https://thenextweb.com/news/youtube-ai-slop-crackdown-faceless-creators-collateral-damage), Instagram's originality rules (30 April
 2026: "unique text, creative edits, and voiceover" count, watermarks and speed
 changes do not), and TikTok's stricter For You feed standards (24 September
@@ -408,7 +472,7 @@ the discipline is using them.
 **2026 platform shifts a 2025 playbook would miss.** TikTok's US operation was
 divested to a US joint venture in January 2026 and its recommendation algorithm
 is being retrained on US-only data, so US-reach assumptions are provisional. Instagram removed the longer-Reels penalty (recommends up to ~3 min
-to non-followers), names, as quoted, watch time, likes per reach and sends per reach as its top signals, and capped hashtags at 5 (December 2025) — the old "use 30 tags"
+to non-followers), names, as quoted, watch time, likes per reach and sends per reach as its top signals [B] ([Hootsuite](https://blog.hootsuite.com/instagram-algorithm/)), and capped hashtags at 5 (December 2025) [A] ([Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/)) — the old "use 30 tags"
 guidance now hurts reach.
 
 ## 8. Honest gaps in the evidence

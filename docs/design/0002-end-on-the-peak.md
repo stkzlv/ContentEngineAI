@@ -8,7 +8,10 @@
 
 `outro_duration_sec: 1.0` (`config/core.yaml`) is added after the voiceover, partly to avoid AAC truncating the last word, and the music fades out over `music_fade_out_duration` (3.0 s).
 
-The work relates to roadmap item 1.8 in [the roadmap](../roadmap.md). The technique comes from [creator-research.md](../creator-research.md).
+The work relates to roadmap item 1.8 in [the roadmap](../roadmap.md). Evidence ([evidence grades](README.md#evidence-grades)):
+
+- One creator found a one-second retention cliff at the end of a Short, and cutting it took retention from 83% to 88%; nobody has measured it at scale. [C] [Creator Science podcast](https://podcast.creatorscience.com/jenny-hoyos/)
+- Since 31 March 2025 every Shorts play and replay counts as a view, while engaged views exclude loops, so a seamless loop raises the replay signal. [A] [YouTube Help community thread](https://support.google.com/youtube/thread/333869549)
 
 ## Goals
 

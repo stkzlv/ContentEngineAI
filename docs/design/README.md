@@ -35,7 +35,22 @@ A feature that changes rendered output ships off by default ([decision 0002](../
 - **Record what was chosen.** Every drawn choice goes into `pipeline_state.json` beside `script_template` and `cta`, and is mirrored into the step entry so a truncating resume keeps it. [0006](0006-render-choices-and-variety-report.md) turns these records into a variety report, and [0010](0010-first-seconds-metrics.md) segments metrics by them.
 - **Measure before enabling.** Each production design lists, under Rollout, the check that decides whether to enable it after the readout. Most of the evidence is creator opinion or ad research, so the pipeline's own analytics decide.
 
-The designs come from [creator-research.md](../creator-research.md), [ai-slop-research.md](../ai-slop-research.md) and [tutorial-video-best-practices.md](../tutorial-video-best-practices.md).
+## Evidence grades
+
+Each design's Context lists the evidence behind it, and the best-practice guides cite theirs the same way. Most "technique X adds N% retention" figures online come from tool vendors and publish no method, so every claim carries a grade:
+
+| Grade | Meaning |
+|---|---|
+| **A** | Peer-reviewed or registered research, or a platform's own policy or documentation |
+| **B** | A large observational dataset with a stated method, a preprint or working paper, agency research, or a platform's first-party ad research. Correlation, not cause. |
+| **C** | A creator's or vendor's claim, often with one data point or no method |
+
+Two cautions apply throughout:
+
+- **Ad research is not organic research.** TikTok's creative studies measure paid ads (recall, awareness), not how organic posts are distributed.
+- **Several key sources predate 2025.** Each is flagged with its year where it is cited.
+
+The evidence was gathered in September 2026. The tutorial designs draw on [tutorial-video-best-practices.md](../tutorial-video-best-practices.md).
 
 ## Index
 
