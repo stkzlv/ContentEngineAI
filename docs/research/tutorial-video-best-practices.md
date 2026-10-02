@@ -18,7 +18,7 @@ via TikTok, Instagram Reels, and YouTube Shorts. Often watched muted, though mos
 - [subtitle-best-practices.md](subtitle-best-practices.md) — caption design.
 - [creator-research.md](creator-research.md): graded 2026 evidence on ranking signals,
   search placement, the Shorts view-count change and what to measure.
-- [platform-safe-zones.md](platform-safe-zones.md) — UI overlay zones.
+- [platform-safe-zones.md](../platform-safe-zones.md) — UI overlay zones.
 
 ---
 

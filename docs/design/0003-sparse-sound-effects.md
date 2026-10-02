@@ -8,7 +8,7 @@
 
 The mix is voiceover, music and (optionally) the signature sting, built by `AudioFilterBuilder.build_mix`.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

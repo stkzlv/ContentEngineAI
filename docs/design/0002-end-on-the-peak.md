@@ -8,7 +8,7 @@
 
 `outro_duration_sec: 1.0` (`config/core.yaml`) is added after the voiceover, partly to avoid AAC truncating the last word, and the music fades out over `music_fade_out_duration` (3.0 s).
 
-The work relates to roadmap item 1.8 in [the roadmap](../roadmap.md). The technique comes from [creator-research.md](../creator-research.md).
+The work relates to roadmap item 1.8 in [the roadmap](../roadmap.md). The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

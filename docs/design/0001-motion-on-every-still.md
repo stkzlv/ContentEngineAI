@@ -8,7 +8,7 @@
 
 `_build_ken_burns_filter` in `src/video/assembler/visual_builder.py` applies a settle-zoom to the first image only. Later stills are static.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

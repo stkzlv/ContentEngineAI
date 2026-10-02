@@ -8,7 +8,7 @@
 
 The producer uses the downloaded listing images in listing order (`step_gather_visuals` reads `downloaded_images`). Most are marketing composites with dense text, and captions and the hook headline are drawn over them.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md), which found that looking fully automated is itself the penalty.
+The finding comes from [ai-slop-research.md](../research/ai-slop-research.md), which found that looking fully automated is itself the penalty.
 
 ## Goals
 

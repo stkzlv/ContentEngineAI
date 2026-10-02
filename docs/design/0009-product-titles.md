@@ -8,7 +8,7 @@
 
 Product videos go to YouTube with the store listing title, cut to fit (the metadata validation warns on `data.json` titles over 100 characters).
 
-The finding comes from [creator-research.md](../creator-research.md).
+The finding comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

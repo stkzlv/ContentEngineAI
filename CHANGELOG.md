@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The contributor documentation rules moved from the requirements into CONTRIBUTING.
 - Design docs live in `docs/design/`, one numbered file per feature with a status, goals, non-goals, design, alternatives and rollout.
 - The roadmap lists outcomes with a "done when" and links to issues and design docs; shipped items leave it, since the CHANGELOG records them.
+- Research and best-practice pages live in `docs/research/`.
 
 ## [0.127.1] - 2026-09-24
 

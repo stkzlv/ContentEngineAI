@@ -102,10 +102,10 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Testing](docs/testing.md) | Test framework and coverage |
 | [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
 | [Requirements](docs/requirements/README.md) | What the system must do, by area, with ids and statuses |
-| [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
-| [Promotional Video Best Practices](docs/promotional-video-best-practices.md) | Hook, cut cadence, CTA, FTC disclosure, trust signals (engine-agnostic) |
-| [Tutorial Video Best Practices](docs/tutorial-video-best-practices.md) | How-to format: answer-first structure, length, stock visuals, search discovery, durability metrics |
-| [Audio Best Practices](docs/audio-best-practices.md) | Trending vs original audio, voiceover/music levels, ducking |
+| [Subtitle Best Practices](docs/research/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
+| [Promotional Video Best Practices](docs/research/promotional-video-best-practices.md) | Hook, cut cadence, CTA, FTC disclosure, trust signals (engine-agnostic) |
+| [Tutorial Video Best Practices](docs/research/tutorial-video-best-practices.md) | How-to format: answer-first structure, length, stock visuals, search discovery, durability metrics |
+| [Audio Best Practices](docs/research/audio-best-practices.md) | Trending vs original audio, voiceover/music levels, ducking |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 

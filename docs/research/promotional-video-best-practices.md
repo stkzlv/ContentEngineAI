@@ -12,9 +12,9 @@ served via TikTok, Instagram Reels, and YouTube Shorts. Watched with sound on by
 - [subtitle-best-practices.md](subtitle-best-practices.md) — universal
   subtitle/caption design rules and the project's pycaps + FFmpeg
   starter recipe. Apply both docs together.
-- [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
+- [pycaps-subtitles.md](../pycaps-subtitles.md) — pycaps engine reference
   including AI word tagging via Gemini.
-- [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /
+- [platform-safe-zones.md](../platform-safe-zones.md) — TikTok / Shorts /
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer:
   trending audio, voiceover/music mix levels, ducking.

@@ -8,12 +8,12 @@ copies, and the runtime `PlatformSafeZone` defaults
 (`src/video/config/constants.py`) track the unified rect below.
 
 **Related docs**:
-- [subtitle-best-practices.md](subtitle-best-practices.md) -- caption design;
+- [subtitle-best-practices.md](research/subtitle-best-practices.md) -- caption design;
   defers to this file for placement bounds.
-- [promotional-video-best-practices.md](promotional-video-best-practices.md)
+- [promotional-video-best-practices.md](research/promotional-video-best-practices.md)
   -- promo strategy; defers to this file for the disclosure-corner and CTA
   placement zones.
-- [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
+- [tutorial-video-best-practices.md](research/tutorial-video-best-practices.md) —
   the how-to counterpart: answer-first structure, search discovery,
   and why durability needs a longer measurement window.
 

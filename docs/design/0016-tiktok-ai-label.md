@@ -8,7 +8,7 @@
 
 `tiktok_settings.video_made_with_ai` is on for every post, and `docs/compliance.md` gave AI voiceover as the reason. TikTok's 2026-H2 guidelines exempt generic TTS narration.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md).
+The finding comes from [ai-slop-research.md](../research/ai-slop-research.md).
 
 ## Goals
 

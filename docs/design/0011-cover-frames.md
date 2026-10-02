@@ -8,7 +8,7 @@
 
 No cover is produced. Since July 2026 YouTube accepts custom Shorts thumbnails from Partner Program channels; roadmap item 4.7 in [the roadmap](../roadmap.md) records this.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

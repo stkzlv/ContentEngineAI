@@ -1,6 +1,6 @@
 # What Makes Short Video Read as AI Slop
 
-Research into the signals that make an automated short video look like "AI slop", how the platforms define and act on it, and what a faceless, AI-assisted pipeline like this one should avoid. It complements [creator-research.md](creator-research.md), which covers what successful creators do; this doc covers what gives automated output away. The requirements have the status `planned #N` in [the requirement files](requirements/README.md), and the technical designs are [design docs](design/README.md) 0012 to 0016.
+Research into the signals that make an automated short video look like "AI slop", how the platforms define and act on it, and what a faceless, AI-assisted pipeline like this one should avoid. It complements [creator-research.md](creator-research.md), which covers what successful creators do; this doc covers what gives automated output away. The requirements have the status `planned #N` in [the requirement files](../requirements/README.md), and the technical designs are [design docs](../design/README.md) 0012 to 0016.
 
 Researched September 2026. Evidence grades follow [creator-research.md](creator-research.md): **A** platform policy or peer-reviewed study, **B** large dataset, preprint, or agency or industry research with a stated method, **C** creator, vendor or journalist opinion.
 

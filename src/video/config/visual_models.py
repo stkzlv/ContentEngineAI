@@ -289,7 +289,7 @@ class HookOverlaySettings(BaseModel):
     text overlay for the first ``duration_sec`` seconds. Distinct from the
     karaoke caption pass: the overlay is one short line held for the full
     hook duration with no per-word reveal, sized larger than narration
-    captions per docs/promotional-video-best-practices.md §1.
+    captions per docs/research/promotional-video-best-practices.md §1.
 
     Designed for sound-off viewers and the 1.7-second decision window. The
     `#ad` disclosure stays in its own corner (top-left in the typical

@@ -35,7 +35,7 @@ A feature that changes rendered output ships off by default ([decision 0002](../
 - **Record what was chosen.** Every drawn choice goes into `pipeline_state.json` beside `script_template` and `cta`, and is mirrored into the step entry so a truncating resume keeps it. [0006](0006-render-choices-and-variety-report.md) turns these records into a variety report, and [0010](0010-first-seconds-metrics.md) segments metrics by them.
 - **Measure before enabling.** Each production design lists, under Rollout, the check that decides whether to enable it after the readout. Most of the evidence is creator opinion or ad research, so the pipeline's own analytics decide.
 
-The designs come from [creator-research.md](../creator-research.md), [ai-slop-research.md](../ai-slop-research.md) and [tutorial-video-best-practices.md](../tutorial-video-best-practices.md).
+The designs come from [creator-research.md](../research/creator-research.md), [ai-slop-research.md](../research/ai-slop-research.md) and [tutorial-video-best-practices.md](../research/tutorial-video-best-practices.md).
 
 ## Index
 

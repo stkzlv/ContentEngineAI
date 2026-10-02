@@ -8,7 +8,7 @@
 
 Both pools carry a share request: "Share with someone who needs this." in `cta_options` and "Share it with whoever needs it." in `cta_options_topic`. Meta lists share requests as engagement bait.
 
-The finding comes from [creator-research.md](../creator-research.md).
+The finding comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

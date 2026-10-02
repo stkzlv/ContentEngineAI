@@ -10,7 +10,7 @@ A module owns per-post performance history: it captures metrics on a schedule, s
 
 That work began from an assumption that turned out to be false, and the correction is the reusable part. The item originally read that the scheduler returns a cumulative per-post timeline, "so any day-N figure is a lookup rather than a scheduled job". Measured against the live API, the timeline stops reaching back after roughly five weeks, so day-2 and day-7 are available only while the post is young. They are a scheduled job or they are nothing, which is why this design is built around capture cadence rather than querying on demand.
 
-The two figures answer different questions. A 7-day window captures the launch curve and can't tell content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio; see [the tutorial guide](../tutorial-video-best-practices.md).
+The two figures answer different questions. A 7-day window captures the launch curve and can't tell content that accumulates search traffic from content that spiked and stopped. Anything claiming a format is evergreen needs the 30-day-plus ratio; see [the tutorial guide](../research/tutorial-video-best-practices.md).
 
 ## Goals
 

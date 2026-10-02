@@ -8,7 +8,7 @@
 
 Segment boundaries come from the assembly strategy and the voiceover length; the music is chosen independently in the `download_music` step.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

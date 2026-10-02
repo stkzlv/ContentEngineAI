@@ -8,7 +8,7 @@
 
 Stock candidates come from the provider search and the relevance judge with no memory of earlier renders.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md).
+The finding comes from [ai-slop-research.md](../research/ai-slop-research.md).
 
 ## Goals
 

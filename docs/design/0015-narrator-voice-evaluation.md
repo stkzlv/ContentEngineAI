@@ -6,7 +6,7 @@
 
 ## Context
 
-An evaluation, not a feature. The question comes from [ai-slop-research.md](../ai-slop-research.md).
+An evaluation, not a feature. The question comes from [ai-slop-research.md](../research/ai-slop-research.md).
 
 ## Goals
 

@@ -8,7 +8,7 @@
 
 `validate_script_completeness` checks truncation, length floors and the CTA; the narrator profiles carry banned-phrase prose, which the model may ignore.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

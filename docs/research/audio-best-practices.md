@@ -18,7 +18,7 @@ Reels, and YouTube Shorts.
   and why durability needs a longer measurement window.
 - [subtitle-best-practices.md](subtitle-best-practices.md) -- caption design,
   including the timing smoother that leads the audio.
-- [tts-voice-profiles.md](tts-voice-profiles.md) -- TTS voice selection and the
+- [tts-voice-profiles.md](../tts-voice-profiles.md) -- TTS voice selection and the
   voice-profile config.
 - [creator-research.md](creator-research.md): graded 2026 evidence on sound-on rates,
   the AI-voice engagement gap, tempo, beat-synced cuts and sparse effects.

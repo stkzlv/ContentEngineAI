@@ -8,7 +8,7 @@
 
 The voiceover enters the mix with only a volume adjustment.
 
-The technique comes from [creator-research.md](../creator-research.md).
+The technique comes from [creator-research.md](../research/creator-research.md).
 
 ## Goals
 

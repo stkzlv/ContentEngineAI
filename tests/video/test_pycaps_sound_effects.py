@@ -3,7 +3,7 @@
 `explosive` plays a `ding` on every word tagged `highlighted`, and
 `ai_tag_prompt_override` widens that tag to around 15% of the words -- 10-17
 dings in a 30-second render. That 15% is a recommendation about *visual*
-highlighting from `docs/subtitle-best-practices.md`; nothing chose it as a
+highlighting from `docs/research/subtitle-best-practices.md`; nothing chose it as a
 rate for a sound effect. The two decisions share one tag by accident, so
 muting the audio is what lets the highlighting stay where the doc puts it.
 

@@ -8,7 +8,7 @@
 
 The sanitised script goes to the voice unchanged.
 
-The finding comes from [ai-slop-research.md](../ai-slop-research.md).
+The finding comes from [ai-slop-research.md](../research/ai-slop-research.md).
 
 ## Goals
 

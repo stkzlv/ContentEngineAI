@@ -1,7 +1,7 @@
 """Captions keep the transcript's casing when the config says so.
 
 `word-focus` ships `.word { text-transform: uppercase; }`. Rule 6 of
-`docs/subtitle-best-practices.md` wants sentence case, because ascenders and
+`docs/research/subtitle-best-practices.md` wants sentence case, because ascenders and
 descenders carry word shape and mixed case reads faster (#100). Rather than
 forking the template into `pycaps-templates/`, the renderer appends a later
 rule at the same specificity, which wins the cascade, when

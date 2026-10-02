@@ -5,7 +5,7 @@
 
 ## Context and problem
 
-The roadmap, requirements and specs outgrew their files (#562). The roadmap carried specification detail, the requirements had no ids or statuses and mixed shipped behaviour with planned, one spec file covered 21 features, and decisions were spread across notes, the CHANGELOG and the roadmap. A review of the requirements against the code had to infer each item's status by hand, and no test could be traced to the requirement it checks. The options are compared in `docs/documentation-practices-research.md`.
+The roadmap, requirements and specs outgrew their files (#562). The roadmap carried specification detail, the requirements had no ids or statuses and mixed shipped behaviour with planned, one spec file covered 21 features, and decisions were spread across notes, the CHANGELOG and the roadmap. A review of the requirements against the code had to infer each item's status by hand, and no test could be traced to the requirement it checks. The options are compared in `docs/research/documentation-practices-research.md`.
 
 ## Options considered
 

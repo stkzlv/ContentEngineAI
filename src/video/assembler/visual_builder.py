@@ -69,7 +69,7 @@ def _build_image_placement(
     source is oriented.
 
     The blurred copy is then darkened by `blur_darken`, because it is what the
-    captions sit on. `docs/subtitle-best-practices.md` puts the base style at
+    captions sit on. `docs/research/subtitle-best-practices.md` puts the base style at
     white fill with a black stroke, and the 21:1 it quotes is the fill against
     that stroke, which is what keeps captions legible over anything. What a
     bright backdrop costs is the margin around it: measured on a real render

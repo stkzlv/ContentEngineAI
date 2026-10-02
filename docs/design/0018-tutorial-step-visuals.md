@@ -6,7 +6,7 @@
 
 ## Context
 
-Visual planning is one keyword search over the script. The detailed design is in the issue body, from sections 2 and 8 to 10 of [tutorial-video-best-practices.md](../tutorial-video-best-practices.md). This doc records how it fits the [rules every design follows](README.md#rules-that-apply-to-every-design).
+Visual planning is one keyword search over the script. The detailed design is in the issue body, from sections 2 and 8 to 10 of [tutorial-video-best-practices.md](../research/tutorial-video-best-practices.md). This doc records how it fits the [rules every design follows](README.md#rules-that-apply-to-every-design).
 
 ## Goals
 

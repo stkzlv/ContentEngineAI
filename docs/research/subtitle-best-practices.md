@@ -19,9 +19,9 @@ For muted viewers the captions *are* the content.
 - [tutorial-video-best-practices.md](tutorial-video-best-practices.md) —
   the how-to counterpart: answer-first structure, search discovery,
   and why durability needs a longer measurement window.
-- [pycaps-subtitles.md](pycaps-subtitles.md) — pycaps engine reference
+- [pycaps-subtitles.md](../pycaps-subtitles.md) — pycaps engine reference
   including AI word tagging via Gemini.
-- [platform-safe-zones.md](platform-safe-zones.md) — TikTok / Shorts /
+- [platform-safe-zones.md](../platform-safe-zones.md) — TikTok / Shorts /
   Reels UI overlay zones (canonical safe-zone numbers).
 - [audio-best-practices.md](audio-best-practices.md) — the sound-on layer
   (trending vs original audio, voiceover/music levels, ducking).
@@ -42,8 +42,8 @@ Open follow-up work is tracked as GitHub Issues with the `subtitles` and
 5. **Max 3–5 words on screen, max 2 lines**. Break on phrase boundaries, never mid-phrase.
 6. **Sentence case, not ALL CAPS** (mixed case reads faster — ascenders/descenders carry word shape). ALL CAPS only for deliberate shout-style.
 7. **15–17 CPS (~170 WPM)** reading speed. Minimum 500–600 ms per segment.
-8. **Vertical center, block centered around 52% from top**, not lower-third. Keep the lowest caption pixel above y=1250 (65%). See [platform-safe-zones.md](platform-safe-zones.md).
-9. **Design to the cross-platform union**: top 270 / bottom 670 / right 180 on a 1080x1920 canvas (Instagram drives top and bottom after Meta's March 2026 change). Canonical numbers live in [platform-safe-zones.md](platform-safe-zones.md).
+8. **Vertical center, block centered around 52% from top**, not lower-third. Keep the lowest caption pixel above y=1250 (65%). See [platform-safe-zones.md](../platform-safe-zones.md).
+9. **Design to the cross-platform union**: top 270 / bottom 670 / right 180 on a 1080x1920 canvas (Instagram drives top and bottom after Meta's March 2026 change). Canonical numbers live in [platform-safe-zones.md](../platform-safe-zones.md).
 10. **Entrance 100–250 ms, no exit animation**. Use ease-out-quint (`cubic-bezier(0.22, 1, 0.36, 1)`).
 11. **Strip terminal punctuation** — karaoke segment breaks ARE the punctuation.
 12. **Smooth Whisper timings**: merge gaps <80 ms, min word duration 120 ms, hold last word +200 ms, lead audio by 40 ms.
@@ -202,7 +202,7 @@ caption zone, and Shorts' progress bar simultaneously. Center-ish outperforms
 strict lower-third because the bottom is now interactive UI: 35% on Reels
 (Meta unified, March 2026) and ~25% on TikTok.
 
-**Safe zones**: see [platform-safe-zones.md](platform-safe-zones.md) for the
+**Safe zones**: see [platform-safe-zones.md](../platform-safe-zones.md) for the
 canonical per-platform tables and the cross-platform union. The summary, for a
 1080x1920 canvas:
 
@@ -278,7 +278,7 @@ should look clearly more intentional.
 
 **Cross-platform rule**: design to the union; Instagram now drives both top and
 bottom. Block center-Y around 1000 px (~52%), lowest pixel above y=1250. One
-template, three platforms. See [platform-safe-zones.md](platform-safe-zones.md).
+template, three platforms. See [platform-safe-zones.md](../platform-safe-zones.md).
 
 ## 7. What the pros ship
 
@@ -415,7 +415,7 @@ sentence/phrase boundaries not word count alone.
 **Safe zone**: designed to the cross-platform union -- top 270 / bottom 670 /
 right 180 on 1080x1920 (Instagram drives top and bottom after Meta's March 2026
 change). Block center ~y=1000, lowest pixel above y=1250. Single render covers
-all three platforms. See [platform-safe-zones.md](platform-safe-zones.md).
+all three platforms. See [platform-safe-zones.md](../platform-safe-zones.md).
 
 **Accessibility**: ~21:1 contrast, WCAG AAA. No flashes, scale pulses
 capped at 1.10.

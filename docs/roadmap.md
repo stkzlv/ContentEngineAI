@@ -64,7 +64,7 @@ Sparse event sound effects (#544), a voice processing chain (#545) and beat-snap
 
 ### 1.14 Remove AI-slop signals
 
-Clean product images (#554), no stock-clip reuse (#555), TTS text normalisation (#556), a narrator-voice evaluation (#557) and the TikTok AI-label decision (#558). Designs 0012 to 0016; research in [docs/ai-slop-research.md](ai-slop-research.md).
+Clean product images (#554), no stock-clip reuse (#555), TTS text normalisation (#556), a narrator-voice evaluation (#557) and the TikTok AI-label decision (#558). Designs 0012 to 0016; research in [docs/research/ai-slop-research.md](research/ai-slop-research.md).
 
 **Done when:** each item is enabled on measured results or left off with the reason recorded, and the label decision is written down.
 
