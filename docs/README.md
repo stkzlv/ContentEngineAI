@@ -23,7 +23,7 @@ A folder is created when its first file moves in. Pages that still sit at the to
 |---|---|
 | `installation.md`, `batch-processing.md`, `troubleshooting.md` | `guides/` |
 | `configuration.md`, `zernio-client.md`, `lnkbio-api.md` | `reference/` |
-| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md`, and the four `*-best-practices.md` guides | `explanation/` |
+| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md` | `explanation/` |
 | `publisher.md`, `video-producer.md`, `scraper.md` | split across `guides/`, `reference/` and `explanation/` |
 | `development.md`, `linting.md`, `testing.md`, `versioning.md` | `contributing/` |
 

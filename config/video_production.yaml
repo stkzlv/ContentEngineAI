@@ -365,7 +365,7 @@ audio_settings:
   # the video level with the feed around it. Measured before this existed,
   # renders sat at about -17.5 LUFS with true peaks of -0.1 and -0.2 dBFS:
   # quiet on average and nearly touching full scale at once.
-  # See docs/audio-best-practices.md section 5.
+  # See docs/explanation/audio.md, "Loudness normalization".
   loudness_normalization_enabled: true
   loudness_target_lufs: -14.0      # Cross-platform compromise, not a spec
   loudness_true_peak_db: -1.0      # Headroom for platform transcoding
@@ -601,7 +601,7 @@ video_profiles:
     # NOTE: Subtitle settings controlled by the profile's subtitle_settings block
 
   # Short-form slideshow profile (15-30s) for hook iteration
-  # Per docs/promotional-video-best-practices.md and roadmap Phase 1.3:
+  # Per docs/explanation/promotional-videos.md ("After the hook") and roadmap Phase 1.3:
   # the 20s canvas is the hook-A/B iteration zone. 60-90s is needed for
   # TikTok Creator Rewards eligibility; this profile targets organic reach
   # and search inclusion, not CRP revenue. See Phase 6.1 for the long-form
@@ -705,7 +705,7 @@ video_profiles:
       randomize_colors: false
       randomize_effects: false                     # Differs from the global, which randomizes
 
-      # Text formatting overrides — aligned with docs/subtitle-best-practices.md
+      # Text formatting overrides — aligned with docs/explanation/captions.md
       max_line_length: 38                          # Max characters per line
       max_words_per_line: 3                        # 3 words per line (was 2)
       max_subtitle_width_fraction: 0.80            # Up from 0.67 (80% of frame)
@@ -739,7 +739,7 @@ video_profiles:
       randomize_colors: true
       randomize_effects: false
 
-      # Text formatting overrides — aligned with docs/subtitle-best-practices.md
+      # Text formatting overrides — aligned with docs/explanation/captions.md
       max_line_length: 30                      # Was 24 (too tight, single-word lines)
       max_words_per_line: 3                    # Was 2 — 3 is the sweet spot
       max_subtitle_width_fraction: 0.80        # Was 0.85 — match recipe
@@ -794,7 +794,7 @@ video_profiles:
       randomize_colors: true
       randomize_effects: true
 
-      # Text formatting — aligned with docs/subtitle-best-practices.md
+      # Text formatting — aligned with docs/explanation/captions.md
       max_line_length: 30
       max_words_per_line: 3                  # Was 2
       max_subtitle_width_fraction: 0.80
@@ -846,7 +846,7 @@ video_profiles:
       randomize_colors: true
       randomize_effects: true
 
-      # Text formatting — aligned with docs/subtitle-best-practices.md
+      # Text formatting — aligned with docs/explanation/captions.md
       max_line_length: 30
       max_words_per_line: 3                  # Was 2
       max_subtitle_width_fraction: 0.80

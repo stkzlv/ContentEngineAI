@@ -193,8 +193,8 @@ class ColorPoolEntry(BaseModel):
     """One coordinated text + outline color pair in the randomization pool.
 
     Colors are in ASS hex format `&HAABBGGRR`. See
-    `docs/subtitle-best-practices.md` for the contrast research that drives
-    pool curation.
+    `docs/explanation/captions.md`, "Colour and contrast", for the research
+    that drives pool curation.
     """
 
     name: str = Field(..., description="Lookup key (e.g. 'classic', 'high_contrast')")
@@ -314,7 +314,7 @@ class PycapsSettings(BaseModel):
             "Append `.word { text-transform: none; }` to the template's CSS so "
             "captions keep the transcript's casing. `word-focus` and "
             "`line-focus` ship `text-transform: uppercase`, which "
-            "docs/subtitle-best-practices.md rule 6 rejects: mixed case reads "
+            "docs/explanation/captions.md, 'Casing', rejects: mixed case reads "
             "faster because ascenders and descenders carry word shape. The "
             "bundled config turns this on; the model default is off so a "
             "programmatic build renders the template as shipped."
@@ -401,7 +401,7 @@ class PycapsSettings(BaseModel):
             "Replaces the instruction each AI tagging rule carries, for every "
             "rule the template defines. The stock prompts ask for 'the most "
             "important phrase' and Gemini answers with filler like `also`, "
-            "`can` and `from`, which docs/subtitle-best-practices.md says not "
+            "`can` and `from`, which docs/explanation/captions.md says not "
             "to highlight. Set to a recipe naming what to tag. `None` leaves "
             "the template's own instruction alone. Ignored by a template with "
             "no AI rule, such as `word-focus`."
@@ -420,7 +420,7 @@ class PycapsSettings(BaseModel):
             "`ai_tag_prompt_override` widens: the recipe asks for around 15% "
             "of the words, which is 10-17 dings in a 30-second render. That "
             "15% is a recommendation about visual highlighting from "
-            "docs/subtitle-best-practices.md; nothing chose it as a rate for "
+            "docs/explanation/captions.md; nothing chose it as a rate for "
             "a sound effect, and the two decisions share one tag only by "
             "accident. Clearing the effects keeps the highlighting where the "
             "doc puts it and stops the audio. Set to False to hear them."

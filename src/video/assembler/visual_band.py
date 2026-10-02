@@ -24,7 +24,7 @@ from src.video.config.constants import SAFE_ZONE_MAX_Y, SAFE_ZONE_MIN_Y
 # pycaps anchors its bottom-aligned block at 95% of the frame plus the offset
 # (`LayoutUtils.get_vertical_alignment_position`).
 _PYCAPS_BOTTOM_BASE = 0.95
-# Where docs/subtitle-best-practices.md puts the block when the template's
+# Where docs/explanation/captions.md puts the block when the template's
 # own layout wins: centred around 52% of the frame.
 _DOC_BLOCK_CENTRE = 0.52
 # Whitespace kept between the image's last row and the caption block.
