@@ -313,6 +313,19 @@ def _profiles_this_run_may_use(args, config) -> list[str]:
     return [named] if named else []
 
 
+def selected_indices(product_index: int | None, count: int) -> list[int] | None:
+    """The products a run renders, or None for an index out of range.
+
+    An out-of-range index is an error rather than "every product": falling
+    back to the whole range rendered the full file for a typo.
+    """
+    if product_index is None:
+        return list(range(count))
+    if 0 <= product_index < count:
+        return [product_index]
+    return None
+
+
 def create_argument_parser() -> argparse.ArgumentParser:
     """Build the producer CLI parser.
 
@@ -860,13 +873,8 @@ async def main():
         logger.error("--product-index cannot be used with --batch mode")
         sys.exit(1)
 
-    indices = (
-        [args.product_index]
-        if args.product_index is not None
-        and 0 <= args.product_index < len(products_list)
-        else range(len(products_list))
-    )
-    if args.product_index is not None and not indices:
+    indices = selected_indices(args.product_index, len(products_list))
+    if indices is None:
         logger.error(
             "Product index %s out of range for file with %s products.",
             args.product_index,

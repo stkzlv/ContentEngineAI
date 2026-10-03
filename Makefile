@@ -407,6 +407,10 @@ IONICE_LEVEL := 6
 MEM_LIMIT := 6G
 PROFILE := slideshow_stock
 
+# Without systemd-run the lowpri targets refuse to run, since the cap is the
+# point of them; ALLOW_UNCAPPED=1 runs them with nice/ionice only.
+ALLOW_UNCAPPED ?=
+
 # `systemd-run --user --scope` starts the process via the user service manager,
 # which does not inherit the caller's PATH / virtualenv, so `poetry run python`
 # inside the scope resolves a bare interpreter missing project deps
@@ -432,7 +436,8 @@ test-lowpri: ## Run the test suite under the lowpri cgroup (ARGS="tests/publishe
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m pytest $(ARGS); \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running tests with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			"$$PY" -m pytest $(ARGS); \
@@ -451,7 +456,8 @@ batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.pipeline.global_batch $(ARGS); \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			"$$PY" -m src.pipeline.global_batch $(ARGS); \
@@ -467,7 +473,8 @@ scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.scraper.amazon.scraper $(ARGS); \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			"$$PY" -m src.scraper.amazon.scraper $(ARGS); \
@@ -514,7 +521,8 @@ topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFI
 			    TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			./scripts/render-topics-batch.sh; \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		LOWPRI_PYTHON="$$PY" TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			./scripts/render-topics-batch.sh; \
@@ -530,7 +538,8 @@ produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.video.producer $(ARGS); \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			"$$PY" -m src.video.producer $(ARGS); \
@@ -592,7 +601,8 @@ publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
 			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.publisher.late $(ARGS); \
 	else \
-		echo "$(YELLOW)systemd-run not available, skipping memory limit$(NC)"; \
+		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
+		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
 			"$$PY" -m src.publisher.late $(ARGS); \

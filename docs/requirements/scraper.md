@@ -76,8 +76,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-046** `shipped` If an input keeps returning the error page while other inputs in the run succeed, the scraper calls it a dead query after a configured number of attempts (default 3) and moves on.
 - **REQ-SCR-047** `shipped` The scraper's run summary reports success and failure counts.
 - **REQ-SCR-048** `shipped` The scraper's run summary lists dead queries and throttled inputs separately.
-- **REQ-SCR-049** `partial` If a run scrapes no product, the scraper exits non-zero.
-  - Gap: a run that stops before scraping because the input file is missing, no inputs are configured or the search filters are invalid exits 0 (#587).
+- **REQ-SCR-049** `shipped` If a run scrapes no product, the scraper exits non-zero.
 - **REQ-SCR-050** `shipped` When `--strict` is passed, the scraper also exits non-zero if any product id or keyword produced nothing.
 - **REQ-SCR-071** `shipped` When `--debug` or `--verbose` is passed, or `global_settings.debug_mode` is true, the scraper runs a visible browser and logs at debug level.
 - **REQ-SCR-072** `shipped` While debug mode is on, when the site shows its error page or a search page yields no product cards, the scraper saves a screenshot, unless `global_settings.debug_settings.save_error_screenshots` is false.

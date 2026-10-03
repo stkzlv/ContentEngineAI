@@ -148,7 +148,8 @@ Examples:
     )
     filter_group.add_argument(
         "--prime-only",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Filter for Prime eligible items only",
     )
 
@@ -165,7 +166,8 @@ Examples:
     )
     producer_group.add_argument(
         "--random-profile",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Enable random profile selection per product "
             "(deterministic by product ID). "
@@ -189,7 +191,8 @@ Examples:
     common_group = parser.add_argument_group("Common Options")
     common_group.add_argument(
         "--fail-fast",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Stop pipeline on first failure (default: continue processing)",
     )
     common_group.add_argument(
@@ -203,7 +206,8 @@ Examples:
     )
     common_group.add_argument(
         "--process-all-products",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Process all products in outputs directory "
             "(default: only products from current scraping run)"
@@ -221,7 +225,8 @@ Examples:
     )
     common_group.add_argument(
         "--debug",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Enable debug mode with detailed logging",
     )
     common_group.add_argument(
@@ -263,7 +268,8 @@ Examples:
     publisher_group = parser.add_argument_group("Publishing Configuration")
     publisher_group.add_argument(
         "--skip-publish",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Skip publishing phase (default: publish videos to social media)",
     )
     publisher_group.add_argument(
@@ -295,12 +301,14 @@ Examples:
     )
     publisher_group.add_argument(
         "--fail-fast-publish",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Stop publishing on first failure (default: continue publishing)",
     )
     publisher_group.add_argument(
         "--platform-specific",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Create separate posts per platform with optimized metadata. "
             "Default: single post for all platforms."

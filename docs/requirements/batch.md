@@ -26,8 +26,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 
 - **REQ-BAT-013** `shipped` The batch runs scraping, video production and publishing end to end from a single command.
 - **REQ-BAT-014** `shipped` If a product fails in one phase, the batch continues with its other products and later phases.
-- **REQ-BAT-015** `partial` The batch reads its settings from `config/pipeline.yaml`, and a CLI flag overrides the matching YAML setting.
-  - Gap: boolean flags such as `--fail-fast`, `--random-profile`, `--skip-publish` and `--debug` can only turn a setting on, so a YAML `true` can't be turned off for one run (#587).
+- **REQ-BAT-015** `shipped` The batch reads its settings from `config/pipeline.yaml`, and a CLI flag overrides the matching YAML setting.
 - **REQ-BAT-016** `shipped` The batch accepts the producer's render override flags `--voice-profile`, `--script-template`, `--cta`, `--pillar`, `--subtitle-format`, `--subtitle-engine`, `--pycaps-template`, `--pycaps-template-pool` and `--pycaps-renderer`.
 - **REQ-BAT-017** `planned #566` The batch accepts the same render override flags as the producer.
 

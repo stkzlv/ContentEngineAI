@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.130.0] - 2026-10-03
+
+### Added
+
+- Every global batch switch backed by a `config/pipeline.yaml` key has a `--no-` form, so a YAML `true` can be turned off for one run.
+
+### Changed
+
+- **Breaking**: the `*-lowpri` targets refuse to run when `systemd-run` is missing; `ALLOW_UNCAPPED=1` runs them without the memory cap.
+- The global batch's `--fail-fast` also stops publishing, unless `--no-fail-fast-publish` is passed, and a `--profile` on the command line wins over a YAML `random_profile: true`.
+
+### Fixed
+
+- The scraper exits 1 when it stops before scraping, for a missing input file, no configured inputs or invalid search filters.
+- An out-of-range `--product-index` exits 1 instead of rendering every product.
+
 ## [0.129.1] - 2026-10-03
 
 ### Documentation
