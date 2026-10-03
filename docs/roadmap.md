@@ -14,7 +14,7 @@ Affiliate creators carry disclosure obligations under the FTC Endorsement Guides
 
 The disclosure matches the script language (`#ad` in English, `#publi` in Spanish), as the FTC's same-language rule and Spain's Royal Decree 444/2024 require.
 
-**Done when:** a Spanish render emits a Spanish overlay and caption line, an English render English, and a language mismatch raises a config-load warning. No issue yet.
+**Done when:** a Spanish render emits a Spanish overlay and caption line, an English render English, and a language mismatch raises a config-load warning. #585.
 
 ## Phase 1: Hook and retention (Now)
 
