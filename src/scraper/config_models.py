@@ -471,3 +471,31 @@ class ScraperConfig(BaseModel):
             "batch": data["batch"],
             "scrapers": {"amazon": data["amazon"]},
         }
+
+
+def producer_media_minimums() -> tuple[int, int, int]:
+    """The producer's media minimums from `config/video_production.yaml`.
+
+    (min_total_media, min_images_if_no_video, min_images_with_video). The
+    scraper rejects a product the producer would skip, so it reads the
+    producer's values; the same keys in `scraper.yaml` are deprecated and
+    ignored. A key the file leaves out takes `ValidationConfig`'s default.
+    """
+    import yaml
+
+    from src.utils.outputs_paths import get_project_root
+
+    path = get_project_root() / "config" / "video_production.yaml"
+    try:
+        settings = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get(
+            "video_settings"
+        ) or {}
+    except (OSError, yaml.YAMLError):
+        settings = {}
+    # The file, not the video package: the scraper doesn't import the producer.
+    names = ("min_total_media", "min_images_if_no_video", "min_images_with_video")
+    total, no_video, with_video = (
+        int(settings.get(name, ValidationConfig.model_fields[name].default))
+        for name in names
+    )
+    return total, no_video, with_video

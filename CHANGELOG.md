@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.131.0] - 2026-10-03
+
+### Changed
+
+- **Breaking**: the scraper reads its media minimums from `video_settings` in `config/video_production.yaml`; the same keys under `global_settings.validation_config` in `config/scraper.yaml` are deprecated and ignored.
+- The code default for `video_vertical_align` is `center`; the bundled config pins `top` in `video_settings`, so no bundled render changes.
+
+### Fixed
+
+- `--script-template` applies only to a render of its own kind; a product template forced on a topic, or the reverse, is ignored with a warning.
+
 ## [0.130.1] - 2026-10-03
 
 ### Fixed

@@ -75,7 +75,7 @@ One case the classification gets wrong, deliberately: a rate limit that begins p
 
 ## Why media thresholds exist
 
-A scraped product is only useful if the producer can render it, so the scraper keeps a product only when its validated media meet the producer's minimums: `min_total_media`, `min_images_if_no_video` and `min_images_with_video` in `global_settings.validation_config`, which must match `video_settings` in `config/video_production.yaml` (`REQ-SCR-021`). A product that fails is removed with its output directory (`REQ-SCR-023`), instead of reaching the producer and failing there after the scrape has been counted as a success.
+A scraped product is only useful if the producer can render it, so the scraper keeps a product only when its validated media meet the producer's minimums: `min_total_media`, `min_images_if_no_video` and `min_images_with_video`, which it reads from `video_settings` in `config/video_production.yaml` (`REQ-SCR-021`, `REQ-VID-125`). A product that fails is removed with its output directory (`REQ-SCR-023`), instead of reaching the producer and failing there after the scrape has been counted as a success.
 
 With `count_products_with_media: true`, only products that pass count toward `products_per_keyword` and `max_products`. Many search results fail, so taking exactly the target from each page would leave most keyword searches short. The scraper fetches a multiple of the target (`prefetch_multiplier`, capped by `max_batch_size`) and scans further result pages up to `max_pages` (`REQ-SCR-033`). A URL or an ASIN names one product, so for those inputs a further page would only resolve the same listing again, and they get one pass.
 

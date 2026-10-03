@@ -214,9 +214,9 @@ Retries of failed network operations, with a delay of `min(base_delay * backoff_
 | Key | Type | Default | Effect |
 |---|---|---|---|
 | `essential_fields` | list | `[]` | Fields a product must have (`title`, `price`, `description`, `asin`, `rating`; `REQ-SCR-014`). |
-| `min_total_media` | int | `3` | Minimum media files per product. |
-| `min_images_if_no_video` | int | `5` | Minimum images when the product has no video. |
-| `min_images_with_video` | int | `2` | Minimum images when the product has a video. |
+| `min_total_media` | int | `3` | Deprecated and ignored: the scraper reads `video_settings.min_total_media` from `config/video_production.yaml`. |
+| `min_images_if_no_video` | int | `5` | Deprecated and ignored: the scraper reads `video_settings.min_images_if_no_video` from `config/video_production.yaml`. |
+| `min_images_with_video` | int | `2` | Deprecated and ignored: the scraper reads `video_settings.min_images_with_video` from `config/video_production.yaml`. |
 | `media_validation_timeout` | int | `30` | Time limit for one media check, seconds. |
 | `validation_report_top_issues` | int | `10` | Issues listed in a validation report. |
 

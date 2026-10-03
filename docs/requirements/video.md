@@ -43,8 +43,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 ## Video positioning
 
-- **REQ-VID-022** `partial` The render centres video content vertically by default; a profile can align it to the top with an offset (default 10%).
-  - Gap: with no profile override the code default is `top`; every bundled profile sets `center` (#584).
+- **REQ-VID-022** `held` The render centres video content vertically by default; a profile can align it to the top with an offset (default 10%).
+  - On when: `video_settings.video_vertical_align: top` is removed from `config/video_production.yaml` after the reach-test readout (#540), so the profiles that don't set it centre.
 - **REQ-VID-023** `shipped` Video content takes a configurable share of the frame height (`video_content_height_percent`, default 75%).
 - **REQ-VID-024** `shipped` A profile selects how a video whose aspect differs from the frame is fitted: letterbox, crop-to-fit, blur-fill, or smart-scale (crop when the aspect ratios are within 10%, blur-fill otherwise).
 - **REQ-VID-025** `shipped` A profile selects the assembly mode: sequential, single-best, mixed-media or video-first-fallback.
@@ -242,6 +242,5 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 ## Media validation
 
-- **REQ-VID-125** `partial` The scraper checks each product's media against the producer profile's requirements.
-  - Gap: the scraper's media thresholds are a hand-kept copy of the producer's, so a change to one doesn't reach the other (#584).
+- **REQ-VID-125** `shipped` The scraper checks each product's media against the producer profile's requirements.
 - **REQ-VID-126** `shipped` If a product has too little media, it is skipped, not failed.

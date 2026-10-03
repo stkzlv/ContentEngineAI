@@ -322,14 +322,13 @@ global_settings:
     # to ensure scraped products will be accepted by the video producer
     # Affects: Product filtering, producer compatibility, success rate
 
-    # Reference: See config/video_production.yaml:video_settings for authoritative values
-    # - min_total_media: 3 (minimum total media files)
-    # - min_images_if_no_video: 5 (minimum images for slideshow mode)
-    # - min_images_with_video: 2 (minimum images when videos available)
-
-    min_total_media: 3                # Must match video_production.yaml
-    min_images_if_no_video: 5         # Must match video_production.yaml
-    min_images_with_video: 2          # Must match video_production.yaml
+    # The scraper reads the producer's minimums from
+    # config/video_production.yaml (video_settings.min_total_media,
+    # min_images_if_no_video, min_images_with_video). The three keys below are
+    # deprecated and ignored; they stay accepted so existing files load.
+    min_total_media: 3
+    min_images_if_no_video: 5
+    min_images_with_video: 2
 
     # Media validation timeout for ffprobe/identify (seconds)
     # How long to wait for media validation tools to complete

@@ -197,7 +197,7 @@ video_settings:
   frame_rate: 30
   codec: "libx264"
 
-  # Media validation requirements (must match scraper.yaml)
+  # Media validation requirements; the scraper reads these too
   min_total_media: 3              # Minimum total media files
   min_images_if_no_video: 5       # Minimum images for slideshow mode
   min_images_with_video: 2        # Minimum images when videos available
@@ -318,10 +318,10 @@ global_settings:
     concurrent_video_downloads: 3     # Max parallel video downloads
 
   validation_config:
-    # Media validation requirements (must match video_production.yaml)
-    min_total_media: 3              # Minimum total media files
-    min_images_if_no_video: 5       # Minimum images for slideshow mode
-    min_images_with_video: 2        # Minimum images when videos available
+    # Deprecated and ignored: the scraper reads these from video_production.yaml
+    min_total_media: 3
+    min_images_if_no_video: 5
+    min_images_with_video: 2
 
 scrapers:
   amazon:

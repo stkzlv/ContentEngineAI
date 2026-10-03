@@ -451,15 +451,26 @@ def select_script_template(
     if not templates_cfg.enabled:
         return Path(settings.prompt_template_path)
 
-    # Fixed template override (from config or CLI --script-template)
-    if templates_cfg.fixed_template:
-        path = Path(templates_cfg.templates_dir) / f"{templates_cfg.fixed_template}.md"
+    # Fixed template override (from config or CLI --script-template), applied
+    # only where it fits the render: a product template pitches a product a
+    # topic doesn't have, and a topic template tells the model not to mention
+    # the product a scraped render is about.
+    fixed = templates_cfg.fixed_template
+    topic_templates = templates_cfg.topic_templates
+    if fixed and topic_templates and is_topic != (fixed in topic_templates):
+        logger.warning(
+            "Ignoring --script-template '%s': it is a %s template and this "
+            "is a %s render",
+            fixed,
+            "product" if is_topic else "topic",
+            "topic" if is_topic else "product",
+        )
+        fixed = None
+    if fixed:
+        path = Path(templates_cfg.templates_dir) / f"{fixed}.md"
         if path.exists():
             return path
-        logger.warning(
-            "Fixed template '%s' not found, falling back to default",
-            templates_cfg.fixed_template,
-        )
+        logger.warning("Fixed template '%s' not found, falling back to default", fixed)
         return Path(settings.prompt_template_path)
 
     # Discover available templates
