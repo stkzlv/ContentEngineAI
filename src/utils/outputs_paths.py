@@ -147,7 +147,7 @@ def get_product_directory(product_id: str, custom_dir: str | None = None) -> Pat
 
 
 # The media files the scraper's own verification counts, and so every count.
-MEDIA_IMAGE_SUFFIXES = (".jpg", ".png")
+MEDIA_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
 MEDIA_VIDEO_SUFFIXES = (".mp4", ".mov")
 
 

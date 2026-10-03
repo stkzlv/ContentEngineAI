@@ -41,9 +41,11 @@ def test_empty_and_unlisted_files_do_not_count(tmp_path: Path) -> None:
     (images / "a.jpg").write_bytes(b"x")
     (images / "empty.png").write_bytes(b"")
     (images / "b.webp").write_bytes(b"x")
+    (images / "c.gif").write_bytes(b"x")
     (images / "notes.json").write_text("{}")
 
-    assert media_on_disk("B0MEDIA002", str(tmp_path)) == (1, 0)
+    # .webp is a type the validator keeps; .gif and .json are not.
+    assert media_on_disk("B0MEDIA002", str(tmp_path)) == (2, 0)
 
 
 @pytest.mark.asyncio

@@ -21,6 +21,7 @@ TIMED = [
     "src/publisher/batch.py",
     "src/scraper/amazon/batch_controller.py",
     "src/video/stt_functions.py",
+    "src/video/producer/cli.py",
 ]
 
 
