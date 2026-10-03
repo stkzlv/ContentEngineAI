@@ -9,9 +9,11 @@ refuses, and that the repository's own files pass it.
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
+import tools.release_check as release_check
 from tools.release_check import REPO, check, main, pyproject_version
 
 TODAY = dt.date(2026, 10, 3)
@@ -70,8 +72,16 @@ def test_each_next_version_passes(version: str) -> None:
     assert check(pyproject(version), changelog(version), pyproject("0.2.0")) == []
 
 
-def test_a_breaking_entry_needs_a_minor_bump() -> None:
-    breaking = changelog().replace("- A fix.", "- **Breaking**: a key is gone.")
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "- **Breaking**: a key is gone.",
+        "- **Breaking (config)**: a key is gone.",
+        "- **Breaking, config:** a key is gone.",
+    ],
+)
+def test_a_breaking_entry_needs_a_minor_bump(entry: str) -> None:
+    breaking = changelog().replace("- A fix.", entry)
     problems = check(pyproject("0.2.1"), breaking, pyproject("0.2.0"))
     assert any("needs at least a minor bump" in p for p in problems)
     minor = breaking.replace("0.2.1", "0.3.0")
@@ -93,3 +103,13 @@ def test_the_cli_prints_the_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--version"]) == 0
     expected = pyproject_version((REPO / "pyproject.toml").read_text())
     assert capsys.readouterr().out.strip() == ".".join(map(str, expected))
+
+
+def test_the_cli_refuses_a_future_dated_heading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """main() passes today's date in, so a future date fails outside tests too."""
+    (tmp_path / "pyproject.toml").write_text(pyproject("0.2.1"))
+    (tmp_path / "CHANGELOG.md").write_text(changelog(date="2999-01-01"))
+    monkeypatch.setattr(release_check, "REPO", tmp_path)
+    assert main([]) == 1

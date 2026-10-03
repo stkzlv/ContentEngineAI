@@ -38,6 +38,9 @@ VERSION_HEADING = re.compile(
 )
 UNRELEASED = re.compile(r"^## \[Unreleased\]\s*$", re.M)
 NEXT_HEADING = re.compile(r"^## \[", re.M)
+# Every form the CHANGELOG uses: `**Breaking**:`, `**Breaking (config)**:`,
+# `**Breaking, config:**`.
+BREAKING = re.compile(r"\*\*Breaking\b")
 
 
 @dataclass(frozen=True)
@@ -140,7 +143,7 @@ def check(
             f"sequential, so use one of "
             f"{', '.join(fmt(v) for v in allowed.values())}"
         )
-    elif "**Breaking**" in release.body and version == allowed["patch"]:
+    elif BREAKING.search(release.body) and version == allowed["patch"]:
         problems.append(
             "a **Breaking** entry needs at least a minor bump "
             f"({fmt(allowed['minor'])})"

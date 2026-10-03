@@ -149,11 +149,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [version-check, lint, test]
     runs-on: ubuntu-latest
+    # No concurrency group: a pending run in a group is replaced by the next
+    # one, which would leave that version untagged. Each run tags only its own
+    # version, so overlapping runs don't collide.
     permissions:
       contents: write
-    concurrency:
-      group: release
-      cancel-in-progress: false
     steps:
     - uses: actions/checkout@v5
       with:
@@ -164,13 +164,17 @@ jobs:
       with:
         python-version: "3.12"
 
+    # Decided by the release, not the tag: if the tag went up and the release
+    # step then failed, a re-run reuses the tag and creates the release.
     - name: Decide whether this commit is a new release
       id: version
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         VERSION=$(python -m tools.release_check --version)
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
-          echo "v$VERSION already tagged; nothing to release"
+        if gh release view "v$VERSION" >/dev/null 2>&1; then
+          echo "v$VERSION already released; nothing to do"
           echo "new=false" >> "$GITHUB_OUTPUT"
         else
           echo "new=true" >> "$GITHUB_OUTPUT"
@@ -181,6 +185,10 @@ jobs:
       env:
         VERSION: ${{ steps.version.outputs.version }}
       run: |
+        if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+          echo "v$VERSION is already tagged; reusing it"
+          exit 0
+        fi
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git tag -a "v$VERSION" -m "Release v$VERSION"

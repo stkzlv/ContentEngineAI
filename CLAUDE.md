@@ -286,7 +286,7 @@ make test-cov      # Run tests with coverage report
 3. **CI/CD Pipeline**:
    - **CI Workflow**: Runs on push/PR to main (lint, test, coverage)
    - **Security Workflow**: Weekly scans + PR checks
-   - **Release Workflow**: Triggered by version tags
+   - **Release**: the CI `release` job tags and publishes each new version after `main` is green; the Release workflow handles a tag pushed by hand
 
 ### Merge Process
 
@@ -325,7 +325,7 @@ Dependabot PRs are batched into patch releases per `docs/versioning.md`:
 2. At release time: `gh pr checkout <PR>`, rebase onto main, install deps, run full test suite
 3. Bump version in `pyproject.toml`, add a "Dependencies" section in CHANGELOG
 4. Commit version bump on the Dependabot branch, force-push (rebase changed history), squash-merge
-5. Tag and push from main as usual
+5. CI tags and releases once `main` is green, as for any other PR
 
 Security-critical updates can trigger an immediate patch release without waiting.
 
