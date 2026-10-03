@@ -9,7 +9,8 @@
 #
 # DEFAULT PROVIDER: bare (no-op, returns the canonical Amazon URL unchanged).
 # Picsee is available as an opt-in by setting `provider: picsee` and supplying
-# PICSEE_API_KEY. See docs/scraper.md for the trade-offs and the rationale.
+# PICSEE_API_KEY. See docs/explanation/scraping.md for the trade-offs and
+# the rationale.
 # ============================================================================
 
 url_shortener:
@@ -43,7 +44,7 @@ url_shortener:
   # Opt-in. Requires PICSEE_API_KEY in .env. Picsee mints stte.psee.io short
   # codes that 302 to the affiliate URL. Tag preservation in the redirect has
   # been inconsistent in practice; the bare provider above is the recommended
-  # default. See docs/scraper.md.
+  # default. See docs/explanation/scraping.md.
   picsee:
     api_key_env_var: PICSEE_API_KEY
     api_base_url: https://api.pics.ee

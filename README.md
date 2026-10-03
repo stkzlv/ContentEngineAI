@@ -71,7 +71,7 @@ See [Installation](docs/guides/installation.md) for complete setup instructions.
 - **Publishing needs an account before `--platforms` does anything.** Set
   `LATE_API_KEY` in `.env` and connect YouTube, TikTok or Instagram in the
   scheduler first. Add `--skip-publish` to run the batch without it. See
-  [Publisher](docs/publisher.md).
+  [Publishing](docs/guides/publishing.md).
 
 ## Documentation
 
@@ -80,13 +80,19 @@ See [Installation](docs/guides/installation.md) for complete setup instructions.
 | [Documentation map](docs/README.md) | Where each kind of document lives, and the decision records |
 | [Installation](docs/guides/installation.md) | Setup guide with prerequisites and API keys |
 | [Configuration](docs/reference/configuration.md) | YAML config reference and CLI overrides |
-| [Scraper](docs/scraper.md) | Product data extraction from Amazon |
-| [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
+| [Scraping](docs/guides/scraping.md) | Scrape products from Amazon: ids, URLs, keywords and input files |
+| [Scraper Reference](docs/reference/scraper.md) | Scraper CLI flags, `config/scraper.yaml` keys and product-count rules |
+| [Scraping Explained](docs/explanation/scraping.md) | Browser mode, anti-bot defences, throttling and media thresholds |
+| [Producing Videos](docs/guides/producing-videos.md) | Render a product, a topic or a batch, and iterate on one step |
+| [Video Producer Reference](docs/reference/video-producer.md) | Producer CLI flags, profile keys, assembly modes and pipeline steps |
+| [Video Pipeline Explained](docs/explanation/video-pipeline.md) | How the steps fit, script-first stock renders, profiles and assembly modes |
 | [TTS Voice Profiles](docs/explanation/tts-voice-profiles.md) | Voice presets, providers, and style direction |
 | [Pycaps Subtitles](docs/explanation/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
 | [Platform Safe Zones](docs/explanation/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
 | [Batch Processing](docs/guides/batch-processing.md) | Multi-product pipelines and automation |
-| [Publisher](docs/publisher.md) | Social media publishing via Zernio |
+| [Publishing](docs/guides/publishing.md) | Publish, schedule, retry and clean up videos through Zernio |
+| [Publisher Reference](docs/reference/publisher.md) | Publisher CLI, `config/publisher.yaml` keys, metadata files, webhooks and Python API |
+| [Publishing Explained](docs/explanation/publishing.md) | Slots, the retry queue, cleanup, link-in-bio, first comments, the delivery sweep and analytics |
 | [Zernio Client](docs/reference/zernio-client.md) | Direct API client usage, retries, raw REST, and SDK workarounds |
 | [Compliance](docs/explanation/compliance.md) | FTC, Amazon Associates, and EU disclosure stack with manual workarounds |
 | [Architecture](docs/architecture.md) | System design and module overview |

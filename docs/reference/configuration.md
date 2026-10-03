@@ -129,7 +129,8 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 Machine-specific settings for the scheduled analytics sweep are separate, in a
 gitignored `deploy/schedule.env` alongside its committed sample. They shape
 systemd unit files rather than application behaviour, so they are read before
-any of the loading below applies. See [the publisher docs](../publisher.md).
+any of the loading below applies. See
+[the publishing guide](../guides/publishing.md#capture-post-analytics-on-a-schedule).
 
 ### How Configuration Loading Works
 
@@ -314,7 +315,7 @@ scrapers:
 **Typed access**: the validated `ScraperConfig` behind the dict is `get_settings()` in `src/scraper/amazon/config.py`; `ScraperConfigAdapter.get_settings()` returns the same object for a given root.
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
-URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [docs/scraper.md](../scraper.md#url-shortener).
+URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [scraping explained](../explanation/scraping.md#url-shortening).
 
 ```yaml
 url_shortener:

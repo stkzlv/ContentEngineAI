@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.4] - 2026-10-03
+
+### Documentation
+
+- The publisher, video-producer and scraper guides are each split into a how-to guide, a reference page and an explanation page, with troubleshooting entries in the troubleshooting guide; command, flag, config and file-format tables were checked against the code and corrected where they disagreed.
+- A test checks that every `#anchor` in a docs link names a heading on the target page.
+
 ## [0.127.3] - 2026-10-03
 
 ### Documentation

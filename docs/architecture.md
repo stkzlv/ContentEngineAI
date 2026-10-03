@@ -681,7 +681,8 @@ rate_limiting:
 
 The search parameters, filters and sort options are a CLI reference rather
 than architecture, and are documented once in
-[Scraper](scraper.md#filtering), with the config-side equivalents in
+[the scraper reference](reference/scraper.md#search-filters), with the
+config-side equivalents in
 [Configuration](reference/configuration.md). The copy that lived here gave the
 internal Amazon sort tokens as if they were CLI values, which argparse
 rejects.
