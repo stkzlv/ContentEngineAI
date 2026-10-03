@@ -730,7 +730,7 @@ for file in config_files:
    ```
 
 2. **Check Required Fields:**
-   - See [Configuration](configuration.md) for required fields
+   - See [Configuration](../reference/configuration.md) for required fields
    - Missing fields will cause validation errors
 
 3. **Check Enum Values:**
@@ -1102,9 +1102,9 @@ display/CDP problems from the log alone.
 
 3. **Documentation:**
    - [Installation Guide](installation.md)
-   - [Configuration Guide](configuration.md)
-   - [Development Guide](development.md)
-   - [Architecture Documentation](architecture.md)
+   - [Configuration Guide](../reference/configuration.md)
+   - [Development Guide](../development.md)
+   - [Architecture Documentation](../architecture.md)
 
 ## Common Error Patterns
 

@@ -114,7 +114,7 @@ poetry run python -m src.video.producer --batch --random-profile \
 
 ### Pycaps Engine Options
 
-Only consumed when `--subtitle-engine pycaps`. See [docs/pycaps-subtitles.md](pycaps-subtitles.md)
+Only consumed when `--subtitle-engine pycaps`. See [docs/explanation/pycaps-subtitles.md](explanation/pycaps-subtitles.md)
 for install and config details.
 
 | Argument | Description | Example |
@@ -219,7 +219,7 @@ separate headline prompt: the product one requires a product category noun,
 which on a topic with no device makes the model invent one. The topic prompt
 asks for the symptom or the fix and forbids naming anything the script does
 not cover.
-- `upper_line` — a static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Rendered as an assembler overlay rather than as a subtitle, so it survives both engines, unlike the two-part upper line it supersedes. Off by default; see [Configuration](configuration.md) §3.1 for the sources, the width limit and what the swap changes.
+- `upper_line` — a static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Rendered as an assembler overlay rather than as a subtitle, so it survives both engines, unlike the two-part upper line it supersedes. Off by default; see [Configuration](reference/configuration.md) §3.1 for the sources, the width limit and what the swap changes.
 - `cold_open_variant_pool` — list of named cold-open variants rotated deterministically per product (salted MD5). The chosen variant name lands in `pipeline_state.json::assemble_video.cold_open_variant` for downstream analytics.
 
 See `config/video_production.yaml::video_settings` for the canonical defaults and inline notes.
@@ -421,7 +421,7 @@ poetry run python -m src.video.producer data.json profile --step assemble_video 
 
 ## Batch Processing
 
-See [Batch Processing Guide](batch-processing.md#producer-batch-mode) for complete batch documentation.
+See [Batch Processing Guide](guides/batch-processing.md#producer-batch-mode) for complete batch documentation.
 
 ### Quick Reference
 
@@ -488,7 +488,7 @@ poetry run python -m src.video.producer data.json profile --clean --debug
 
 ## Related Documentation
 
-- **[Batch Processing](batch-processing.md)** - Multi-product workflows
-- **[Configuration](configuration.md)** - YAML configuration reference
+- **[Batch Processing](guides/batch-processing.md)** - Multi-product workflows
+- **[Configuration](reference/configuration.md)** - YAML configuration reference
 - **[Architecture](architecture.md)** - Technical architecture
-- **[Troubleshooting](troubleshooting.md)** - Additional debugging
+- **[Troubleshooting](guides/troubleshooting.md)** - Additional debugging

@@ -8,7 +8,7 @@ Output-changing items ship off by default and are turned on only on measured res
 
 ## Phase 0: Disclosure compliance baseline (Now, gates 1.0.0)
 
-Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags and the affiliate phrase have shipped; see [docs/compliance.md](compliance.md).
+Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags and the affiliate phrase have shipped; see [docs/explanation/compliance.md](explanation/compliance.md).
 
 ### 0.4 Localized disclosure variants
 

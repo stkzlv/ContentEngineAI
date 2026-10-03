@@ -139,7 +139,7 @@ class TestOnlyStockOnlyProfilesBlock:
     """A profile that also draws scraped media renders fine without the key.
 
     The fetcher warns and returns nothing; the scraped images carry the video.
-    `docs/configuration.md` documents exactly such a profile, so refusing it
+    `docs/reference/configuration.md` documents exactly such a profile, so refusing it
     would block a configuration that works — worse than the silent gap this
     check closes.
     """

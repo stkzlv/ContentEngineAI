@@ -153,7 +153,7 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-The `.env.example` file contains all required and optional environment variables with explanations. For details on how environment variables integrate with YAML configuration, see [Configuration](configuration.md).
+The `.env.example` file contains all required and optional environment variables with explanations. For details on how environment variables integrate with YAML configuration, see [Configuration](../reference/configuration.md).
 
 ### Required API Keys
 
@@ -269,7 +269,7 @@ The default modular configuration files in `config/` work for most use cases. Ke
 - **Video settings**: Resolution (default: 1080x1920), frame rate, duration
 - **Provider preferences**: Order for TTS and STT providers
 
-For detailed configuration options, see [Configuration](configuration.md).
+For detailed configuration options, see [Configuration](../reference/configuration.md).
 
 ## Verification
 
@@ -347,7 +347,7 @@ make pre-commit
 make test
 ```
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed development setup and [Testing](testing.md) for comprehensive testing documentation.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for detailed development setup and [Testing](../testing.md) for comprehensive testing documentation.
 
 ## Next Steps
 
@@ -356,7 +356,7 @@ Once installation is complete:
 1. **Review Configuration**: Check modular config files in `config/` directory
 2. **Set Up API Keys**: Configure your `.env` file with required API keys
 3. **Run First Test**: Try scraping a product or generating a test video
-4. **Read Documentation**: Check out the [main README](../README.md) for usage examples
+4. **Read Documentation**: Check out the [main README](../../README.md) for usage examples
 
 ## Getting Help
 

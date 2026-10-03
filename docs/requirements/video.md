@@ -83,7 +83,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-047** `shipped` Captions sit a configurable margin from their anchor edge (default 4%).
 - **REQ-VID-048** `shipped` Captions align left, centre (default) or right.
 - **REQ-VID-049** `shipped` The render positions captions relative to the actual bounds of the media on screen.
-- **REQ-VID-050** `shipped` Caption boundaries avoid the TikTok, YouTube Shorts and Instagram Reels interface overlays (see [platform safe zones](../platform-safe-zones.md)); the zone is set globally and per profile, where a profile sets only the boundaries that differ.
+- **REQ-VID-050** `shipped` Caption boundaries avoid the TikTok, YouTube Shorts and Instagram Reels interface overlays (see [platform safe zones](../explanation/platform-safe-zones.md)); the zone is set globally and per profile, where a profile sets only the boundaries that differ.
 - **REQ-VID-051** `shipped` The FFmpeg engine clamps caption position to the safe zone, keeping a caption's lowest pixel above the bottom boundary, and honours per-profile safe-zone overrides.
 - **REQ-VID-052** `shipped` The pycaps engine limits caption width so centred text stays clear of the right-side boundary; it doesn't enforce the vertical boundaries.
 - **REQ-VID-053** `shipped` The pycaps engine places the caption block as a lower third by default, its bottom at 75% of the frame height, below the safe-zone bottom of 65%.

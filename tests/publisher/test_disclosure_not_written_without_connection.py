@@ -81,7 +81,7 @@ class TestATopicRenderPublishesNoDisclosure:
     def test_a_configured_disclosure_does_not_stop_the_ad_strip(self):
         """The dedup matched only the configured token.
 
-        `docs/compliance.md` lists localized variants as planned work, and
+        `docs/explanation/compliance.md` lists localized variants as planned work, and
         the prompts write `#ad` regardless of what the publisher is
         configured to say, so the two cannot be the same check.
         """

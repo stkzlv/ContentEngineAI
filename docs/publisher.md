@@ -52,7 +52,7 @@ The Publisher module provides a complete solution for distributing your AI-gener
 - **🛡️ Affiliate Disclosure**: Can render the Amazon Associates literal phrase in every post's caption body, configurable for non-Amazon programs; off by default, since the phrase asserts active program membership
 - **🎯 CLI Interface**: Simple command-line interface for all operations
 
-For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](compliance.md).
+For the disclosure stack the publisher produces (FTC, Amazon Associates, platform policy) and the per-video manual steps creators are expected to take, see [Compliance](explanation/compliance.md).
 
 ---
 
@@ -1605,7 +1605,7 @@ export LNKBIO_CLIENT_SECRET=your_client_secret
 - `affiliate_link` → destination URL (falls back to `url` if unavailable)
 - `images[0]` → thumbnail URL (falls back to `downloaded_images[0]` local file)
 
-Protocol-level notes (auth, Cloudflare gate, the 50-link list ceiling, the undocumented `/lnk/edit` endpoint, dashboard escape hatch): [lnkbio-api.md](lnkbio-api.md).
+Protocol-level notes (auth, Cloudflare gate, the 50-link list ceiling, the undocumented `/lnk/edit` endpoint, dashboard escape hatch): [lnkbio-api.md](reference/lnkbio-api.md).
 
 </details>
 
@@ -2101,7 +2101,7 @@ outputs/logs/publisher-<date>.log
 
 ## 📚 API Reference
 
-For detailed instructions on using the Zernio SDK directly — listing posts, retrying failed legs, raw REST calls, and common SDK workarounds — see [Zernio Client Guide](zernio-client.md).
+For detailed instructions on using the Zernio SDK directly — listing posts, retrying failed legs, raw REST calls, and common SDK workarounds — see [Zernio Client Guide](reference/zernio-client.md).
 
 <details>
 <summary><strong>Python API Usage</strong></summary>

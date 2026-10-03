@@ -14,7 +14,7 @@ Surfaces covered:
 3. TikTok branded-content flags (commercialContentType, isBrandOrganicPost).
 4. YouTube AI-content flag (containsSyntheticMedia).
 
-See ``docs/compliance.md`` for the regulatory framing each surface satisfies.
+See ``docs/explanation/compliance.md`` for the regulatory framing each surface satisfies.
 """
 
 from unittest.mock import MagicMock, patch

@@ -2,7 +2,7 @@
 
 ContentEngineAI uses a **unified modular configuration system** that splits settings across specialized files with CLI overrides and environment variable support. This guide explains all configuration options and how to customize the system for your needs.
 
-> **📖 For batch processing workflows**: See [Batch Processing](batch-processing.md) for complete batch mode usage examples and automation workflows.
+> **📖 For batch processing workflows**: See [Batch Processing](../guides/batch-processing.md) for complete batch mode usage examples and automation workflows.
 
 ## Configuration Overview
 
@@ -86,7 +86,7 @@ poetry run python -m src.video.producer outputs/B0ASIN123/data.json \
 
 Nested CLI overrides use dotted keys internally
 (`subtitle_settings.pycaps.template_name`). See
-[docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full pycaps config
+[docs/explanation/pycaps-subtitles.md](../explanation/pycaps-subtitles.md) for the full pycaps config
 reference and install instructions.
 
 **Complete CLI Override Example:**
@@ -129,7 +129,7 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 Machine-specific settings for the scheduled analytics sweep are separate, in a
 gitignored `deploy/schedule.env` alongside its committed sample. They shape
 systemd unit files rather than application behaviour, so they are read before
-any of the loading below applies. See [the publisher docs](publisher.md).
+any of the loading below applies. See [the publisher docs](../publisher.md).
 
 ### How Configuration Loading Works
 
@@ -314,7 +314,7 @@ scrapers:
 **Typed access**: the validated `ScraperConfig` behind the dict is `get_settings()` in `src/scraper/amazon/config.py`; `ScraperConfigAdapter.get_settings()` returns the same object for a given root.
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)
-URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [docs/scraper.md](scraper.md#url-shortener).
+URL shortening for affiliate links. Two providers ship; trade-offs and the Picsee tag-preservation caveat live in [docs/scraper.md](../scraper.md#url-shortener).
 
 ```yaml
 url_shortener:
@@ -796,7 +796,7 @@ cta_detection:
 
 **Location**: `config/subtitles.yaml` (under `tts_config` section)
 
-**Note**: The bundled config's current default TTS path is Gemini voice profiles, selected by voice name (Charon, Puck, etc.), configured under `tts_config.voice_profiles`. See [docs/tts-voice-profiles.md](tts-voice-profiles.md). The `google_cloud` (Chirp 3 HD) and `coqui` schema below is the underlying provider config those profiles build on and the fallback path.
+**Note**: The bundled config's current default TTS path is Gemini voice profiles, selected by voice name (Charon, Puck, etc.), configured under `tts_config.voice_profiles`. See [docs/explanation/tts-voice-profiles.md](../explanation/tts-voice-profiles.md). The `google_cloud` (Chirp 3 HD) and `coqui` schema below is the underlying provider config those profiles build on and the fallback path.
 
 ```yaml
 tts_config:
@@ -823,7 +823,7 @@ tts_config:
   # Coqui TTS settings (local). Kept so the config side of re-enabling stays a
   # one-line change, but coqui-tts is not installed by default and "coqui" is
   # not in provider_order. Re-enabling also needs transformers <5 and torchcodec
-  # from the PyTorch CPU index. See docs/troubleshooting.md.
+  # from the PyTorch CPU index. See docs/guides/troubleshooting.md.
   coqui:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null               # For multi-speaker models
@@ -1314,7 +1314,7 @@ llm_settings:
 
 **Pillar resolution order:** `--pillar <name>` on `src/video/producer/cli.py` or `src/pipeline/cli.py`, then the pillar a previous run of the same product recorded, then the product record's own value, which the scraper attaches from the source keyword's configured group. Unknown pillar names log an info-level hint and gracefully no-op (no template filter, no preamble, no audience override); the run still completes.
 
-See [the content requirements](requirements/content.md#content-pillars) for the behavior contract.
+See [the content requirements](../requirements/content.md#content-pillars) for the behavior contract.
 
 </details>
 
@@ -2740,4 +2740,4 @@ cp .env.example .env
 nano .env  # or your preferred editor
 ```
 
-For more troubleshooting help, see [Troubleshooting](troubleshooting.md).
+For more troubleshooting help, see [Troubleshooting](../guides/troubleshooting.md).

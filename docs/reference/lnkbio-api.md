@@ -2,7 +2,7 @@
 
 Operational notes about the Lnk.Bio OAuth API. Lnk.Bio's official documentation is thin and several behaviors were discovered the hard way. Capture them here so the next change doesn't re-learn them.
 
-Configuration, env vars, and the `link_in_bio` block live in [publisher.md](publisher.md#-link-in-bio-integration); this doc covers the protocol, not the wiring.
+Configuration, env vars, and the `link_in_bio` block live in [publisher.md](../publisher.md#-link-in-bio-integration); this doc covers the protocol, not the wiring.
 
 ## Auth
 

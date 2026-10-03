@@ -6,7 +6,7 @@
 
 ## Context
 
-`tiktok_settings.video_made_with_ai` is on for every post, and `docs/compliance.md` gave AI voiceover as the reason. TikTok's 2026-H2 guidelines exempt generic TTS narration.
+`tiktok_settings.video_made_with_ai` is on for every post, and `docs/explanation/compliance.md` gave AI voiceover as the reason. TikTok's 2026-H2 guidelines exempt generic TTS narration.
 
 Evidence ([evidence grades](README.md#evidence-grades)):
 
@@ -30,7 +30,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 ## Design
 
-- Correct the compliance row in [compliance.md](../compliance.md) (the row carries a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
+- Correct the compliance row in [compliance.md](../explanation/compliance.md) (the row carries a pending-correction note) and record the policy decision: keep the label on voluntarily, or turn it off, with the reason.
 - Optionally add a bounded AI-role statement to the profile bio or the caption template, behind a config key. It must describe the real process. The study behind the idea found the label penalty disappears when AI's role is limited (polishing, a first draft) and persists when AI writes the whole piece, so a truthful statement helps only to the extent a person really reviews each video.
 - Inspect a rendered file with `exiftool` or a C2PA reader for SynthID or C2PA metadata carried through from the TTS audio, and record whether it survives the mux.
 

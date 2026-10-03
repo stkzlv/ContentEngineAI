@@ -591,7 +591,7 @@ def resolve_upper_line_text(
 # to `max_lines`, so it can afford a generous inset, while this line is
 # usually a URL that must be readable in one piece and cannot wrap at all.
 # Whether it should nonetheless respect the 60px horizontal inset
-# `docs/platform-safe-zones.md` states is an open question, tracked
+# `docs/explanation/platform-safe-zones.md` states is an open question, tracked
 # separately -- it needs a real post to settle, not arithmetic.
 _UPPER_LINE_MAX_WIDTH_FRACTION = 0.95
 

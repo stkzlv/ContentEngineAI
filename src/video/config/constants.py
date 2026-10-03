@@ -75,7 +75,8 @@ FREESOUND_DOWNLOAD_CHUNK_SIZE = 8192 * 4  # Network buffer size
 # PLATFORM SAFE ZONE BOUNDARIES (2026 cross-platform union on 1080x1920)
 # Worst-case of TikTok, YouTube Shorts, and Instagram Reels. Instagram drives
 # both top and bottom after Meta's March 2026 Reels unification (14% top, 35%
-# bottom interactive zone). See docs/platform-safe-zones.md for the breakdown.
+# bottom interactive zone). See docs/explanation/platform-safe-zones.md for the
+# breakdown.
 # =============================================================================
 SAFE_ZONE_MIN_X = 0.056  # Left: 60px on 1080w (all platforms ~60px)
 SAFE_ZONE_MAX_X = 0.833  # Right: 900px on 1080w (TikTok buttons + Jan 2026 playlist)

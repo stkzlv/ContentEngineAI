@@ -56,7 +56,7 @@ poetry run python -m src.pipeline.global_batch \
   --debug
 ```
 
-See [Installation](docs/installation.md) for complete setup instructions.
+See [Installation](docs/guides/installation.md) for complete setup instructions.
 
 **Two things the quickstart assumes:**
 
@@ -66,8 +66,8 @@ See [Installation](docs/installation.md) for complete setup instructions.
   supported configuration, just not the one the config describes. The renderer
   runs without a display as of 2026-09-02; if its per-word screenshots time
   out, wrap the producer in `xvfb-run -a`. See
-  [Subtitles](docs/pycaps-subtitles.md) and
-  [Troubleshooting](docs/troubleshooting.md).
+  [Subtitles](docs/explanation/pycaps-subtitles.md) and
+  [Troubleshooting](docs/guides/troubleshooting.md).
 - **Publishing needs an account before `--platforms` does anything.** Set
   `LATE_API_KEY` in `.env` and connect YouTube, TikTok or Instagram in the
   scheduler first. Add `--skip-publish` to run the batch without it. See
@@ -78,20 +78,20 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | Guide | Description |
 |-------|-------------|
 | [Documentation map](docs/README.md) | Where each kind of document lives, and the decision records |
-| [Installation](docs/installation.md) | Setup guide with prerequisites and API keys |
-| [Configuration](docs/configuration.md) | YAML config reference and CLI overrides |
+| [Installation](docs/guides/installation.md) | Setup guide with prerequisites and API keys |
+| [Configuration](docs/reference/configuration.md) | YAML config reference and CLI overrides |
 | [Scraper](docs/scraper.md) | Product data extraction from Amazon |
 | [Video Producer](docs/video-producer.md) | Video production CLI and profiles |
-| [TTS Voice Profiles](docs/tts-voice-profiles.md) | Voice presets, providers, and style direction |
-| [Pycaps Subtitles](docs/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
-| [Platform Safe Zones](docs/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
-| [Batch Processing](docs/batch-processing.md) | Multi-product pipelines and automation |
+| [TTS Voice Profiles](docs/explanation/tts-voice-profiles.md) | Voice presets, providers, and style direction |
+| [Pycaps Subtitles](docs/explanation/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
+| [Platform Safe Zones](docs/explanation/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
+| [Batch Processing](docs/guides/batch-processing.md) | Multi-product pipelines and automation |
 | [Publisher](docs/publisher.md) | Social media publishing via Zernio |
-| [Zernio Client](docs/zernio-client.md) | Direct API client usage, retries, raw REST, and SDK workarounds |
-| [Compliance](docs/compliance.md) | FTC, Amazon Associates, and EU disclosure stack with manual workarounds |
+| [Zernio Client](docs/reference/zernio-client.md) | Direct API client usage, retries, raw REST, and SDK workarounds |
+| [Compliance](docs/explanation/compliance.md) | FTC, Amazon Associates, and EU disclosure stack with manual workarounds |
 | [Architecture](docs/architecture.md) | System design and module overview |
 | [Roadmap](docs/roadmap.md) | Planned work by horizon (Now / Next / Later) |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging tips |
+| [Troubleshooting](docs/guides/troubleshooting.md) | Common issues and debugging tips |
 
 <details>
 <summary><strong>Developer Documentation</strong></summary>
