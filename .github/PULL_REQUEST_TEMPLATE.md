@@ -10,6 +10,8 @@
 
 None
 
+<!-- A CLI flag or config key changed with no doc update? Add a line "Docs: none" with the reason; the docs check reads it. -->
+
 ## Type of change
 
 - [ ] Bug fix

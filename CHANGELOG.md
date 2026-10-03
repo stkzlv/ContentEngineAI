@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.0] - 2026-10-03
+
+### Added
+
+- `make check-docs` and a `docs-check` CI job check that a design doc's status agrees with its requirements, that the requirement ids a pull request cites exist, and that a changed CLI flag or config key comes with its documentation page or a `Docs: none` line.
+- A pull request that touches only documentation runs only the tests that read the docs, `make test-docs`, so the required test check still reports without the full suite.
+
 ## [0.127.11] - 2026-10-03
 
 ### Documentation

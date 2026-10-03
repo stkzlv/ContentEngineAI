@@ -15,7 +15,7 @@ NC := \033[0m # No Color
 
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
-	docs release-prep release-check update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
+	docs release-prep release-check check-docs test-docs update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
@@ -59,6 +59,8 @@ help:
 	@echo "  update-deps   - Update dependencies"
 	@echo "  release-prep  - Prepare for release"
 	@echo "  release-check - Check this branch bumps the version and dates its CHANGELOG heading"
+	@echo "  check-docs    - Check the docs this branch must touch moved with it (BODY=<file> for the PR text)"
+	@echo "  test-docs     - Run only the tests that read the docs (what CI runs for a docs-only PR)"
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
 	@echo "  clean         - Clean up cache and temporary files"
@@ -332,6 +334,20 @@ release-prep: clean-all install-dev lint security test-cov
 release-check:
 	git fetch --quiet origin main
 	python3 -m tools.release_check --base origin/main
+
+# CONTRIBUTING's definition of done, as far as a script can see it. Pass the
+# pull request description with BODY=<file> to check the ids it cites and a
+# `Docs: none` opt-out.
+check-docs:
+	git fetch --quiet origin main
+	python3 -m tools.check_docs --base origin/main $(if $(BODY),--body-file $(BODY))
+
+# The tests that read the docs. CI runs only these for a pull request that
+# touches nothing but documentation; a new test that reads docs belongs here.
+DOC_TESTS = tests/docs tests/tools tests/video/test_no_doc_names_a_refused_key.py
+
+test-docs:
+	poetry run pytest $(DOC_TESTS) -q
 
 # Docker support (if needed)
 docker-build:

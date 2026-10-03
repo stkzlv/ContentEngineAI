@@ -80,6 +80,9 @@ jobs:
     - name: Run type checking
       run: poetry run mypy .
 
+  # A required check, so it always runs and reports. For a change that touches
+  # only documentation (tools/check_docs.py decides) it runs just the tests
+  # that read the docs, `make test-docs`, and skips the full suite.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -88,13 +91,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Decide what to test
+      id: scope
+      env:
+        BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+      run: |
+        docs_only=$(python -m tools.check_docs --base "$BASE" --docs-only) || docs_only=false
+        echo "docs_only=$docs_only"
+        echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
     - name: Install system dependencies
+      if: steps.scope.outputs.docs_only != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg
@@ -127,18 +142,26 @@ jobs:
         poetry install --no-interaction --with pycaps
 
     - name: Install pictex system libraries
+      if: steps.scope.outputs.docs_only != 'true'
       # skia-python (pycaps' pictex renderer) links libEGL and libGL, which
       # ubuntu-latest does not ship; without them the two pictex render
       # tests fail on import.
       run: sudo apt-get update -q && sudo apt-get install -y -q libegl1 libgl1
 
     - name: Install Playwright browsers
+      if: steps.scope.outputs.docs_only != 'true'
       run: poetry run playwright install
 
     - name: Run tests
+      if: steps.scope.outputs.docs_only != 'true'
       run: poetry run pytest --cov=src --cov-report=xml --cov-report=term-missing
 
+    - name: Run the tests that read the docs
+      if: steps.scope.outputs.docs_only == 'true'
+      run: make test-docs
+
     - name: Upload coverage to Codecov
+      if: steps.scope.outputs.docs_only != 'true'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
