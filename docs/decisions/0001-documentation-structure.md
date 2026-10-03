@@ -1,6 +1,6 @@
 # 0001. Documentation structure by layer
 
-- **Status:** Accepted
+- **Status:** Amended by [0006](0006-documentation-structure-amendments.md)
 - **Date:** 2026-10-01
 
 ## Context and problem

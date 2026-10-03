@@ -42,6 +42,8 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 Ships off: `still_motion.enabled` defaults to false in every profile. A profile turns it on by setting `still_motion.enabled` after the reach-test readout (#540), once swipe-away and completion (#551) on a batch with motion are no worse than without.
 
+Remove the switch when: `still_motion.enabled` has been on in the bundled profiles for two weekly batches with swipe-away and completion (#551) no worse than in the batches without motion; the key and the static-still path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
+
 ## Open questions
 
 None recorded.

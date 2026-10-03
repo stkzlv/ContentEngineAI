@@ -26,12 +26,15 @@ Each module has a guide (`guides/publishing.md`, `producing-videos.md`, `scrapin
 2. **Write a design doc** only when the work takes more than a few days, adds an external dependency, or changes config or a data schema.
 3. **Record a decision** when a choice between real alternatives would otherwise be argued again. Use `decisions/0000-template.md`.
 4. **Add or change the requirement** in the same pull request as the code, and cite its id in the pull request.
+5. **When the feature ships**, the same pull request sets its design doc to `Implemented` and its requirements to `shipped`.
+
+The maintainer accepts design docs and decision records. Proposals are discussed in their issue or pull request, in public.
 
 ## Statuses
 
 Requirements use `shipped`, `partial`, `planned #N`, `planned (decision NNNN)`, `held` or `deprecated`; [the requirements index](requirements/README.md) defines each.
 
-Design docs use `Draft`, `Accepted`, `Implemented` or `Superseded by NNNN`. Decision records use `Accepted` or `Superseded by NNNN`.
+Design docs use `Draft`, `Accepted`, `Implemented` or `Superseded by NNNN`. Decision records use `Accepted`, `Amended by NNNN` (still in force, with a later record changing part of it) or `Superseded by NNNN`.
 
 A feature that changes rendered output ships off by default ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)). Its design doc's rollout section says what turns it on and when the switch can be removed.
 

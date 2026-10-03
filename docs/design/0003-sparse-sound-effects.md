@@ -41,6 +41,8 @@ None recorded.
 
 Ships off: `audio_settings.sound_effects.enabled` defaults to false. Set it after the reach-test readout (#540), once an A/B over a batch shows completion no worse with effects. Stop at the first sign of lower engagement (the inverted-U finding).
 
+Remove the switch when: `audio_settings.sound_effects.enabled` has been on in the bundled config for 30 days with completion and engagement no worse than in the batches without effects; the key and the effects-off path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `level_db` and `max_per_10_sec` stay as the tuning.
+
 ## Open questions
 
 None recorded.

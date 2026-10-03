@@ -35,6 +35,8 @@ None recorded.
 
 Ships off: `topic_scripts.step_list.enabled` defaults to false. Set it after the reach-test readout (#540). The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
 
+Remove the switch when: `topic_scripts.step_list.enabled` has been on in the bundled config for two weekly batches with topic-render completion (#551) no worse than without it; the key, its holdout check and the free-form script path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
+
 ## Open questions
 
 None recorded.

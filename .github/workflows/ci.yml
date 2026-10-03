@@ -32,6 +32,9 @@ jobs:
           python -m tools.release_check
         fi
 
+    - name: Report requirements no test cites
+      run: python -m tools.requirements_coverage
+
   lint:
     runs-on: ubuntu-latest
     steps:

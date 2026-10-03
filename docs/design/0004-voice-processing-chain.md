@@ -38,6 +38,8 @@ None recorded.
 
 Ships off: `audio_settings.voice_chain.enabled` defaults to false. Set it after the reach-test readout (#540), once a voice-by-chain comparison over at least 20 posts per cell shows no loss.
 
+Remove the switch when: `audio_settings.voice_chain.enabled` has been on in the bundled config for 30 days and the voice-by-chain comparison, at 20 or more posts per cell, still shows no loss for the chain; the key and the unprocessed-voice path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and the chain parameters stay.
+
 ## Open questions
 
 - The research suggests also trying a lower-pitched voice; [0015](0015-narrator-voice-evaluation.md) covers the voice comparison.

@@ -42,6 +42,8 @@ None recorded.
 
 Ships off: `video_settings.image_curation.enabled` defaults to false. Set it after the reach-test readout (#540), once a side-by-side review of renders with and without it prefers the curated set, and swipe-away ([0010](0010-first-seconds-metrics.md)) is no worse.
 
+Remove the switch when: `video_settings.image_curation.enabled` has been on in the bundled config for two weekly batches with swipe-away ([0010](0010-first-seconds-metrics.md)) no worse than without it; the key and the uncurated-order path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `max_text_share` and `min_clean_images` stay as the tuning.
+
 ## Open questions
 
 None recorded.

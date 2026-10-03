@@ -37,6 +37,8 @@ None recorded.
 
 Ships off: `video_settings.beat_snap.enabled` defaults to false. Set it once a blind listening comparison prefers it, or completion improves. The evidence is a lab result, so treat it as low priority.
 
+Remove the switch when: `video_settings.beat_snap.enabled` has been on in the bundled config for two weekly batches with completion no worse than without it; the key and the unsnapped path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `window_ms` stays as the tuning.
+
 ## Open questions
 
 None recorded.

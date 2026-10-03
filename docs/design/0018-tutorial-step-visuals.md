@@ -34,6 +34,8 @@ None recorded.
 
 Ships off: `video_settings.step_visuals.enabled` defaults to false. Set it after the reach-test readout (#540). The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
 
+Remove the switch when: `video_settings.step_visuals.enabled` has been on in the bundled config for two weekly batches with topic-render swipe-away and completion (#551) no worse than without it; the key, its holdout check and the single-search path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
+
 ## Open questions
 
 None recorded.

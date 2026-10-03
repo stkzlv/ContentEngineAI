@@ -1,7 +1,7 @@
 name: Feature Request
 description: Suggest a new feature or enhancement
 title: "[Feature]: "
-labels: ["enhancement", "needs triage"]
+labels: ["enhancement"]
 assignees: []
 
 body:
@@ -98,6 +98,13 @@ body:
       label: Implementation Ideas
       description: If you have ideas about how this could be implemented, share them here
       placeholder: This could be implemented by...
+
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirements affected
+      description: Ids from docs/requirements/ this would add to or change, if you know them
+      placeholder: REQ-PUB-024
 
   - type: textarea
     id: additional
