@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.3] - 2026-10-03
+
+### Documentation
+
+- The installation, batch-processing and troubleshooting guides live in `docs/guides/`, the configuration, Zernio client and Lnk.Bio API pages in `docs/reference/`, and the safe-zone, pycaps, voice-profile and compliance pages in `docs/explanation/`; contributor docs stay at the top of `docs/`.
+
 ## [0.127.2] - 2026-10-03
 
 ### Technical

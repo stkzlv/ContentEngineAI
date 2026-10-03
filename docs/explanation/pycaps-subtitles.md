@@ -46,7 +46,7 @@ PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 poetry run playwright install 
 ```
 
 At render time the producer sets that override itself, so runs don't need
-the prefix. See `docs/troubleshooting.md` for the full writeup, including the
+the prefix. See `docs/guides/troubleshooting.md` for the full writeup, including the
 `xvfb-run` wrapper that fixes the CSS renderer's screenshot timeout if it
 appears; as of 2026-09-02 the renderer runs with no display at all.
 
@@ -110,7 +110,7 @@ comments in that file for the active values shipped to users.
 | `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty, which is what `--pycaps-template NAME` produces (the flag clears the pool). A one-entry pool returns that entry instead. |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
 | `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
-| `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [captions, "Casing"](explanation/captions.md#casing) rejects. Bundled YAML ships `true`. |
+| `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [captions, "Casing"](captions.md#casing) rejects. Bundled YAML ships `true`. |
 | `max_width_ratio` | float | 0.80 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. With `bottom`, pycaps puts the block's bottom edge at 95% of the frame plus the offset. |
@@ -188,7 +188,7 @@ platform header zone (a top-aligned image starts at its
 (`src/video/assembler/visual_band.py`). It reads the same pycaps fields for
 that, so changing the offset or the block height moves the image with the
 captions. With no explicit offset the template places the block itself, and
-the assembler assumes the band [captions](explanation/captions.md#layout-and-positioning)
+the assembler assumes the band [captions](captions.md#layout-and-positioning)
 prescribes, centred around 52% of the frame. The same helper serves the
 FFmpeg engine, whose caption is clamped to the safe-zone floor.
 
@@ -308,7 +308,7 @@ The built-in templates ship a broad instruction: `explosive` asks for "the
 most important phrase or word in all the script", `neo-minimal` for "most
 relevant and impactful phrases". Gemini answers those with filler --
 `also`, `can`, `all`, `from` -- which
-[captions](explanation/captions.md#ai-driven-highlighting), "AI-driven
+[captions](captions.md#ai-driven-highlighting), "AI-driven
 highlighting", says not to emphasise.
 
 `ai_tag_prompt_override` replaces that instruction for every AI rule the
@@ -460,8 +460,8 @@ seconds on this hardware.
 
 ## Related documentation
 
-- [Video Producer CLI reference](./video-producer.md)
-- [Configuration system overview](./configuration.md)
-- [Architecture: subtitle pipeline](./architecture.md)
-- [Development workflow](./development.md)
+- [Video Producer CLI reference](../video-producer.md)
+- [Configuration system overview](../reference/configuration.md)
+- [Architecture: subtitle pipeline](../architecture.md)
+- [Development workflow](../development.md)
 - Pycaps follow-up work tracked as GitHub Issues with the `pycaps` label: AI word tagging, two-part hybrid, CSS-renderer CI test, and more

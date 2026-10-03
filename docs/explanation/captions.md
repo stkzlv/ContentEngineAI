@@ -1,6 +1,6 @@
 # Captions: why the defaults are what they are
 
-This page explains how the pipeline styles, places and times the burned-in captions on a 9:16 render, and the evidence behind each default. The settings live in `subtitle_settings` in `config/subtitles.yaml` (engine, the `pycaps` block, `timing_smoothing`, segmentation limits, `safe_zone`, `font_pool`, `color_pool` and `style_presets`), in the per-profile `subtitle_settings` blocks in `config/video_production.yaml`, and in the Pydantic models in `src/video/config/subtitle_models.py`. The requirements are in [the video requirements](../requirements/video.md). The pycaps engine itself is described in [pycaps subtitles](../pycaps-subtitles.md), the overlay numbers in [platform safe zones](../platform-safe-zones.md), and the defects behind the caption code in [the subtitle module notes](../notes/subtitles.md). The `[A]`, `[B]` and `[C]` marks are defined in [the evidence grades](../design/README.md#evidence-grades).
+This page explains how the pipeline styles, places and times the burned-in captions on a 9:16 render, and the evidence behind each default. The settings live in `subtitle_settings` in `config/subtitles.yaml` (engine, the `pycaps` block, `timing_smoothing`, segmentation limits, `safe_zone`, `font_pool`, `color_pool` and `style_presets`), in the per-profile `subtitle_settings` blocks in `config/video_production.yaml`, and in the Pydantic models in `src/video/config/subtitle_models.py`. The requirements are in [the video requirements](../requirements/video.md). The pycaps engine itself is described in [pycaps subtitles](pycaps-subtitles.md), the overlay numbers in [platform safe zones](platform-safe-zones.md), and the defects behind the caption code in [the subtitle module notes](../notes/subtitles.md). The `[A]`, `[B]` and `[C]` marks are defined in [the evidence grades](../design/README.md#evidence-grades).
 
 Related pages: [audio](audio.md) for the sound-on layer, [promotional videos](promotional-videos.md) for the hook, CTA and disclosure, and [tutorials](tutorials.md) for the how-to format.
 
@@ -51,7 +51,7 @@ Why:
 
 ## AI-driven highlighting
 
-When `pycaps.enable_ai_tagging` is on (the bundled default) and the Gemini key is set, templates with an AI tagging rule (`explosive` in the bundled pool) ask Gemini which words to emphasise. `pycaps.ai_tag_prompt_override` replaces each template's own instruction with a recipe: tag prices, numbers, product nouns, outcome verbs and factual superlatives, never articles, prepositions, auxiliaries or absolute praise words, and around 15% of the words. [Pycaps subtitles](../pycaps-subtitles.md) describes how the override reaches the tagger.
+When `pycaps.enable_ai_tagging` is on (the bundled default) and the Gemini key is set, templates with an AI tagging rule (`explosive` in the bundled pool) ask Gemini which words to emphasise. `pycaps.ai_tag_prompt_override` replaces each template's own instruction with a recipe: tag prices, numbers, product nouns, outcome verbs and factual superlatives, never articles, prepositions, auxiliaries or absolute praise words, and around 15% of the words. [Pycaps subtitles](pycaps-subtitles.md) describes how the override reaches the tagger.
 
 Why:
 
@@ -77,7 +77,7 @@ The pycaps engine places the block as a lower third: `vertical_align: "bottom"` 
 
 Why:
 
-- The bottom of the frame is interactive UI: 35% on Reels since Meta's March 2026 change, and about 25% on TikTok. A block centred around 52% of the frame, its lowest pixel above y=1250 (65%), clears all three platforms in one render [C] ([Kreatli](https://kreatli.com/guides/tiktok-safe-zone), [Zeely](https://zeely.ai/blog/tiktok-safe-zones/), [Postplanify](https://postplanify.com/blog/social-media-safe-zones-2026-complete-guide)). [Platform safe zones](../platform-safe-zones.md) holds the canonical numbers; defer to it when the two pages diverge.
+- The bottom of the frame is interactive UI: 35% on Reels since Meta's March 2026 change, and about 25% on TikTok. A block centred around 52% of the frame, its lowest pixel above y=1250 (65%), clears all three platforms in one render [C] ([Kreatli](https://kreatli.com/guides/tiktok-safe-zone), [Zeely](https://zeely.ai/blog/tiktok-safe-zones/), [Postplanify](https://postplanify.com/blog/social-media-safe-zones-2026-complete-guide)). [Platform safe zones](platform-safe-zones.md) holds the canonical numbers; defer to it when the two pages diverge.
 - The pycaps block stays lower than that recommendation to keep clear of centred product video on the `product_video_*` profiles, which ends near 66% of the frame. Issue #99 (closed) records why raising the block was dropped.
 - Two lines of 3-5 words is the readable maximum on a phone; three lines becomes a wall of text, and 80% of the width leaves a margin inside every platform's side overlay [C] ([Opus Clip, TikTok](https://www.opus.pro/blog/tiktok-caption-subtitle-best-practices), [Opus Clip, Shorts](https://www.opus.pro/blog/youtube-shorts-caption-subtitle-best-practices), [Nimdzi](https://www.nimdzi.com/subtitling-vertical-videos-guidelines-where-art-thou/)).
 

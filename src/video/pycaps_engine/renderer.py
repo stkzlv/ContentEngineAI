@@ -61,7 +61,7 @@ def _ensure_playwright_chromium_platform() -> None:
     Runs for every entry point (standalone producer, batch, tests). No-op off
     Ubuntu 26+ or when the var is already set, so an explicit override always
     wins. Covers Ubuntu and the derivatives Playwright treats as Ubuntu (Pop!_OS,
-    KDE neon, Tuxedo). See docs/troubleshooting.md.
+    KDE neon, Tuxedo). See docs/guides/troubleshooting.md.
     """
     if os.environ.get("PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"):
         return

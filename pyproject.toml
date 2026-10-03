@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.127.2"
+version = "0.127.3"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -72,7 +72,7 @@ playwright = "^1.55.0"
 
 # Optional: pycaps subtitle engine. Enable with `poetry install --with pycaps`.
 # Alpha upstream (0.2.1) and not on PyPI, so pinned to a validated git commit.
-# See docs/pycaps-subtitles.md for setup notes (Chromium, fonts, gotchas).
+# See docs/explanation/pycaps-subtitles.md for setup notes (Chromium, fonts, gotchas).
 [tool.poetry.group.pycaps]
 optional = true
 

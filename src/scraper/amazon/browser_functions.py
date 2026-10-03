@@ -281,7 +281,7 @@ def scrape_amazon_products_browser_impl(
             # "Response not received" is a CDP-layer timeout (Chromium's DevTools
             # endpoint stopped answering), distinct from a page-load timeout. Capture
             # the elapsed time and a best-effort readyState so the failure mode is
-            # identifiable from the log alone. See docs/troubleshooting.md.
+            # identifiable from the log alone. See docs/guides/troubleshooting.md.
             ready_state = "<unreachable>"
             with contextlib.suppress(Exception):
                 ready_state = driver.run_js("return document.readyState")

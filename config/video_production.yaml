@@ -181,7 +181,7 @@ video_settings:
   # Burned into every render in a fixed corner. Required for affiliate
   # content per FTC guidance ("clear and conspicuous", in the medium of the
   # endorsement). Sized smaller than narration captions (50-60%) so it
-  # discloses without dominating the frame. See docs/compliance.md.
+  # discloses without dominating the frame. See docs/explanation/compliance.md.
   disclosure_overlay:
     enabled: true                     # Set false to skip the overlay (not recommended for affiliate content)
     text: "#ad"                       # Disclosure text. Override for non-English renders.
@@ -259,7 +259,7 @@ video_settings:
     # ~120px clear of each physical edge and the Instagram 0.056 side inset.
     # The top-of-frame hook sits above the bottom action-button column, so it
     # uses a symmetric margin rather than the asymmetric subtitle safe_zone
-    # (min_x 0.056 / max_x 0.833). See docs/platform-safe-zones.md.
+    # (min_x 0.056 / max_x 0.833). See docs/explanation/platform-safe-zones.md.
     max_width_fraction: 0.78
 
   # Phase 1.2e cold-open variant rotation. Three named opening styles are

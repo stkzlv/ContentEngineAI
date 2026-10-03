@@ -15,17 +15,10 @@ Each folder holds one kind of document, with its own reader and its own update r
 | `guides/` | How do I do a task? | How-to pages for users and operators. |
 | `reference/` | What exactly does this flag or key do? | Configuration, CLI and API reference. |
 | `explanation/` | Why does the system behave this way? | Background on concepts and defaults that a guide or reference page would only state, with the evidence and sources behind them. |
-| `contributing/` | How do I work on this repository? | Development setup, linting, testing and versioning. |
 
-A folder is created when its first file moves in. Pages that still sit at the top level of `docs/` belong in these folders:
+The contributor docs stay at the top of `docs/`: `development.md`, `linting.md`, `testing.md` and `versioning.md`. Release tooling and contributor workflows look for `docs/versioning.md` and `docs/development.md` at those paths.
 
-| Page | Belongs in |
-|---|---|
-| `installation.md`, `batch-processing.md`, `troubleshooting.md` | `guides/` |
-| `configuration.md`, `zernio-client.md`, `lnkbio-api.md` | `reference/` |
-| `platform-safe-zones.md`, `pycaps-subtitles.md`, `tts-voice-profiles.md`, `compliance.md` | `explanation/` |
-| `publisher.md`, `video-producer.md`, `scraper.md` | split across `guides/`, `reference/` and `explanation/` |
-| `development.md`, `linting.md`, `testing.md`, `versioning.md` | `contributing/` |
+The module guides `publisher.md`, `video-producer.md` and `scraper.md` mix how-to, reference and explanation, and are split across `guides/`, `reference/` and `explanation/` as they are next edited. `promotional-video-best-practices.md` is a forwarding page kept for the script prompts that cite it.
 
 ## From idea to shipped feature
 

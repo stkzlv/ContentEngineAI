@@ -1,6 +1,6 @@
 # Promotional videos: why the pipeline builds them this way
 
-This page explains the hook, the cut cadence, the closing line, the call to action, disclosure and the trust signals in a product render: what the pipeline does and the evidence behind it. The script rules live in the prompt templates in `src/ai/prompts/scripts/` and in `script_templates` in `config/ai_services.yaml` (narrator profile, `cta_options`). The on-frame elements live in `video_settings` in `config/video_production.yaml` (`hook_overlay`, `disclosure_overlay`, `cold_open_variant_pool`) and in the video profiles. Disclosure detail is in [the compliance guide](../compliance.md). Caption design is in [the captions page](captions.md), and the UI overlay zones are in [the platform safe zones](../platform-safe-zones.md).
+This page explains the hook, the cut cadence, the closing line, the call to action, disclosure and the trust signals in a product render: what the pipeline does and the evidence behind it. The script rules live in the prompt templates in `src/ai/prompts/scripts/` and in `script_templates` in `config/ai_services.yaml` (narrator profile, `cta_options`). The on-frame elements live in `video_settings` in `config/video_production.yaml` (`hook_overlay`, `disclosure_overlay`, `cold_open_variant_pool`) and in the video profiles. Disclosure detail is in [the compliance guide](compliance.md). Caption design is in [the captions page](captions.md), and the UI overlay zones are in [the platform safe zones](platform-safe-zones.md).
 
 Each finding carries a grade, `[A]`, `[B]` or `[C]`, defined in [the evidence grades](../design/README.md#evidence-grades). Where a vendor figure disagrees with a graded finding, the graded finding wins.
 
@@ -149,7 +149,7 @@ A render with a material connection carries a persistent `#ad` overlay in a fixe
 
 AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on by default (`REQ-CMP-016`) and under review ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
 
-The regulators, the rules, the platform flags, the manual steps and the penalty surface are in [the compliance guide](../compliance.md).
+The regulators, the rules, the platform flags, the manual steps and the penalty surface are in [the compliance guide](compliance.md).
 
 ## Trust signals
 

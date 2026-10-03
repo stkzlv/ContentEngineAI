@@ -59,7 +59,7 @@ class PlatformSafeZone(BaseModel):
     YouTube Shorts, and Instagram Reels on a 1080x1920 frame. A single render
     serving all three platforms clamps to this union, not one platform's zone.
     Instagram drives top and bottom after Meta's March 2026 Reels unification.
-    See docs/platform-safe-zones.md for the per-platform breakdown.
+    See docs/explanation/platform-safe-zones.md for the per-platform breakdown.
     """
 
     min_x: float = Field(
@@ -267,8 +267,8 @@ class PycapsSettings(BaseModel):
     captions onto a pre-assembled video. Only consumed when
     ``MergedSubtitleSettings.subtitle_engine == "pycaps"``.
 
-    See ``docs/pycaps-subtitles.md`` for field-by-field guidance and template
-    screenshots.
+    See ``docs/explanation/pycaps-subtitles.md`` for field-by-field guidance and
+    template screenshots.
     """
 
     template_name: str = Field(

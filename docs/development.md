@@ -4,7 +4,7 @@ This guide provides detailed information for developers working on ContentEngine
 
 ## Development Environment Setup
 
-**📖 Complete installation guide**: [Installation](installation.md)
+**📖 Complete installation guide**: [Installation](guides/installation.md)
 
 ```bash
 # Quick setup for developers
@@ -28,8 +28,8 @@ poetry run playwright install chromium   # CSS renderer (default). Skip for pict
 On Ubuntu 26.04 prefix the chromium install with
 `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64` (no 26.04 build yet), and
 keep `xvfb-run -a` at hand for CSS-renderer runs in case the screenshot
-timeout appears (it no longer reproduces; see `docs/troubleshooting.md`). See
-[docs/pycaps-subtitles.md](pycaps-subtitles.md) for the full reference.
+timeout appears (it no longer reproduces; see `docs/guides/troubleshooting.md`). See
+[docs/explanation/pycaps-subtitles.md](explanation/pycaps-subtitles.md) for the full reference.
 
 ## Code Quality Standards
 
@@ -380,7 +380,7 @@ make test-lowpri ARGS="tests/publisher -q" MEM_LIMIT=4G NICE_LEVEL=19
 
 ## Usage Examples
 
-**📖 Complete usage guides**: [README.md](../README.md) • [Batch Processing](batch-processing.md)
+**📖 Complete usage guides**: [README.md](../README.md) • [Batch Processing](guides/batch-processing.md)
 
 ```bash
 # Single product
@@ -392,9 +392,9 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 
 ## Video Assembly
 
-**📖 Complete video configuration**: [Configuration](configuration.md#video-assembly-modes)
+**📖 Complete video configuration**: [Configuration](reference/configuration.md#video-assembly-modes)
 
-ContentEngineAI supports 4 video assembly modes: `sequential`, `single_best`, `mixed_media`, `video_first_fallback`. See [Configuration](configuration.md) for profile details and CLI overrides.
+ContentEngineAI supports 4 video assembly modes: `sequential`, `single_best`, `mixed_media`, `video_first_fallback`. See [Configuration](reference/configuration.md) for profile details and CLI overrides.
 
 ## Debugging and Development Tools
 
@@ -486,7 +486,7 @@ the next setup.
 
 ## Configuration Development
 
-**📖 Complete configuration guide**: [Configuration](configuration.md)
+**📖 Complete configuration guide**: [Configuration](reference/configuration.md)
 
 Configuration is managed through modular YAML files in `config/` with Pydantic validation in `src/video/config/` (core_models.py, visual_models.py, audio_models.py, subtitle_models.py).
 

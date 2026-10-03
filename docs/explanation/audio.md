@@ -1,6 +1,6 @@
 # Audio: why the mix sounds the way it does
 
-This page explains the sound of a render: original voiceover rather than trending sound, the voiceover and music levels, ducking and the final loudness pass. The mix settings live in `audio_settings` in `config/video_production.yaml` (levels, fades, ducking, loudness, the music provider chain); caption template sounds in `config/subtitles.yaml`; voice profiles, TTS and audio trimming in `config/ai_services.yaml`. The requirements are in [the content requirements](../requirements/content.md) and [the video requirements](../requirements/video.md). Voice selection is in [TTS voice profiles](../tts-voice-profiles.md), and the defects behind the music chain are in [the audio module notes](../notes/audio.md). The `[A]`, `[B]` and `[C]` marks are defined in [the evidence grades](../design/README.md#evidence-grades).
+This page explains the sound of a render: original voiceover rather than trending sound, the voiceover and music levels, ducking and the final loudness pass. The mix settings live in `audio_settings` in `config/video_production.yaml` (levels, fades, ducking, loudness, the music provider chain); caption template sounds in `config/subtitles.yaml`; voice profiles, TTS and audio trimming in `config/ai_services.yaml`. The requirements are in [the content requirements](../requirements/content.md) and [the video requirements](../requirements/video.md). Voice selection is in [TTS voice profiles](tts-voice-profiles.md), and the defects behind the music chain are in [the audio module notes](../notes/audio.md). The `[A]`, `[B]` and `[C]` marks are defined in [the evidence grades](../design/README.md#evidence-grades).
 
 ## What goes into the mix
 
@@ -93,7 +93,7 @@ What a render measures: real renders land about 1 LU short of the target. The sa
 
 ## Voice and music choice
 
-The default voice profile delivers calm, confident speech rather than high energy (`REQ-CNT-059`), a product gets the same voice on every run (`REQ-CNT-064`), and the voiceover enters the mix with only a volume adjustment. [TTS voice profiles](../tts-voice-profiles.md) covers the profiles and selection order. The default Jamendo queries ask for calm moods (`ambient chill`, `soft background`, `calm lofi`).
+The default voice profile delivers calm, confident speech rather than high energy (`REQ-CNT-059`), a product gets the same voice on every run (`REQ-CNT-064`), and the voiceover enters the mix with only a volume adjustment. [TTS voice profiles](tts-voice-profiles.md) covers the profiles and selection order. The default Jamendo queries ask for calm moods (`ambient chill`, `soft background`, `calm lofi`).
 
 Why:
 
