@@ -3,7 +3,7 @@
 `enable_ai_tagging` is on in the bundled config, and the pool's AI template,
 `explosive`, ships the instruction "the most important phrase or word in all
 the script". Gemini answers that with `also`, `can`, `all` and `from` -- the
-auxiliary and preposition bucket that `docs/subtitle-best-practices.md`,
+auxiliary and preposition bucket that `docs/explanation/captions.md`,
 "AI-driven highlighting", says to skip. Every published video using that
 template has been emphasising filler (#101).
 

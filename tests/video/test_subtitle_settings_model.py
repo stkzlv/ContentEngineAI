@@ -18,7 +18,7 @@ from src.video.config.subtitle_models import (
 
 @pytest.mark.unit
 class TestSubtitleSettingsDefaults:
-    """Defaults match the best-practice recipe from docs/subtitle-best-practices.md."""
+    """Defaults match the caption defaults in docs/explanation/captions.md."""
 
     def test_duration_defaults_match_recipe(self):
         s = SubtitleSettings()

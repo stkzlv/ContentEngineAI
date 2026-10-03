@@ -102,10 +102,10 @@ See [Installation](docs/installation.md) for complete setup instructions.
 | [Testing](docs/testing.md) | Test framework and coverage |
 | [Linting](docs/linting.md) | Code quality tools (Ruff, MyPy, Bandit) |
 | [Requirements](docs/requirements/README.md) | What the system must do, by area, with ids and statuses |
-| [Subtitle Best Practices](docs/subtitle-best-practices.md) | Caption design research for TikTok/Shorts/Reels |
-| [Promotional Video Best Practices](docs/promotional-video-best-practices.md) | Hook, cut cadence, CTA, FTC disclosure, trust signals (engine-agnostic) |
-| [Tutorial Video Best Practices](docs/tutorial-video-best-practices.md) | How-to format: answer-first structure, length, stock visuals, search discovery, durability metrics |
-| [Audio Best Practices](docs/audio-best-practices.md) | Trending vs original audio, voiceover/music levels, ducking |
+| [Captions](docs/explanation/captions.md) | Why captions look the way they do: font, casing, contrast, highlighting, placement, timing |
+| [Promotional videos](docs/explanation/promotional-videos.md) | Why product videos are built this way: hook, cut cadence, closing line, CTA, disclosure, trust signals |
+| [Tutorials](docs/explanation/tutorials.md) | Why topic videos are built this way: answer-first structure, length, stock visuals, search discovery, durability metrics |
+| [Audio](docs/explanation/audio.md) | Why the mix sounds the way it does: original audio, voiceover and music levels, ducking, loudness |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 

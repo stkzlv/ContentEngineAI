@@ -110,7 +110,7 @@ comments in that file for the active values shipped to users.
 | `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty, which is what `--pycaps-template NAME` produces (the flag clears the pool). A one-entry pool returns that entry instead. |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
 | `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
-| `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [subtitle-best-practices.md](subtitle-best-practices.md) rule 6 rejects. Bundled YAML ships `true`. |
+| `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [captions, "Casing"](explanation/captions.md#casing) rejects. Bundled YAML ships `true`. |
 | `max_width_ratio` | float | 0.80 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
 | `vertical_align` | `top` \| `center` \| `bottom` | `bottom` | Base anchor. With `bottom`, pycaps puts the block's bottom edge at 95% of the frame plus the offset. |
@@ -188,7 +188,7 @@ platform header zone (a top-aligned image starts at its
 (`src/video/assembler/visual_band.py`). It reads the same pycaps fields for
 that, so changing the offset or the block height moves the image with the
 captions. With no explicit offset the template places the block itself, and
-the assembler assumes the band [subtitle-best-practices.md](subtitle-best-practices.md)
+the assembler assumes the band [captions](explanation/captions.md#layout-and-positioning)
 prescribes, centred around 52% of the frame. The same helper serves the
 FFmpeg engine, whose caption is clamped to the safe-zone floor.
 
@@ -308,7 +308,7 @@ The built-in templates ship a broad instruction: `explosive` asks for "the
 most important phrase or word in all the script", `neo-minimal` for "most
 relevant and impactful phrases". Gemini answers those with filler --
 `also`, `can`, `all`, `from` -- which
-[subtitle best practices](subtitle-best-practices.md), "AI-driven
+[captions](explanation/captions.md#ai-driven-highlighting), "AI-driven
 highlighting", says not to emphasise.
 
 `ai_tag_prompt_override` replaces that instruction for every AI rule the
@@ -327,7 +327,7 @@ those span figures are a floor on the dings rather than the count.
 The bundled config now sets `mute_template_sound_effects: true`, so no ding
 plays and the two decisions are separate. **Do not lower the recipe's coverage
 to quiet a render** — that trades away the visual highlighting
-`docs/subtitle-best-practices.md` prescribes in order to fix audio that is
+`docs/explanation/captions.md` prescribes in order to fix audio that is
 already off. Set `mute_template_sound_effects: false` to hear a template's
 effects.
 

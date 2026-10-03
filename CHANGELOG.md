@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Design docs live in `docs/design/`, one numbered file per feature with a status, goals, non-goals, design, alternatives and rollout.
 - The roadmap lists outcomes with a "done when" and links to issues and design docs; shipped items leave it, since the CHANGELOG records them.
 - Each design doc carries the graded evidence and sources behind it, and the best-practice guides carry the craft findings, so the standalone creator and AI-slop research pages are gone; the documentation-practices research is part of decision 0001.
+- The caption, promotional-video, audio and tutorial guides become explanation pages in `docs/explanation/` that state what the pipeline does and why, with graded evidence and sources; general advice the pipeline doesn't use is cut.
 
 ## [0.127.1] - 2026-09-24
 

@@ -2,8 +2,8 @@
 
 Vanilla Whisper rounds word timestamps to whole seconds by default, producing
 flicker and uneven segment durations in karaoke-style captions. This module
-applies four best-practice smoothing rules (see docs/subtitle-best-practices.md
-section 5) to the flat word timing list *before* it reaches either the FFmpeg
+applies four best-practice smoothing rules (see docs/explanation/captions.md,
+"Timing and reading") to the flat word timing list *before* it reaches either the FFmpeg
 or pycaps subtitle engine.
 
 The rules are:

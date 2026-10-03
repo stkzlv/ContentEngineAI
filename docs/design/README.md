@@ -50,7 +50,7 @@ Two cautions apply throughout:
 - **Ad research is not organic research.** TikTok's creative studies measure paid ads (recall, awareness), not how organic posts are distributed.
 - **Several key sources predate 2025.** Each is flagged with its year where it is cited.
 
-The evidence was gathered in September 2026. The tutorial designs draw on [tutorial-video-best-practices.md](../tutorial-video-best-practices.md).
+The evidence was gathered in September 2026. The tutorial designs draw on [the tutorials explanation](../explanation/tutorials.md).
 
 ## Index
 

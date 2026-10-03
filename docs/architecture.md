@@ -366,7 +366,7 @@ source and leaves none of the frame empty.
 The backdrop is then darkened by `video_background_blur_darken`, and the image
 path by `image_background_blur_darken` (both default 0.6, 1.0 to disable).
 Captions sit on that surround. The base style is white fill with a black
-stroke, and the 21:1 `docs/subtitle-best-practices.md` quotes is the fill
+stroke, and the 21:1 `docs/explanation/captions.md` quotes is the fill
 against that stroke, so captions stay legible over anything; what a bright
 shot costs is the margin, with white fill at 2.5:1 against a measured 165/255
 backdrop. The multiplier applies
