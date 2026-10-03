@@ -164,3 +164,24 @@ def test_a_new_model_field_without_the_reference_is_refused() -> None:
 def test_an_unknown_requirement_id_is_refused() -> None:
     assert cited_findings("Implements REQ-PUB-999", {"REQ-PUB-001"})
     assert cited_findings("Implements REQ-PUB-001", {"REQ-PUB-001"}) == []
+
+
+def test_the_base_side_of_a_flag_is_read_at_the_fork_point(monkeypatch) -> None:
+    """Main moving on after the fork must not change what the branch changed."""
+    cli = "src/publisher/late/cli.py"
+    replies = {
+        "diff": f"{cli}\n",
+        "log": "",
+        "merge-base": "forksha\n",
+    }
+    monkeypatch.setattr(check_docs, "git", lambda *a: replies[a[0]])
+    monkeypatch.setattr(check_docs, "changed_lines", lambda base, path: [])
+    read = []
+
+    def fake_file_at(ref: str, path: str) -> str:
+        read.append(ref)
+        return CLI_BEFORE
+
+    monkeypatch.setattr(check_docs, "file_at", fake_file_at)
+    assert check_docs.pr_findings("origin/main", "") == []
+    assert read == ["forksha", "HEAD"]

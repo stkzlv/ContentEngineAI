@@ -284,8 +284,11 @@ def pr_findings(base: str, body: str) -> list[str]:
         or any(fnmatch.fnmatch(p, glob) for glob in CONFIG_MODELS)
     ]
     diff = {p: changed_lines(base, p) for p in watched}
+    # The fork point, as `base...HEAD` uses: a flag main added since must not
+    # count against this branch.
+    fork = git("merge-base", base, "HEAD").strip()
     flags = {
-        cli: flag_changes(file_at(base, cli), file_at("HEAD", cli))
+        cli: flag_changes(file_at(fork, cli), file_at("HEAD", cli))
         for cli in CLI_PAGES
         if cli in paths
     }
