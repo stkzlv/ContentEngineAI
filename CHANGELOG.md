@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.7] - 2026-10-03
+
+### Documentation
+
+- The requirements cover about 150 shipped behaviours they had missed, among them producer resume and single-step runs, caption metadata generation, output encoding, schedule validation, the publisher's account, delete and cleanup commands, batch profile and publishing choices, the analytics timer, release enforcement and the developer targets.
+- Requirements the code contradicts are reworded or marked partial with the gap and its tracking issue.
+- A new requirement takes the next free id in its file and sits in its own section, so ids no longer follow the file order.
+
 ## [0.127.6] - 2026-10-03
 
 ### Documentation

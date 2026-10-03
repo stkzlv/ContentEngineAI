@@ -44,12 +44,16 @@ def test_ids_are_unique_across_areas() -> None:
 
 
 @pytest.mark.parametrize("path", area_files(), ids=lambda p: p.name)
-def test_each_area_numbers_its_ids_in_order_under_one_prefix(path) -> None:
+def test_each_area_numbers_its_ids_without_gaps_under_one_prefix(path) -> None:
+    """Ids are permanent, so a requirement added later takes the next free
+    number in its file and sits in its own section: the numbers have no gaps,
+    but they need not follow the file order.
+    """
     ids = [r.req_id for r in parse(path)]
     prefixes = {i.rsplit("-", 1)[0] for i in ids}
     assert len(prefixes) == 1, prefixes
-    prefix = prefixes.pop()
-    assert ids == [f"{prefix}-{n:03d}" for n in range(1, len(ids) + 1)]
+    numbers = sorted(int(i.rsplit("-", 1)[1]) for i in ids)
+    assert numbers == list(range(1, len(ids) + 1))
 
 
 @pytest.mark.parametrize("path", area_files(), ids=lambda p: p.name)

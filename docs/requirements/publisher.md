@@ -12,6 +12,10 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-006** `shipped` The delivery sweep inspects the `delivery_sweep.limit` most recent posts (default 25).
 - **REQ-PUB-007** `shipped` The `verify-delivery` command runs the delivery check on demand over the `--limit` most recent posts (default 25).
 - **REQ-PUB-008** `planned #550` Product videos publish to YouTube with a short written title within the configured maximum, not the store listing title.
+- **REQ-PUB-112** `shipped` The `list-accounts` command lists each connected social account with its platform, account id and username.
+- **REQ-PUB-113** `shipped` If authentication with the provider fails, `list-accounts` exits non-zero.
+- **REQ-PUB-114** `shipped` The `delete POST_ID` command deletes that post from the provider.
+- **REQ-PUB-115** `shipped` If the provider refuses a `delete`, the command exits non-zero.
 
 ## Accounts and configuration
 
@@ -22,6 +26,10 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
   - Why: the defaults publish immediately, so falling back on a parse error turns a scheduled run into a live one.
 - **REQ-PUB-013** `shipped` If one recurring slot in the config is invalid, the publisher skips that slot with a warning and keeps the others.
 - **REQ-PUB-014** `shipped` If the `cleanup` section is invalid, the publisher keeps that section's `enabled` and `archive_before_delete` values.
+- **REQ-PUB-116** `shipped` The repeatable `--platform` option on `single` and `schedule` selects the target platforms for that run.
+- **REQ-PUB-117** `partial` When no `--platform` is given, every publish path targets the platforms in `default_platforms` (or `PUBLISHER_DEFAULT_PLATFORMS`), which default to YouTube, TikTok and Instagram.
+  - Gap: `single` and `schedule` ignore the setting and always target the three defaults (#577).
+- **REQ-PUB-118** `shipped` If a target platform has no connected account, the publisher skips that platform with a warning and publishes to the others.
 
 ## Per-platform profile routing
 
@@ -49,6 +57,12 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-032** `shipped` If `schedule --immediate` fails or skips a product, the publisher adds the product to a retry queue.
 - **REQ-PUB-033** `shipped` When `--retry-failed` is passed, `schedule --immediate` publishes only the products in the retry queue and removes each one that succeeds.
 - **REQ-PUB-034** `shipped` Between posts, `schedule --immediate` waits a random delay between `stagger_delay_min` and `stagger_delay_max` seconds (default 30 to 60).
+- **REQ-PUB-119** `shipped` Where `schedule_validation.allow_past_schedules` is off (the default), a slot in the past fails schedule validation.
+- **REQ-PUB-120** `shipped` Where `schedule_validation.prevent_duplicates` is on (default on), a slot fails schedule validation when the same product is already scheduled at that time on a shared platform.
+- **REQ-PUB-121** `shipped` A slot fails schedule validation when it lies within `schedule_validation.min_post_spacing_hours` (default 2, 0 disables the rule) of another post on the same platform.
+- **REQ-PUB-122** `shipped` A slot fails schedule validation when the local schedule already holds `schedule_validation.max_posts_per_day` posts (default 10, 0 sets no limit) on that calendar day.
+- **REQ-PUB-123** `shipped` If any product fails, the `schedule` command exits non-zero, with or without `--immediate`.
+- **REQ-PUB-124** `shipped` If the provider cannot be reached, `calendar` warns that the list is local state only and may be incomplete.
 
 ## First comment
 
@@ -85,6 +99,10 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-056** `shipped` Where `cleanup.archive_before_delete` is on, cleanup writes a ZIP archive of the product directory to `cleanup.archive_dir` before deleting it.
 - **REQ-PUB-057** `partial` Before a product directory is removed, the publisher writes the product's publish history and registry entry on every publish path.
   - Gap: `schedule --immediate` writes no publish history, so later duplicate checks cannot see its posts.
+- **REQ-PUB-125** `shipped` The `cleanup --product-id ID` command cleans up one product and exits non-zero when that product is not eligible for cleanup.
+- **REQ-PUB-126** `shipped` When `--dry-run` is passed, `cleanup` reports each product it would remove and the disk space each would free, and deletes nothing.
+- **REQ-PUB-127** `shipped` A `cleanup --dry-run` preview checks each platform's status once and does not wait for platforms still publishing.
+- **REQ-PUB-128** `shipped` While cleanup re-checks a platform that is still publishing, the first wait is `cleanup.settle_initial_delay_sec` (default 30) and each later wait doubles, with the total held within `cleanup.settle_timeout_sec`.
 
 ## Upload store retention
 
@@ -102,6 +120,11 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-066** `partial` Link-in-bio updates are on by default, and `--no-link-in-bio` skips them for one run.
   - Gap: the flag exists only on `single`, not on `schedule` or the batch.
 - **REQ-PUB-067** `shipped` When `single` is run without `--force` on a product already published to every target platform, the publisher refreshes the product's link-in-bio entry and exits without publishing.
+- **REQ-PUB-129** `shipped` When `single --link-in-bio` is passed, the publisher updates the link-in-bio page even where `link_in_bio.enabled` is off.
+- **REQ-PUB-130** `shipped` If a link the provider lists for the bio page already contains the product id, the publisher skips the update as a duplicate.
+- **REQ-PUB-131** `shipped` Each link-in-bio entry carries the product title, cut to `link_in_bio.max_title_length` characters (default 80) with an ellipsis, and the product's first image.
+- **REQ-PUB-132** `shipped` A link-in-bio entry points at the product's affiliate link, or at the product URL when there is none.
+- **REQ-PUB-133** `shipped` If the product record is missing or lacks a title or URL, the publisher skips the link-in-bio update with a warning.
 
 ## Affiliate program phrase
 
@@ -126,6 +149,18 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-081** `shipped` Each analytics sweep measures the `analytics.limit` most recent published posts (default 50).
   - Check: the limit exceeds the number of posts published within the provider's retention window of about five weeks.
 - **REQ-PUB-082** `shipped` The `make install-analytics-timer` target installs a daily analytics sweep that runs a missed sweep after downtime and can notify the operator on failure.
+- **REQ-PUB-134** `shipped` When `--limit N` is passed, the `analytics` command measures the N most recent published posts instead of `analytics.limit`.
+- **REQ-PUB-135** `shipped` If posts were listed and every timeline call failed, the `analytics` command writes nothing and exits non-zero.
+- **REQ-PUB-136** `shipped` When every measured post that had a stored view count returns none, the sweep appends a note to `outputs/logs/analytics-failures.log`.
+- **REQ-PUB-137** `shipped` The scheduled sweep's timing and failure reporting are set in `deploy/schedule.env` by `ON_CALENDAR` (default `daily`), `RANDOMIZED_DELAY_SEC` (default 900), `TIMEOUT_START_SEC` (default `30min`) and `NOTIFY_ON_FAILURE` (default 1).
+- **REQ-PUB-138** `shipped` A sweep setting exported in the environment overrides `deploy/schedule.env`, which overrides the built-in default.
+- **REQ-PUB-139** `shipped` If a scheduled sweep runs past `TIMEOUT_START_SEC`, it is marked failed and later sweeps still run.
+  - Why: without a start timeout a hung sweep blocks every later firing and never reports a failure.
+- **REQ-PUB-140** `shipped` Where `NOTIFY_ON_FAILURE` is on, a failed sweep is written to the journal, appended to `outputs/logs/analytics-failures.log` and shown as a desktop notification when a desktop session is available.
+- **REQ-PUB-141** `shipped` The scheduled sweep runs at reduced CPU and I/O priority.
+- **REQ-PUB-142** `shipped` The `make install-analytics-timer` target runs one sweep after installing and fails if `outputs/state/post_metrics.json` was not updated.
+- **REQ-PUB-143** `shipped` The `make uninstall-analytics-timer` target removes the timer and its units, and keeps the captured figures and `deploy/schedule.env`.
+- **REQ-PUB-144** `shipped` The `make analytics-timer-status` target shows the last and next sweep, the recorded failures and when the figures were last written.
 - **REQ-PUB-083** `planned #547` The choices that shape each render (template, hook archetype, voice, caption template, music, motion, transitions, effects) are recorded, and a report shows their distribution over recent renders, with an alert when one value dominates or two scripts are near-identical.
 - **REQ-PUB-084** `planned #551` The analytics sweep stores each first-seconds and quality metric a platform exposes (engaged views and viewed-vs-swiped on YouTube, watch time or completion on TikTok, sends or shares per reach on Instagram), records an unavailable metric as unknown, and segments them by format arm and render choice.
 
@@ -146,6 +181,8 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-096** `shipped` The `registry --rebuild` command rebuilds the registry from scraped data directories (`--scan-dir`), merging the rows it finds into the existing registry.
 - **REQ-PUB-097** `shipped` A rebuild keeps the rows of products whose directories were cleaned up after publishing.
 - **REQ-PUB-098** `shipped` Before each registry write, the publisher keeps the previous JSON and CSV files as `<name>.bak`.
+- **REQ-PUB-145** `shipped` If the registry file holds rows and none of them can be read, `registry --rebuild` refuses, leaves the file unchanged and exits non-zero.
+- **REQ-PUB-146** `shipped` The `registry` command exits non-zero when neither `--rebuild` nor `--summary` is passed.
 
 ## Captions and platform limits
 
@@ -163,3 +200,4 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-110** `shipped` If a YouTube post has no title, the publisher refuses to publish it.
   - Why: without one the platform titles the video from the caption's first line, which is the disclosure.
 - **REQ-PUB-111** `shipped` The title sent to each platform is the trimmed title.
+- **REQ-PUB-147** `shipped` The TikTok privacy level and whether comments, duets and stitches are allowed are set under `tiktok_settings`, defaulting to public with comments on and duets and stitches off.

@@ -10,6 +10,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-004** `shipped` The producer gives each configured model a bounded number of attempts before it moves to the next model.
 - **REQ-CNT-005** `shipped` If LLM calls fail repeatedly, a circuit breaker stops further calls for a configured cool-down.
 - **REQ-CNT-006** `shipped` If a generated video description is longer than `description_validation.max_chars` (default 900), the producer rejects it as model reasoning and tries the next model.
+- **REQ-CNT-128** `shipped` `llm_settings.thinking_budget` sets the Gemini reasoning budget for every text call except the script fact check, and the bundled value 0 turns reasoning off.
+  - Why: the fact check is the one reasoning-shaped call, so aligning it with the global budget weakens it.
+- **REQ-CNT-129** `shipped` Where `random_model_selection` is on, the producer tries the discovered free OpenRouter models in random order; off (the bundled value), it tries the configured models first, in order, then the other discovered ones.
 
 ## Script templates
 
@@ -18,7 +21,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-009** `shipped` The producer selects a template per product deterministically, so a product gets the same template on every run.
 - **REQ-CNT-010** `shipped` Where `script_templates.template_pool` lists templates, the producer selects only from them; an empty pool means every template.
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
-- **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
+- **REQ-CNT-012** `partial` The producer records the chosen template in `pipeline_state.json`.
+  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
 - **REQ-CNT-013** `partial` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
   - Gap: `--script-template` is applied before the topic-or-product check, so a forced product template runs on a topic, and the reverse.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
@@ -56,7 +60,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-035** `shipped` If a script's last sentence is not a configured call to action, validation rejects the script and the producer retries.
 - **REQ-CNT-036** `shipped` If every attempt misses the call to action, the producer ships the first otherwise complete script with the chosen line appended, or substituted for a last sentence that reads as a paraphrased call to action, and logs a warning.
 - **REQ-CNT-037** `shipped` When `--cta <line>` (or `script_templates.fixed_cta`) names a configured option, every record closes on that line; a line that is not configured is ignored.
-- **REQ-CNT-038** `shipped` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
+- **REQ-CNT-038** `partial` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
+  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
 - **REQ-CNT-039** `shipped` The per-platform caption generator places the script's closing line in the caption body, before the hashtag block.
 - **REQ-CNT-040** `shipped` When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
 - **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote or reply with a specific word; closing questions ask for a choice or an experience.
@@ -100,6 +105,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-062** `held` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
   - On when: `default_voice_profile` or `voice_profile_pool` selects a profile with a `pause_plan` (such as `charon_varied`) after the reach-test readout, in stages (#540).
 - **REQ-CNT-063** `shipped` The config rejects a pause plan that uses a tag not measured as silent, so no tag text reaches the captions.
+- **REQ-CNT-130** `shipped` A probe tool measures which inline TTS tags a voice honours silently: one TTS call and one WAV file per tag, and a printed table of the gap each tag adds and any tag text the transcript carries.
 - **REQ-CNT-064** `shipped` The producer selects a voice profile per product deterministically, so a product gets the same voice on every run.
 - **REQ-CNT-065** `shipped` The producer resolves the voice profile in this order: `--voice-profile`, a draw from `voice_profile_pool`, the pinned `default_voice_profile`, a draw from all profiles.
 - **REQ-CNT-066** `shipped` Where `default_voice_profile` is set and `voice_profile_pool` is empty, every render uses the pinned profile.
@@ -109,6 +115,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-070** `shipped` The producer tries the voice profile's own provider first, then each provider in `provider_order`.
 - **REQ-CNT-071** `shipped` When a Gemini voice fails, the producer strips the inline markup tags before it sends the text to a fallback provider, so no tag is spoken.
 - **REQ-CNT-072** `shipped` Google Cloud voice choice falls back through ranked voice families (by default Chirp3, then Chirp, then Neural2, then any en-US voice).
+- **REQ-CNT-131** `shipped` Where the Coqui TTS package is installed and `coqui` is listed in `tts_config.provider_order`, the producer can synthesise speech locally with Coqui TTS; the bundled order leaves it out.
 - **REQ-CNT-073** `planned #545` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
   - On when: a voice-by-chain comparison after the reach-test readout shows no loss.
 - **REQ-CNT-074** `planned #545` The producer records per render whether the voice chain was on, beside the voice name.
@@ -153,6 +160,19 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 
 - **REQ-CNT-100** `shipped` The producer masters the final mix to a loudness target (default -14 LUFS, true peak -1 dBFS).
 - **REQ-CNT-101** `shipped` Where `music_ducking_enabled` is true, the music level drops while narration plays and recovers in the gaps; it is off by default.
+- **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
+- **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video.
+- **REQ-CNT-134** `shipped` The video runs `outro_duration_sec` (bundled 1 s) past the end of the voiceover, so the music fade ends after the last spoken word.
+
+## Captions and metadata
+
+- **REQ-CNT-135** `shipped` The producer generates each render's social title, description and hashtags in one of two modes set by `description_settings.metadata_mode` or `--metadata-mode`: `unified` (the bundled value), one set for every platform, or `optimized`, one set per platform.
+- **REQ-CNT-136** `shipped` In unified mode, the producer writes `metadata.json` with the listing title, an AI description with any hashtags removed, and hashtags derived from the title.
+- **REQ-CNT-137** `shipped` In optimized mode, the producer writes `metadata_<platform>.json` for each platform configured in `description_settings.platform_metadata`, with an AI title, caption and hashtags within that platform's length and hashtag limits.
+- **REQ-CNT-138** `shipped` If optimized mode produces metadata for no platform, the producer falls back to unified mode.
+- **REQ-CNT-139** `shipped` In optimized mode, the producer also writes `UPLOAD_INSTRUCTIONS.txt` with each platform's metadata for manual upload; a failure to write it doesn't fail the step.
+- **REQ-CNT-140** `shipped` When metadata from a previous run exists for the product, the producer reuses it instead of generating it again.
+- **REQ-CNT-141** `shipped` Where `description_settings.enabled` is false, the producer skips metadata generation.
 
 ## Content pillars
 
@@ -176,7 +196,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-117** `shipped` If the pillar's audience entry is missing or empty, `{AUDIENCE}` falls back to `target_audience`.
 - **REQ-CNT-118** `shipped` If `--pillar` names a pillar configured in none of the pillar maps, the run logs an info-level hint listing the configured pillars and continues with no template filter, preamble or audience override.
 - **REQ-CNT-119** `shipped` Whenever the producer generates a script, it writes the full prompt to `outputs/<id>/temp/script_prompt.txt`.
-- **REQ-CNT-120** `shipped` The producer records the render's pillar in `pipeline_state.json`, and a resumed run keeps it.
+- **REQ-CNT-120** `partial` The producer records the render's pillar in `pipeline_state.json`, and a resumed run keeps it.
+  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded or kept.
 - **REQ-CNT-121** `shipped` Subtitle styling and the TTS voice are the same for every pillar.
 - **REQ-CNT-122** `shipped` The bundled pillar preambles frame a `value` video around the deal, a `novelty` video around discovery and a `utility` video around the problem and its solution.
 - **REQ-CNT-123** `shipped` The bundled audience hints target budget-conscious shoppers for `value`, curious early discoverers for `novelty` and practical problem-solvers for `utility`.
