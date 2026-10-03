@@ -514,14 +514,15 @@ class BatchPublisher:
         targets, missing = accounts_for_platforms(wanted, accounts)
         for platform in missing:
             logger.warning("No connected account for %s, skipping", platform.value)
-        # Only the legs that will post, since only their metadata is read.
-        targets = [
-            t
-            for t in targets
-            if load_platform_metadata(product_id, t["platform"], self.outputs_dir)
-        ]
         if not targets:
-            return {"status": "skipped", "error": "No account or metadata"}
+            return {"status": "skipped", "error": "No connected account"}
+        # Any connected leg's metadata is enough: `publish_product` falls back
+        # to it for a leg with no file of its own, as `single` does.
+        if not any(
+            load_platform_metadata(product_id, t["platform"], self.outputs_dir)
+            for t in targets
+        ):
+            return {"status": "skipped", "error": "Missing metadata"}
 
         try:
             logger.info("[%d/%d] Uploading video...", current_idx, total_count)

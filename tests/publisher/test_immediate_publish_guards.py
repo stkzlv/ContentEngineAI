@@ -320,3 +320,28 @@ async def test_a_retry_dry_run_lists_the_queue(outputs: Path, caplog) -> None:
         r.getMessage() for r in caplog.records if "Would publish" in r.getMessage()
     ]
     assert listed == ["[DRY RUN] Would publish B0QUEUED01 now"]
+
+
+@pytest.mark.asyncio
+async def test_a_leg_without_its_own_metadata_posts_from_another(
+    provider: AsyncMock, outputs: Path
+) -> None:
+    """Only YouTube has a file; TikTok falls back to it, as `single` does."""
+    provider.get_accounts.return_value = [
+        {"platform": "youtube", "account_id": "yt_1"},
+        {"platform": "tiktok", "account_id": "tt_1"},
+    ]
+
+    await BatchPublisher(
+        publisher=provider,
+        outputs_dir=outputs,
+        platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+        stagger_delay_min=0,
+        stagger_delay_max=0,
+    ).publish_batch()
+
+    legs = [
+        c.kwargs["platforms"][0]["platform"] for c in provider.publish.call_args_list
+    ]
+    assert legs == ["youtube", "tiktok"]
+    assert is_already_published(PRODUCT, "tiktok", outputs)
