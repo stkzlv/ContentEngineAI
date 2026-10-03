@@ -230,12 +230,13 @@ flowchart TB
     subgraph gh["GitHub Actions"]
         ci["ci.yml: version-check, lint, test"] --> rel["release job: tag and GitHub release"]
         sec["security.yml: weekly and per PR"]
+        dc["docs-check.yml: per PR and description edit"]
     end
 ```
 
 - **Low-priority targets.** `make batch-lowpri`, `scrape-lowpri`, `produce-lowpri`, `publish-lowpri` and `test-lowpri` start the run in a `systemd-run --user --scope` with `MemoryMax=$(MEM_LIMIT)` (default 6G), `MemorySwapMax=0`, `nice` and `ionice`. A blow-up is then killed inside the scope instead of the host's out-of-memory handling killing desktop applications. The recipes exec the project interpreter directly instead of `poetry run`, because the scope doesn't carry the caller's virtualenv. Without `systemd-run` they fall back to `nice` and `ionice` alone.
 - **Analytics timer.** `deploy/install-timer.sh` (through `make install-analytics-timer`) renders the unit templates in `deploy/`, installs them as user units and runs one sweep. The timer runs the analytics sweep daily by default (`ON_CALENDAR` in `deploy/schedule.env`), and an `OnFailure=` unit records failures. [The publishing guide](guides/publishing.md) covers setup.
-- **CI and releases.** Every pull request is a release: `version-check` runs `tools/release_check.py` against the base branch. On a push to `main`, the `release` job in `ci.yml` tags the version from `pyproject.toml` and creates the GitHub release from the CHANGELOG section. `release.yml` covers a tag pushed by hand. [Versioning](versioning.md) has the rules.
+- **CI and releases.** Every pull request is a release: `version-check` runs `tools/release_check.py` against the base branch. On a push to `main`, the `release` job in `ci.yml` tags the version from `pyproject.toml` and creates the GitHub release from the CHANGELOG section. `release.yml` covers a tag pushed by hand. [Versioning](versioning.md) has the rules. `docs-check.yml` runs `tools/check_docs.py` on each pull request, and the `test` job runs only `make test-docs` when that tool reports a docs-only diff.
 
 ## 8. Cross-cutting concepts
 
