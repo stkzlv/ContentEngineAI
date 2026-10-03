@@ -60,10 +60,10 @@ We will:
 
 1. **Development**: Feature branches with development work
 2. **Testing**: Automated CI/CD pipeline validates all changes
-3. **Release Preparation**: Version bumped and CHANGELOG updated in feature branch
+3. **Release Preparation**: Version bumped and CHANGELOG updated in feature branch. Every pull request is a release, documentation-only ones included: bump the version and move the entries under a dated `## [X.Y.Z] - YYYY-MM-DD` heading in the PR itself. `make release-check` checks this locally; the required `version-check` CI job refuses a PR without it
 4. **Pull Request**: Feature branch merged to `main` via Pull Request (includes version changes)
-5. **Tagging**: Git tag created from `main` after merge (`v0.1.0`, `v0.2.0`, etc.)
-6. **GitHub Release**: Automated release notes generation
+5. **Tagging**: Automatic. When CI passes on `main` and the version has no tag yet, the `release` job tags `vX.Y.Z` (`Release vX.Y.Z`)
+6. **GitHub Release**: Created by the same job, with the version's CHANGELOG section as the notes. A tag pushed by hand still runs `release.yml`, which does the same
 7. **Communication**: Community notification of new releases
 
 ### Dependency Updates
@@ -100,7 +100,7 @@ Automated dependency updates (Dependabot) follow the **batch into patch releases
    git push --force-with-lease
    gh pr merge <PR-number> --squash
    ```
-4. Tag release from `main`:
+4. CI tags and releases from `main` once the merge is green. Tag by hand only if that job failed:
    ```bash
    git checkout main && git pull
    git tag -a vX.Y.Z -m "Release vX.Y.Z"

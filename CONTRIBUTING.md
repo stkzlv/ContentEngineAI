@@ -123,6 +123,7 @@ make test          # Run all tests with coverage
    - Passes all CI checks
    - Includes tests for new functionality
    - Updates documentation if needed
+   - Is its own release: it bumps the version in `pyproject.toml` and moves its CHANGELOG entries under a dated heading for that version, per [docs/versioning.md](docs/versioning.md). `make release-check` checks this; CI tags and publishes the release after the merge
 
 ### Pull Request Guidelines
 

@@ -15,7 +15,7 @@ NC := \033[0m # No Color
 
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
-	docs release-prep update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
+	docs release-prep release-check update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
@@ -58,6 +58,7 @@ help:
 	@echo "  full-check    - Run all checks (lint + security + test-cov)"
 	@echo "  update-deps   - Update dependencies"
 	@echo "  release-prep  - Prepare for release"
+	@echo "  release-check - Check this branch bumps the version and dates its CHANGELOG heading"
 	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
 	@echo "  clean         - Clean up cache and temporary files"
@@ -326,6 +327,11 @@ update-deps:
 release-prep: clean-all install-dev lint security test-cov
 	@echo "$(GREEN)Release preparation completed!$(NC)"
 	@echo "$(BLUE)Ready for release!$(NC)"
+
+# Every PR is a release (docs/versioning.md); CI runs the same check on PRs
+release-check:
+	git fetch --quiet origin main
+	python3 -m tools.release_check --base origin/main
 
 # Docker support (if needed)
 docker-build:

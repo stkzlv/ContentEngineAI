@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.2] - 2026-10-03
+
+### Technical
+
+- Every pull request is a release: a required CI check refuses a PR that doesn't bump the version or leaves entries under Unreleased, and `make release-check` runs the same check locally.
+- CI tags the version and publishes the GitHub release once `main` is green, so a merged release can't be left untagged.
+
 ### Documentation
 
 - Added research on how projects organize roadmaps, requirements, design documents and decision records, with a comparison against this repository's docs.
