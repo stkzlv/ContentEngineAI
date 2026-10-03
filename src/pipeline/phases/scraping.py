@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from src.pipeline.config import GlobalBatchConfig, ScrapingPhaseSummary
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
+from src.utils.outputs_paths import media_on_disk
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ async def run_scraping_phase(
     """
     from src.scraper.amazon.scraper import BotasaurusAmazonScraper
 
-    phase_start = time.time()
+    phase_start = time.monotonic()
 
     # Combine product IDs and keywords into single input list
     all_inputs = []
@@ -199,10 +200,13 @@ async def run_scraping_phase(
                 for product in products:
                     if hasattr(product, "asin") and product.asin:
                         successful_products.append(product.asin)
-                    # Files downloaded and validated, not URLs found on the
-                    # page: the summary said 15 images where 10 were on disk.
-                    total_images += len(getattr(product, "downloaded_images", []))
-                    total_videos += len(getattr(product, "downloaded_videos", []))
+                    # Files on disk, as the scraper counts them: not the URLs
+                    # on the page, and not only what this download added.
+                    asin = getattr(product, "asin", None)
+                    if asin:
+                        images, videos = media_on_disk(asin, scraper.output_dir)
+                        total_images += images
+                        total_videos += videos
                 logger.info(
                     "[%s/%s] Found %s product(s) for %s",
                     idx,
@@ -238,7 +242,7 @@ async def run_scraping_phase(
                 raise
 
     # Generate summary
-    duration = time.time() - phase_start
+    duration = time.monotonic() - phase_start
     media_stats = {"total_images": total_images, "total_videos": total_videos}
 
     logger.info(

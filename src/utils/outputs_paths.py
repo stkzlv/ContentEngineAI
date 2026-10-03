@@ -146,6 +146,27 @@ def get_product_directory(product_id: str, custom_dir: str | None = None) -> Pat
     return product_dir
 
 
+def media_on_disk(product_id: str, custom_dir: object = None) -> tuple[int, int]:
+    """The image and video files a product has on disk, without creating dirs.
+
+    The one count both summaries use: the URLs found on a page overstate it,
+    and the files one download step reports understate it when earlier files
+    were already there.
+    """
+    # Anything but a path name is the default root: the callers pass a
+    # scraper's `output_dir`, which is None unless a run set one.
+    root = custom_dir if isinstance(custom_dir, str) else None
+    product_dir = get_outputs_root(root) / product_id
+
+    def files(name: str) -> int:
+        folder = product_dir / name
+        if not folder.is_dir():
+            return 0
+        return sum(1 for entry in folder.iterdir() if entry.is_file())
+
+    return files("images"), files("videos")
+
+
 def get_global_directory(dir_name: str, custom_outputs_dir: str | None = None) -> Path:
     """Get a global directory (cache, logs, reports, temp).
 

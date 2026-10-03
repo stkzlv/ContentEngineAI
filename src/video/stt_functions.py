@@ -155,7 +155,7 @@ async def generate_subtitles_with_whisper(
                     "pipeline_timeout_sec in config/core.yaml."
                 )
                 break
-            start_time = time.time()
+            start_time = time.monotonic()
             try:
                 result_w = await asyncio.wait_for(
                     _transcribe_with_monitoring(
@@ -167,11 +167,11 @@ async def generate_subtitles_with_whisper(
                     ),
                     timeout=limit,
                 )
-                elapsed = time.time() - start_time
+                elapsed = time.monotonic() - start_time
                 logger.info("Whisper transcription completed in %.1fs", elapsed)
                 break
             except TimeoutError:
-                elapsed = time.time() - start_time
+                elapsed = time.monotonic() - start_time
                 remedy = (
                     "the render's remaining budget capped it; raise "
                     "pipeline_timeout_sec in config/core.yaml"
@@ -192,7 +192,7 @@ async def generate_subtitles_with_whisper(
                 if whisper_settings.enable_resource_cleanup:
                     _cleanup_whisper_resources()
             except Exception as e:
-                elapsed = time.time() - start_time
+                elapsed = time.monotonic() - start_time
                 logger.error("Whisper transcription failed after %.1fs: %s", elapsed, e)
                 if whisper_settings.enable_resource_monitoring:
                     _log_system_resources("after Whisper error")

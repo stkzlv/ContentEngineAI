@@ -63,7 +63,7 @@ async def run_production_phase(
         failed_step_from_result,
     )
 
-    phase_start = time.time()
+    phase_start = time.monotonic()
 
     # Load video configuration
     config = load_video_config_modular()
@@ -241,7 +241,7 @@ async def run_production_phase(
                         raise
 
         # Generate summary
-        duration = time.time() - phase_start
+        duration = time.monotonic() - phase_start
         profile_distribution = profile_tracker.get_counts() if profile_tracker else None
 
         logger.info(

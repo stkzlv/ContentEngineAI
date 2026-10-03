@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from .scraper import BotasaurusAmazonScraper
 
 from src.utils.logging_setup import log_context
+from src.utils.outputs_paths import media_on_disk
 
 from ..base.throttle import summary_lines_for
 from .config import get_batch_logging_config
@@ -59,7 +60,7 @@ class BatchController:
             BatchSummary with detailed statistics and results
 
         """
-        start_time = time.time()
+        start_time = time.monotonic()
 
         self.logger.info(
             "Starting batch scraping: %d product ids, %d keywords, fail-fast=%s",
@@ -79,7 +80,7 @@ class BatchController:
         deduplicated_results = self._deduplicate_products(all_results)
 
         # Generate summary
-        duration_sec = time.time() - start_time
+        duration_sec = time.monotonic() - start_time
         summary = self._generate_summary(
             deduplicated_results,
             len(self.config.product_ids),
@@ -415,9 +416,13 @@ class BatchController:
         total_images = 0
         total_videos = 0
         for result in results:
-            if result.success and result.data:
-                total_images += len(result.data.images or [])
-                total_videos += len(result.data.videos or [])
+            if result.success and result.data and result.data.asin:
+                # Files on disk, not the page's URLs (REQ-SCR-024).
+                images, videos = media_on_disk(
+                    result.data.asin, self.scraper.output_dir
+                )
+                total_images += images
+                total_videos += videos
 
         # Use configured decimal places for rounding
         decimal_places = int(self.log_config["media_stats_decimal_places"])

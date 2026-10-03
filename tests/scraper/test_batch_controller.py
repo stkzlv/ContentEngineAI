@@ -758,7 +758,13 @@ class TestSummaryGeneration:
         ]
 
         controller = BatchController(mock_scraper, config)
-        summary = controller._generate_summary(results, 2, 0, 5.0)
+        # The summary counts files on disk, not the image URLs on the record.
+        on_disk = {"B0TEST123A": (2, 1), "B0TEST456X": (4, 0)}
+        with patch(
+            "src.scraper.amazon.batch_controller.media_on_disk",
+            side_effect=lambda asin, _root: on_disk[asin],
+        ):
+            summary = controller._generate_summary(results, 2, 0, 5.0)
 
         assert summary.media_stats["total_images"] == 6
         assert summary.media_stats["total_videos"] == 1

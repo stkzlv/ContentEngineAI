@@ -54,7 +54,7 @@ async def run_publishing_phase(
     from src.publisher.registry import create_publisher_from_config
     from src.publisher.schedule import ScheduleManager
 
-    phase_start = time.time()
+    phase_start = time.monotonic()
 
     # One typed load. Every section below used to be re-parsed from a raw
     # dict here, which is how `tiktok_settings` went missing from this path
@@ -126,7 +126,7 @@ async def run_publishing_phase(
                 }
                 for _, product_id in produced_videos
             ],
-            duration_sec=time.time() - phase_start,
+            duration_sec=time.monotonic() - phase_start,
         )
 
     # Determine scheduling strategy with 3-tier precedence:
@@ -432,7 +432,7 @@ async def run_publishing_phase(
         await run_delivery_sweep(publisher, published.delivery_sweep_config)
 
     # Generate summary
-    duration = time.time() - phase_start
+    duration = time.monotonic() - phase_start
     logger.info(
         "Publishing phase complete: %s successful, %s failed, %s skipped in %.1fs",
         successful,

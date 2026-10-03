@@ -458,7 +458,10 @@ class TestBatchScraperIntegration:
         )
 
         controller = BatchController(mock_scraper_with_products, config)
-        summary = controller.run_batch()
+        with patch(
+            "src.scraper.amazon.batch_controller.media_on_disk", return_value=(2, 1)
+        ):
+            summary = controller.run_batch()
 
         # Verify media stats
         assert summary.media_stats["total_images"] == 4  # 2 images per product
