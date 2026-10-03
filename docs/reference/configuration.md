@@ -521,8 +521,8 @@ Three text overlays are burned into the frame by the assembler, all nested under
 ```yaml
 video_settings:
   disclosure_overlay:
-    enabled: true                # Skip the overlay (not recommended for affiliate content)
-    text: "#ad"                  # Override for non-English renders, e.g. "#publi"
+    enabled: true                # Deprecated: ignored, see below
+    text: "#ad"                  # Overlay text and caption token; e.g. "#publi"
     position: "top-right"        # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45            # Font size as a fraction of the subtitle font (0.2-1.0)
     font_color: "white"
@@ -533,6 +533,8 @@ video_settings:
     margin_x_percent: 0.04       # Distance from the horizontal edge (0.0-0.5)
     margin_y_percent: 0.12       # Distance from the vertical edge (0.0-0.5)
 ```
+
+Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there.
 
 `size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
 

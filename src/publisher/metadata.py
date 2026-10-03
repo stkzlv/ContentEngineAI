@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
-from src.publisher.models import Platform, PublishMetadata
+from src.publisher.models import Platform, PublishMetadata, disclosure_from_record
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +157,7 @@ def _load_from_json(
             hashtags=hashtags,
             keywords=keywords,
             product_id=product_id,
+            disclosure=disclosure_from_record(data),
             carries_affiliate_content=bool(disclose),
         )
         if not disclose:
