@@ -140,7 +140,7 @@ global_batch:
   # Profile pool: List of profiles for random selection
   # Used when random_profile is true
   # If empty, all available profiles will be used
-  # Example: ["slideshow_images1", "video_sequential", "product_video_hybrid"]
+  # Example: ["slideshow_images1", "product_video_sequential", "product_video_mixed"]
   profile_pool: []
 
   # ---- Common Options ----
@@ -231,13 +231,13 @@ global_batch:
 # global_batch:
 #   keywords: ["wireless earbuds", "bluetooth speaker"]
 #   random_profile: true
-#   profile_pool: ["slideshow_images1", "video_sequential"]
+#   profile_pool: ["slideshow_images1", "product_video_sequential"]
 #   max_products: 5
 
 # Example 3: Batch processing with filters and fail-fast
 # global_batch:
 #   product_ids: ["B0ABC123", "B0DEF456", "B0GHI789"]
-#   profile: "product_video_hybrid"
+#   profile: "product_video_mixed"
 #   scraper_filters:
 #     min_price: 15.00
 #     max_price: 100.00

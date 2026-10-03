@@ -50,7 +50,7 @@ Examples:
 
   # Scrape keywords and create videos with random profile selection
   python -m src.pipeline --keywords "wireless earbuds" --random-profile \\
-      --profile-pool slideshow_images1 video_sequential
+      --profile-pool slideshow_images1 product_video_sequential
 
   # Batch with filters and fail-fast
   python -m src.pipeline --product-ids B0ABC123 B0DEF456 \\
@@ -180,7 +180,7 @@ Examples:
         metavar="PROFILE",
         help=(
             "List of profile names for random selection (used with --random-profile). "
-            "Example: --profile-pool slideshow_images1 video_sequential"
+            "Example: --profile-pool slideshow_images1 product_video_sequential"
         ),
     )
     add_shared_render_args(producer_group)

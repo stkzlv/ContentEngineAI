@@ -1294,8 +1294,8 @@ def cmd_registry(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-async def main():
-    """Main entry point for CLI."""
+def build_argument_parser() -> argparse.ArgumentParser:
+    """The publisher's command line, built apart from `main` so tests can parse."""
     parser = argparse.ArgumentParser(
         description="Late.dev Publisher - Publish videos to social media platforms",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1323,7 +1323,7 @@ Examples:
   python -m src.publisher.late schedule --immediate --retry-failed --debug
 
   # Use specific account (multi-account mode)
-  python -m src.publisher.late single B0ABC123 --account secondary
+  python -m src.publisher.late --account secondary single B0ABC123
         """,
     )
 
@@ -1434,7 +1434,7 @@ Examples:
     )
     calendar_parser.add_argument(
         "--status",
-        choices=["pending", "scheduled", "published", "failed", "partial"],
+        choices=["pending", "scheduled", "failed"],
         help="Filter by status",
     )
     calendar_parser.add_argument(
@@ -1687,6 +1687,12 @@ Examples:
         help="Enable debug logging",
     )
 
+    return parser
+
+
+async def main():
+    """Main entry point for CLI."""
+    parser = build_argument_parser()
     args = parser.parse_args()
 
     # Validate argument combinations

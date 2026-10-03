@@ -85,7 +85,7 @@ python -m src.publisher.late calendar [list] [options]
 | Option | Description |
 |---|---|
 | `--platform NAME` | Show only posts for this platform. |
-| `--status STATUS` | Show only posts with this status: `pending`, `scheduled`, `published`, `failed` or `partial`. |
+| `--status STATUS` | Show only posts with this status: `pending`, `scheduled` or `failed`, the statuses the local schedule records. Whether a post went live is on the provider; `verify-delivery` checks it. |
 | `--date-from DATE` | Show only posts at or after this date. ISO 8601, read as UTC when no offset is given. |
 | `--date-to DATE` | Show only posts at or before this date. Same format. |
 
@@ -393,7 +393,8 @@ For each platform, the publisher reads the first of these that it can load from 
 
 1. `metadata.json`, written by the producer in unified metadata mode (the default).
 2. `metadata_<platform>.json`, written by the producer with `--metadata-mode optimized`.
-3. `UPLOAD_INSTRUCTIONS.txt`, written alongside the per-platform files.
+
+The producer's `UPLOAD_INSTRUCTIONS.txt` is a guide for uploading by hand; the publisher does not read it.
 
 In unified publishing mode the post uses the first metadata found among its platforms; in platform-specific mode a platform with no metadata of its own uses another platform's. A product with no metadata at all fails with `No metadata found for <product_id>`.
 
@@ -418,10 +419,6 @@ The JSON fields the publisher reads:
   "carries_affiliate_content": true
 }
 ```
-
-### `UPLOAD_INSTRUCTIONS.txt`
-
-The fallback parser reads a section per platform, headed `YOUTUBE SHORTS`, `TIKTOK` or `INSTAGRAM REELS`. Within a section it reads a `Title:` field (YouTube only), a `Description:` field (YouTube) or `Caption:` field (TikTok and Instagram), with the value on the following lines, and takes hashtags from the description text. Keywords are not available from this file.
 
 ## State files
 

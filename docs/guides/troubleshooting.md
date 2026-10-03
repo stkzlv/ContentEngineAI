@@ -1268,11 +1268,7 @@ poetry run python -m src.publisher.late single B0ABC \
    ```bash
    make produce-lowpri ARGS="outputs/B0ABC/data.json slideshow_images1 --debug"
    ```
-3. Check the `UPLOAD_INSTRUCTIONS.txt` fallback:
-   ```bash
-   cat outputs/B0ABC/UPLOAD_INSTRUCTIONS.txt
-   ```
-4. Check the JSON is valid:
+3. Check the JSON is valid:
    ```bash
    python -m json.tool outputs/B0ABC/metadata_youtube.json
    ```

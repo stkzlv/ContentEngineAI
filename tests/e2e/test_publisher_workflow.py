@@ -134,23 +134,6 @@ def sample_product_with_video(test_outputs_dir):
         json.dumps(instagram_metadata, indent=2)
     )
 
-    # Also create UPLOAD_INSTRUCTIONS.txt as fallback
-    instructions = f"""Product ID: {product_id}
-
-YouTube:
-Title: E2E Test Product - Amazing Features
-Description: This is an end-to-end test video.
-
-TikTok:
-Title: E2E Test Product 🔥
-Description: Testing publisher workflow!
-
-Instagram:
-Title: E2E Test Product
-Description: Testing publisher workflow 🚀
-"""
-    (product_dir / "UPLOAD_INSTRUCTIONS.txt").write_text(instructions)
-
     return {
         "product_id": product_id,
         "product_dir": product_dir,
@@ -698,50 +681,6 @@ class TestEndToEndWorkflow:
 
         print("\n✅ Batch E2E Workflow Success!")
         print(f"   Products processed: {len(sample_batch_products)}")
-
-    def test_workflow_with_missing_metadata_fallback(self, test_outputs_dir):
-        """Test workflow with missing JSON metadata falls back to UPLOAD_INSTRUCTIONS.txt."""
-        product_id = "TEST_FALLBACK"
-        product_dir = test_outputs_dir / product_id
-        product_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy video
-        source_video = PROJECT_ROOT / "tests" / "fixtures" / "test_video_small.mp4"
-        video_path = product_dir / f"video_{product_id}_sequential.mp4"
-        shutil.copy(source_video, video_path)
-
-        # Create only UPLOAD_INSTRUCTIONS.txt (no JSON metadata)
-        instructions = """YouTube:
-Title: Fallback Test Product
-Description: Testing fallback to UPLOAD_INSTRUCTIONS.txt
-"""
-        (product_dir / "UPLOAD_INSTRUCTIONS.txt").write_text(instructions)
-
-        # Publish
-        result = subprocess.run(
-            [
-                "poetry",
-                "run",
-                "python",
-                "-m",
-                "src.publisher.late",
-                "single",
-                "--video",
-                str(video_path),
-                "--platform",
-                "youtube",
-                "--immediate",
-                "--debug",
-            ],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-
-        # Should succeed with fallback
-        assert result.returncode == 0, f"Fallback workflow failed: {result.stderr}"
-        assert "Published to youtube" in result.stderr
 
 
 class TestMetadataIntegration:
