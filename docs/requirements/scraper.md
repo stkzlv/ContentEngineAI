@@ -13,6 +13,8 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-007** `shipped` Keywords passed with `--keywords` are searched in the order given.
 - **REQ-SCR-008** `shipped` The scraper processes inputs one at a time, with a delay between inputs.
 - **REQ-SCR-009** `shipped` The scraper keeps one copy of a product found through more than one input.
+- **REQ-SCR-065** `shipped` When `--clean` is passed, the scraper removes every product directory, `cache/`, `temp/`, `screenshots/` and its loose `.json`, `.csv`, `.xlsx` and `.html` files from the outputs directory before running, and keeps report files and logs.
+- **REQ-SCR-066** `shipped` When no inputs are given on the command line, the scraper takes `batch.product_ids` and `batch.keywords` from `scraper.yaml`, then `scrapers.amazon.keywords`, and refuses to run if none is configured.
 
 ## Product data
 
@@ -35,6 +37,8 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-022** `shipped` Where the target profile uses no video, the scraper ignores downloaded videos when it checks the media minimums.
 - **REQ-SCR-023** `shipped` If a product fails the media minimums, the scraper removes its output directory and logs the reason.
 - **REQ-SCR-024** `shipped` The media counts in the scraper's summaries are validated files on disk per product, not URLs found on the page.
+- **REQ-SCR-067** `shipped` The scraper extracts at most `image_config.max_images_per_product` images (15 in the bundled config) and `video_config.max_videos_per_product` videos (default 10) per product.
+- **REQ-SCR-068** `shipped` Where `video_config.enable_m3u8_monitoring` is on (off by default), the scraper also captures product videos from the HLS streams the page loads when its video player starts.
 
 ## Search and filtering
 
@@ -47,12 +51,14 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-031** `shipped` When a filter flag is passed on the command line, it overrides that field of the default search parameters.
 - **REQ-SCR-032** `shipped` The scraper's search log line states the filters in force.
 - **REQ-SCR-033** `shipped` When a keyword search yields fewer validated products than its per-keyword target, the scraper searches further result pages, up to a configured page limit.
+- **REQ-SCR-069** `shipped` If the resolved search parameters are invalid, such as a price or rating out of range, the scraper logs each error and refuses to run.
 
 ## Product limits
 
 - **REQ-SCR-034** `shipped` `max_products` caps the total number of products collected across all keywords.
 - **REQ-SCR-035** `shipped` `products_per_keyword` caps the number of products collected for one keyword.
-- **REQ-SCR-036** `shipped` `max_products` and `products_per_keyword` have the same meaning, and the same flag names, in the scraper and the batch.
+- **REQ-SCR-036** `shipped` `max_products` and `products_per_keyword` have the same meaning in the scraper and the batch, and the same flags, `--max-products` and `--products-per-keyword`.
+  - Check: other flags are not shared by name, for example the scraper's output directory flag is `--output-dir` and the batch's is `--outputs-dir`.
 - **REQ-SCR-037** `shipped` While `max_products` isn't reached, the scraper moves on to the next keyword.
 - **REQ-SCR-038** `shipped` When `max_products` is reached, the scraper stops, even if keywords remain.
 
@@ -64,13 +70,23 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
   - Why: a narrow window gets the mobile layout, which has no extractable product cards.
 - **REQ-SCR-042** `shipped` If one input fails, the scraper continues with the next input.
 - **REQ-SCR-043** `shipped` When `--fail-fast` is passed, the scraper stops at the first failed input.
+- **REQ-SCR-070** `shipped` `batch.fail_fast` in `scraper.yaml` sets whether the scraper stops at the first failed input, and `--fail-fast` or `--no-fail-fast` overrides it for one run.
 - **REQ-SCR-044** `shipped` If the site's error page blocks every input in the run, the scraper treats it as throttling and retries with growing waits (default 60 s, doubling, capped at 600 s, at most 6 attempts).
 - **REQ-SCR-045** `shipped` The scraper spends at most a configured total on throttle waits in one run (default 3600 s).
 - **REQ-SCR-046** `shipped` If an input keeps returning the error page while other inputs in the run succeed, the scraper calls it a dead query after a configured number of attempts (default 3) and moves on.
 - **REQ-SCR-047** `shipped` The scraper's run summary reports success and failure counts.
 - **REQ-SCR-048** `shipped` The scraper's run summary lists dead queries and throttled inputs separately.
-- **REQ-SCR-049** `shipped` If a run scrapes no product, the scraper exits non-zero.
+- **REQ-SCR-049** `partial` If a run scrapes no product, the scraper exits non-zero.
+  - Gap: a run that stops before scraping because the input file is missing, no inputs are configured or the search filters are invalid exits 0 (#587).
 - **REQ-SCR-050** `shipped` When `--strict` is passed, the scraper also exits non-zero if any product id or keyword produced nothing.
+- **REQ-SCR-071** `shipped` When `--debug` or `--verbose` is passed, or `global_settings.debug_mode` is true, the scraper runs a visible browser and logs at debug level.
+- **REQ-SCR-072** `shipped` While debug mode is on, when the site shows its error page or a search page yields no product cards, the scraper saves a screenshot, unless `global_settings.debug_settings.save_error_screenshots` is false.
+
+## Debugging
+
+- **REQ-SCR-073** `shipped` When `--debug` is passed, `--save-page-source`, `--save-screenshots`, `--analyze-images` and `--dump-image-urls` each write that artifact for every product page to the `debug/image_analysis` folder of the temp directory.
+- **REQ-SCR-074** `shipped` Without `--debug`, `--save-page-source`, `--save-screenshots`, `--analyze-images` and `--dump-image-urls` have no effect.
+- **REQ-SCR-075** `shipped` `make scrape-watch` runs a debug scrape in a dedicated virtual display that can be watched over VNC on `localhost:5900`, stops the display afterwards and exits with the scraper's exit code.
 
 ## Affiliate URLs
 
@@ -92,3 +108,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-062** `shipped` The `picsee` provider is opt-in and requires an API key.
 - **REQ-SCR-063** `shipped` The default provider is `bare`, so a fresh install needs no shortener API key.
 - **REQ-SCR-064** `shipped` The `bare` provider makes no network calls and returns the canonical affiliate URL unchanged.
+- **REQ-SCR-076** `shipped` Where `url_shortener.enabled` and `url_shortener.integration.shorten_on_scrape` are on, the scraper writes a `shortened_affiliate_link` for each product to `data.json`.
+- **REQ-SCR-077** `shipped` If shortening a product's link fails and `url_shortener.integration.fallback_to_original` is on, the scraper writes the canonical affiliate link as its `shortened_affiliate_link`.
+- **REQ-SCR-078** `shipped` If the active provider's API key environment variable is unset, the scraper skips shortening and writes no `shortened_affiliate_link`.
+- **REQ-SCR-079** `shipped` Where `url_shortener.picsee.custom_domain` is set, the `picsee` provider mints short links on that domain.

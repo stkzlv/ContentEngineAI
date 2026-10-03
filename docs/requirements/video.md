@@ -5,7 +5,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 ## Video assembly
 
 - **REQ-VID-001** `shipped` The producer sets a render's duration from the voiceover length.
-- **REQ-VID-002** `shipped` The final video's duration matches the voiceover within a configurable tolerance (`video_duration_tolerance_sec`, default 1 second).
+- **REQ-VID-002** `shipped` After assembly, the producer logs a warning when the final video's duration differs from the voiceover by more than `video_duration_tolerance_sec` (default 1 second); the check never fails the render.
 - **REQ-VID-003** `shipped` When a render shows still images, it divides the voiceover duration evenly across them, so each image's time on screen follows the image count rather than a fixed length.
 - **REQ-VID-004** `shipped` When the visuals are shorter than the voiceover, the render stretches the images and loops the videos; it never repeats an image.
 - **REQ-VID-005** `shipped` The render joins consecutive media elements with a crossfade.
@@ -28,6 +28,9 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - On when: `video_settings.image_curation.enabled` is set after the reach-test readout (#540), once a side-by-side review prefers the curated set and swipe-away is no worse.
 - **REQ-VID-016** `planned #554` Where image curation is on and the profile accepts video, a product render prefers the listing's product video over stills.
   - On when: `video_settings.image_curation.enabled` is set, on the same condition as REQ-VID-015.
+- **REQ-VID-127** `shipped` The final video is a 1080x1920 H.264 MP4 in yuv420p at 30 fps, with AAC audio at 192 kbps and 48 kHz.
+- **REQ-VID-128** `shipped` Where a profile's `enable_format_normalization` is on (the default), the producer converts each input video clip to H.264, 30 fps and yuv420p before assembly.
+- **REQ-VID-129** `shipped` After assembly, the producer probes the final video and logs a warning when the video or audio stream is missing or the captions match the script below `subtitle_similarity_threshold`; the check never fails the render.
 
 ## Image positioning
 
@@ -56,6 +59,11 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-028** `shipped` If the subtitle step leaves no caption source, the render fails and the error names each path it looked for.
 - **REQ-VID-029** `shipped` On the pycaps engine, the subtitle step accepts a transcript only when the current run wrote it.
   - Why: the transcript path is the same across runs, so a leftover file would caption a script that is no longer being narrated.
+- **REQ-VID-130** `shipped` The producer takes caption word timings from a local Whisper transcription of the voiceover.
+- **REQ-VID-131** `shipped` The Whisper time limit is `whisper_settings.base_timeout_sec` plus the audio length times `duration_multiplier`, capped at `max_timeout_sec` and at what remains of the render's time budget (`pipeline_timeout_sec`).
+  - Why: without the outer cap a long transcription spends the render's budget and the timeout is reported against a later step.
+- **REQ-VID-132** `shipped` If Whisper times out, the producer retries it with the limit widened by `timeout_retry_multiplier`, at most `timeout_retry_attempts` times, and stops retrying once the cap keeps the limit from widening.
+- **REQ-VID-133** `shipped` Where Google Cloud STT is enabled with valid credentials, it supplies the word timings when Whisper is unavailable or returns none.
 - **REQ-VID-030** `shipped` When a run produces no captions on purpose (captions disabled, or the engine unavailable under a skip policy), the subtitle step records why, so a resume can tell it from a step that produced nothing by accident.
 
 ## Caption engines
@@ -66,6 +74,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-034** `shipped` The producer records the caption engine a run resolved in the run state.
 - **REQ-VID-035** `shipped` The pycaps engine burns word-by-word karaoke captions after assembly, with per-word CSS animation and template-driven styling.
 - **REQ-VID-036** `shipped` Where AI word tagging is on, the pycaps engine highlights the words a language model picks per segment.
+- **REQ-VID-134** `shipped` If AI word tagging fails for a segment, `pycaps.ai_tagging_on_error: skip` (the bundled value) burns that segment without highlights, and `raise` hands the failure to the caption fallback policy.
+- **REQ-VID-135** `shipped` If AI word tagging is on and the Gemini key is missing, the producer logs a warning and burns the captions without AI highlights.
 - **REQ-VID-037** `shipped` The pycaps engine renders one caption track of up to two lines and has no two-part mode.
 - **REQ-VID-038** `shipped` The FFmpeg engine burns SRT or ASS captions during assembly and supports two-part mode, karaoke and every positioning anchor.
 - **REQ-VID-039** `shipped` If a pycaps burn fails under the `raise` fallback policy, the render aborts.
@@ -93,9 +103,11 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 ## Caption text
 
 - **REQ-VID-055** `shipped` Captions use a bold sans-serif font of weight 700 or more.
-- **REQ-VID-056** `shipped` The caption font size is 7.5% of the frame height (about 144 px on 1920).
+- **REQ-VID-056** `partial` The caption font size is `font_size_percent` of the frame height (bundled 7.5%, about 144 px on 1920) multiplied by `font_size_scale` (0.5 to 2.0, default 1.0, `--font-size-scale`).
+  - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#577).
 - **REQ-VID-057** `shipped` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
 - **REQ-VID-058** `shipped` A caption line holds at most 3 words, a caption at most 2 lines, and a line at most 80% of the frame width.
+- **REQ-VID-136** `shipped` On the FFmpeg engine, a caption line also holds at most `max_line_length` characters (bundled 30, `--max-line-length`).
 - **REQ-VID-059** `shipped` A caption segment lasts between 0.6 s and 2.5 s.
 - **REQ-VID-060** `shipped` Each narration word appears slightly before its audio onset, by a configurable lead.
 - **REQ-VID-061** `shipped` The first few words of the opening hook get an extra lead on top of the base lead; the lead and the number of words are configurable per render.
@@ -152,6 +164,23 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-094** `shipped` If a profile uses a legacy flat caption key (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles` and the like), the config load is refused with an error naming the nested field to move it to.
 - **REQ-VID-095** `partial` The short profile renders 15-30 s videos with a script of about 50-60 words.
   - Gap: the script word budget is global, so nothing sizes the short profile's script or holds its length to 15-30 s.
+
+## Run state and resume
+
+- **REQ-VID-137** `partial` When the producer renders a product again, it skips each step recorded as done in `pipeline_state.json` whose artifacts still exist and belong to the same profile's run.
+  - Gap: with `debug_settings.create_pipeline_metadata: false` no state file is written, so nothing is resumed.
+- **REQ-VID-138** `shipped` If a recorded artifact is missing or belongs to another profile's run, the producer re-runs from that step and deletes the stale outputs that would make the later steps reuse an old result.
+- **REQ-VID-139** `shipped` When a step runs again, the producer forgets the completed steps that read its output, so the next full run redoes them.
+- **REQ-VID-140** `shipped` When `--step <name>` is passed, the producer runs only that step, after loading the artifacts of the steps it depends on.
+- **REQ-VID-141** `shipped` If a step that `--step` depends on is not complete, the producer refuses the run and names that step.
+- **REQ-VID-142** `shipped` When `--clean` is passed, the producer deletes the files it generated for the product before rendering, including every profile's video and the run state, and keeps the scraped inputs.
+
+## Product input
+
+- **REQ-VID-143** `shipped` When `--product-index N` is passed, the producer renders only the product at 0-based position N in the input file.
+- **REQ-VID-144** `shipped` If `--product-index` is combined with `--batch`, the producer refuses the run.
+- **REQ-VID-145** `partial` If `--product-index` is outside the input file's range, the producer exits non-zero naming the index and the product count.
+  - Gap: an out-of-range index renders every product in the file instead (#587).
 
 ## Stock visual media
 
