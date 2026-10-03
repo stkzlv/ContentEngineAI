@@ -279,6 +279,21 @@ nests these under `llm:`, `tts:` and `stock_media:`, so a nested block is
 dropped silently rather than rejected and none of those values takes effect.
 `optimization_settings` is set in no config file at all and loads as `None`.
 
+The other `config/performance.yaml` blocks, and whether anything reads them:
+
+| Key | Default | Effect |
+|---|---|---|
+| `ffmpeg_settings.validation_timeout_sec` | `10` | Timeout for the `ffmpeg -version` check at startup. |
+| `circuit_breaker.google_stt` | `failure_threshold: 3`, `timeout_sec: 120` | After that many consecutive Google Speech-to-Text failures, calls stop for `timeout_sec`. |
+| `api_settings.stock_media.search_multiplier`, `api_settings.stock_media.max_per_page` | `2`, `80` | No effect: the model reads the flat `stock_media_search_multiplier` and `stock_media_max_per_page`, and drops the nested block (see above). |
+| `debug_settings.create_ffmpeg_command_logs` | `true` | Writes the FFmpeg command log beside each render. |
+| `debug_settings.create_pipeline_metadata` | `true` | Saves `pipeline_state.json` after each step; off, a run keeps no state to resume from. |
+| `debug_settings.create_performance_metrics` | `true` | In a `--debug` run, saves per-step timing and memory to `performance.json`. |
+| `debug_settings.operation_timing_threshold_sec` | `180.0` | After a successful run, a step slower than this logs a warning. |
+| `debug_settings.memory_usage_warning_mb` | `5000` | After a successful run, a step using more memory than this logs a warning. |
+| `debug_settings.max_log_line_length`, `debug_settings.debug_file_retention_days` | `200`, `7` | Read by nothing (#577). |
+| `debug_settings.intermediate_file_cleanup`, `debug_settings.cleanup_on_success`, `debug_settings.cleanup_on_failure`, `debug_settings.cleanup_whisper_files` | `true`, `false`, `false`, `false` | Read by nothing (#577). |
+
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings, validated at load through the Pydantic
 models in `src/scraper/config_models.py`. Every section refuses keys it does
@@ -534,7 +549,7 @@ video_settings:
     margin_y_percent: 0.12       # Distance from the vertical edge (0.0-0.5)
 ```
 
-Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there. A product scheduled from `data.json` alone, with no metadata file, leads with `#ad`.
+Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there. A product scheduled from `data.json` alone, with no metadata file, leads with `#ad` rather than the configured token when it discloses.
 
 `size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
 

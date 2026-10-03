@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.129.1] - 2026-10-03
+
+### Documentation
+
+- The configuration reference covers the remaining `config/performance.yaml` keys and says which of them nothing reads.
+
 ## [0.129.0] - 2026-10-03
 
 ### Changed
