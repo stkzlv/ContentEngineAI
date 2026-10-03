@@ -226,11 +226,14 @@ video_profiles:
 
 ### Precedence
 
-Highest first:
+Highest first, as the code resolves it:
 
 1. CLI arguments.
 2. Profile settings.
-3. Global values from the YAML files.
+3. Environment overrides (`CONTENT_ENGINE_*`, `DEBUG_MODE`, `OUTPUTS_DIR`, `FFMPEG_THREADS`, `SUBTITLE_*`), applied when the YAML loads.
+4. Global values from the YAML files.
+
+[Decision 0003](../decisions/0003-config-precedence.md) places the machine environment above the profile and keeps only secrets and machine-specific settings in it; `REQ-OPS-001` records the gap.
 
 ## Opening overlays and pre-motion
 
@@ -255,6 +258,21 @@ Four visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | `video_first_fallback` | Uses the videos first, then images. | `product_video_primary` |
 
 With `use_scraped_videos: false` the mode is ignored and only images are used. Single-video handling per mode is in [Configuration](configuration.md#12-video-profiles-with-per-profile-settings).
+
+## Aspect modes
+
+`video_aspect_mode` fits a video whose aspect differs from the 9:16 frame. The fit is built in `src/video/assembler/visual_builder.py`.
+
+| Mode | Result | Caption geometry |
+|---|---|---|
+| `letterbox` | The video is centred with black bars around it. | Reports the content band, so content-aware captions sit below it. |
+| `crop-to-fit` | The video fills the frame and the edges are cropped. A 16:9 clip keeps the centre 31% of its width. | Reports none, so captions fall back to a full-frame band and sit over the content. |
+| `blur-fill` | Placed as in letterbox, with a scaled, blurred and darkened copy of the same frame behind it instead of black. | Same as letterbox. |
+| `smart-scale` | `crop-to-fit` when the aspect difference is within `smart_scale_tolerance` (default 0.10), `blur-fill` otherwise. | Follows the branch taken. |
+
+A landscape source always takes the `blur-fill` branch of `smart-scale`: the aspect difference for 16:9 into 9:16 is 2.16, far above the tolerance, so the crop branch only separates near-vertical sources. A profile names `letterbox` to get black bars.
+
+The backdrop is darkened by `video_background_blur_darken`, and the image backdrop by `image_background_blur_darken` (both default 0.6; 1.0 turns darkening off). The multiplier applies to the blurred copy only; the content band is composited on top afterwards. The filter is `colorlevels`, which scales rather than subtracts, so a dark backdrop keeps its detail where `eq=brightness` would flatten it to black. White caption fill measured 2.5:1 against a bright 165/255 backdrop, which is why the backdrop is darkened even though the caption stroke keeps the text legible.
 
 ## Subtitle formats
 

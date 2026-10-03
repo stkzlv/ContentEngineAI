@@ -462,6 +462,6 @@ seconds on this hardware.
 
 - [Video producer reference](../reference/video-producer.md#pycaps-options)
 - [Configuration system overview](../reference/configuration.md)
-- [Architecture: subtitle pipeline](../architecture.md)
+- [Architecture: building blocks](../architecture.md#5-building-block-view)
 - [Development workflow](../development.md)
 - Pycaps follow-up work tracked as GitHub Issues with the `pycaps` label: AI word tagging, two-part hybrid, CSS-renderer CI test, and more

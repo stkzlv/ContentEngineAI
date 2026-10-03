@@ -1,970 +1,334 @@
-# ContentEngineAI Architecture
+# Architecture
 
-This document provides a comprehensive overview of the ContentEngineAI architecture, including system design, component interactions, and technical implementation details.
+How ContentEngineAI fits together, in the [arc42](https://arc42.org/overview) sections with [C4](https://c4model.com/) diagrams. This page follows the code: a change that moves a module, a step or a boundary updates it in the same pull request. Why the documentation is split this way is in [decision 0001](decisions/0001-documentation-structure.md), and [the documentation map](README.md) says where everything else lives.
 
-## System Overview
+## 1. Introduction and goals
 
-ContentEngineAI is a modular, async-first pipeline system designed for automated video production. The architecture follows an eight-step workflow with parallel execution capabilities and comprehensive error handling.
+ContentEngineAI turns a product listing or a topic into a short vertical video with a voiceover, captions and music, and schedules it on social platforms. One operator runs it on one machine, either step by step (scrape, produce, publish) or as one global batch.
 
-### High-Level Architecture
+What it must do is in [the requirements](requirements/README.md); where it is going is in [the roadmap](roadmap.md).
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Data Sources  │    │   AI Services   │    │  Media Sources  │
-│                 │    │                 │    │                 │
-│ • Amazon Pages  │    │ • Gemini (LLM)  │    │ • Jamendo       │
-│ • Product Data  │    │ • Gemini TTS    │    │ • Freesound     │
-│ • Images/Videos │    │ • Whisper STT   │    │ • Pexels/Local  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                  ┌─────────────────────────────┐
-                  │      Pipeline Engine       │
-                  │                             │
-                  │  ┌─────────────────────────┐│
-                  │  │    Step Orchestrator    ││
-                  │  └─────────────────────────┘│
-                  │  ┌─────────────────────────┐│
-                  │  │   Dependency Manager    ││
-                  │  └─────────────────────────┘│
-                  │  ┌─────────────────────────┐│
-                  │  │  Performance Monitor    ││
-                  │  └─────────────────────────┘│
-                  └─────────────────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ Video Assembly  │    │  Configuration  │    │     Output      │
-│                 │    │                 │    │                 │
-│ • FFmpeg        │    │ • YAML Config   │    │ • MP4 Videos    │
-│ • Filters       │    │ • Pydantic      │    │ • Logs          │
-│ • Subtitles     │    │ • Validation    │    │ • Attribution   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+Top quality goals, in priority order:
 
-## Pipeline Architecture
+| Goal | What it means here |
+|---|---|
+| Compliance | Every render and post that carries a material connection discloses it, on the frame and in the caption, and the two never disagree. |
+| Unattended reliability | A batch survives one bad product, a provider outage and an interruption: failures are isolated per item, providers fall back, and `--resume` continues from the last checkpoint. |
+| Reproducibility | A product renders the same way on every run: choices are seeded from the product id and recorded in the run state. |
+| Coexistence with the desktop | A render or a scrape runs beside the operator's own work without the machine killing either. |
 
-### Core Pipeline Flow
+Stakeholders:
 
-The video production follows a dependency-aware pipeline with parallel execution:
+| Who | Expects |
+|---|---|
+| Operator | Runs the pipeline, configures profiles and accounts, reads logs and summaries, decides when held features turn on. |
+| Contributor | Changes a module without breaking the other entry point that re-implements it, and finds the reason behind a guard before removing it. |
 
-```
-Step 1: Gather Visuals
-    ├── Scrape Product Data
-    ├── Download Product Media
-    └── Fetch Stock Media (Pexels)
-         │
-Step 2: Generate Script (LLM: Gemini primary, OpenRouter fallback)
-         │
-Step 3: Generate Description (LLM: Gemini primary, OpenRouter fallback)
-         │
-Step 4: Create Voiceover (TTS: Gemini primary, Google Cloud fallback)
-         │
-         ├── Step 5a: Generate Subtitles (Whisper STT)
-         └── Step 5b: Download Music (Jamendo primary, Freesound fallback)
-                 │
-         Step 6: Assemble Video (FFmpeg)
-                 │
-         Step 7: Burn Pycaps Subtitles (pycaps engine; skipped when engine is ffmpeg)
-```
+## 2. Constraints
 
-**Key Features:**
-- **Parallel Execution**: `generate_description` and `create_voiceover` depend only on `generate_script`, so they share an execution level and run concurrently
-- **Dependency Management**: Automatic handling of step dependencies
-- **Resume Capability**: Individual step execution for debugging
-- **Performance Monitoring**: Built-in metrics collection
+| Constraint | Consequence |
+|---|---|
+| Python 3.12, managed with Poetry | One interpreter version; the `*-lowpri` targets resolve the project interpreter themselves (section 7). |
+| FFmpeg and FFprobe on `PATH` | All assembly, probing and the fallback caption burn go through FFmpeg subprocesses. |
+| Optional pycaps engine with Playwright and Chromium | The bundled caption engine needs about 1 GB of browser; without it a render falls back to FFmpeg captions ([decision 0004](decisions/0004-caption-engine.md)). |
+| Botasaurus driving a real Chromium | The scraper needs a display (or Xvfb) and runs one browser session per scrape. |
+| One machine, shared with a desktop session | A render peaks around 2 to 2.5 GB RSS; full runs go through the memory-capped `*-lowpri` targets. |
+| Third-party APIs with quotas and outages | Every provider call has retries, a circuit breaker or a fallback provider, and runs inside a time budget. |
+| Publishing through one scheduling service | The pipeline never talks to YouTube, TikTok or Instagram directly; it reads post status back from the service. |
+| Public repository with private overlays | Public docs and config ship generic defaults; account-specific values live in `.env` and gitignored `*.private.*` files. |
 
-<details>
-<summary><b>Core Packages Structure</b> (click to expand)</summary>
+## 3. Context and scope
 
-Principal modules, not an exhaustive listing. Every path named here exists;
-`tests/docs/test_docs_cite_real_files.py` keeps that true.
+The system boundary is the repository's code running on the operator's machine. Everything else is an external system reached over HTTP or a browser.
 
-```
-src/
-├── video/                      # Central orchestration & video processing
-│   ├── producer/              # Main pipeline orchestrator package
-│   │   ├── cli.py             # CLI argument parsing
-│   │   ├── context.py         # Pipeline context management
-│   │   ├── orchestration.py   # Step orchestration logic
-│   │   ├── state.py           # Pipeline state tracking
-│   │   ├── steps.py           # Individual pipeline steps
-│   │   └── utils.py           # Producer utilities
-│   ├── config/                # Pydantic configuration models (v0.14.0+)
-│   │   ├── core_models.py     # Core video settings
-│   │   ├── audio_models.py    # Audio/TTS configuration
-│   │   ├── visual_models.py   # Visual effects settings
-│   │   ├── subtitle_models.py # Subtitle configuration
-│   │   └── constants.py       # Video configuration constants
-│   ├── assembler/             # FFmpeg-based video assembly (modular)
-│   │   ├── core.py            # VideoAssembler orchestrator
-│   │   ├── visual_builder.py  # Visual filter chains
-│   │   ├── subtitle_builder.py # Subtitle positioning
-│   │   ├── audio_builder.py   # Audio filter chains
-│   │   ├── video_strategies.py # Video mode strategies
-│   │   ├── media_inspector.py # Media file inspection
-│   │   └── subtitle_utils.py  # Subtitle parsing/styling
-│   ├── config_adapter.py      # Backward-compatible config loader
-│   ├── config_validator.py    # Configuration validation utilities
-│   ├── cta_detector.py        # Call-to-action detection in scripts
-│   ├── font_color_manager.py  # Font and color management
-│   ├── pipeline_graph.py      # Dependency-aware execution framework
-│   ├── result_types.py        # Pipeline result type definitions
-│   ├── stock_media.py         # Stock media fetching (Pexels)
-│   ├── two_part_subtitles.py  # Upper static line + lower synced line
-│   ├── stt_functions.py       # Speech-to-text (Whisper, Google Cloud STT)
-│   ├── subtitle_positioning.py # Subtitle position calculations
-│   ├── subtitle_utils.py      # Subtitle generation utilities
-│   ├── subtitle_validation.py # Subtitle validation logic
-│   ├── tts.py                 # Text-to-speech with provider fallbacks
-│   ├── subtitle_timing_smoother.py # Post-processes Whisper word timings
-│   ├── unified_subtitle_generator.py  # FFmpeg ASS/SRT subtitle generation
-│   └── pycaps_engine/         # Animated-caption engine (bundled default)
-│       ├── renderer.py        # Pycaps render + content-aware layout
-│       ├── gemini_llm.py      # Gemini adapter for AI word tagging
-│       └── transcript_adapter.py # Whisper transcript to pycaps format
-│
-├── ai/                        # AI & LLM integration
-│   ├── llm_client.py          # Shared LLM dispatch (Gemini, OpenRouter)
-│   ├── llm_settings.py        # LLM provider settings and validation bounds
-│   ├── script_generator.py    # Script generation with provider fallback
-│   ├── description_generator.py # Social media description generation
-│   ├── platform_metadata/     # Platform-specific metadata (v0.17.0+)
-│   │   ├── base.py            # Base metadata generator interface
-│   │   ├── youtube.py         # YouTube metadata generation
-│   │   ├── tiktok.py          # TikTok caption generation
-│   │   ├── instagram.py       # Instagram caption generation
-│   │   ├── models.py          # Metadata data models
-│   │   ├── utilities.py       # Shared utilities
-│   │   └── text_formatter.py  # Platform text formatting
-│   └── prompts/              # LLM prompt templates
-│
-├── scraper/                   # Multi-platform data collection architecture
-│   ├── base/                 # Platform-agnostic foundation
-│   │   ├── models.py         # Base product data models & registry
-│   │   ├── config.py         # Multi-platform configuration manager
-│   │   ├── utils.py          # Shared utility functions
-│   │   ├── downloader.py     # Base async download logic
-│   │   └── browser_utils.py  # Shared browser utilities
-│   ├── amazon/               # Amazon implementation
-│   │   ├── scraper.py        # Main orchestrator (extends BaseScraper)
-│   │   ├── cli.py            # Command line: parsing, dispatch, run summary
-│   │   ├── batch_controller.py # Batch scraping orchestration
-│   │   ├── browser_functions.py # Browser automation logic
-│   │   ├── botasaurus_output.py # Botasaurus output handling
-│   │   ├── config.py         # Amazon configuration management
-│   │   ├── downloader.py     # Async media downloads with semaphore rate limiting
-│   │   ├── media_extractor.py   # Image/video extraction
-│   │   ├── media_validator.py   # Media file validation
-│   │   ├── models.py         # Amazon-specific models
-│   │   ├── search_builder.py # Search URL construction
-│   │   └── utils.py          # Amazon utility functions
-│   ├── config_models.py      # Pydantic models for type-safe config (v0.14.0+)
-│   ├── config_adapter.py     # Backward-compatible config loader
-│   └── __init__.py           # ScraperFactory & platform registry
-│
-├── audio/                     # Background-music provider platform
-│   ├── base.py               # BaseAudioProvider ABC
-│   ├── registry.py           # AudioProviderRegistry (decorator-based)
-│   ├── manager.py            # AudioManager: runs the provider chain
-│   ├── jamendo_provider.py   # Jamendo download (primary)
-│   ├── freesound_provider.py # Freesound download (fallback)
-│   └── freesound_client.py   # Freesound API client (wrapped by the provider)
-│
-├── utils/                     # Performance optimization & utilities
-│   ├── performance.py         # Metrics collection & monitoring
-│   ├── async_io.py           # Async subprocess management
-│   ├── connection_pool.py    # HTTP connection pooling
-│   ├── memory_mapped_io.py   # Memory-mapped file operations
-│   ├── caching.py            # Multi-level caching system
-│   ├── background_processing.py # Background task management
-│   ├── script_sanitizer.py   # Text processing utilities
-│   └── url_shortener/        # URL shortening abstraction layer
-│       ├── base.py           # Base interfaces and models
-│       ├── picsee.py         # PicSee API implementation
-│       ├── registry.py       # Provider registry and factory
-│       └── __init__.py       # Public API exports
-│
-├── publisher/                 # Social media publishing (v0.18.0+)
-│   ├── base.py               # Base publisher interface
-│   ├── batch.py              # Batch publishing orchestration
-│   ├── cleanup.py            # Post-publish cleanup utilities
-│   ├── config.py             # Publisher configuration
-│   ├── constants.py          # Shared constants (limits, defaults)
-│   ├── metadata.py           # Metadata resolution logic
-│   ├── models.py             # Publisher data models
-│   ├── publish_modes.py      # Unified/platform-specific publish helper
-│   ├── registry.py           # Platform registry and factory
-│   ├── schedule.py           # Scheduling utilities
-│   ├── schedule_validator.py # Schedule validation
-│   ├── tracking.py           # Publish status tracking (atomic writes)
-│   ├── product_registry.py   # Published products registry (JSON + CSV)
-│   ├── analytics.py          # Per-post timeline reads and metrics store
-│   ├── blob_retention.py     # Vercel Blob staging-store retention
-│   ├── partial_post_sweep.py # Sweeps recent posts for failed platform legs
-│   ├── webhooks.py           # Zernio webhook event handling
-│   ├── late/                 # Zernio integration (formerly Late)
-│   │   ├── client.py         # Zernio API client (late-sdk)
-│   │   └── cli.py            # Zernio publisher CLI
-│   └── link_in_bio/          # Link-in-bio integration
-│       ├── base.py           # Provider interface
-│       ├── lnkbio.py         # Lnk.Bio provider
-│       └── manager.py        # Orchestration and fallback logic
-│
-└── pipeline/                  # Batch processing orchestration
-    ├── cli.py                # Argument parser and entry point
-    ├── config.py             # Pipeline configuration
-    ├── global_batch.py       # Unified scrape + produce pipeline
-    ├── phases/               # One module per phase, called by the orchestrator
-    │   ├── production.py     # Render each ready product
-    │   ├── publishing.py     # Post each render, calling the publisher package
-    │   └── scraping.py       # One browser session across every input
-    └── plan.py               # Dry-run plan printer
+```mermaid
+flowchart LR
+    operator(["Operator"])
+    cea["ContentEngineAI<br/>scrape, produce, publish"]
+    amazon["Amazon<br/>product pages"]
+    llm["LLM providers<br/>Gemini, OpenRouter"]
+    tts["Speech providers<br/>Gemini TTS, Google Cloud"]
+    stock["Stock media<br/>Pexels"]
+    music["Music<br/>Jamendo, Freesound"]
+    shortener["URL shortener<br/>PicSee, optional"]
+    zernio["Publishing service<br/>Zernio"]
+    blob["Upload store<br/>Vercel Blob"]
+    bio["Link-in-bio<br/>Lnk.Bio"]
+    platforms["Platforms<br/>YouTube, TikTok, Instagram"]
+
+    operator -->|CLI, make targets, config| cea
+    cea -->|browser session| amazon
+    cea -->|scripts, captions, fact checks| llm
+    cea -->|voiceover| tts
+    cea -->|search, download| stock
+    cea -->|search, download| music
+    cea -->|affiliate links| shortener
+    cea -->|schedule posts, read status and analytics| zernio
+    cea -->|stage large uploads| blob
+    cea -->|add product link| bio
+    zernio -->|post| platforms
 ```
 
-</details>
+Speech-to-text (Whisper) runs locally, so it is inside the boundary. A batch can also post phase events to an operator-configured webhook (`config/pipeline.yaml`).
 
-## Component Details
+## 4. Solution strategy
 
-### 1. Pipeline Engine (`src/video/producer/`)
+| Choice | Why | Record |
+|---|---|---|
+| Three standalone modules plus one batch orchestrator | Each phase is usable and debuggable on its own; the batch chains them for unattended runs. | Section 5 |
+| The filesystem is the interface between phases | The scraper writes `outputs/<id>/data.json` and media, the producer writes the video and metadata beside them, and the publisher reads that directory. No database, no queue. | Section 8 |
+| A render is a dependency graph of eight resumable steps | Independent steps run in parallel, and a failed or interrupted render resumes from the last valid step. | Section 6 |
+| Provider chains with fallbacks | One outage degrades a render instead of failing it. | Section 8 |
+| Pycaps with the CSS renderer for captions, FFmpeg as fallback | Animated word-level captions, without making Chromium a hard dependency. | [0004](decisions/0004-caption-engine.md) |
+| Four configuration tiers | Behaviour lives in reviewed YAML and profiles; the environment holds secrets and machine settings. | [0003](decisions/0003-config-precedence.md) |
+| Output-changing features ship off | Keeps format comparisons attributable. | [0002](decisions/0002-output-changes-ship-off-by-default.md) |
+| Duplicates from explicit actions are tolerated | Guards stop accidental duplicates; `--force` is an expected outcome. | [0005](decisions/0005-duplicates-are-tolerated.md) |
 
-**Purpose**: Orchestrates the entire video production workflow.
+## 5. Building block view
 
-**Key Responsibilities:**
-- Manages eight-step pipeline execution
-- Handles pipeline context and state
-- Creates directory structures
-- Implements configurable delays between products
-- Provides step-specific execution for debugging
-- Complete cleanup of producer-generated files with --clean flag
+The containers are the packages under `src/`. Arrows read "calls".
 
-**Architecture Pattern:**
-- **Async/Await**: All operations are async for better concurrency
-- **Context Management**: Pipeline context preserves state across steps
-- **Error Handling**: Comprehensive error handling with graceful degradation
-- **Logging**: Dual logging (console + file) with structured output
+```mermaid
+flowchart TB
+    batch["pipeline<br/>global batch"]
+    scraper["scraper<br/>Amazon via Botasaurus"]
+    producer["video.producer<br/>CLI, orchestration, steps, state"]
+    ai["ai<br/>scripts, captions, fact check"]
+    tts["video: tts, stt, stock_media"]
+    audio["audio<br/>music provider chain"]
+    assembler["video.assembler<br/>FFmpeg filter graphs"]
+    pycaps["video.pycaps_engine<br/>animated captions"]
+    publisher["publisher<br/>Zernio client, schedule, tracking"]
+    bio["publisher.link_in_bio"]
+    utils["utils<br/>logging, paths, performance, retry"]
+    config["config files and Pydantic models"]
 
-### 2. Dependency Management (`src/video/pipeline_graph.py`)
-
-**Purpose**: Manages step dependencies and enables parallel execution.
-
-**Key Features:**
-- **Topological Sorting**: Ensures correct execution order
-- **Dependency Resolution**: Automatically determines which steps can run in parallel
-- **Resource Management**: Manages concurrent execution limits
-- **Performance Optimization**: Enables 26% faster pipeline execution
-
-**Technical Implementation:**
-```python
-# Dependency Graph Definition, as declared by
-# src/video/producer/orchestration.py::step_dependencies.
-# The first two edges depend on the profile: a profile that draws no visual
-# from the scraped product writes the script first, so its stock search can
-# use terms taken from the narration.
-dependencies = {
-    'gather_visuals': [],                        # ['generate_script'] when script-first
-    'generate_script': ['gather_visuals'],       # [] when script-first
-    'generate_description': ['generate_script'], # + 'gather_visuals' when script-first
-    'create_voiceover': ['generate_script'],     # + 'gather_visuals' when script-first
-    'generate_subtitles': ['create_voiceover'],  # Can run in parallel
-    'download_music': ['create_voiceover'],      # Can run in parallel
-    'assemble_video': ['generate_subtitles', 'download_music', 'gather_visuals'],
-    'burn_pycaps_subtitles': ['assemble_video'], # No-op unless engine is pycaps
-}
+    batch --> scraper
+    batch --> producer
+    batch --> publisher
+    producer --> ai
+    producer --> tts
+    producer --> audio
+    producer --> assembler
+    producer --> pycaps
+    publisher --> bio
+    scraper -.-> utils
+    producer -.-> config
+    publisher -.-> utils
 ```
 
-### 3. Video Assembly (`src/video/assembler/`)
+Every module also uses `utils` and the config layer; the dotted lines stand for all of those edges.
 
-**Purpose**: Combines all elements into final MP4 video using FFmpeg with intelligent video assembly strategies.
+### Pipeline (global batch)
 
-**Modular Architecture** (refactored from 3,311-line monolith):
-- **`core.py`** - VideoAssembler orchestrator
-- **`visual_builder.py`** - Visual filter chains
-- **`subtitle_builder.py`** - Subtitle positioning
-- **`overlay_builder.py`** - Disclosure, hook and upper-line drawtext overlays
-- **`audio_builder.py`** - Audio filter chains
-- **`video_strategies.py`** - Video mode strategies
-- **`media_inspector.py`** - Media file inspection
-- **`subtitle_utils.py`** - Subtitle parsing/styling
+`src/pipeline/global_batch.py::GlobalPipelineOrchestrator` runs the scraping, handoff, production and publishing phases in order. Each phase is a module in `src/pipeline/phases/` (`scraping.py`, `production.py`, `publishing.py`), and the batch's settings and checkpoint live in `src/pipeline/config.py` (`GlobalBatchConfig`, `PipelineState`). `src/pipeline/cli.py` parses arguments, `plan.py` prints the dry-run plan, and `webhooks.py` sends the optional phase notifications. Entry point: `python -m src.pipeline` or `make batch-lowpri`. The phases call the modules' functions directly rather than their CLIs, which is where the drift in [batch-alignment.md](notes/batch-alignment.md) comes from.
 
-**Core Functionality:**
-- **Media Analysis**: Async extraction of dimensions and durations
-- **Video Assembly Modes**: Four configurable strategies for video-first content
-- **Aspect Ratio Handling**: Letterbox, crop-to-fit, blur-fill, and smart-scale modes; letterbox and blur-fill report actual geometry, crop-to-fit does not
-- **Audio Sources**: Voiceover and background music only; source video audio is dropped
-- **Filter Graph Construction**: Dynamic FFmpeg filter generation via specialized builders
-- **Subtitle Rendering**: Content-aware positioning with letterbox geometry support
-- **Audio Mixing**: Fixed-level multi-track mixing with per-track volume
-- **Verification**: Post-assembly quality checks
+### Scraper
 
-#### Video Assembly Modes
+`src/scraper/amazon/scraper.py::BotasaurusAmazonScraper` drives one Chromium session per run, with `cli.py` as the command line and `batch_controller.py` for multi-input runs. Extraction is split by concern: `product_extractor.py`, `media_extractor.py`, `video_extractor.py` (page data, thumbnail clicks with stream capture, then DOM elements), and validation in `media_validator.py`. `src/scraper/base/` holds the platform-neutral models, `BaseScraper`, `ScraperRegistry`, throttling and keyword pillars. `ScraperFactory` in `src/scraper/__init__.py` exists, but no pipeline code uses it; the batch imports the Amazon scraper directly, and Amazon is the only platform. Entry point: `python -m src.scraper.amazon.scraper`. Notes: [scraper.md](notes/scraper.md).
 
-ContentEngineAI supports **4 video assembly modes** optimized for different content styles:
+### Producer
 
-**1. Sequential Mode** (`video_assembly_mode: "sequential"`)
-- Concatenates all product videos end-to-end with crossfade transitions
-- Loops videos if total duration < voiceover length
-- Adds images to fill remaining time if needed
-- **Best for**: Showcasing multiple product angles/demos
+`src/video/producer/` renders one product or topic, or a batch of them. `cli.py` parses arguments and discovers products, `orchestration.py::create_video_for_product` runs one render, `steps.py` holds the eight step functions, `state.py` reads and writes `pipeline_state.json`, `context.py` defines `PipelineContext`, and `artifact_registry.py` reloads a skipped step's outputs. `topic_input.py` builds a topic record in place of a scraped one, and `utils.py::collect_producer_secrets` builds the secrets for both entry points. The graph executor is `src/video/pipeline_graph.py::PipelineGraph`. Entry point: `python -m src.video.producer` or `make produce-lowpri`. Notes: [video.md](notes/video.md).
 
-**2. Single Best Mode** (`video_assembly_mode: "single_best"`)
-- Selects the longest video and loops it seamlessly
-- Creates smooth infinite loop effect with crossfade at loop point
-- **Best for**: Single-angle product demonstrations with clean looping
+### Speech, captions and stock media
 
-**3. Mixed Media Mode** (`video_assembly_mode: "mixed_media"`)
-- Interleaves videos and images throughout the timeline
-- Distributes videos evenly across duration
-- Fills gaps between videos with images
-- **Best for**: Dynamic visual variety mixing motion and static content
+`src/video/tts.py` synthesises the voiceover (Gemini TTS, then Google Cloud TTS; Coqui is supported but not installed). `src/video/stt_functions.py` transcribes it with Whisper for word timings, with Google Cloud STT and script-based timing as fallbacks on the FFmpeg engine. `src/video/subtitle_utils.py` and `unified_subtitle_generator.py` write SRT or ASS; `src/video/pycaps_engine/renderer.py` burns animated captions after assembly. `src/video/stock_media.py` searches and downloads Pexels media, and `stock_relevance.py` scores each candidate's thumbnail with a multimodal model. Notes: [subtitles.md](notes/subtitles.md).
 
-**4. Video-First Fallback Mode** (`video_assembly_mode: "video_first_fallback"`)
-- Plays all product videos first (priority content)
-- Fills remaining duration with images
-- **Best for**: Ensuring videos are always shown while using images as filler
+### Assembler
 
-#### Aspect Ratio Handling
+`src/video/assembler/core.py::VideoAssembler` builds one FFmpeg command from builders: `visual_builder.py` (images, videos, aspect fits), `video_strategies.py` (the assembly modes), `subtitle_builder.py`, `overlay_builder.py` (disclosure, hook and upper-line overlays), `audio_builder.py` (voiceover and music mix) and `media_inspector.py` (probing). It is called by the `assemble_video` step only. Notes: [video.md](notes/video.md).
 
-**Letterbox Mode** (`video_aspect_mode: "letterbox"`)
-```
-Original: 16:9 landscape video
-Target:   9:16 vertical frame
-Result:   Video centered with black bars (preserves aspect ratio)
-```
+### AI
 
-**Crop-to-Fit Mode** (`video_aspect_mode: "crop-to-fit"`)
-```
-Original: 16:9 landscape video
-Target:   9:16 vertical frame
-Result:   Video scaled to fill frame, edges cropped (centers crop region)
-```
+`src/ai/llm_client.py` dispatches to Gemini or OpenRouter as `llm_settings.py` configures; `model_pool.py` discovers and filters free OpenRouter models for the fallback provider. `script_generator.py` writes the script from the templates in `src/ai/prompts/`, `script_fact_check.py` checks it against the product data, and `description_generator.py` with `platform_metadata/` writes the per-platform captions and titles. Called by the `generate_script` and `generate_description` steps. Notes: [video.md](notes/video.md).
 
-No bundled profile uses this mode on scraped product video: a 16:9 clip keeps
-the centre 31% of its width, which cuts the product and the source's own
-on-screen text off both edges. It also returns no geometry, so the caller
-falls back to a full-frame band and content-aware captions sit over the
-content rather than below it. Use it for footage that is already close to the
-target aspect, or reach it through `smart-scale`, which crops only within the
-tolerance.
+### Audio
 
-**Blur-Fill Mode** (`video_aspect_mode: "blur-fill"`)
-```
-Original: 16:9 landscape video
-Target:   9:16 vertical frame
-Result:   Video placed as in letterbox, but the surround carries a scaled
-          and blurred copy of the same frame instead of black
+`src/audio/manager.py::AudioManager` tries the providers registered in `registry.py` (`jamendo_provider.py`, then `freesound_provider.py`) in the order of `audio_providers`, inside a time budget, and falls back to local files. Called by the `download_music` step. Notes: [audio.md](notes/audio.md).
+
+### Publisher
+
+The publisher lives in `src/publisher/`. `late/client.py::LatePublisher` is the only `BasePublisher` implementation; `registry.py::create_publisher_from_config` builds it for both the CLI and the batch. `schedule.py::ScheduleManager` finds free slots, `tracking.py` writes the publish history, `product_registry.py` the published-products registry, `cleanup.py` removes published product directories, `analytics.py` captures per-post figures, and `blob_retention.py` and `partial_post_sweep.py` are the post-publish sweeps. `link_in_bio/manager.py::LinkInBioManager` adds the product link through `lnkbio.py`. Entry point: `python -m src.publisher.late` with subcommands such as `single`, `schedule` and `analytics`. Notes: [publisher.md](notes/publisher.md), [link-in-bio.md](notes/link-in-bio.md).
+
+### Utilities and configuration
+
+`src/utils/` holds the cross-cutting pieces: `logging_setup.py`, `outputs_paths.py`, `performance.py`, `retry.py`, `circuit_breaker.py`, `connection_pool.py`, `pipeline_deadline.py`, `secrets.py` and the `url_shortener/` package (`bare`, the default no-op, and PicSee). `src/config_manager.py::UnifiedConfigManager` loads the YAML files and applies the environment and CLI tiers; `src/video/config/` and `src/scraper/config_models.py` hold the Pydantic models. Notes: [ci-and-dependencies.md](notes/ci-and-dependencies.md).
+
+## 6. Runtime view
+
+### Global batch run
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant B as Global batch
+    participant S as Scraper
+    participant P as Producer
+    participant Pub as Publisher
+    participant Z as Zernio
+
+    Op->>B: make batch-lowpri
+    B->>S: scrape keywords and product ids, one browser session
+    S-->>B: data.json and media per product
+    Note over B: topics are materialised here instead of scraped
+    B->>B: handoff: discover ready products, drop already published
+    loop each ready product
+        B->>P: create_video_for_product
+        P-->>B: video and metadata in the product directory
+    end
+    loop each rendered video, staggered
+        B->>Pub: publish into the next free slot
+        Pub->>Z: upload and schedule
+        Pub->>Pub: history, registry, link-in-bio, cleanup
+    end
+    B->>Z: blob retention, then delivery sweep
+    B-->>Op: phase summaries and exit code
 ```
 
-Blur-fill reports the same geometry as letterbox, so caption placement does
-not depend on which of the two is chosen. `video_background_blur_sigma`
-sets the strength. A 16:9 source in a 9:16 frame occupies a 608px band, so
-letterbox leaves 68% of the frame black; blur-fill keeps every pixel of the
-source and leaves none of the frame empty.
+After each phase the batch writes `outputs/.pipeline_state.json` and, when configured, posts a webhook event. `--resume` reloads that file and skips completed phases; the handoff always runs again, so the already-published filter applies to a resumed run too. A completed run deletes the state file. Production and publishing isolate failures per product unless `--fail-fast` is passed.
 
-The backdrop is then darkened by `video_background_blur_darken`, and the image
-path by `image_background_blur_darken` (both default 0.6, 1.0 to disable).
-Captions sit on that surround. The base style is white fill with a black
-stroke, and the 21:1 `docs/explanation/captions.md` quotes is the fill
-against that stroke, so captions stay legible over anything; what a bright
-shot costs is the margin, with white fill at 2.5:1 against a measured 165/255
-backdrop. The multiplier applies
-to the blurred copy only; the content band is composited on top afterwards and
-is untouched. `colorlevels` scales rather than subtracts, so a dark backdrop
-keeps its detail where `eq=brightness` would flatten it to black.
+### Single render
 
-**Smart-Scale Mode** (`video_aspect_mode: "smart-scale"`)
-```
-Automatically chooses between blur-fill and crop based on aspect ratio difference:
-- ≤10% difference → Use crop-to-fit (minimal distortion)
-- >10% difference → Use blur-fill (preserve content, fill the frame)
+The producer resolves the profile's step order and runs the steps as a graph. Steps on the same level run concurrently.
+
+```mermaid
+flowchart LR
+    gv["gather_visuals"] --> gs["generate_script"]
+    gs --> gd["generate_description"]
+    gs --> cv["create_voiceover"]
+    cv --> st["generate_subtitles"]
+    cv --> dm["download_music"]
+    st --> av["assemble_video"]
+    dm --> av
+    gv --> av
+    av --> bp["burn_pycaps_subtitles"]
 ```
 
-A landscape source always takes the far branch. The aspect difference for
-16:9 into 9:16 is 2.16 against a tolerance of 0.10, so the tolerance would
-have to exceed 2.16 for such a clip to crop; the near branch only ever
-separates near-vertical sources from everything else. Naming `letterbox`
-explicitly is how a profile opts back into black bars.
+A profile that draws no scraped media reverses the first edge: `generate_script` runs first so the stock search can use terms from the narration, and the description and voiceover steps then wait for both. `step_dependencies` in `src/video/producer/orchestration.py` is the single declaration of this graph; [the video pipeline explanation](explanation/video-pipeline.md) gives the reasons. `burn_pycaps_subtitles` returns at once when the resolved engine isn't pycaps, and falls back to an FFmpeg burn when pycaps fails.
 
-#### Audio Handling
+The whole render runs inside `pipeline_timeout_sec`; `src/utils/pipeline_deadline.py` passes the remaining budget down so a step's own timeout never outlasts the render's.
 
-Product video audio is not carried into the render. The narration is the
-message, and the source audio on a marketing or stock clip is a licensed music
-bed or a second voice, which is a platform audio-match risk with no audible
-benefit under a voiceover.
+### Resume and per-step state
 
-**FFmpeg Integration:**
-- **Complex Filters**: Dynamic filter graph construction
-- **Crossfade Transitions**: Smooth visual transitions (configurable duration)
-- **Aspect Ratio Transformations**: scale, pad, crop filters with smart positioning
-- **Format Normalization**: Auto-conversion to H.264/30fps/yuv420p for compatibility
-- **Subtitle Styling**: Font, color, positioning customization
-- **Multi-Track Audio**: amix filter with volume normalization
+Each render keeps `pipeline_state.json` in its product's `temp/` directory, one entry per completed step with the artifact paths it wrote, plus the seeded choices (template, CTA, cold-open variant and others) that make the render reproducible. On start, `state.py::_load_pipeline_state` checks every recorded artifact; the first missing or invalid one truncates the state to the steps before it, in the profile's real order, and the render continues from there. Running one step with `--step` drops the recorded steps that read its output, so a later full run doesn't reuse stale results. A successful run without `--debug` deletes `temp/`, state included, so resume applies to failed and interrupted renders.
 
-### 4. AI Integration (`src/ai/`)
+## 7. Deployment view
 
-**Purpose**: Generates promotional scripts and descriptions using LLM providers.
-
-**Provider Architecture:**
-- **Primary Provider**: Gemini via `google-genai` SDK
-- **Fallback Provider**: OpenRouter via aiohttp (OpenAI chat/completions format)
-- **Dispatch Layer**: `llm_client.py` routes calls based on `settings.provider`
-- **Fallback Chain**: Primary exhausts all models, then `fallback_provider` settings activate with separate API key, models, and discovery
-- **Retry Logic**: Exponential backoff with configurable limits per provider
-
-**Features:**
-- **Provider Fallback**: Configurable via `llm_settings.fallback_provider` in YAML
-- **Free Model Discovery**: OpenRouter auto-selects free models, filtered by blocklist, context length, and `src/ai/model_pool.py`, which drops a model that outputs anything other than text or that reasons in its output by default
-- **Script Templates**: 15 prompt styles with deterministic per-product selection
-- **Script Sanitization**: Removes emojis, hashtags, formatting issues
-- **Configurable Validation**: min_chars/min_words thresholds in `script_validation`; min_chars/min_words/max_chars in `description_validation`
-
-### 5. Media Processing
-
-#### Stock Media (`src/video/stock_media.py`)
-- **API Integration**: Pexels API with rate limiting
-- **Query Optimization**: Keyword-based search with caching
-- **Attribution Tracking**: Automatic attribution file generation
-- **Concurrent Downloads**: Semaphore-based concurrency control
-
-#### Background Music (`src/audio/`)
-- **Provider Platform**: `BaseAudioProvider` ABC + `AudioProviderRegistry` + `AudioManager`, the same chain pattern used by the publisher module
-- **Provider Chain**: Jamendo (primary) then Freesound, with local files as the last resort; within a provider the candidates are ranked on the words of the query it searched, and the first matching one that downloads wins
-- **Configuration**: `audio_providers` list in `config/video_production.yaml`, tried in order
-- **Jamendo**: `client_id` auth, `fuzzytags` search for genre/mood, downloads over HTTP/2 via curl (its CDN blocks HTTP/1.1)
-- **Freesound**: `FreesoundProvider` wraps the existing `FreesoundClient`; OAuth2 for full quality, API key for previews
-
-#### TTS Engine (`src/video/tts.py`)
-- **Primary Provider**: Gemini TTS via the `google.cloud.texttospeech` SDK; falls back to Google Cloud TTS on failure. Coqui TTS is supported but not installed: the code and config stay in place, and the provider self-disables when the package is absent
-- **Voice Selection**: Configurable voice profiles (provider, voice criteria, style)
-- **Async Generation**: Non-blocking TTS with timeout handling
-- **Caching**: Client and model caching for performance
-
-#### Subtitle Generation (`src/video/pycaps_engine/`, `src/video/unified_subtitle_generator.py`, `src/video/stt_functions.py`)
-- **Two Engines**: the bundled default is the pycaps engine (animated captions rendered per word); the FFmpeg ASS/SRT burn is the fallback. Selected via `subtitle_settings.subtitle_engine`
-- **Pycaps Engine**: runs as a post-assembly burn step (`src/video/pycaps_engine/renderer.py`), consumes the raw Whisper transcript, positions captions with a content-aware layout, and supports optional Gemini AI word tagging
-- **STT**: Whisper (primary) with word-level timing extraction; a timing smoother post-processes the word timestamps before either engine
-- **Content-Aware Positioning**: Dynamic subtitle placement that analyzes visual content to avoid overlaps
-- **Configurable Video/Subtitle Layout**: Per-profile control of video positioning and subtitle gaps
-  - `video_top_position_percent`: Vertical video start position (default: 10% from top)
-  - `video_content_height_percent`: Video height as frame percentage (default: 75%)
-  - `subtitle_settings.margin`: Gap between content and subtitles (bundled config: 4%)
-- **Segmentation Logic**: Smart text splitting with natural boundaries based on actual speech timing
-
-### 6. URL Shortening System (`src/utils/url_shortener/`)
-
-**Purpose**: Provider-agnostic URL shortening for affiliate links with fallback support.
-
-**Architecture Pattern:**
-- **Base Interface**: Abstract base class for all providers
-- **Provider Registry**: Factory pattern for provider instantiation
-- **Async-First Design**: Non-blocking HTTP requests
-- **Fallback Chain**: Automatic provider switching on failures
-
-**Features:**
-- **Multi-Provider Support**: `bare` (the shipped default, a no-op) and PicSee; others planned
-- **Retry Logic**: Exponential backoff with configurable attempts
-- **Response Caching**: TTL-based caching to avoid redundant API calls
-- **Custom Domains**: Branded short domains (BSD) support
-- **Bulk Operations**: Batch shortening for efficiency (PicSee)
-- **Integration Points**: Scraper (automatic), video descriptions (optional)
-
-**Implementation Details:**
-```python
-# Provider interface
-class BaseURLShortener(ABC):
-    @abstractmethod
-    async def shorten(self, url: str, custom_alias: str | None = None) -> ShortenedURL
-
-    @abstractmethod
-    async def shorten_bulk(self, urls: list[str]) -> list[ShortenedURL]
+```mermaid
+flowchart TB
+    subgraph machine["Operator machine"]
+        subgraph scope["systemd user scope: MemoryMax, MemorySwapMax=0, nice, ionice"]
+            run["batch, scrape, produce, publish or test run"]
+        end
+        timer["contentengineai-analytics.timer"] --> svc["analytics service<br/>python -m src.publisher.late analytics"]
+        svc -.->|on failure| notify["failure handler<br/>journal, log, desktop notification"]
+        outputs[("outputs/")]
+        run --> outputs
+        svc --> outputs
+    end
+    subgraph gh["GitHub Actions"]
+        ci["ci.yml: version-check, lint, test"] --> rel["release job: tag and GitHub release"]
+        sec["security.yml: weekly and per PR"]
+    end
 ```
 
-**Data Flow:**
-```
-Affiliate Link → URL Shortener → [Primary Provider]
-                                     ↓ (on failure)
-                                 [Fallback Provider]
-                                     ↓ (on failure)
-                                 [Original URL]
-```
-
-### 7. Video Processing and Extraction
-
-#### Overview
-
-ContentEngineAI's Amazon scraper includes comprehensive video detection, extraction, validation, and metadata capture capabilities. The system reliably identifies product-specific videos from Amazon pages, downloads them with robust error handling, and extracts detailed metadata for use in the video production pipeline.
-
-#### Video Extraction Flow
-
-```
-Product Page → Multi-Method Extraction → URL Validation → Download → FFprobe Metadata → Storage
-     │                    │                      │             │              │              │
-     │         ┌──────────┴──────────┐          │             │              │              │
-     │         │                     │          │             │              │              │
-     │    Script Data       Video Elements   HEAD Request  Streaming     Duration      videos/ dir
-     │    ASIN Matching     VDP Navigation   (1KB test)    Download    Resolution     Relative paths
-     │    Quality Filter                                   300s timeout  Codec info    in data.json
-```
-
-#### Multi-Method Video Extraction
-
-The scraper employs a three-tier extraction strategy to maximize video discovery. The whole flow runs only when the target profile uses scraped videos: an image-only profile passes `extract_videos=False` into the browser task, the three methods are skipped with a log line, and no video is downloaded.
-
-**Method 1: Script Data Extraction**
-- Parses `window.P.register()` JavaScript blocks for video URLs
-- Identifies product videos via ASIN matching in JSON metadata
-- Filters video URLs from structured product data
-- Prioritizes highest quality versions available
-
-**Method 2: Video Element Detection**
-- Scans DOM for `<video>` elements and sources
-- Extracts MP4 URLs from video player configurations
-- Validates URLs against Amazon CDN domains
-
-**Method 3: VDP (Video Detail Page) Navigation**
-- Follows VDP links for high-resolution video streams
-- Extracts video data from dedicated video pages
-- Captures multi-angle and detailed product views
-
-#### Video Metadata Extraction (`src/scraper/amazon/media_validator.py`)
-
-**Purpose**: Extract comprehensive video metadata using FFprobe for pipeline decision-making.
-
-**Implementation**:
-```python
-def extract_video_metadata(file_path: Path) -> dict[str, Any] | None:
-    """
-    Extract video metadata using FFprobe.
-
-    Returns:
-        {
-            'duration': float,        # Video duration in seconds
-            'width': int,            # Video width in pixels
-            'height': int,           # Video height in pixels
-            'codec': str,            # Video codec (h264, vp9, etc.)
-            'format': str,           # Container format (mp4, webm, etc.)
-            'bitrate': int,          # Bitrate in bits per second
-            'has_audio': bool        # Audio stream presence
-        }
-    """
-```
-
-**Features**:
-- **FFprobe Integration**: Uses FFprobe for comprehensive metadata extraction
-- **Graceful Degradation**: Returns `None` if FFprobe unavailable or video corrupted
-- **Structured Output**: Provides standardized metadata dict for all videos
-- **Error Handling**: Logs warnings but doesn't fail validation on metadata errors
-
-#### Video Validation and Quality Filtering
-
-**URL Validation** (`src/scraper/amazon/image_utils.py::validate_video_url_accessibility`):
-- HEAD request validation (1KB range) before full download
-- Amazon CDN domain verification for security
-- Accessibility checks to filter broken links
-- Random delay (0.5-1.5s) to mimic human behavior
-
-**Quality Thresholds**:
-- **Minimum Resolution**: 640px (width or height)
-- **Minimum Duration**: 1.0 seconds
-- **File Format**: MP4 containers only
-- **Domain Whitelist**: Amazon CDN domains only
-
-**Enhanced Validation** (`verify_video_file()`):
-```python
-def verify_video_file(
-    file_path: Path,
-    min_duration: float | None = None,
-    min_dimension: int | None = None,
-) -> MediaValidationResult:
-    """Validate a video file and extract its metadata."""
-```
-
-Returns validation status, reason, and metadata in single call for efficient pipeline integration.
-
-#### Robust Download Handling
-
-**Extended Timeouts**:
-- **Images**: 30 seconds timeout
-- **Videos**: 300 seconds timeout (configurable)
-- **Retry Logic**: 2 retry attempts with exponential backoff
-
-**Streaming Downloads**:
-- Chunk-based streaming (8KB chunks) for memory efficiency
-- Progress tracking for large files
-- Graceful handling of network interruptions
-
-**Error Recovery**:
-- Automatic retry with exponential backoff
-- Continues processing other videos on single failure
-- Product processing succeeds even if all videos fail
-- Detailed error logging with actionable messages
-
-#### Video Storage Organization
-
-**Directory Structure**:
-```
-outputs/{ASIN}/
-├── data.json                 # Product data with video paths
-├── images/                   # Product images
-│   ├── image_0.jpg
-│   └── image_1.jpg
-└── videos/                   # Product videos
-    ├── video_0.mp4          # First extracted video
-    ├── video_1.mp4          # Second extracted video
-    └── video_N.mp4          # Additional videos
-```
-
-**Naming Convention**:
-- Sequential indexing: `video_{index}.mp4`
-- Relative paths stored in `data.json`
-- Automatic directory creation if missing
-
-**Product Data Integration**:
-```json
-{
-  "asin": "B0BTYCRJSS",
-  "videos": [
-    "https://m.media-amazon.com/video1.mp4",
-    "https://m.media-amazon.com/video2.mp4"
-  ],
-  "downloaded_videos": [
-    "videos/video_0.mp4",
-    "videos/video_1.mp4"
-  ]
-}
-```
-
-#### Configuration Options
-
-**Video Processing** (`config/scraper.yaml:video_config`):
-```yaml
-video_config:
-  min_dimension: 640              # Minimum width/height (pixels)
-  min_duration: 1.0               # Minimum duration (seconds)
-  max_videos_per_product: 10      # Download limit per product
-  mute_video_tabs: true           # Prevent audio during extraction
-  enable_metadata_extraction: true # FFprobe metadata extraction
-```
-
-**Download Settings** (`config/scraper.yaml:download_config`):
-```yaml
-download_config:
-  download_timeout: 30            # Image timeout (seconds)
-  video_download_timeout: 300     # Video timeout (seconds)
-  retry_video_downloads: 2        # Retry attempts for videos
-  download_chunk_size: 8192       # Streaming chunk size (bytes)
-  validation_range_bytes: "0-1023" # HEAD request range
-```
-
-**Rate Limiting** (`config/scraper.yaml:rate_limiting`):
-```yaml
-rate_limiting:
-  video_validation_delay: [0.5, 1.5]  # Random delay range (seconds)
-```
-
-#### Performance Characteristics
-
-**Video Extraction Performance**:
-- URL extraction: <5 seconds per product
-- Concurrent downloads: Max 3 simultaneous videos
-- Average video download: 30-90 seconds (depends on file size and network)
-- Metadata extraction: <2 seconds per video (FFprobe)
-
-**Resource Usage**:
-- Memory: Streaming downloads prevent memory spikes
-- Network: Chunk-based transfers minimize bandwidth waste
-- CPU: Minimal (FFprobe is lightweight)
-
-### 8. Amazon Scraping Features
-
-The search parameters, filters and sort options are a CLI reference rather
-than architecture, and are documented once in
-[the scraper reference](reference/scraper.md#search-filters), with the
-config-side equivalents in
-[Configuration](reference/configuration.md). The copy that lived here gave the
-internal Amazon sort tokens as if they were CLI values, which argparse
-rejects.
-
-### 9. Multi-Platform Web Scraping Architecture
-
-#### **Platform Registry System (`src/scraper/__init__.py`)**
-
-**Purpose**: Factory pattern for unified platform access and extensibility.
-
-**Key Components:**
-- **ScraperFactory**: Creates platform-specific scrapers via factory pattern
-- **ScraperRegistry**: Auto-discovery and registration of platform implementations
-- **MultiPlatformScraper**: Unified interface for all e-commerce platforms
-
-```python
-# Unified platform access
-scraper = ScraperFactory.create_scraper(Platform.AMAZON)
-products = scraper.scrape_products(["wireless headphones"], search_params)
-
-# Platform auto-discovery
-available_platforms = ScraperRegistry.get_available_platforms()
-# Returns: [Platform.AMAZON, Platform.EBAY, Platform.WALMART, ...]
-```
-
-**Note**: only the Amazon scraper is implemented today. The eBay/Walmart entries above are illustrative placeholders showing how the registry extends to new platforms, not shipping code.
-
-#### **Base Scraper Interface (`src/scraper/base/models.py`)**
-
-**Purpose**: Platform-agnostic foundation for all e-commerce scrapers.
-
-**Abstract Interface:**
-```python
-class BaseScraper(ABC):
-    @property
-    @abstractmethod
-    def platform(self) -> Platform:
-        """Which platform this scraper serves"""
-
-    @abstractmethod
-    def validate_product_id(self, product_id: str) -> bool:
-        """Validate platform-specific product identifiers"""
-
-    @abstractmethod
-    def scrape_products(
-        self, keywords: list[str], search_params: BaseSearchParameters
-    ) -> list[BaseProductData]:
-        """Scrape products for the given keywords"""
-
-    @abstractmethod
-    def scrape_single_product(self, product_id: str) -> BaseProductData | None:
-        """Scrape one product by its platform identifier"""
-```
-
-#### **Amazon Implementation (`src/scraper/amazon/scraper.py`)**
-
-**Purpose**: Amazon-specific scraper extending the base interface.
-
-**Technical Implementation:**
-- **BaseScraper Extension**: Implements multi-platform interface
-- **Botasaurus Integration**: Browser automation with anti-detection defaults
-- **Stealth Techniques**: Anti-detection measures and browser fingerprinting
-- **Modular Architecture**: One module per extraction concern
-- **Media Extraction**: High-resolution images and videos with validation
-- **Advanced Search**: Complex filtering with price, rating, brand, and shipping options
-
-## Performance Optimization Architecture
-
-ContentEngineAI implements five optimization categories: pipeline parallelization, I/O optimization, multi-level caching, resource management, and background processing. See the "Performance Optimization" section in `docs/development.md` for the full breakdown of each category and its implementation.
-
-## Performance Monitoring
-
-### Metrics Collection (`src/utils/performance.py`)
-
-**Real-Time Tracking:**
-- Step-by-step timing and resource usage
-- Memory is the RSS of the whole process tree (ffmpeg, the subtitle
-  renderer's Chromium and the STT subprocess included), with the peak
-  sampled from a thread so a step that blocks the event loop is still read
-- CPU is the process tree's CPU time over the step's wall time
-- Historical data persistence (JSONL format), one row per run, keeping the
-  newest `optimization_settings.performance_history_max_runs` rows of each
-  kind (render, step), trimmed on every save
-
-**Monitoring Components:**
-- `PerformanceMonitor`: Real-time metrics collection
-- `PerformanceHistoryManager`: Historical data management. Each row carries
-  a `kind` (`render` for a full pipeline, `step` for a `--step` debug run),
-  `skipped` for a product dropped for insufficient media, and `failed_step`
-  for a failed run; reports read renders only
-- Cross-session analysis and trend detection
-
-**Reporting Tools:**
-```bash
-make perf-report                    # Quick summary
-poetry run python tools/performance_report.py --report-type detailed
-poetry run python tools/performance_report.py --report-type trends
-```
-
-## Configuration Architecture
-
-### Unified Configuration System
-
-ContentEngineAI uses a **modular configuration architecture** that replaced the original monolithic system while maintaining 100% backward compatibility.
-
-<details>
-<summary><strong>System Overview</strong></summary>
-
-**Design Principles:**
-- **Modular YAML Files**: 9 specialized files
-- **Triple Precedence**: CLI overrides > Environment variables > YAML defaults
-- **Zero Breaking Changes**: Existing function signatures preserved through adapters
-- **Production Ready**: Environment variable support for all settings
-
-**Configuration Files:**
-| File | Purpose | Key Sections |
-|------|---------|--------------|
-| `config/core.yaml` | Global settings | Output paths, debug, timeouts |
-| `config/video_production.yaml` | Video pipeline | Resolution, effects, profiles |
-| `config/ai_services.yaml` | AI providers | TTS, LLM, description generation |
-| `config/subtitles.yaml` | Subtitle system | Positioning, styles, effects |
-| `config/performance.yaml` | Resource limits | Memory, concurrency, optimization |
-| `config/scraper.yaml` | Web scraping | Browser, timing, validation, async downloads |
-| `config/pipeline.yaml` | Batch processing | Global batch settings, fail-fast mode |
-| `config/publisher.yaml` | Social publishing | Zernio integration, platform settings |
-| `config/url_shortener.yaml` | URL shortening | Provider settings, affiliate links |
-
-**Type-Safe Configuration (v0.14.0+):**
-- **Video Pipeline**: Pydantic models in `src/video/config/` (core, audio, visual, subtitle models)
-- **Scraper System**: Pydantic models in `src/scraper/config_models.py`
-- **Validation**: Field constraints ensure type safety and valid ranges at startup
-- **Backward Compatible**: Dict-based config adapter maintains legacy support
-
-**Performance Improvements:**
-- **20% faster** configuration loading
-- **Reduced memory footprint** through lazy loading
-- **Better caching** of parsed configuration values
-
-</details>
-
-### Backward Compatibility Layer
-
-The original configuration system is preserved through `config_adapter.py`:
-
-**Key Configuration Areas:**
-- **Timeout Management**: All pipeline timeouts configurable
-- **Provider Settings**: API configurations and fallback orders
-- **Media Processing**: Video/audio quality and processing parameters
-- **Performance Tuning**: Concurrency limits and optimization settings
-
-### Directory Structure Management
-
-**Features:**
-- **Flexible Patterns**: Configurable directory structures
-- **Dynamic Path Generation**: Product ID and timestamp-based paths
-- **Cleanup Integration**: Automated cleanup of unexpected files
-- **Pattern Validation**: Expected vs unexpected file location tracking
-
-## Data Flow Architecture
-
-### Pipeline Data Context
-
-```python
-class PipelineContext:
-    # Constructed with: product, profile, profile_name, config, secrets,
-    # session, run_paths, debug_mode, cli_overrides.
-    # Artifacts the steps fill in as they run:
-    visuals: list[Path]
-    script: str | None
-    description: str | None
-    voiceover_duration: float | None
-    state: dict[str, Any]
-    scraped_images: list[Path]
-    scraped_videos: list[Path]
-    stock_media: list[Path]
-    # Output paths come from `run_paths`, not from fields on the context.
-```
-
-**State Management:**
-- Immutable data structures where possible
-- Context preservation across async operations
-- Structured error propagation
-- Debug state serialization
-
-### Media Pipeline Flow
-
-```
-Product Data → Visuals Gathering → Script Generation → TTS Generation
-                                                           ↓
-Final Video ← Video Assembly ← Music Download + Subtitle Generation
-```
-
-**Data Transformations:**
-1. **Raw HTML** → **Structured ProductData** (Pydantic models)
-2. **Product Features** → **Promotional Script** (LLM processing)
-3. **Script Text** → **Audio + Timings** (TTS with word-level timestamps)
-4. **Audio + Timings** → **SRT Subtitles** (STT with segmentation)
-5. **All Components** → **Final MP4** (FFmpeg assembly)
-
-## Error Handling Architecture
-
-### Multi-Level Error Handling
-
-**Level 1: Provider Fallbacks**
-- LLM: Gemini (primary) -> OpenRouter (fallback)
-- TTS: Gemini TTS (primary) -> Google Cloud TTS (fallback)
-- STT: Whisper -> Google Cloud STT -> script-based timing estimation
-- Music: Jamendo (primary) -> Freesound -> local files
-
-**Level 2: Retry Logic**
-- Exponential backoff for transient failures
-- Configurable retry limits and timeouts
-- Circuit breaker patterns for persistent failures
-
-**Level 3: Graceful Degradation**
-- Continue pipeline with reduced functionality
-- Skip optional components (music, subtitles)
-- Generate attribution files for partial success
-
-**Level 4: Comprehensive Logging**
-- Structured error messages with context
-- Debug mode with intermediate file preservation
-- Performance impact tracking for failures
-
-## Extensibility Architecture
-
-### Plugin Architecture
-
-**Provider Interface Pattern:**
-All external service integrations follow a common interface:
-
-```python
-class BaseProvider(ABC):
-    @abstractmethod
-    async def initialize(self, config: Dict[str, Any]) -> None:
-        """Initialize provider with configuration"""
-        
-    @abstractmethod  
-    async def process(self, input_data: Any) -> Any:
-        """Process input and return result"""
-        
-    @abstractmethod
-    async def cleanup(self) -> None:
-        """Clean up resources"""
-```
-
-### Adding New Components
-
-**New Media Sources:**
-1. Implement `BaseMediaProvider` interface
-2. Add configuration section to `src/video/config/` models
-3. Register provider in media fetching pipeline
-4. Add attribution tracking support
-
-**New AI Providers:**
-1. Implement provider interface (TTS, STT, LLM)
-2. Add to provider fallback chain
-3. Update configuration validation
-4. Add performance monitoring hooks
-
-**New Pipeline Steps:**
-1. Define step function with async signature
-2. Add it to `step_runners()` and `step_dependencies()` in `src/video/producer/orchestration.py`, and to `VALID_STEPS` in `src/video/producer/state.py`
-3. Update configuration and validation
-4. Add performance monitoring and error handling
-
-## Key Technologies
-
-- **🐍 Python 3.12**: Modern async/await patterns
-- **🎥 FFmpeg**: Professional video processing
-- **🤖 AI Services**: Gemini (LLM + TTS, primary), OpenRouter and Google Cloud (fallbacks), OpenAI Whisper (STT)
-- **🌐 Web Scraping**: Botasaurus with stealth techniques (Amazon only today)
-- **📱 Media APIs**: Jamendo and Freesound (music), Pexels (stock images/videos)
-- **⚙️ Configuration**: YAML + Pydantic validation
-- **🧪 Testing**: Pytest with async support
-
-## Acknowledgments
-
-- **OpenAI Whisper** for speech-to-text capabilities
-- **Google Gemini** for script generation and TTS, with Google Cloud as fallback
-- **Pexels** for stock media content
-- **Jamendo** and **Freesound** for background music
-- **FFmpeg** for video processing excellence
-
-This architecture enables ContentEngineAI to be highly extensible while maintaining performance, reliability, and maintainability across all components.
+- **Low-priority targets.** `make batch-lowpri`, `scrape-lowpri`, `produce-lowpri`, `publish-lowpri` and `test-lowpri` start the run in a `systemd-run --user --scope` with `MemoryMax=$(MEM_LIMIT)` (default 6G), `MemorySwapMax=0`, `nice` and `ionice`. A blow-up is then killed inside the scope instead of the host's out-of-memory handling killing desktop applications. The recipes exec the project interpreter directly instead of `poetry run`, because the scope doesn't carry the caller's virtualenv. Without `systemd-run` they fall back to `nice` and `ionice` alone.
+- **Analytics timer.** `deploy/install-timer.sh` (through `make install-analytics-timer`) renders the unit templates in `deploy/`, installs them as user units and runs one sweep. The timer runs the analytics sweep daily by default (`ON_CALENDAR` in `deploy/schedule.env`), and an `OnFailure=` unit records failures. [The publishing guide](guides/publishing.md) covers setup.
+- **CI and releases.** Every pull request is a release: `version-check` runs `tools/release_check.py` against the base branch. On a push to `main`, the `release` job in `ci.yml` tags the version from `pyproject.toml` and creates the GitHub release from the CHANGELOG section. `release.yml` covers a tag pushed by hand. [Versioning](versioning.md) has the rules.
+
+## 8. Cross-cutting concepts
+
+### Configuration tiers
+
+[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The code resolves CLI, then profile, then environment, then YAML, because environment overrides are applied when the YAML loads (section 11, `REQ-OPS-001`). `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
+
+### Logging, run ids and product ids
+
+`src/utils/logging_setup.py` writes one file per component per day under `outputs/logs/` and keeps 45 days. Every line carries the run id and the product id, bound with `log_context`, so one product's whole story across phases is one `grep`. A masking filter removes secret-shaped values, and third-party loggers stay quiet even with `--debug`.
+
+### Error handling
+
+Failures are contained at three levels. A provider call retries transient errors with backoff (`src/utils/retry.py`) and stops calling a failing service for a cool-down (`circuit_breaker.py`). A provider chain falls back to the next provider:
+
+| Need | Chain |
+|---|---|
+| Script and captions | Gemini, then OpenRouter free models |
+| Voiceover | Gemini TTS, then Google Cloud TTS |
+| Word timings | Whisper, then Google Cloud STT, then timing estimated from the script (FFmpeg engine only) |
+| Music | Jamendo, then Freesound, then local files |
+| Captions | pycaps, then FFmpeg |
+| Short links | the configured shortener, then the original URL |
+
+A batch isolates failures per product and reports skips (insufficient media) apart from failures, and `--strict` turns any loss into a non-zero exit.
+
+### Performance tracking
+
+`src/utils/performance.py::PerformanceMonitor` measures each step's duration, process-tree memory and CPU, and `PerformanceHistoryManager` appends one record per render to `outputs/performance_history/`. `tools/performance_report.py` reads it. Requirements `REQ-OPS-047` to `REQ-OPS-065` define what is recorded.
+
+### Outputs and state directories
+
+All artifacts live under one outputs root (`outputs/` by default). Each product or topic has its own directory with `data.json`, media, a `temp/` working directory and the final `video_*.mp4`; the shared directories (`cache/`, `logs/`, `reports/`, `performance_history/`, `temp/`) sit beside them. `outputs/state/` holds the records that must outlive product cleanup (`publish_history.json`, `schedule.json`, the published-products registry and the analytics metrics); code reaches it through `src/utils/outputs_paths.py::durable_state_path`, and cleanup never removes it.
+
+### Off-by-default features and seeded choices
+
+A feature that changes rendered output ships behind a switch that keeps the existing behaviour ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)), and `tests/test_reach_test_holdout.py` checks the bundled config keeps each one off. Choices drawn per render use a salted hash of the product id, so a product renders identically on every run, and the choice is written to the run state.
+
+### Disclosure
+
+The material-connection decision is made once, by the producer, and recorded in the render's metadata. The assembler burns the on-frame overlay from it, and the publisher reads it to lead the caption with the disclosure. When the record doesn't positively show there is nothing to disclose, both disclose. The rules are in [the compliance requirements](requirements/compliance.md) and [the compliance explanation](explanation/compliance.md).
+
+## 9. Architecture decisions
+
+| Record | Decision |
+|---|---|
+| [0001](decisions/0001-documentation-structure.md) | Documentation is split into folders by layer. |
+| [0002](decisions/0002-output-changes-ship-off-by-default.md) | Output-changing features ship off by default. |
+| [0003](decisions/0003-config-precedence.md) | Four configuration tiers; the environment holds machine settings and secrets. |
+| [0004](decisions/0004-caption-engine.md) | Pycaps with the CSS renderer is the caption engine. |
+| [0005](decisions/0005-duplicates-are-tolerated.md) | Duplicate posts from normal operation are tolerated. |
+
+Decision records are append-only. How a single feature works is in a design doc under [design/](design/README.md), frozen once the feature ships.
+
+## 10. Quality requirements
+
+| Quality | Measure | Requirements |
+|---|---|---|
+| Timing | The final video matches the voiceover within `video_duration_tolerance_sec` (default 1 s). | `REQ-VID-001`, `REQ-VID-002` |
+| Time budget | A render stops at `pipeline_timeout_sec`, and final assembly has its own timeout inside it. | `REQ-VID-008`, `REQ-VID-009` |
+| Memory | A run over `MEM_LIMIT` (default 6G) is stopped without other applications being killed. | `REQ-OPS-040` |
+| Resumability | `--resume` continues a batch without redoing completed phases or products. | `REQ-BAT-043` |
+| Exit status | A batch exits non-zero when nothing completes, and with `--strict` when anything is lost. | `REQ-BAT-048` to `REQ-BAT-051` |
+| Observability | Every log line carries run and product ids; logs are kept 45 days. | `REQ-OPS-027`, `REQ-OPS-028` |
+| Compliance | Caption and frame disclosure follow one decision. | `REQ-CMP-001` to `REQ-CMP-010` |
+
+The full list, with statuses, is in [the requirements](requirements/README.md).
+
+## 11. Risks and technical debt
+
+- **Batch and module drift.** The batch phases re-implement parts of the standalone CLIs (scheduling, cleanup, filters, profile pools), and a fix in one path silently misses the other. [batch-alignment.md](notes/batch-alignment.md) lists where they drifted; the rule is to check the other path on every change.
+- **Environment tier placement.** The environment overrides are applied to the YAML layer before the profile merges, so a key that a profile also sets resolves profile-first, the reverse of the order decision 0003 names. Moving behaviour settings out of the environment (`REQ-OPS-003`, `REQ-OPS-009`) makes the overlap disappear.
+- **Partial requirements.** Requirements marked `partial` name their gaps: among them `REQ-OPS-002` (`--outputs-dir` shadows the YAML), `REQ-OPS-038` and `REQ-OPS-039` (only FFmpeg concurrency is limited, and the config keys are unread), `REQ-OPS-023` (wall-clock durations), `REQ-CMP-001` (the overlay can be turned off with a warning), and `REQ-BAT-040` (random profile choice isn't stable across runs). The requirements files list every one with its `Gap:` line.
+- **Dead or speculative structure.** `ScraperFactory`, `MultiPlatformScraper` and the non-Amazon `Platform` values have no caller, and `src/utils/memory_mapped_io.py` is used only by tests.
+- **Link-in-bio window.** The provider's list endpoint returns one page, so the duplicate check sees only recent links ([decision 0005](decisions/0005-duplicates-are-tolerated.md)).
+- **Module notes.** Each file in [the module notes](notes/) records defects that a likely change would bring back. Read the module's file before changing it.
+
+## 12. Glossary
+
+| Term | Meaning |
+|---|---|
+| ASIN | Amazon's product id; the directory name of a scraped product under `outputs/`. |
+| Topic render | A render from a title, description and keywords instead of a listing, written to `outputs/topic-<slug>-<digest>/`. |
+| Profile | A named set of render settings (visual sources, assembly mode, captions) in `config/video_production.yaml`. |
+| Script-first | The step order of a profile that draws no scraped media: the script is written before the visuals are gathered. |
+| Step | One of the eight render stages, each recorded in `pipeline_state.json`. |
+| Phase | One of the batch stages: scraping, handoff, production, publishing. |
+| Handoff | The batch phase that turns scraped directories into a list of ready products and drops already-published ones. |
+| Leg | One platform's part of a multi-platform post. |
+| Delivery sweep | The post-publish check that reports posts with a failed leg. |
+| Blob retention | The post-publish trim of staged uploads in the upload store. |
+| Durable state | The records under `outputs/state/` that cleanup never removes. |
+| Material connection | An affiliate or other paid relationship that requires disclosure. |
+| Held | A requirement built behind a switch that ships off ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)). |
+| lowpri | The `make *-lowpri` targets that run inside a memory-capped, low-priority scope. |
+| Run id | The id bound to every log line of one process run. |

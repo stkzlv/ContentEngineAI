@@ -4,7 +4,8 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 ## Configuration
 
-- **REQ-OPS-001** `shipped` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
+- **REQ-OPS-001** `partial` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
+  - Gap: environment overrides are applied when the YAML loads and the profile merges afterwards, so for a key a profile also sets, the profile wins over the environment.
 - **REQ-OPS-002** `partial` A CLI flag overrides a lower tier only when the user passes it.
   - Gap: `--outputs-dir` defaults to `outputs`, so it shadows `global_output_directory` from the YAML even when it isn't passed.
 - **REQ-OPS-003** `planned (decision 0003)` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.

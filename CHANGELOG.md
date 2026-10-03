@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.5] - 2026-10-03
+
+### Documentation
+
+- The architecture page follows the arc42 sections, with Mermaid context, container and runtime diagrams; structural claims were checked against the code and corrected, and per-key detail lives in the reference pages.
+- The aspect-mode details move to the video-producer reference, and the configuration precedence in the reference and the requirements matches what the code does: a profile value overrides the environment.
+
 ## [0.127.4] - 2026-10-03
 
 ### Documentation
