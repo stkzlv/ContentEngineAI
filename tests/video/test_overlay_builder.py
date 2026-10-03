@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from src.video.assembler.overlay_builder import (
+    DisclosureOverlayError,
     apply_disclosure_overlay,
     build_disclosure_drawtext,
 )
@@ -144,21 +147,23 @@ class TestApplyDisclosureOverlay:
         assert "drawtext=" in out[-1]
         assert "copy[v_out]" not in out[-1]
 
-    def test_disabled_returns_unchanged_chain(self, tmp_path):
+    @pytest.mark.req("REQ-CMP-001")
+    def test_disabled_is_ignored_on_a_render_that_needs_it(self, tmp_path):
+        # Only renders with a material connection reach this function, so the
+        # switch cannot remove the disclosure from one.
         filters = ["[v_sub_1]copy[v_out]"]
         out = apply_disclosure_overlay(
             filters, DisclosureSettings(enabled=False), 80, tmp_path
         )
-        assert out is filters or out == filters
-        assert out[-1] == "[v_sub_1]copy[v_out]"
+        assert "drawtext=" in out[-1]
 
-    def test_terminal_not_producing_v_out_is_logged_and_skipped(self, tmp_path):
-        # Only a terminal that doesn't produce [v_out] at all is unrecoverable.
-        # Anything else can be re-pointed, so leaving the chain alone is
-        # reserved for shapes we genuinely can't reason about.
+    @pytest.mark.req("REQ-CMP-001")
+    def test_terminal_not_producing_v_out_fails_the_render(self, tmp_path):
+        # Only a terminal that doesn't produce [v_out] at all is unrecoverable,
+        # and shipping without the disclosure is not an option.
         filters = ["[v0]something_else[v_other]"]
-        out = apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
-        assert out == filters
+        with pytest.raises(DisclosureOverlayError):
+            apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
 
     def test_content_aware_ass_terminal_gets_the_overlay(self, tmp_path):
         # The ffmpeg content-aware subtitle path ends with an ass= filter that
@@ -184,9 +189,10 @@ class TestApplyDisclosureOverlay:
         out = apply_disclosure_overlay(filters, DisclosureSettings(), 80, tmp_path)
         assert len(out) == len(filters)
 
-    def test_empty_filter_list_returns_unchanged(self, tmp_path):
-        out = apply_disclosure_overlay([], DisclosureSettings(), 80, tmp_path)
-        assert out == []
+    @pytest.mark.req("REQ-CMP-001")
+    def test_empty_filter_list_fails_the_render(self, tmp_path):
+        with pytest.raises(DisclosureOverlayError):
+            apply_disclosure_overlay([], DisclosureSettings(), 80, tmp_path)
 
     def test_input_stream_is_carried_through(self, tmp_path):
         filters = ["[v_subtitle_3]copy[v_out]"]
@@ -201,9 +207,10 @@ class TestApplyDisclosureOverlay:
         )
         assert _disclosure_text(tmp_path) == "#publi"
 
-    def test_skipped_overlay_writes_no_file(self, tmp_path):
-        # A disabled or unmatched chain returns before touching the disk.
-        apply_disclosure_overlay(
-            ["[v_sub_1]copy[v_out]"], DisclosureSettings(enabled=False), 80, tmp_path
-        )
+    def test_a_refused_chain_writes_no_file(self, tmp_path):
+        # An unmatched chain raises before touching the disk.
+        with pytest.raises(DisclosureOverlayError):
+            apply_disclosure_overlay(
+                ["[v0]x[v_other]"], DisclosureSettings(), 80, tmp_path
+            )
         assert not (tmp_path / "disclosure_text.txt").exists()

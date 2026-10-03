@@ -31,6 +31,7 @@ from src.publisher.models import (
     ScheduleConfig,
     ScheduleEntry,
     _trim_on_word_boundary,
+    disclosure_from_record,
     strip_disclosure_tokens,
 )
 from src.publisher.product_registry import add_to_registry
@@ -70,6 +71,7 @@ def metadata_from_file(
     """
     hashtags = list(meta.get("hashtags", []))
     discloses = bool(meta.get("carries_affiliate_content", True))
+    disclosure = disclosure_from_record(meta)
 
     # The caption prompts end their worked examples with `#ad`, so the model
     # writes it into the body whatever this render carries. Removed either
@@ -78,7 +80,7 @@ def metadata_from_file(
     # false statement #295 was about. `single` gets the same outcome from the
     # loader's trailing-hashtag rule, which this path never had.
     description, hashtags = strip_disclosure_tokens(
-        str(meta.get("description", "") or ""), hashtags
+        str(meta.get("description", "") or ""), hashtags, disclosure
     )
 
     try:
@@ -89,6 +91,7 @@ def metadata_from_file(
             hashtags=hashtags,
             keywords=list(meta.get("keywords", [])),
             product_id=product_id,
+            disclosure=disclosure,
             carries_affiliate_content=discloses,
         )
     except ValueError as e:
@@ -109,6 +112,7 @@ def metadata_from_file(
             hashtags=tags,
             keywords=list(meta.get("keywords", [])),
             product_id=product_id,
+            disclosure=disclosure,
             carries_affiliate_content=discloses,
         )
 

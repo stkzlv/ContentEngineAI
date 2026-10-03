@@ -278,6 +278,7 @@ def save_metadata_to_file(
     output_path: Path,
     debug_mode: bool = False,
     disclose: bool = True,
+    disclosure: str | None = None,
 ) -> bool:
     """Save platform metadata to JSON file.
 
@@ -293,6 +294,8 @@ def save_metadata_to_file(
             Recorded in the file so the publisher does not re-derive it, and
             used to drop the `#ad` tag the platform generators append
             unconditionally. Defaults to True.
+        disclosure: The caption disclosure token, the configured on-frame
+            text, recorded so the publisher's caption matches the frame.
 
     Returns:
     -------
@@ -318,6 +321,8 @@ def save_metadata_to_file(
         # material connection, so this path cannot disagree with the on-frame
         # overlay about whether the video is promotional.
         metadata_dict["carries_affiliate_content"] = disclose
+        if disclosure:
+            metadata_dict["disclosure"] = disclosure
         if not disclose:
             metadata_dict["hashtags"] = [
                 tag

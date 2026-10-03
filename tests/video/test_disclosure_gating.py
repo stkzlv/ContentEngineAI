@@ -179,6 +179,7 @@ class TestTheWiring:
         ctx.description = None
         ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
         ctx.state = {}
+        ctx.config.video_settings.disclosure_overlay.text = "#publi"
 
         with patch(
             "src.video.producer.steps.generate_ai_description",
@@ -189,6 +190,8 @@ class TestTheWiring:
         written = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
         assert written["carries_affiliate_content"] is False
         assert "ad" not in written["hashtags"]
+        # The caption token comes from the on-frame setting (REQ-CMP-013).
+        assert written["disclosure"] == "#publi"
 
     def test_the_platform_metadata_records_the_decision(self, tmp_path):
         """The optimized mode writes these instead of the unified file.

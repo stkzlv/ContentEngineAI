@@ -91,15 +91,6 @@ class TestOnFrameOverlay:
         assert "textfile=" in out[-1]
         assert (tmp_path / "disclosure_text.txt").read_text() == "#ad"
 
-    def test_overlay_can_be_disabled_for_non_affiliate_renders(self, tmp_path):
-        # The Phase 2.2 "non_affiliate" pillar mode (educational track) needs
-        # an escape hatch so educational videos don't ship with #ad.
-        chain = ["[v_subtitle]copy[v_out]"]
-        out = apply_disclosure_overlay(
-            chain, DisclosureSettings(enabled=False), 80, tmp_path
-        )
-        assert out == chain
-
     def test_overlay_text_propagates_through_to_filter(self, tmp_path):
         # Phase 0.4 will inject Spanish #publi via this same DisclosureSettings
         # path; verify the text override reaches the rendered filter today.

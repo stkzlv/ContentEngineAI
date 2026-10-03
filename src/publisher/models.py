@@ -241,6 +241,19 @@ class AnalyticsConfig:
 DEFAULT_DISCLOSURE = "#ad"
 
 
+def disclosure_from_record(meta: dict) -> str:
+    """The caption disclosure token a metadata file records.
+
+    The producer writes the configured on-frame text (`disclosure_overlay.text`)
+    into the file, so the caption and the frame use one setting. A file
+    written before the key existed, or with it blank, gets `#ad`.
+    """
+    token = meta.get("disclosure")
+    if isinstance(token, str) and token.strip():
+        return token.strip()
+    return DEFAULT_DISCLOSURE
+
+
 def strip_disclosure_tokens(
     description: str,
     hashtags: list[str],
@@ -334,11 +347,12 @@ class PublishMetadata:
             tag.lstrip("#") if tag.startswith("#") else tag for tag in self.hashtags
         ]
 
-        # Drop hashtags that duplicate the disclosure (it leads the caption now).
-        # Compare case-insensitively against the bare token (without #).
+        # Drop hashtags that duplicate the disclosure (it leads the caption now):
+        # the configured token and `ad`, which the generators add whatever the
+        # token is, so a `#publi` caption doesn't end with `#ad` too.
         if self.disclosure:
-            disc_token = self.disclosure.lstrip("#").lower()
-            self.hashtags = [t for t in self.hashtags if t.lower() != disc_token]
+            tokens = {"ad", self.disclosure.lstrip("#").lower()}
+            self.hashtags = [t for t in self.hashtags if t.lower() not in tokens]
 
         # A render with no material connection must not carry a disclosure
         # token at all, wherever it came from. The caption prompts instruct

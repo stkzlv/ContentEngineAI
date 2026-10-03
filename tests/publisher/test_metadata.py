@@ -189,3 +189,53 @@ class TestLoadFromJson:
         assert result is not None
         assert result.hashtags == []
         assert result.keywords == []
+
+
+class TestCaptionDisclosureToken:
+    """The caption leads with the token the producer recorded (REQ-CMP-013)."""
+
+    def _write(self, tmp_path: Path, **extra) -> Path:
+        product = tmp_path / "B0TOKEN001"
+        product.mkdir()
+        record = {
+            "title": "Lamp",
+            "description": "A lamp for the desk. #ad",
+            "hashtags": ["lamp", "desk", "home", "ad"],
+            "carries_affiliate_content": True,
+            **extra,
+        }
+        (product / "metadata_youtube.json").write_text(json.dumps(record))
+        return tmp_path
+
+    @pytest.mark.req("REQ-CMP-013")
+    def test_a_recorded_token_leads_the_caption(self, tmp_path):
+        outputs = self._write(tmp_path, disclosure="#publi")
+        meta = load_platform_metadata("B0TOKEN001", Platform.YOUTUBE, outputs)
+        assert meta is not None
+        caption = meta.format_content()
+        assert caption.splitlines()[0] == "#publi"
+        assert "#ad" not in caption
+
+    def test_a_file_without_one_keeps_ad(self, tmp_path):
+        outputs = self._write(tmp_path)
+        meta = load_platform_metadata("B0TOKEN001", Platform.YOUTUBE, outputs)
+        assert meta is not None
+        assert meta.format_content().splitlines()[0] == "#ad"
+
+    @pytest.mark.req("REQ-CMP-013")
+    def test_the_scheduled_path_reads_it_too(self):
+        from src.publisher.schedule import metadata_from_file
+
+        meta = metadata_from_file(
+            {
+                "title": "Lamp",
+                "description": "A lamp. #ad",
+                "disclosure": "#publi",
+                "carries_affiliate_content": True,
+            },
+            "B0TOKEN001",
+            Platform.YOUTUBE,
+        )
+        caption = meta.format_content()
+        assert caption.splitlines()[0] == "#publi"
+        assert "#ad" not in caption

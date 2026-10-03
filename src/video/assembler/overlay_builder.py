@@ -218,6 +218,10 @@ def _ensure_copy_terminal(video_filters: list[str]) -> list[str] | None:
     return [*video_filters[:-1], rerouted, f"{_OVERLAY_TAIL_LABEL}copy[v_out]"]
 
 
+class DisclosureOverlayError(RuntimeError):
+    """The on-frame disclosure could not be added to a render that needs it."""
+
+
 def apply_disclosure_overlay(
     video_filters: list[str],
     settings: DisclosureSettings,
@@ -233,24 +237,28 @@ def apply_disclosure_overlay(
     overlay applies on every subtitle path rather than only the ones that
     happen to end in the no-op.
 
-    When ``settings.enabled`` is False, the input list is returned unchanged.
-    When the terminal filter does not produce ``[v_out]`` at all, the chain is
-    also returned unchanged and a warning is logged.
+    Called only for a render with a material connection, where the overlay
+    is required: ``settings.enabled`` is ignored with a warning, and a chain
+    the overlay cannot be added to raises ``DisclosureOverlayError`` so the
+    render fails instead of shipping without it.
     """
     if not settings.enabled:
-        return video_filters
+        logger.warning(
+            "disclosure_overlay.enabled is false, ignored: this render carries "
+            "a material connection, so it shows the disclosure"
+        )
 
     if not video_filters:
-        logger.warning("Disclosure overlay skipped: empty video_filters list")
-        return video_filters
+        raise DisclosureOverlayError(
+            "Cannot add the disclosure overlay: the video filter chain is empty"
+        )
 
     normalized = _ensure_copy_terminal(video_filters)
     if normalized is None:
-        logger.warning(
-            "Disclosure overlay skipped: last filter has unexpected shape: %r",
-            video_filters[-1],
+        raise DisclosureOverlayError(
+            "Cannot add the disclosure overlay: the last filter does not "
+            f"produce [v_out]: {video_filters[-1]!r}"
         )
-        return video_filters
 
     video_filters = normalized
     input_stream = video_filters[-1].replace("copy[v_out]", "")

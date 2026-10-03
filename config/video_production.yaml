@@ -183,8 +183,8 @@ video_settings:
   # endorsement). Sized smaller than narration captions (50-60%) so it
   # discloses without dominating the frame. See docs/explanation/compliance.md.
   disclosure_overlay:
-    enabled: true                     # Set false to skip the overlay (not recommended for affiliate content)
-    text: "#ad"                       # Disclosure text. Override for non-English renders.
+    enabled: true                     # Deprecated and ignored: a render with a material connection always carries the overlay
+    text: "#ad"                       # Disclosure text, on the frame and leading the caption. Override for non-English renders.
     position: "top-right"             # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45                 # Font size as fraction of subtitle font size (slightly under FTC's 50-60% band; tuned for tighter corner placement)
     font_color: "white"

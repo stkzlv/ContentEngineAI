@@ -4,8 +4,7 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 
 ## On-frame disclosure
 
-- **REQ-CMP-001** `partial` A render that carries a material connection has a persistent disclosure overlay burned in, on every subtitle engine and every subtitle positioning mode.
-  - Gap: the overlay can be left out with only a warning, and `disclosure_overlay.enabled: false` turns it off on affiliate renders (#581).
+- **REQ-CMP-001** `shipped` A render that carries a material connection has a persistent disclosure overlay burned in, on every subtitle engine and every subtitle positioning mode.
 - **REQ-CMP-002** `shipped` The disclosure overlay sits in a fixed corner for the full clip, sized smaller than the narration captions.
 - **REQ-CMP-003** `shipped` The overlay's text, corner, size, color, outline and background are configurable under `video_settings.disclosure_overlay`.
 - **REQ-CMP-004** `shipped` If a record shows that a render has nothing to disclose (a topic with no affiliate link), the render carries no overlay.
@@ -20,8 +19,7 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 - **REQ-CMP-010** `shipped` If a metadata file lacks the decision, the publisher discloses.
 - **REQ-CMP-011** `shipped` If the caption's hashtags include the disclosure token, the published caption shows the disclosure once, on the leading line.
 - **REQ-CMP-012** `shipped` If a render has no material connection, the publisher removes `#ad` and the configured disclosure token from its description and hashtags.
-- **REQ-CMP-013** `partial` The disclosure text is configurable per render, so language-matched variants need no code change.
-  - Gap: only the overlay text is configurable; the caption disclosure is always `#ad` (#581).
+- **REQ-CMP-013** `shipped` The disclosure text is configurable per render, so language-matched variants need no code change.
 
 ## Platform disclosure settings
 

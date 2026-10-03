@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.129.0] - 2026-10-03
+
+### Changed
+
+- The caption's leading disclosure comes from `video_settings.disclosure_overlay.text`, the same setting as the on-frame overlay, so a localized token such as `#publi` reaches both without a code change.
+- **Breaking**: `disclosure_overlay.enabled` is deprecated and ignored: a render with a material connection always carries the overlay, and one without carries none.
+
+### Fixed
+
+- A render with a material connection fails when its filter chain cannot take the disclosure overlay, instead of shipping without it.
+
 ## [0.128.4] - 2026-10-03
 
 ### Fixed
