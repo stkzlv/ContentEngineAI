@@ -93,7 +93,7 @@ For batch operations, `make batch-lowpri` is documented below as the default for
 poetry run python -m src.scraper.amazon.scraper --keywords <ASIN> --debug --clean
 poetry run python -m src.video.producer outputs/<ASIN>/data.json slideshow_images1 --debug
 
-# Topic render (no scraper run); output lands in outputs/topic-<slug>/
+# Topic render (no scraper run); output lands in outputs/topic-<slug>-<digest>/
 poetry run python -m src.video.producer slideshow_stock --topic "Why wifi drops" --topic-description "..." --topic-keywords "wifi router, home network"
 poetry run python -m src.video.producer slideshow_stock --topics-file topics.yaml
 
@@ -119,7 +119,7 @@ poetry run python -m src.video.producer --batch --batch-profile slideshow_images
 poetry run python -m src.video.producer --batch --random-profile --debug
 
 # Batch video production (random from specific pool)
-poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 video_sequential --debug
+poetry run python -m src.video.producer --batch --random-profile --profile-pool slideshow_images1 product_video_sequential --debug
 
 # Batch video production (specific products only)
 poetry run python -m src.video.producer --batch --random-profile --product-ids B0ASIN1 B0ASIN2 --debug

@@ -460,7 +460,7 @@ seconds on this hardware.
 
 ## Related documentation
 
-- [Video Producer CLI reference](../video-producer.md)
+- [Video producer reference](../reference/video-producer.md#pycaps-options)
 - [Configuration system overview](../reference/configuration.md)
 - [Architecture: subtitle pipeline](../architecture.md)
 - [Development workflow](../development.md)

@@ -18,7 +18,8 @@ built-in default, so `NOTIFY_ON_FAILURE=0 make install-analytics-timer` works
 without editing the file.
 
 Usage and the reasoning behind the settings are in
-[the publisher docs](../docs/publisher.md), under `Command: analytics`.
+[the publishing guide](../docs/guides/publishing.md#capture-post-analytics-on-a-schedule)
+and [the publishing explanation](../docs/explanation/publishing.md#post-analytics).
 
 ```bash
 make install-analytics-timer      # install, enable, and prove it runs

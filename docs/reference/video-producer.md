@@ -1,0 +1,317 @@
+# Video producer reference
+
+The command-line interface of `src.video.producer`, the profile keys, the assembly modes, the subtitle formats and the pipeline steps. For the task walkthroughs, see [Producing videos](../guides/producing-videos.md); for why the pipeline is shaped this way, see [The video pipeline](../explanation/video-pipeline.md). Global settings are in [Configuration](configuration.md).
+
+## Synopsis
+
+```bash
+poetry run python -m src.video.producer <products_file> <profile> [options]
+poetry run python -m src.video.producer <profile> --topic <title> [options]
+poetry run python -m src.video.producer <profile> --topics-file <file.yaml> [options]
+poetry run python -m src.video.producer --batch (--batch-profile <profile> | --random-profile) [options]
+```
+
+The parser is `create_argument_parser` in `src/video/producer/cli.py`. The flags marked *shared* are declared once in `src/video/producer/shared_cli.py` and are accepted with the same names and choices by the global batch (`src.pipeline.global_batch`).
+
+## Arguments
+
+### Positional arguments
+
+| Argument | Description | Example |
+|---|---|---|
+| `products_file` | Path to the product `data.json`. Not used with `--batch`, `--topic` or `--topics-file`. | `outputs/B0.../data.json` |
+| `profile` | Video profile name from `video_profiles`. Required except with `--batch`. | `slideshow_images1` |
+
+In topic mode a lone positional is read as the profile, so `<profile> --topic ...` works without a `products_file`.
+
+### Input and batch
+
+| Argument | Description | Example |
+|---|---|---|
+| `--batch` | Process every product found in the outputs directory. | `--batch` |
+| `--batch-profile` | Profile for every batch product. | `--batch-profile slideshow_images1` |
+| `--random-profile` | Pick a profile per product, deterministic by product id. | `--random-profile` |
+| `--profile-pool` | Profiles `--random-profile` draws from. Without it, the YAML `batch.profile_pool` applies, then every profile except `base` and `slideshow_stock`. | `--profile-pool prof1 prof2` |
+| `--product-ids` | Limit `--batch` to these product ids. | `--product-ids B0ASIN1 B0ASIN2` |
+| `--outputs-dir` | Directory to scan for products (default `outputs`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
+| `--fail-fast` | Stop the batch on the first failure. | `--fail-fast` |
+| `--strict` | Exit non-zero when any product was lost, to a failure or a skip. By default only a run where nothing succeeded exits non-zero. | `--strict` |
+| `--output-format` | Batch summary format: `text` (default) or `json`. | `--output-format json` |
+| `--product-index` | 0-based index of the product in a `data.json` that holds a list. | `--product-index 0` |
+| `--topic` | Render a subject instead of a product; replaces `products_file`. | `--topic "Why wifi drops"` |
+| `--topic-description` | Source material the script is written from. The script generator reads only the title and this description. | `--topic-description "Router placement."` |
+| `--topic-keywords` | Comma-separated stock search terms for the topic. Comma-separated rather than repeated, because a multi-value flag before a positional swallows it. | `--topic-keywords "wifi router, home network"` |
+| `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description` and optional `keywords`. | `--topics-file topics.yaml` |
+
+### Run control
+
+| Argument | Description | Example |
+|---|---|---|
+| `--debug` | Verbose logging; keeps the intermediate files in `temp/`. | `--debug` |
+| `--clean` | Delete the existing output directory before starting. | `--clean` |
+| `--step` | Run one pipeline step. Choices are the names in [Pipeline steps](#pipeline-steps). | `--step generate_script` |
+
+### Script and content
+
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--script-template` | yes | Force a script template (filename without `.md`). | `--script-template curiosity_hook` |
+| `--voice-profile` | yes | Force a TTS voice profile. | `--voice-profile calm_confident` |
+| `--cta` | yes | Force the closing call to action. It must be one of the configured options; otherwise selection proceeds normally. | `--cta "Follow for more finds like this."` |
+| `--pillar` | yes | Content pillar for the run: filters templates, prepends the pillar preamble, picks the pillar audience. | `--pillar value` |
+
+**Pillars** (default): `value` (mass-appeal staples), `novelty` (lesser-known finds), `utility` (problem/solution framing). They are configured in `config/ai_services.yaml::script_templates.pillars`. Without `--pillar`, the product record's own pillar applies when it has one; the scraper attaches the source keyword's group. With neither, all templates are eligible and the global `target_audience` applies.
+
+`--pillar` works with `--topic` too. The preambles and audiences have topic counterparts (`pillar_preambles_topic`, `pillar_audiences_topic`) under the same keys, because the product versions are written about a thing being shown and would put a purchase in a script that recommends nothing. Template narrowing does not apply on a topic, since `pillars` maps to product templates and a topic uses the topic family; the pillar still shapes the preamble and the audience. See [the content requirements](../requirements/content.md#content-pillars) for the full system.
+
+Voice profiles are described in [TTS voice profiles](../explanation/tts-voice-profiles.md).
+
+### Subtitle engine and format
+
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--subtitle-engine` | yes | `ffmpeg` or `pycaps`. The bundled YAML selects `pycaps`. `ffmpeg` burns SRT or ASS through libass during assembly; `pycaps` burns animated captions after assembly and needs `poetry install --with pycaps`. | `--subtitle-engine ffmpeg` |
+| `--subtitle-format` | yes | `srt` or `ass`. The pycaps engine ignores it, so pair it with `--subtitle-engine ffmpeg`. | `--subtitle-format ass` |
+
+### Pycaps options
+
+Read only when the resolved engine is `pycaps`. Install and configuration are in [Pycaps subtitles](../explanation/pycaps-subtitles.md).
+
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--pycaps-template` | yes | Force one template for every product. Clears the template pool, so the per-product selector falls through to this name. | `--pycaps-template hype` |
+| `--pycaps-template-pool` | yes | Pool for deterministic per-product selection. Wins over the clear when passed with `--pycaps-template`. | `--pycaps-template-pool word-focus hype vibrant` |
+| `--pycaps-renderer` | yes | `css` (default, Playwright and Chromium, the only production-safe option) or `pictex` (browserless Skia, preview only: it renders words with no gaps between them). | `--pycaps-renderer pictex` |
+
+### FFmpeg caption style
+
+Read only by the FFmpeg engine.
+
+| Argument | Description | Example |
+|---|---|---|
+| `--preset` | Style preset: `minimal`, `modern`, `bold`, `animated`, `random`. See [Style presets](#style-presets). | `--preset bold` |
+| `--font-size-scale` | Font size multiplier (0.5-2.0). | `--font-size-scale 1.2` |
+| `--ass-karaoke` | Accepted, but no code reads the override it sets. The effect comes from the preset. | `--ass-karaoke` |
+| `--ass-fade` | Accepted, but no code reads the override it sets. The effect comes from the preset. | `--ass-fade` |
+
+### Caption position
+
+| Argument | Description | Example |
+|---|---|---|
+| `--subtitle-anchor` | `top`, `center`, `bottom`, `above_content` or `below_content`. | `--subtitle-anchor bottom` |
+| `--subtitle-margin` | Margin from the anchor as a fraction of frame height (0.0-0.5). | `--subtitle-margin 0.05` |
+| `--subtitle-alignment` | Horizontal alignment: `left`, `center` or `right`. | `--subtitle-alignment center` |
+| `--max-subtitle-width-fraction` | Maximum caption width as a fraction of frame width (0.0-1.0). | `--max-subtitle-width-fraction 0.8` |
+| `--content-aware` | Position captions against the media's actual bounds. | `--content-aware` |
+| `--no-content-aware` | Turn content-aware positioning off. | `--no-content-aware` |
+
+### Caption text segmentation
+
+| Argument | Description | Example |
+|---|---|---|
+| `--max-line-length` | Maximum characters per line. | `--max-line-length 25` |
+| `--max-words-per-line` | Maximum words per line (0 disables the limit). | `--max-words-per-line 4` |
+| `--max-duration` | Maximum caption duration in seconds. | `--max-duration 5.0` |
+| `--min-duration` | Minimum caption duration in seconds. | `--min-duration 0.8` |
+
+### Randomization
+
+| Argument | Description |
+|---|---|
+| `--randomize-fonts` / `--no-randomize-fonts` | Draw the caption font per product from `font_pool`, or don't. |
+| `--randomize-colors` / `--no-randomize-colors` | Draw the caption colour per product from `color_pool`, or don't. |
+| `--randomize-effects` / `--no-randomize-effects` | Draw the caption effect per product from the preset's effects, or don't. |
+
+### Image layout
+
+| Argument | Description | Example |
+|---|---|---|
+| `--image-width-percent` | Image width as a fraction of the frame (0.0-1.0). | `--image-width-percent 0.75` |
+| `--image-top-position-percent` | Image top edge as a fraction of frame height (0.0-1.0). | `--image-top-position-percent 0.2` |
+
+### Platform and metadata
+
+| Argument | Description | Example |
+|---|---|---|
+| `--target-platform` | `youtube` (Shorts), `tiktok`, `instagram` (Reels) or `multi` (all platforms). | `--target-platform youtube` |
+| `--metadata-mode` | `unified` (one title, description and hashtag set for all platforms, the default) or `optimized` (platform-specific SEO). | `--metadata-mode optimized` |
+
+### Argument rules
+
+The parser refuses these combinations with an error:
+
+- `--batch` needs exactly one of `--batch-profile` and `--random-profile`, and takes no positionals, `--topic` or `--topics-file`.
+- `--topic` and `--topics-file` exclude each other and `products_file`, and need a profile.
+- Without `--batch`: `--batch-profile`, `--fail-fast` and `--random-profile` are refused. Outside topic mode both positionals are required and `--profile-pool` is refused too.
+
+## Profiles
+
+A profile is a named block under `video_profiles` in `config/video_production.yaml`, validated by `VideoProfile` in `src/video/config/visual_models.py`. Each run renders with one profile.
+
+### Bundled profiles
+
+| Profile | Media | Assembly mode | Notes |
+|---|---|---|---|
+| `base` | scraped images | none | Template other profiles extend; never drawn by `--random-profile`. |
+| `slideshow_short_20s` | scraped images | none | 15-30 s slideshow with pre-motion on the first image. |
+| `slideshow_stock` | stock images only | none | Topic renders; script-first step order; never drawn by `--random-profile`. |
+| `slideshow_images1` | scraped images | none | Image count follows the voiceover length. |
+| `slideshow_images2` | scraped images | none | Alternative styling. |
+| `slideshow_images3` | scraped images | none | Two-part captions: product URL above, voiceover below. |
+| `slideshow_images4` | scraped images | none | Two-part captions with the URL shown only during the call to action. |
+| `product_video_sequential` | scraped videos and images | `sequential` | Every product video in order with crossfades. |
+| `product_video_single` | scraped videos and images | `single_best` | Longest video, looped to the voiceover length. |
+| `product_video_mixed` | scraped videos and images | `mixed_media` | Videos and images interleaved. |
+| `product_video_primary` | scraped videos and images | `video_first_fallback` | All videos first, then images. |
+
+### Profile keys
+
+Every key except `description` is optional. A key left unset inherits the global value from `video_settings` or `subtitle_settings`.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `description` | string | Required. A one-line summary of the profile. |
+| `use_scraped_images`, `use_scraped_videos` | bool | Draw the product's own images or videos (default `false`). A profile with both off renders script-first. |
+| `use_stock_images`, `use_stock_videos` | bool | Draw stock media (default `false`). |
+| `stock_image_count`, `stock_video_count` | int >= 0 | Stock items to fetch (default 0). |
+| `use_dynamic_image_count` | bool | Match the image count to the voiceover length (default `false`). |
+| `stock_media_keywords` | list of strings | Stock search terms. Unset inherits `media_settings.stock_media_keywords`; an empty list searches on the product title alone. |
+| `image_background_fill` | `color` or `blur` | Frame fill around an image. |
+| `image_background_blur_sigma` | float 1.0-100.0 | Blur strength for the image backdrop. |
+| `image_background_blur_darken`, `video_background_blur_darken` | float 0.1-1.0 | Darkening multiplier for the image or video backdrop. |
+| `image_width_percent`, `image_top_position_percent` | float 0.0-1.0 | Image width and top edge as fractions of the frame. |
+| `image_vertical_align` | `top` or `center` | Image vertical alignment. |
+| `video_assembly_mode` | see [Assembly modes](#assembly-modes) | How scraped videos are combined. |
+| `video_aspect_mode` | `letterbox`, `crop-to-fit`, `smart-scale` or `blur-fill` | Fit for a video whose aspect differs from the frame. |
+| `video_background_blur_sigma` | float 1.0-100.0 | Blur strength for `blur-fill`. |
+| `video_transition_duration` | float | Transition length in seconds. |
+| `enable_format_normalization` | bool | Normalize input video formats before assembly. |
+| `video_cache_dir` | string | Video cache directory. |
+| `video_top_position_percent`, `video_content_height_percent` | float 0.0-1.0 | Video top edge and band height as fractions of the frame. |
+| `video_vertical_align` | `top` or `center` | Video vertical alignment. |
+| `subtitle_positioning` | mapping | Profile-specific caption positioning overrides. |
+| `first_frame_pre_motion` | bool | See [Opening overlays and pre-motion](#opening-overlays-and-pre-motion). |
+| `pre_motion_peak_zoom` | float 1.0-1.5 | See [Opening overlays and pre-motion](#opening-overlays-and-pre-motion). |
+| `upper_line` | mapping | Partial override of `video_settings.upper_line`, deep-merged. |
+| `subtitle_settings` | mapping | Partial override of the global `subtitle_settings`, deep-merged, including the nested `pycaps`, `two_part_subtitles` and `safe_zone` blocks. |
+
+Unknown keys are rejected at config load. The flat `subtitle_*` keys are refused, with the nested `subtitle_settings` field to move each one to named in the error. The per-profile overrides are shown at length in [Configuration](configuration.md#12-video-profiles-with-per-profile-settings).
+
+`subtitle_format` is settable per profile in the nested spelling only (`subtitle_settings.subtitle_format`), and per run with `--subtitle-format` on both the producer and the global batch. `--subtitle-format` wins over the profile and the global value. The subtitle file's extension follows the merged value.
+
+### Example
+
+```yaml
+video_profiles:
+  slideshow_images1:
+    description: "Dynamically uses scraped product images to match voiceover duration."
+    use_scraped_images: true
+    use_scraped_videos: false   # no video_assembly_mode: images only
+    subtitle_settings:
+      style_preset: "bold"
+      font_size_scale: 1.0
+
+  slideshow_short_20s:
+    description: "Short 15-30s slideshow tuned for hook iteration"
+    use_scraped_images: true
+    image_top_position_percent: 0.15
+    first_frame_pre_motion: true   # Ken Burns settle-zoom on segment 0
+    pre_motion_peak_zoom: 1.10
+
+  product_video_sequential:
+    description: "Sequential video clips"
+    use_scraped_videos: true
+    video_assembly_mode: "sequential"
+```
+
+### Precedence
+
+Highest first:
+
+1. CLI arguments.
+2. Profile settings.
+3. Global values from the YAML files.
+
+## Opening overlays and pre-motion
+
+Four visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_motion_peak_zoom` and `upper_line` are also settable per profile. `VideoProfile` declares neither `hook_overlay` nor `cold_open_variant_pool`, so writing either under a profile aborts the config load. Canonical defaults and inline notes are in `config/video_production.yaml::video_settings`.
+
+| Key | Effect |
+|---|---|
+| `first_frame_pre_motion`, `pre_motion_peak_zoom` | When on, the first image segment starts at `pre_motion_peak_zoom` (default 1.10) and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. No effect when the first segment is a video clip. Off on the 30-45 s profiles, on for `slideshow_short_20s`. |
+| `hook_overlay` | Burns a short headline as centre-upper static text on the first `duration_sec` seconds (default 1.5), with no per-word reveal. The headline is stored in `pipeline_state.json::hook_headline`. Every field, the wrapping and the fallback are in [Configuration](configuration.md#31-overlay-settings). |
+| `upper_line` | A static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Off by default; see [Configuration](configuration.md#31-overlay-settings). |
+| `cold_open_variant_pool` | Named cold-open variants (`mid_zoom_title_card`, `static_title_card`, `pre_motion_only`), one picked per product by salted MD5. The choice is stored in `pipeline_state.json::assemble_video.cold_open_variant`. An empty list turns rotation off. |
+
+## Assembly modes
+
+`video_assembly_mode` controls how scraped videos are combined into the output.
+
+| Mode | Behaviour | Bundled profile |
+|---|---|---|
+| `sequential` | Plays every video in order. | `product_video_sequential` |
+| `single_best` | Uses the longest video, looped to fill. | `product_video_single` |
+| `mixed_media` | Interleaves videos with images. | `product_video_mixed` |
+| `video_first_fallback` | Uses the videos first, then images. | `product_video_primary` |
+
+With `use_scraped_videos: false` the mode is ignored and only images are used. Single-video handling per mode is in [Configuration](configuration.md#12-video-profiles-with-per-profile-settings).
+
+## Subtitle formats
+
+Read by the FFmpeg engine only.
+
+| Format | Description |
+|---|---|
+| `srt` | SubRip: plain text with timing, readable by every player. |
+| `ass` | Advanced SubStation Alpha: fonts, colours, outlines and shadows; karaoke, fade and typewriter effects; pixel positioning and animation. |
+
+## Style presets
+
+Defined under `style_presets` in `config/subtitles.yaml`. `modern` is the default.
+
+| Preset | Description | Effects |
+|---|---|---|
+| `minimal` | Clean, no animation. | none |
+| `modern` | Bold sans-serif. | karaoke |
+| `bold` | Strong outline. | fade |
+| `animated` | Karaoke for playful tones. | karaoke |
+| `random` | Font, colour and effect drawn per product. | one of karaoke, fade, typewriter |
+
+A preset other than `random` carries exactly one effect, and `minimal` none. Why these defaults: [Captions](../explanation/captions.md).
+
+## ASS effects
+
+The tags `src/video/unified_subtitle_generator.py` writes for each effect.
+
+| Effect | Tag | Description |
+|---|---|---|
+| Karaoke | `{\kf50}Hello {\kf40}world` | Word-by-word fill in time with speech. `\kf` fills smoothly; `\k` marks timing only. |
+| Fade | `{\fad(200,200)}Subtitle text` | Fade in and out, in milliseconds. The last caption has no fade-out. |
+| Typewriter | alpha transitions | Character-by-character reveal. |
+| Scale pulse | `\t(\fscx,\fscy)` | Text grows and shrinks. No bundled preset uses it. |
+| Glow | `\t(\3c&H...)` | Outline colour pulses. No bundled preset uses it. |
+
+## Pipeline steps
+
+The default order. `--step` takes these names.
+
+1. `gather_visuals`: collect images and videos from the scraped data and stock.
+2. `generate_script`: write the voiceover script with the LLM.
+3. `generate_description`: write the platform metadata.
+4. `create_voiceover`: synthesize speech.
+5. `generate_subtitles`: build synchronized captions.
+6. `download_music`: fetch background music (Jamendo, then Freesound, then `background_music_paths`).
+7. `assemble_video`: combine everything into the final video.
+8. `burn_pycaps_subtitles`: burn animated captions onto the assembled video when the resolved engine is `pycaps`.
+
+On a profile that draws no scraped media, such as `slideshow_stock`, steps 1 and 2 swap: `generate_script` runs first. `--step` follows the profile's real order. Each step's prerequisites are declared in `step_dependencies` in `src/video/producer/orchestration.py`; [The video pipeline](../explanation/video-pipeline.md#how-the-steps-fit) explains them.
+
+Files a render leaves for inspection:
+
+| File | Contents |
+|---|---|
+| `pipeline_state.json` | Completed steps, `hook_headline`, `assemble_video.cold_open_variant`. |
+| `temp/gathered_visuals.json` | Each stock item's search phrase and `relevance_score`. |
+| `temp/script_fact_check.json` | The script fact-check outcome. |
+
+A successful run without `--debug` deletes `temp/`.

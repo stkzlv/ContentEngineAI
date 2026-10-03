@@ -5,7 +5,7 @@
 
 [Unit]
 Description=ContentEngineAI daily analytics sweep (day-N views, durability)
-Documentation=file://@REPO_DIR@/docs/publisher.md
+Documentation=file://@REPO_DIR@/docs/explanation/publishing.md
 @ONFAILURE_LINE@
 
 [Service]
@@ -23,7 +23,8 @@ WorkingDirectory=@REPO_DIR@
 # shims; and poetry.toml sets virtualenvs.create = false, which makes
 # `poetry run python` resolve the base interpreter rather than the project
 # environment. It would fail at the first import, once a day, unattended,
-# while the figures it exists to capture age out. See docs/publisher.md.
+# while the figures it exists to capture age out. See
+# docs/explanation/publishing.md.
 #
 # No --limit here, deliberately. The sweep size lives in
 # config/publisher.yaml::analytics.limit and nowhere else, so editing the

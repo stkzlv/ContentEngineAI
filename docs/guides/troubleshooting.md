@@ -843,6 +843,38 @@ echo -e "\n=== Recent Logs ===" >> debug_report.txt
 find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -exec cat {} \; >> debug_report.txt 2>/dev/null
 ```
 
+## Video producer issues
+
+FFmpeg, Google Cloud credentials and TTS failures are covered above under [FFmpeg not found](#ffmpeg-not-found), [Google Cloud authentication](#google-cloud-authentication) and [TTS issues](#tts-text-to-speech-issues). The producer's log is `outputs/logs/producer-<date>.log`; see [Debug mode](#debug-mode).
+
+### Profile not found
+
+**Error:** `Invalid profile(s): 'xyz'` or `Video profile 'xyz' not found.`
+
+**Cause:** the profile name is not a key under `video_profiles`.
+
+**Solution:** check `config/video_production.yaml` for the available profiles; the first error lists them and suggests close matches.
+
+### Product skipped for insufficient media
+
+**Error:** `Product skipped due to insufficient media`
+
+**Cause:** the product has fewer images or videos than the profile requires. The run reports it as skipped, not failed.
+
+**Solution:** verify the scrape completed, and check `video_settings.min_images_if_no_video` (default 5).
+
+### Background music falls back to a local file
+
+**Cause:** `FREESOUND_API_KEY` is missing, or the Freesound circuit breaker has tripped.
+
+**Solution:** set `FREESOUND_API_KEY`; see [Freesound API issues](#freesound-api-issues). Until then the render uses a file from `background_music_paths`, if one is configured.
+
+### ASS caption effects not showing
+
+**Cause:** the player doesn't support ASS.
+
+**Solution:** play the file in VLC, mpv or another player with ASS support, or render with `--subtitle-format srt`.
+
 ## Scraper Issues
 
 ### CAPTCHA Detection
@@ -867,6 +899,31 @@ find outputs/logs/ -name "*.log" -newer $(date -d '1 hour ago' '+%Y%m%d%H%M') -e
    # Clean run to reset browser state
    poetry run python -m src.scraper.amazon.scraper --clean --debug
    ```
+
+### Rate limited or blocked by Amazon
+
+**Symptom:** inputs fail with Amazon's `Sorry! Something went wrong!` page, and the run summary lists throttled inputs or dead queries.
+
+The scraper already waits out a rate limit and skips a query that never works; [scraping explained](../explanation/scraping.md#throttling-and-dead-queries) describes how it tells them apart. If inputs are still lost:
+
+1. Run with `--debug` to see the browser.
+2. Raise `throttle_backoff_max_sec` and `inter_input_delay_sec` under `global_settings.rate_limiting` in `config/scraper.yaml`. Raise `throttle_max_attempts` with the ceiling, or the longer wait is never reached.
+3. If Amazon is challenging the browser (a Robot Check in the `--save-page-source` output, or CAPTCHA text on the page), reduce the volume per page and consider a residential IP.
+4. Try a VPN if your IP is blocked.
+
+Don't switch to a headless browser: it makes detection worse.
+
+### Missing media
+
+1. Check the connection speed.
+2. Check the `global_settings.download_config` timeouts in `config/scraper.yaml`.
+3. Run with `--debug` to see whether the media URLs are extracted but fail validation.
+
+### No products scraped
+
+1. Check the filters. A strict price or rating filter can exclude every result, and the bundled `default_search_parameters` already set a price range and a minimum rating.
+2. Check that the keyword returns results on Amazon.com.
+3. Check the log for selector errors: a change to Amazon's page layout breaks extraction.
 
 ### Search Parameter Issues
 
@@ -1105,6 +1162,164 @@ display/CDP problems from the log alone.
    - [Configuration Guide](../reference/configuration.md)
    - [Development Guide](../development.md)
    - [Architecture Documentation](../architecture.md)
+
+## Publisher issues
+
+Publisher logs go to `outputs/logs/publisher-<date>.log`. Run any publisher command with `--debug` to log API requests and responses, retry attempts with their delays, metadata loading, upload progress and stack traces:
+
+```bash
+poetry run python -m src.publisher.late single B0ABC \
+  --platform youtube \
+  --immediate \
+  --debug
+```
+
+### Authentication fails
+
+**Error:** `Authentication failed - check your API key`, or a call failing with `auth failed (401)` or `(403)`.
+
+**Solutions:**
+
+1. Check the key format; it starts with `sk_live_` or `sk_test_`:
+   ```bash
+   grep LATE_API_KEY .env
+   ```
+2. Test the key:
+   ```bash
+   poetry run python -m src.publisher.late list-accounts --debug
+   ```
+3. Regenerate the key at https://zernio.com/dashboard/developers: revoke the old key, create a new one and update `.env`.
+4. Remove trailing whitespace from the key:
+   ```bash
+   export LATE_API_KEY=$(echo $LATE_API_KEY | xargs)
+   ```
+
+### Rate limit exceeded
+
+**Error:** `<operation> rate limit exceeded after <n> attempts` (HTTP 429).
+
+**Solutions:**
+
+1. Lengthen the stagger between uploads in an immediate batch:
+   ```yaml
+   # config/publisher.yaml
+   stagger_delay_min: 60
+   stagger_delay_max: 120
+   ```
+2. Publish fewer products per batch, or split a large batch into smaller runs.
+3. Move to a higher Zernio tier: the standard tier allows 100 requests an hour and Pro 1,000 ([pricing](https://zernio.com/pricing)).
+
+### Upload fails or times out
+
+**Error:** `<operation> timed out after <n> attempts`, or a connection error.
+
+**Solutions:**
+
+1. Check the connection:
+   ```bash
+   ping zernio.com
+   ```
+2. Raise the request timeout:
+   ```bash
+   export PUBLISHER_TIMEOUT=180.0
+   ```
+3. Check the file's codec (H.264) and size (under 100 MB recommended, 500 MB at most):
+   ```bash
+   ffprobe outputs/B0ABC/video_B0ABC_slideshow_images1.mp4
+   ```
+4. For a video over 4 MB, check that the Vercel Blob token is set (Vercel Dashboard -> Storage -> Blob):
+   ```bash
+   grep LATE_VERCEL_TOKEN .env
+   ```
+5. Check https://zernio.com/status for incidents.
+
+### No video found
+
+**Error:** `No video files found in outputs/<product_id>` or `Product directory not found`.
+
+**Solution:** check that the producer rendered a `video_<product_id>_<profile>.mp4` into the product directory, and that cleanup hasn't removed it.
+
+### No connected accounts
+
+**Error:** `No connected accounts found`, or `No connected account for <platform>, skipping`.
+
+**Solutions:**
+
+1. List the connected accounts:
+   ```bash
+   poetry run python -m src.publisher.late list-accounts
+   ```
+2. Connect the platform at https://zernio.com/dashboard/accounts: click "Connect Account", complete the OAuth authorization, and check that the account appears.
+3. Reauthorize an expired account.
+4. Check the platform is supported: YouTube, TikTok, Instagram, Facebook, Twitter or LinkedIn. The Zernio documentation lists platform-specific requirements.
+
+### Missing metadata
+
+**Error:** `Could not load metadata for <product_id>/<platform>`, then `No metadata found for <product_id>`.
+
+**Solutions:**
+
+1. Check the metadata files exist:
+   ```bash
+   ls -la outputs/B0ABC/
+   # metadata.json, or metadata_youtube.json, metadata_tiktok.json, ...
+   ```
+2. Render the product again to regenerate them:
+   ```bash
+   make produce-lowpri ARGS="outputs/B0ABC/data.json slideshow_images1 --debug"
+   ```
+3. Check the `UPLOAD_INSTRUCTIONS.txt` fallback:
+   ```bash
+   cat outputs/B0ABC/UPLOAD_INSTRUCTIONS.txt
+   ```
+4. Check the JSON is valid:
+   ```bash
+   python -m json.tool outputs/B0ABC/metadata_youtube.json
+   ```
+
+The lookup order and fields are in [the publisher reference](../reference/publisher.md#metadata-files).
+
+### TikTok content disclosure errors
+
+**Error:** `TikTok UX validation failed: Commercial content disclosure is enabled but no option selected. Please select "Your Brand" or "Branded Content" or both.`
+
+**Cause:** TikTok requires explicit content disclosure settings from commercial accounts. If `commercial_content_type` and `is_brand_organic_post` aren't set in the post's `tiktokSettings`, TikTok rejects the publish.
+
+**Solutions:**
+
+1. New posts carry the settings: `TikTokContentSettings` defaults to `commercial_content_type = "brand_organic"`, `is_brand_organic_post = True`, `content_preview_confirmed = True` and `express_consent_given = True`, and a render with no material connection sends `none` and `False`.
+2. For a post that already failed, update its settings through the SDK, which republishes it; see [Repair a failed TikTok post](publishing.md#repair-a-failed-tiktok-post).
+3. Run with `--debug` and check for `tiktokSettings` in the request payload.
+
+### Instagram container errors and partial posts
+
+**Error:** a post publishes to some platforms but its top-level status is `partial`, and the Instagram leg shows:
+```
+instagram container error: ERROR
+```
+with per-platform `status: failed`, `errorCategory: platform_rejected`, no `platformPostId` and no `publishedAt`.
+
+**Cause:** Instagram's Graph API publishes Reels in two steps: create a media container, then publish it. `container error: ERROR` means the container stage failed with no detail. When the same media published to YouTube and TikTok, the cause is almost always a transient Instagram-side failure, not a bad video file.
+
+**Solutions:**
+
+1. Retry the failed leg. Zernio keeps the uploaded media on its own CDN (`media.zernio.com`), independent of the Vercel Blob store, so no re-render or re-upload is needed:
+   ```python
+   from late import Late
+   client = Late(api_key=...)
+   client.posts.retry(post_id)   # failed platform -> processing, then republishes
+   ```
+   Use `retry()`, not `update()`, for a transient failure with no settings change; `update()` is for cases like the TikTok disclosure fix, where the payload must change. Platforms already published are untouched, so there are no duplicate posts. The leg usually reaches `published` within about a minute; poll `posts.get(post_id)` to confirm.
+2. Confirm it went live. Read `platforms[*].status` and `platformPostUrl` from `posts.get(post_id)` (dump with `model_dump(by_alias=True, mode="json")["post"]`). Don't rely on `publish_history.json` for this: its `published_at` is queue time, not the time the post went live, so the same date can name two different posts.
+3. If the retry fails again, the video likely breaks a Reels rule (aspect ratio, duration, codec, frame rate). Render and upload it again.
+
+To find these posts, run `verify-delivery`. It warns on every recent post whose status is `partial` or `failed`, names the failing platform and its error, and points at the `posts.retry` fix:
+
+```bash
+python -m src.publisher.late verify-delivery --limit 25
+```
+
+More SDK errors and workarounds are in [the Zernio client reference](../reference/zernio-client.md#troubleshooting-errors).
 
 ## Common Error Patterns
 

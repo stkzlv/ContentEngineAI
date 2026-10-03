@@ -39,6 +39,9 @@ CITING_SUFFIXES = {".md", ".py", ".yaml", ".yml", ".toml", ".sh", ".example"}
 
 SKIPPED = {"CHANGELOG.md"}
 
+HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+EXPLICIT_ANCHOR = re.compile(r'<a\s+(?:name|id)="([^"]+)"')
+
 
 def tracked() -> list[Path]:
     out = subprocess.run(
@@ -64,6 +67,47 @@ def broken_links(source: Path, text: str) -> list[str]:
             continue
         base = REPO if path.startswith("/") else source.parent
         if not (base / path.lstrip("/")).exists():
+            broken.append(target)
+    return broken
+
+
+def heading_anchors(text: str) -> set[str]:
+    """The anchors GitHub generates for a page's headings, plus explicit ones.
+
+    GitHub lowercases the heading text, drops punctuation other than hyphens,
+    turns spaces into hyphens, and numbers repeats (`-1`, `-2`). Headings inside
+    fenced code blocks are not headings.
+    """
+    anchors: set[str] = set()
+    seen: dict[str, int] = {}
+    in_fence = False
+    for line in text.splitlines():
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        match = None if in_fence else HEADING.match(line)
+        if not match:
+            continue
+        title = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", match.group(1))
+        slug = re.sub(r"[^\w\- ]", "", title.strip().lower()).replace(" ", "-")
+        count = seen.get(slug, 0)
+        seen[slug] = count + 1
+        anchors.add(slug if count == 0 else f"{slug}-{count}")
+    anchors.update(EXPLICIT_ANCHOR.findall(text))
+    return anchors
+
+
+def broken_anchors(source: Path, text: str) -> list[str]:
+    """Links whose `#anchor` names no heading on the target page."""
+    broken = []
+    for target in MD_LINK.findall(text):
+        if "#" not in target or is_external(target.split("#", 1)[0] or "x"):
+            continue
+        path, anchor = target.split("#", 1)
+        page = (source.parent / path) if path else source
+        if page.suffix != ".md" or not page.exists() or is_unresolvable_by_design(path):
+            continue
+        if anchor not in heading_anchors(page.read_text(encoding="utf-8")):
             broken.append(target)
     return broken
 
@@ -140,3 +184,33 @@ def test_the_link_rule_leaves_valid_and_external_links_alone(text: str) -> None:
 def test_the_citation_rule_would_catch_a_moved_page() -> None:
     assert broken_citations("# See docs/no-such-page.md for the reason.")
     assert not broken_citations("# See docs/README.md for the map.")
+
+
+def test_every_link_anchor_names_a_heading() -> None:
+    """A renamed heading breaks every `#anchor` link to it, with no error."""
+    offenders = [
+        f"{p.relative_to(REPO)}: {target}"
+        for p in tracked()
+        if p.suffix == ".md" and p.exists()
+        for target in broken_anchors(p, p.read_text(encoding="utf-8"))
+    ]
+
+    assert not offenders, "links to headings that do not exist:\n" + "\n".join(
+        offenders
+    )
+
+
+def test_the_anchor_rule_follows_github_slugs() -> None:
+    page = "# Title\n\n## Run one step (with `--step`)\n\n## FAQ\n\n## FAQ\n"
+    assert heading_anchors(page) >= {
+        "title",
+        "run-one-step-with---step",
+        "faq",
+        "faq-1",
+    }
+
+
+def test_the_anchor_rule_would_catch_a_renamed_heading() -> None:
+    readme = REPO / "docs" / "README.md"
+    assert broken_anchors(readme, "see [x](requirements/README.md#no-such-heading)")
+    assert not broken_anchors(readme, "see [x](requirements/README.md#statuses)")

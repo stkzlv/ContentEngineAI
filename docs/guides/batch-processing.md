@@ -567,7 +567,7 @@ A run that names its inputs removes only those, and a run carrying both kinds re
 
 **Note**: Publishing options (`--skip-publish`, `--force`, `--platforms`, `--schedule-time`, `--fail-fast-publish`, `--clean`) are CLI-only and not supported in YAML configuration.
 
-**Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [Publisher](../publisher.md) for details):
+**Publishing Configuration**: Publishing behavior is controlled by `config/publisher.yaml` (see [the publisher reference](../reference/publisher.md#configuration-file) for details):
 - `immediate_publish: false` enables auto-scheduling
 - `recurring_schedule.slots` defines available time slots
 - `cleanup.enabled: true` removes product directories after successful publish, once `keep_published_days` has passed and, with `verify_before_delete`, every leg is live or scheduled
