@@ -22,9 +22,12 @@ from src.publisher.models import (
     Platform,
     PublishStatus,
 )
+from src.publisher.publish_modes import accounts_for_platforms, publish_product
 from src.publisher.tracking import (
     add_to_retry_queue,
     get_retry_queue,
+    is_already_published,
+    record_publish_results,
     remove_from_retry_queue,
 )
 from src.publisher.video_selector import sole_render_for_product
@@ -62,6 +65,9 @@ class BatchPublisher:
         retry_failed: bool = False,
         link_in_bio_config: LinkInBioConfig | None = None,
         profiles: dict[str, str] | None = None,
+        force: bool = False,
+        platform_specific: bool = False,
+        disclosure_phrase: str | None = None,
     ):
         """Initialize batch publisher.
 
@@ -78,6 +84,10 @@ class BatchPublisher:
                 Bio link is added after each successful publish
             profiles: Per-platform render profile, deciding which video
                 each platform gets when a product has more than one.
+            force: Publish products already recorded as published.
+            platform_specific: One post per platform instead of one for all.
+            disclosure_phrase: The affiliate program phrase for the caption
+                of a post that carries a material connection.
 
         Example:
         -------
@@ -113,6 +123,9 @@ class BatchPublisher:
         # Which render each platform gets. Without it every discoverer falls
         # back to the alphabetically first file and disagrees with `single`.
         self.profiles = profiles
+        self.force = force
+        self.platform_specific = platform_specific
+        self.disclosure_phrase = disclosure_phrase
 
         platforms_str = [p.value for p in self.platforms]
         mode = "RETRY MODE" if retry_failed else "normal"
@@ -239,6 +252,11 @@ class BatchPublisher:
                         await update_link_in_bio_safe(
                             product_id, self.outputs_dir, self.link_in_bio_config
                         )
+
+                    elif publish_result["status"] == "already_published":
+                        # Not a failure, so it neither errors nor queues a retry.
+                        skipped += 1
+                        summary.skipped += 1
 
                     elif publish_result["status"] == "skipped":
                         skipped += 1
@@ -464,225 +482,89 @@ class BatchPublisher:
         total_count: int,
         accounts: list[dict],
     ) -> dict:
-        """Publish a single video to target platforms.
+        """Publish one product through the steps `single` and the batch share.
 
-        Args:
-        ----
-            video_path: Path to video file
-            product_id: Product identifier
-            current_idx: Current video index (1-based)
-            total_count: Total number of videos
-            accounts: Pre-fetched list of connected platform accounts
+        `publish_product` builds the caption with the affiliate phrase and the
+        first comments, and the results are written to the publish history.
+        This path used to post through its own loop and skipped all three,
+        plus the duplicate check, so a second `--immediate` run posted again.
 
-        Returns:
+        Returns
         -------
-            Result dict: {"status": "success"|"failed"|"skipped", "error": str}
+            {"status": "success" | "failed" | "skipped" | "already_published",
+             "error": str}
 
         """
+        wanted = [
+            p
+            for p in self.platforms
+            if self.force
+            or not is_already_published(product_id, p.value, self.outputs_dir)
+        ]
+        if not wanted:
+            logger.info(
+                "[%d/%d] %s is already published to every target; "
+                "pass --force to republish",
+                current_idx,
+                total_count,
+                product_id,
+            )
+            return {"status": "already_published"}
+
+        if not any(
+            load_platform_metadata(product_id, p, self.outputs_dir) for p in wanted
+        ):
+            return {"status": "skipped", "error": "Missing metadata"}
+
+        targets, missing = accounts_for_platforms(wanted, accounts)
+        for platform in missing:
+            logger.warning("No connected account for %s, skipping", platform.value)
+        if not targets:
+            return {"status": "skipped", "error": "No connected account"}
+
         try:
-            # Upload video once (reuse media_id for all platforms)
             logger.info("[%d/%d] Uploading video...", current_idx, total_count)
             media_id = await self.publisher.upload_media(video_path)
-            logger.info(
-                "[%d/%d] Upload complete: %s", current_idx, total_count, media_id
+            results = await self._publish_with_rate_limit_retry(
+                media_id, product_id, targets
             )
-
-            # Publish to each platform
-            for platform in self.platforms:
-                logger.info(
-                    "[%d/%d] Publishing to %s...",
-                    current_idx,
-                    total_count,
-                    platform.value,
-                )
-
-                # Load platform-specific metadata
-                metadata = load_platform_metadata(
-                    product_id, platform, self.outputs_dir
-                )
-
-                if not metadata:
-                    logger.warning(
-                        "[%d/%d] Skipping %s: metadata not found",
-                        current_idx,
-                        total_count,
-                        platform.value,
-                    )
-                    return {
-                        "status": "skipped",
-                        "error": f"Missing metadata for {platform.value}",
-                    }
-
-                # Get account ID for this platform (from pre-fetched accounts)
-                platform_account = next(
-                    (
-                        acc
-                        for acc in accounts
-                        if acc["platform"].lower() == platform.value
-                    ),
-                    None,
-                )
-
-                if not platform_account:
-                    logger.warning(
-                        "[%d/%d] Skipping %s: no connected account",
-                        current_idx,
-                        total_count,
-                        platform.value,
-                    )
-                    continue
-
-                # Clamp before anything reads the title, for the platform
-                # this iteration is posting to rather than the one whose
-                # metadata loaded. A scraped Amazon title routinely runs past
-                # YouTube's 100-character cap, and the clamp measures the
-                # composed caption, not the description alone (#403).
-                trimmed = metadata.clamp_for_platforms([platform])
-                if trimmed:
-                    logger.info(
-                        "Clamped %s for %s to platform limits",
-                        ", ".join(trimmed),
-                        platform.value,
-                    )
-
-                # Format content
-                content = metadata.format_content()
-
-                # The per-platform payload carries the title. Without it the
-                # provider receives none and the platform derives one from
-                # the caption's first line, which is the disclosure.
-                platform_contents = {
-                    platform.value: {
-                        "content": content,
-                        **({"title": metadata.title} if metadata.title else {}),
-                    }
-                }
-
-                # Create post
-                try:
-                    result = await self.publisher.publish(
-                        media_id=media_id,
-                        platforms=[
-                            {
-                                "platform": platform.value,
-                                "account_id": platform_account["account_id"],
-                            }
-                        ],
-                        content=content,
-                        scheduled_time=None,  # Immediate publish
-                        platform_contents=platform_contents,
-                        carries_affiliate_content=(metadata.carries_affiliate_content),
-                    )
-
-                    post_id = str(result["post_id"])
-                    post_status = result["status"]
-
-                    logger.info(
-                        "[%d/%d] Published to %s: post_id=%s, status=%s",
-                        current_idx,
-                        total_count,
-                        platform.value,
-                        post_id,
-                        post_status,
-                    )
-
-                    # Log published URLs if available
-                    published_urls = result.get("published_urls")
-                    if published_urls and isinstance(published_urls, list):
-                        logger.info(
-                            "[%d/%d] Published URLs for %s:",
-                            current_idx,
-                            total_count,
-                            platform.value,
-                        )
-                        for url in published_urls:
-                            logger.info("[%d/%d]   - %s", current_idx, total_count, url)
-
-                    # Fetch and log post status after creation (non-blocking)
-                    try:
-                        status_info = await self.publisher.get_status(post_id)
-                        if status_info["status"] != "unknown":
-                            logger.debug(
-                                "[%d/%d] Status for %s: %s",
-                                current_idx,
-                                total_count,
-                                platform.value,
-                                status_info["status"],
-                            )
-                            # If status check found additional URLs
-                            status_urls = status_info.get("published_urls")
-                            if (
-                                status_urls
-                                and isinstance(status_urls, list)
-                                and not published_urls
-                            ):
-                                logger.info(
-                                    "[%d/%d] URLs from status check:",
-                                    current_idx,
-                                    total_count,
-                                )
-                                for url in status_urls:
-                                    logger.info(
-                                        "[%d/%d]   - %s", current_idx, total_count, url
-                                    )
-                    except (PublishError, OSError, TimeoutError) as status_err:
-                        # Status check failure is non-critical
-                        logger.debug(
-                            "[%d/%d] Status check failed: %s",
-                            current_idx,
-                            total_count,
-                            status_err,
-                        )
-
-                except PublishError as e:
-                    # Check for rate limit (429)
-                    if "429" in str(e) or "rate limit" in str(e).lower():
-                        wait_time = LATE_DEFAULT_RETRY_AFTER_SEC
-                        logger.warning(
-                            "[%d/%d] Rate limit hit for %s, "
-                            "waiting %ds before retry...",
-                            current_idx,
-                            total_count,
-                            platform.value,
-                            wait_time,
-                        )
-                        # Wait for retry-after period
-                        await asyncio.sleep(LATE_DEFAULT_RETRY_AFTER_SEC)
-                        # Retry once
-                        result = await self.publisher.publish(
-                            media_id=media_id,
-                            platforms=[
-                                {
-                                    "platform": platform.value,
-                                    "account_id": platform_account["account_id"],
-                                }
-                            ],
-                            content=content,
-                            scheduled_time=None,
-                            # Same payload as the first attempt. Omitting it
-                            # sent the retry without a title, which the
-                            # builder now refuses -- turning a recoverable
-                            # rate limit into a failed publish.
-                            platform_contents=platform_contents,
-                            carries_affiliate_content=(
-                                metadata.carries_affiliate_content
-                            ),
-                        )
-                        logger.info(
-                            "[%d/%d] Retry successful for %s",
-                            current_idx,
-                            total_count,
-                            platform.value,
-                        )
-                    else:
-                        raise
-
+            record_publish_results(product_id, results, targets, self.outputs_dir)
             return {"status": "success"}
 
         except Exception as e:  # Per-video boundary
             error_msg = f"Publishing failed: {e}"
             logger.error("[%d/%d] %s", current_idx, total_count, error_msg)
             return {"status": "failed", "error": error_msg}
+
+    async def _publish_with_rate_limit_retry(
+        self, media_id: str, product_id: str, targets: list[dict[str, str]]
+    ) -> list[dict]:
+        """Publish now, retrying once after a rate limit with the same payload."""
+
+        async def attempt() -> list[dict]:
+            return await publish_product(
+                publisher=self.publisher,
+                media_id=media_id,
+                product_id=product_id,
+                platforms=targets,
+                outputs_dir=self.outputs_dir,
+                platform_specific=self.platform_specific,
+                schedule_time=None,
+                disclosure_phrase=self.disclosure_phrase,
+            )
+
+        try:
+            return await attempt()
+        except PublishError as e:
+            if "429" not in str(e) and "rate limit" not in str(e).lower():
+                raise
+            logger.warning(
+                "Rate limit hit for %s, waiting %ds before retry...",
+                product_id,
+                LATE_DEFAULT_RETRY_AFTER_SEC,
+            )
+            await asyncio.sleep(LATE_DEFAULT_RETRY_AFTER_SEC)
+            return await attempt()
 
     async def _apply_staggered_delay(self, current_idx: int, total_count: int):
         """Apply random staggered delay between posts.

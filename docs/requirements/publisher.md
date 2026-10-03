@@ -45,8 +45,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-021** `shipped` The `schedule` command schedules every unpublished product in the outputs directory into recurring slots.
 - **REQ-PUB-022** `shipped` When `--immediate` is passed, the `schedule` command publishes those products at once instead of scheduling them.
 - **REQ-PUB-023** `shipped` The `schedule` command posts each product once, even when the product has renders under several profiles.
-- **REQ-PUB-024** `partial` When `--dry-run` is passed, the `schedule` command shows the slot each product would take and publishes nothing.
-  - Gap: combined with `--immediate`, it publishes (#580).
+- **REQ-PUB-024** `shipped` When `--dry-run` is passed, the `schedule` command shows the slot each product would take and publishes nothing.
 - **REQ-PUB-025** `shipped` A slot counts as taken when either the provider or the local schedule holds a post at that time.
 - **REQ-PUB-026** `shipped` If the provider's post list cannot be read, the publisher schedules around the local schedule alone.
 - **REQ-PUB-027** `shipped` When `--auto-resolve` is passed and the chosen slot fails schedule validation, the publisher moves the post to the first free alternative slot.
@@ -74,16 +73,14 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-040** `shipped` The `{affiliate_link}` placeholder takes the shortened affiliate link when one exists, and the full link otherwise.
 - **REQ-PUB-041** `shipped` Where `first_comment.move_hashtags_to_comment` is on, the publisher moves Instagram hashtags from the caption into the first comment.
 - **REQ-PUB-042** `shipped` If the data a template needs is missing, the publisher skips that first comment with a warning and still publishes the post.
-- **REQ-PUB-043** `partial` The publisher posts first comments in both unified and platform-specific publishing modes.
-  - Gap: `schedule --immediate` posts no first comment (#580).
+- **REQ-PUB-043** `shipped` The publisher posts first comments in both unified and platform-specific publishing modes.
 - **REQ-PUB-044** `shipped` The `verify-comments` command checks recent published posts on each platform and warns on every YouTube or Instagram post missing its first comment.
   - Why: the provider reports a post published without confirming that its comment posted.
 
 ## Duplicate publish protection
 
 - **REQ-PUB-045** `shipped` The publisher records each post it publishes, per product and platform.
-- **REQ-PUB-046** `partial` If a product is already published to a target platform, the publisher warns and skips it.
-  - Gap: `schedule --immediate` publishes it again (#580).
+- **REQ-PUB-046** `shipped` If a product is already published to a target platform, the publisher warns and skips it.
 - **REQ-PUB-047** `shipped` When `--force` is passed, the publisher republishes an already-published product.
 
 ## Post-publication cleanup
@@ -97,8 +94,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-054** `shipped` While a platform reports that it is still publishing, cleanup re-checks it until every platform is final or `cleanup.settle_timeout_sec` (default 300) runs out.
 - **REQ-PUB-055** `shipped` Where `cleanup.keep_published_days` is above 0, cleanup waits that many days after publication before deleting.
 - **REQ-PUB-056** `shipped` Where `cleanup.archive_before_delete` is on, cleanup writes a ZIP archive of the product directory to `cleanup.archive_dir` before deleting it.
-- **REQ-PUB-057** `partial` Before a product directory is removed, the publisher writes the product's publish history and registry entry on every publish path.
-  - Gap: `schedule --immediate` writes no publish history, so later duplicate checks cannot see its posts (#580).
+- **REQ-PUB-057** `shipped` Before a product directory is removed, the publisher writes the product's publish history and registry entry on every publish path.
 - **REQ-PUB-125** `shipped` The `cleanup --product-id ID` command cleans up one product and exits non-zero when that product is not eligible for cleanup.
 - **REQ-PUB-126** `shipped` When `--dry-run` is passed, `cleanup` reports each product it would remove and the disk space each would free, and deletes nothing.
 - **REQ-PUB-127** `shipped` A `cleanup --dry-run` preview checks each platform's status once and does not wait for platforms still publishing.
@@ -128,8 +124,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 
 ## Affiliate program phrase
 
-- **REQ-PUB-068** `partial` Where `affiliate_disclosure.enabled` is on, the publisher places the configured phrase in the caption of every post that carries a material connection, in both unified and platform-specific modes, from the publisher CLI and the batch alike.
-  - Gap: `schedule`, with or without `--immediate`, adds no phrase (#580).
+- **REQ-PUB-068** `shipped` Where `affiliate_disclosure.enabled` is on, the publisher places the configured phrase in the caption of every post that carries a material connection, in both unified and platform-specific modes, from the publisher CLI and the batch alike.
 - **REQ-PUB-069** `shipped` The affiliate phrase is off by default, including when the `affiliate_disclosure` section is absent or empty.
   - Why: the phrase asserts membership of the named program, so an unconfigured install must not publish it.
 - **REQ-PUB-070** `shipped` The affiliate phrase sits between the leading disclosure line and the description.
@@ -173,8 +168,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-089** `shipped` If a refresh carries identical data, the registry files are not rewritten.
 - **REQ-PUB-090** `shipped` The registry loader gives a row missing a field that field's default, and ignores columns the registry no longer has.
 - **REQ-PUB-091** `shipped` If one registry row cannot be read, the loader skips that row and keeps the rest.
-- **REQ-PUB-092** `partial` If the registry file cannot be parsed, adding an entry keeps the existing rows.
-  - Gap: after a parse failure, adding an entry rewrites the registry with that one row (#580).
+- **REQ-PUB-092** `shipped` If the registry file cannot be parsed, adding an entry keeps the existing rows.
 - **REQ-PUB-093** `shipped` The content-format arm records whether the video came from a topic or a scraped product, read from the product record.
 - **REQ-PUB-094** `shipped` The `registry --summary` command counts published products per content-format arm, and counts rows written before the arm existed as `unlabelled`.
 - **REQ-PUB-095** `shipped` The registry CSV has one column per registry field.

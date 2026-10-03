@@ -63,14 +63,14 @@ python -m src.publisher.late schedule [auto] [options]
 | `--platform NAME` | `youtube`, `tiktok`, `instagram` | both modes | Target platform. Repeat for several. Same choices as `single`. |
 | `--outputs-dir PATH` | the repository's `outputs/` | both modes | Directory to scan for product directories. |
 | `--immediate` | off | | Publish at once instead of scheduling into slots. |
-| `--dry-run` | off | scheduled mode | Show the slot each product would take and publish nothing. Ignored with `--immediate`, which publishes. |
+| `--dry-run` | off | both modes | Publish nothing. Scheduled mode shows the slot each product would take; immediate mode lists the products it would publish and contacts no provider. |
 | `--no-cleanup` | off | both modes | Skip post-publication cleanup for this run. |
 | `--auto-resolve` | off | scheduled mode | When a slot fails schedule validation, use the first free alternative. |
-| `--force` / `--no-force` | `--no-force` | scheduled mode | Include products already published to every target platform. Immediate mode does not check for earlier posts. |
+| `--force` / `--no-force` | `--no-force` | both modes | Include products already published to every target platform. |
 | `--fail-fast` | off | immediate mode | Stop at the first failed product. |
 | `--retry-failed` | off | immediate mode | Publish only the products in the retry queue. |
 
-Each product is posted once, even when it has renders under several profiles: the scanner picks one render per product, honouring `profiles`.
+Each product is posted once, even when it has renders under several profiles: the scanner picks one render per product, honouring `profiles`. Both modes post the way `single` does: one unified post, or one per platform with `use_platform_specific_content`, carrying the first comment and, where `affiliate_disclosure` is on, the program phrase, and each post is written to the publish history.
 
 The command exits with status 1 when any product fails. `recurring_schedule.enabled: false` or an empty slot list stops scheduled mode with an error.
 

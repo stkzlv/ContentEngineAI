@@ -135,34 +135,26 @@ class TestSchedulePathClamps:
 
 
 class TestImmediateBatchPathClamps:
-    """The immediate batch publishes one post per platform, in a loop.
+    """The immediate batch publishes through `publish_product`, which clamps.
 
-    Driving that loop needs a publisher, connected accounts and an uploaded
-    media id, so the call site is read instead: it must name the platform it
-    is publishing to rather than relying on whichever platform's metadata was
-    loaded.
+    It used to post through a loop of its own, with its own clamp, and that
+    loop also skipped the first comment and the affiliate phrase. The call
+    site is read: the batch must hand the caption to the shared helper rather
+    than build and send one itself.
     """
 
-    def test_publish_loop_clamps_for_the_destination(self):
-        source = Path("src/publisher/batch.py").read_text()
-        tree = ast.parse(source)
-
-        calls = [
-            node
+    def test_publish_goes_through_the_shared_helper(self):
+        tree = ast.parse(Path("src/publisher/batch.py").read_text())
+        called = {
+            node.func.id if isinstance(node.func, ast.Name) else node.func.attr
             for node in ast.walk(tree)
             if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "clamp_for_platforms"
-        ]
-        assert (
-            len(calls) == 1
-        ), f"batch.py has {len(calls)} clamp_for_platforms call(s); expected 1"
-
-        (arg,) = calls[0].args
-        assert isinstance(arg, ast.List) and len(arg.elts) == 1
-        assert isinstance(arg.elts[0], ast.Name) and arg.elts[0].id == "platform", (
-            "the clamp must target the platform being published to, not the "
-            "platform whose metadata happened to load"
+            and isinstance(node.func, ast.Name | ast.Attribute)
+        }
+        assert "publish_product" in called
+        assert "format_content" not in called, (
+            "the batch composes a caption itself again; route it through "
+            "publish_product so it is clamped and carries the phrase"
         )
 
     def test_no_single_platform_clamp_remains(self):

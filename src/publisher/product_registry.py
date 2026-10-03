@@ -174,6 +174,16 @@ def add_to_registry(product_id: str, outputs_dir: Path) -> bool:
 
     """
     entries = load_registry(outputs_dir)
+    # An unparseable file loads as no rows, and saving would replace the whole
+    # publish history with the one row being added. `rebuild_registry` refuses
+    # the same case; leave the file for a person to repair.
+    if not entries and _rows_on_disk(outputs_dir) != 0:
+        logger.error(
+            "Not adding %s: the registry file holds rows that could not be "
+            "read. Registry left unchanged; repair or move it aside.",
+            product_id,
+        )
+        return False
 
     entry = _read_product_data(product_id, outputs_dir)
     if not entry:

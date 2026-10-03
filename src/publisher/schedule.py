@@ -209,6 +209,8 @@ class ScheduleManager:
             self.schedule_path = Path(schedule_path)
         self.config = config or ScheduleConfig()
         self.entries: list[ScheduleEntry] = []
+        # The affiliate program phrase for this run, set by `auto_schedule`.
+        self.disclosure_phrase: str | None = None
         self._load_schedule()
 
     def _load_schedule(self) -> None:
@@ -955,6 +957,13 @@ class ScheduleManager:
             )
             titles[p.value] = literal
 
+        # Gated like `#ad`, as `publish_product` gates it on the other paths:
+        # the phrase claims program membership, so only a disclosing render
+        # carries it.
+        if self.disclosure_phrase:
+            for meta in platform_metas.values():
+                if meta.carries_affiliate_content:
+                    meta.affiliate_disclosure = self.disclosure_phrase
         return platform_metas, titles, carries_affiliate
 
     def _first_comments_for(
@@ -1293,7 +1302,9 @@ class ScheduleManager:
             already_published = [
                 platform.value
                 for platform in platforms
-                if is_already_published(product_id, platform.value)
+                if is_already_published(
+                    product_id, platform.value, outputs_dir or DEFAULT_OUTPUTS_DIR
+                )
             ]
             if already_published:
                 logger.info(
@@ -1381,6 +1392,7 @@ class ScheduleManager:
         auto_resolve: bool = False,
         force: bool = False,
         link_in_bio_config: LinkInBioConfig | None = None,
+        disclosure_phrase: str | None = None,
     ) -> dict[str, int]:
         """Auto-assign videos to recurring slots.
 
@@ -1402,6 +1414,8 @@ class ScheduleManager:
             force: Skip already-published check and schedule regardless
             link_in_bio_config: Link-in-bio configuration (default: enabled).
                 Bio link is added after each successful schedule, before cleanup
+            disclosure_phrase: The affiliate program phrase, placed in the
+                caption of each post that carries a material connection
 
         Returns:
         -------
@@ -1428,6 +1442,7 @@ class ScheduleManager:
             >>> print(f"Scheduled: {summary['scheduled']}")
 
         """
+        self.disclosure_phrase = disclosure_phrase
         if not self.config.enabled:
             raise ValueError(
                 "Recurring schedule is not enabled. "

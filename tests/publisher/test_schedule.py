@@ -161,7 +161,7 @@ class TestAutoSchedule:
         # Mock is_already_published to return True for first video
         with patch("src.publisher.schedule.is_already_published") as mock_check:
             # First video is already published to YouTube
-            def side_effect(product_id, platform):
+            def side_effect(product_id, platform, outputs_dir=None):
                 return product_id == "B0TEST001" and platform == "youtube"
 
             mock_check.side_effect = side_effect

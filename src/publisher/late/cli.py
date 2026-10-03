@@ -633,8 +633,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 or config.use_platform_specific_content
             )
 
-            disc_cfg = config.affiliate_disclosure_config
-            disclosure_phrase = disc_cfg.phrase if disc_cfg.enabled else None
+            disclosure_phrase = _disclosure_phrase(config)
             publish_results = await publish_product(
                 publisher=publisher,
                 media_id=media_url,
@@ -841,8 +840,15 @@ async def cmd_schedule_auto(
     logger.info("%s mode", mode)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
     logger.info("Outputs directory: %s", args.outputs_dir)
-    if getattr(args, "dry_run", False) and not immediate:
-        logger.info("DRY RUN MODE - No actual scheduling will occur")
+    if getattr(args, "dry_run", False):
+        logger.info("DRY RUN MODE - nothing will be published or scheduled")
+        if immediate:
+            # The immediate path has no preview of its own, and it used to
+            # ignore the flag and publish. Answered from disk, before the
+            # provider is contacted at all.
+            for video in _scan_and_filter_videos(args, config):
+                logger.info("[DRY RUN] Would publish %s now", video.parent.name)
+            return
 
     # Create publisher and authenticate
     publisher = _create_publisher_from_config(config, session)
@@ -893,6 +899,7 @@ async def cmd_schedule_auto(
             auto_resolve=getattr(args, "auto_resolve", False),
             force=getattr(args, "force", False),
             link_in_bio_config=config.link_in_bio_config,
+            disclosure_phrase=_disclosure_phrase(config),
         )
 
         logger.info("--- PUBLISHER SUMMARY ---")
@@ -1017,6 +1024,12 @@ def _scan_and_filter_videos(
     return unpublished
 
 
+def _disclosure_phrase(config) -> str | None:
+    """The affiliate program phrase, or None when the setting is off."""
+    disc_cfg = config.affiliate_disclosure_config
+    return disc_cfg.phrase if disc_cfg.enabled else None
+
+
 async def _run_immediate_batch(
     args: argparse.Namespace,
     config,
@@ -1041,6 +1054,9 @@ async def _run_immediate_batch(
         fail_fast=getattr(args, "fail_fast", False),
         retry_failed=getattr(args, "retry_failed", False),
         link_in_bio_config=config.link_in_bio_config,
+        force=getattr(args, "force", False),
+        platform_specific=config.use_platform_specific_content,
+        disclosure_phrase=_disclosure_phrase(config),
     )
 
     summary = await batch_publisher.publish_batch()

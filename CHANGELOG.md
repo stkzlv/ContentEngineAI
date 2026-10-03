@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.3] - 2026-10-03
+
+### Fixed
+
+- `schedule --immediate` posts the way `single` does: it skips products already published unless `--force` is passed, writes the publish history, attaches the first comment and the affiliate phrase, and follows `use_platform_specific_content` instead of always posting per platform.
+- `schedule --dry-run --immediate` lists the products it would publish and contacts no provider; it used to publish.
+- Scheduled posts carry the affiliate phrase when `affiliate_disclosure` is on.
+- Adding a product to an unreadable registry leaves the file unchanged instead of replacing it with one row.
+
 ## [0.128.2] - 2026-10-03
 
 ### Documentation
