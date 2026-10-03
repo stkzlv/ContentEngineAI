@@ -40,4 +40,4 @@ A feature that changes rendered output ships off by default ([decision 0002](dec
 
 ## Private overlays
 
-A gitignored `<name>.private.md` next to a public page carries the motivation the public page leaves out. Keep the two aligned item by item; `CLAUDE.md` has the rules.
+A gitignored `<name>.private.md` next to a public page carries the motivation the public page leaves out. Keep the two aligned item by item; [AGENTS.md](../AGENTS.md) has the rules.

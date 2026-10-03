@@ -114,6 +114,7 @@ See [Installation](docs/guides/installation.md) for complete setup instructions.
 | [Audio](docs/explanation/audio.md) | Why the mix sounds the way it does: original audio, voiceover and music levels, ducking, loudness |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
+| [Agent instructions](AGENTS.md) | The rules coding agents follow in this repository |
 
 </details>
 

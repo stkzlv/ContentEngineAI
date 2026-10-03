@@ -19,4 +19,4 @@ A duplicate produced by an explicit action (`--force`, a knowing re-render) is a
 ## Consequences
 
 - A guard that silently stops working is still a defect, because it is the only protection against an accidental second post.
-- `CLAUDE.md` ("Duplicates are acceptable") carries the operating detail.
+- `AGENTS.md` (Code standards) carries the operating rule; `docs/notes/link-in-bio.md` the link-in-bio detail.

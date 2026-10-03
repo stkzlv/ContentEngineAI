@@ -24,6 +24,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 CLAUDE = REPO / "CLAUDE.md"
+AGENTS = REPO / "AGENTS.md"
 NOTES = REPO / "docs" / "notes"
 
 # It came out of the split at about 24,000 bytes, from 224,616. The bound is
@@ -35,17 +36,26 @@ LINK = re.compile(r"\(docs/notes/([A-Za-z0-9_.-]+\.md)\)")
 
 
 def test_claude_md_is_still_a_rules_file() -> None:
-    size = CLAUDE.stat().st_size
+    # CLAUDE.md imports AGENTS.md, so both load into every session.
+    size = CLAUDE.stat().st_size + AGENTS.stat().st_size
 
     assert size <= MAX_BYTES, (
-        f"CLAUDE.md is {size} bytes, over the {MAX_BYTES} bound. Move a "
-        "section's entries into docs/notes/ and leave a pointer, the way the "
-        "module notes were moved; do not raise the bound"
+        f"CLAUDE.md and AGENTS.md are {size} bytes together, over the "
+        f"{MAX_BYTES} bound. Move a section's entries into docs/notes/ and "
+        "leave a pointer, the way the module notes were moved; do not raise "
+        "the bound"
     )
 
 
-def test_every_notes_file_is_linked_from_claude_md() -> None:
-    linked = set(LINK.findall(CLAUDE.read_text(encoding="utf-8")))
+def test_claude_md_imports_the_shared_agent_instructions() -> None:
+    """The rules live once, in AGENTS.md; CLAUDE.md and GEMINI.md import it."""
+    for name in ("CLAUDE.md", "GEMINI.md"):
+        lines = (REPO / name).read_text(encoding="utf-8").splitlines()
+        assert "@AGENTS.md" in lines, f"{name} no longer imports AGENTS.md"
+
+
+def test_every_notes_file_is_linked_from_agents_md() -> None:
+    linked = set(LINK.findall(AGENTS.read_text(encoding="utf-8")))
     present = {p.name for p in NOTES.glob("*.md")}
 
     assert present, "docs/notes/ is empty"
@@ -55,7 +65,7 @@ def test_every_notes_file_is_linked_from_claude_md() -> None:
     )
     assert (
         linked <= present
-    ), f"CLAUDE.md points at notes that do not exist: {sorted(linked - present)}"
+    ), f"AGENTS.md points at notes that do not exist: {sorted(linked - present)}"
 
 
 def test_each_notes_file_says_where_it_came_from() -> None:

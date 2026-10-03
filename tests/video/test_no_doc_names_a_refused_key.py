@@ -62,7 +62,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BATCH_SCOPE = re.compile(r"global_batch[:.](?!py\b)")
 
 SEARCHED = ("docs", "config")
-ALSO = (Path("CLAUDE.md"), Path("GEMINI.md"), Path("README.md"))
+ALSO = (Path("AGENTS.md"), Path("CLAUDE.md"), Path("GEMINI.md"), Path("README.md"))
 
 # A line may name a refused key when it is saying that the key is refused, and
 # `pycaps_template` is additionally the md5 salt for template selection

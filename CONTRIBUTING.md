@@ -1,6 +1,6 @@
 # Contributing to ContentEngineAI
 
-We welcome contributions! This guide will help you get started with contributing to ContentEngineAI.
+We welcome contributions! This guide will help you get started with contributing to ContentEngineAI. Coding agents follow the same rules, condensed in [AGENTS.md](AGENTS.md).
 
 ## Getting Started
 
@@ -127,10 +127,27 @@ make test          # Run all tests with coverage
 
 ### Pull Request Guidelines
 
-- **Title**: Use conventional commit format (`feat:`, `fix:`, `docs:`, etc.)
+- **Title**: Imperative mood, short and plain ("Add subtitle animation controls"), no type prefix
 - **Description**: Explain what changes you made and why
 - **Testing**: Describe how you tested your changes
 - **Documentation**: Update relevant documentation files; [the documentation map](docs/README.md) says where each kind belongs
+
+### Definition of done
+
+A pull request is done when the code, its tests and the docs it changes land together. The docs a change touches:
+
+| Change | Update in the same pull request |
+|---|---|
+| A CLI flag added or changed | `docs/reference/<module>.md` and the requirement |
+| A config key added, changed or removed | `docs/reference/configuration.md` and the requirement; a removed key is a breaking change (minor release, `**Breaking**:` entry) |
+| Behaviour changed | The requirement's statement or status in `docs/requirements/<area>.md` |
+| A planned or held feature ships | Its design doc to `Implemented`, its requirements to `shipped` |
+| A defect fixed | An entry in `docs/notes/<module>.md` (what broke, why it was invisible, what catches it) and a test citing the requirement |
+| A choice between real alternatives | A decision record in `docs/decisions/` |
+| A task or concept changed | The page in `docs/guides/` or `docs/explanation/` |
+| Every pull request | Version bump and a dated CHANGELOG heading (`make release-check`) |
+
+Cite the requirement ids in the pull request (the template asks), and in a test with `@pytest.mark.req("REQ-...")`.
 
 ### Documentation
 
