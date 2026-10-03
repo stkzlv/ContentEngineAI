@@ -10,12 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import tools.check_docs as check_docs
 from tools.check_docs import (
     Design,
     cited_findings,
     design_findings,
     docs_only,
     expand_ids,
+    flag_changes,
     surface_findings,
 )
 
@@ -87,17 +89,59 @@ def test_an_empty_diff_is_not_docs_only() -> None:
     assert not docs_only([], [])
 
 
-def test_a_new_flag_without_its_page_is_refused() -> None:
-    cli = "src/scraper/amazon/cli.py"
-    diff = {cli: ['    parser.add_argument("--new-flag", action="store_true")']}
-    found = surface_findings([cli], diff)
-    assert found and "docs/reference/scraper.md" in found[0]
-    assert surface_findings([cli, "docs/reference/scraper.md"], diff) == []
+CLI_BEFORE = """
+parser.add_argument(
+    "--keywords",
+    nargs="+",
+    help="Search terms",
+)
+"""
+
+
+def test_a_flag_added_in_the_formatter_s_layout_is_seen() -> None:
+    after = (
+        CLI_BEFORE
+        + 'parser.add_argument(\n    "--new-flag",\n    action="store_true",\n)\n'
+    )
+    assert flag_changes(CLI_BEFORE, after) == ["--new-flag"]
+
+
+def test_a_removed_or_redefined_flag_is_seen() -> None:
+    assert flag_changes(CLI_BEFORE, "") == ["--keywords"]
+    assert flag_changes(CLI_BEFORE, CLI_BEFORE.replace("Search", "Find")) == [
+        "--keywords"
+    ]
+
+
+def test_a_change_to_one_subcommand_s_copy_of_a_flag_is_seen() -> None:
+    twice = CLI_BEFORE + CLI_BEFORE
+    assert flag_changes(twice, CLI_BEFORE + CLI_BEFORE.replace("Search", "Find"))
 
 
 def test_a_cli_edit_that_touches_no_flag_passes() -> None:
+    assert flag_changes(CLI_BEFORE, CLI_BEFORE + "logger.info('x')\n") == []
+
+
+def test_a_changed_flag_without_its_page_is_refused() -> None:
     cli = "src/scraper/amazon/cli.py"
-    assert surface_findings([cli], {cli: ["    logger.info('x')"]}) == []
+    flags = {cli: ["--new-flag"]}
+    found = surface_findings([cli], {}, flags)
+    assert found and "docs/reference/scraper.md" in found[0]
+    assert surface_findings([cli, "docs/reference/scraper.md"], {}, flags) == []
+
+
+def test_a_move_lists_both_sides(monkeypatch) -> None:
+    """A file moved from src/ into docs/ must not read as docs-only."""
+    calls = []
+
+    def fake_git(*args: str) -> str:
+        calls.append(args)
+        return "docs/moved.md\nsrc/ai/prompts/moved.md\n"
+
+    monkeypatch.setattr(check_docs, "git", fake_git)
+    paths = check_docs.changed_paths("origin/main")
+    assert "--no-renames" in calls[0]
+    assert not docs_only(paths, [])
 
 
 def test_a_new_config_key_without_the_reference_is_refused() -> None:

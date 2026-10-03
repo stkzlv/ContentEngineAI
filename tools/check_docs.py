@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import os
 import re
@@ -63,7 +64,6 @@ CLI_PAGES = {
     "src/publisher/late/cli.py": "docs/reference/publisher.md",
     "src/pipeline/cli.py": "docs/guides/batch-processing.md",
 }
-CLI_FLAG = re.compile(r"add_argument\(\s*[\"']--?[\w-]+")
 
 CONFIG_PAGE = "docs/reference/configuration.md"
 CONFIG_YAML = "config/*.yaml"
@@ -140,7 +140,57 @@ def git(*args: str) -> str:
 
 
 def changed_paths(base: str) -> list[str]:
-    return [p for p in git("diff", "--name-only", f"{base}...HEAD").splitlines() if p]
+    """Every path the diff touches. `--no-renames` lists both sides of a move,
+    so a file moved out of `src/` into `docs/` still counts as a code change.
+    """
+    out = git("diff", "--name-only", "--no-renames", f"{base}...HEAD")
+    return [p for p in out.splitlines() if p]
+
+
+def file_at(ref: str, path: str) -> str:
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{path}"], cwd=REPO, capture_output=True, text=True
+    )
+    return result.stdout if result.returncode == 0 else ""
+
+
+def cli_flags(source: str) -> dict[str, list[str]]:
+    """Each flag an `add_argument` call declares, mapped to the call's text.
+
+    Parsed rather than matched line by line, because the formatter puts the
+    flag on the line after `add_argument(`. The call's dump stands for its
+    definition, so a changed default or help text counts as a change. Subcommands
+    repeat flags, so a name maps to every call that declares it.
+    """
+    if not source:
+        return {}
+    flags: dict[str, list[str]] = {}
+    for node in ast.walk(ast.parse(source)):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "add_argument"
+        ):
+            continue
+        names = [
+            a.value
+            for a in node.args
+            if isinstance(a, ast.Constant) and isinstance(a.value, str)
+        ]
+        for name in names:
+            if name.startswith("-"):
+                flags.setdefault(name, []).append(ast.dump(node))
+    return {name: sorted(dumps) for name, dumps in flags.items()}
+
+
+def flag_changes(old: str, new: str) -> list[str]:
+    """Flags added, removed or redefined between two versions of a CLI file."""
+    before, after = cli_flags(old), cli_flags(new)
+    return sorted(
+        name
+        for name in before.keys() | after.keys()
+        if before.get(name) != after.get(name)
+    )
 
 
 def changed_lines(base: str, path: str) -> list[str]:
@@ -177,14 +227,18 @@ def docs_only(paths: list[str], pyproject_lines: list[str]) -> bool:
     return bool(paths)
 
 
-def surface_findings(paths: list[str], diff: dict[str, list[str]]) -> list[str]:
+def surface_findings(
+    paths: list[str],
+    diff: dict[str, list[str]],
+    flags: dict[str, list[str]] | None = None,
+) -> list[str]:
     """CLI flags and config keys that changed without their page."""
     touched = set(paths)
     problems = []
-    for cli, page in CLI_PAGES.items():
-        flags = any(CLI_FLAG.search(line) for line in diff.get(cli, []))
-        if flags and page not in touched:
-            problems.append(f"{cli} changes a CLI flag; update {page}")
+    for cli, changed in (flags or {}).items():
+        page = CLI_PAGES[cli]
+        if changed and page not in touched:
+            problems.append(f"{cli} changes {', '.join(changed)}; update {page}")
     config_changed = []
     for path, lines in diff.items():
         if path.endswith(".example"):
@@ -226,12 +280,16 @@ def pr_findings(base: str, body: str) -> list[str]:
     watched = [
         p
         for p in paths
-        if p in CLI_PAGES
-        or fnmatch.fnmatch(p, CONFIG_YAML)
+        if fnmatch.fnmatch(p, CONFIG_YAML)
         or any(fnmatch.fnmatch(p, glob) for glob in CONFIG_MODELS)
     ]
     diff = {p: changed_lines(base, p) for p in watched}
-    surface = surface_findings(paths, diff)
+    flags = {
+        cli: flag_changes(file_at(base, cli), file_at("HEAD", cli))
+        for cli in CLI_PAGES
+        if cli in paths
+    }
+    surface = surface_findings(paths, diff, flags)
     if surface and not OPT_OUT.search(text):
         problems += surface
         problems.append(
