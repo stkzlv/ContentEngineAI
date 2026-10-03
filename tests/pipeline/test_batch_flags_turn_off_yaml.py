@@ -74,3 +74,11 @@ def test_fail_fast_covers_publishing(tmp_path: Path) -> None:
         tmp_path, ["--fail-fast", "--no-fail-fast-publish"], fail_fast=False
     )
     assert not opted_out.fail_fast_publish
+
+
+@pytest.mark.req("REQ-OPS-018")
+def test_a_yaml_fail_fast_publish_false_holds(tmp_path: Path) -> None:
+    """Only an unset publishing switch inherits `fail_fast`."""
+    config = load(tmp_path, [], fail_fast=True, fail_fast_publish=False)
+    assert config.fail_fast
+    assert not config.fail_fast_publish

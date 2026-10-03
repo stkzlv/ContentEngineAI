@@ -1300,8 +1300,11 @@ def load_global_batch_config(
     fail_fast_publish = _flag(
         cli_args, "fail_fast_publish", yaml_config, "fail_fast_publish"
     )
-    if getattr(cli_args, "fail_fast_publish", None) is None:
-        fail_fast_publish = fail_fast_publish or fail_fast
+    if (
+        getattr(cli_args, "fail_fast_publish", None) is None
+        and yaml_config.get("fail_fast_publish") is None
+    ):
+        fail_fast_publish = fail_fast
 
     platform_specific_content = _flag(
         cli_args, "platform_specific", yaml_config, "platform_specific_content"
