@@ -200,7 +200,7 @@ class TestCaptionDisclosureToken:
         record = {
             "title": "Lamp",
             "description": "A lamp for the desk. #ad",
-            "hashtags": ["lamp", "desk", "home"],
+            "hashtags": ["lamp", "desk", "home", "ad"],
             "carries_affiliate_content": True,
             **extra,
         }

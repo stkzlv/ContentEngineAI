@@ -347,11 +347,12 @@ class PublishMetadata:
             tag.lstrip("#") if tag.startswith("#") else tag for tag in self.hashtags
         ]
 
-        # Drop hashtags that duplicate the disclosure (it leads the caption now).
-        # Compare case-insensitively against the bare token (without #).
+        # Drop hashtags that duplicate the disclosure (it leads the caption now):
+        # the configured token and `ad`, which the generators add whatever the
+        # token is, so a `#publi` caption doesn't end with `#ad` too.
         if self.disclosure:
-            disc_token = self.disclosure.lstrip("#").lower()
-            self.hashtags = [t for t in self.hashtags if t.lower() != disc_token]
+            tokens = {"ad", self.disclosure.lstrip("#").lower()}
+            self.hashtags = [t for t in self.hashtags if t.lower() not in tokens]
 
         # A render with no material connection must not carry a disclosure
         # token at all, wherever it came from. The caption prompts instruct

@@ -101,7 +101,13 @@ class DisclosureSettings(BaseModel):
     (50-60% of caption size) but readable on phone screens.
     """
 
-    enabled: bool = Field(True, description="Burn the overlay on every render")
+    enabled: bool = Field(
+        True,
+        description=(
+            "Deprecated and ignored: a render with a material connection "
+            "always carries the overlay"
+        ),
+    )
     text: str = Field("#ad", description="Disclosure text. Override per language.")
     position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(
         "top-right", description="Corner placement within the safe zone"

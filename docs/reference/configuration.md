@@ -534,7 +534,7 @@ video_settings:
     margin_y_percent: 0.12       # Distance from the vertical edge (0.0-0.5)
 ```
 
-Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there.
+Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there. A product scheduled from `data.json` alone, with no metadata file, leads with `#ad`.
 
 `size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
 

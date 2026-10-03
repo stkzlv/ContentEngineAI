@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The caption's leading disclosure comes from `video_settings.disclosure_overlay.text`, the same setting as the on-frame overlay, so a localized token such as `#publi` reaches both without a code change.
-- `disclosure_overlay.enabled` is deprecated and ignored: a render with a material connection always carries the overlay, and one without carries none.
+- **Breaking**: `disclosure_overlay.enabled` is deprecated and ignored: a render with a material connection always carries the overlay, and one without carries none.
 
 ### Fixed
 
