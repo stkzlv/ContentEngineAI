@@ -1,0 +1,29 @@
+name: Docs check
+
+# CONTRIBUTING's definition of done, as far as a script can see it
+# (tools/check_docs.py). Its own workflow because it reads the pull request
+# description, so it re-runs when the description is edited, which should not
+# re-run the test suite.
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, edited ]
+
+jobs:
+  docs-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - name: Check the docs moved with the change
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
+        BASE_REF: ${{ github.base_ref }}
+      run: python -m tools.check_docs --base "origin/$BASE_REF"
