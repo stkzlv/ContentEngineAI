@@ -140,7 +140,12 @@ class TestMeasureStep:
         ]
         mock_process_class.return_value = proc
         monitor = PerformanceMonitor()
-        with patch("src.utils.performance.time.time", side_effect=[1000.0, 1002.0]):
+        # The duration comes from the monotonic clock; the timestamps from the
+        # wall clock.
+        with (
+            patch("src.utils.performance.time.time", side_effect=[1000.0, 1002.0]),
+            patch("src.utils.performance.time.monotonic", side_effect=[50.0, 52.0]),
+        ):
             async with monitor.measure_step("busy"):
                 pass
         assert monitor.metrics[0].cpu_percent == pytest.approx(200.0)

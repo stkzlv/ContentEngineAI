@@ -23,7 +23,11 @@ from src.scraper.base.keyword_pillars import (
 )
 from src.scraper.config_models import ScraperConfig
 from src.utils.logging_setup import log_context
-from src.utils.outputs_paths import get_project_root
+from src.utils.outputs_paths import (
+    MEDIA_IMAGE_SUFFIXES,
+    MEDIA_VIDEO_SUFFIXES,
+    get_project_root,
+)
 
 from ...utils.url_shortener import load_url_shortener_settings
 from ..base import BaseScraper, Platform, register_scraper
@@ -880,14 +884,18 @@ class BotasaurusAmazonScraper(BaseScraper):
             actual_videos = []
 
             if images_dir.exists():
-                actual_images = list(images_dir.glob("*.jpg")) + list(
-                    images_dir.glob("*.png")
-                )
+                actual_images = [
+                    p
+                    for p in images_dir.iterdir()
+                    if p.suffix.lower() in MEDIA_IMAGE_SUFFIXES
+                ]
 
             if videos_dir.exists():
-                actual_videos = list(videos_dir.glob("*.mp4")) + list(
-                    videos_dir.glob("*.mov")
-                )
+                actual_videos = [
+                    p
+                    for p in videos_dir.iterdir()
+                    if p.suffix.lower() in MEDIA_VIDEO_SUFFIXES
+                ]
 
             img_count = len(actual_images)
             vid_count = len(actual_videos)

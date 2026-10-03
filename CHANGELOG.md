@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The scraper's batch summary and the global batch count the image and video files on disk per product, not the URLs on the page or one download's report.
+- The scraper's batch summary and the global batch count the non-empty image and video files on disk per product, not the URLs on the page or one download's report, and a failed or empty download is deleted rather than left on disk.
 - Failed and skipped renders log the step time and memory threshold warnings too.
-- Logged durations in the batch, its phases, the publisher batch and the scraper batch use the monotonic clock.
+- Logged durations in the batch, its phases, the publisher batch, the scraper batch and the producer's step timings use the monotonic clock.
 
 ## [0.130.0] - 2026-10-03
 

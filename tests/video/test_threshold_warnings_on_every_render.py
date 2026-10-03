@@ -15,7 +15,7 @@ import pytest
 
 from src.video.producer.orchestration import log_threshold_warnings
 
-SOURCE = Path("src/video/producer/orchestration.py")
+SOURCE = Path(__file__).resolve().parents[2] / "src/video/producer/orchestration.py"
 
 
 @pytest.mark.req("REQ-OPS-057", "REQ-OPS-058")
