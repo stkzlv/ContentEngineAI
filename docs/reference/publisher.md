@@ -377,7 +377,7 @@ profiles:
 
 ## Platform limits
 
-`PLATFORM_LIMITS` in `src/publisher/constants.py` holds each platform's hard cap. A title or description over the cap is trimmed on a word boundary with `...` before publishing; a hashtag count outside the range is logged as a warning and kept.
+`PLATFORM_LIMITS` in `src/publisher/models.py` holds each platform's hard cap. A title or description over the cap is trimmed on a word boundary with `...` before publishing; a hashtag count outside the range is logged as a warning and kept.
 
 | Platform | Title | Caption or description | Hashtags |
 |---|---|---|---|
