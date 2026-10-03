@@ -18,6 +18,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 
 - **REQ-CNT-007** `shipped` The producer ships several script templates with distinct styles (curiosity hook, problem-solution, storytelling, comparison and others).
 - **REQ-CNT-008** `shipped` Templates instruct calm, conversational delivery, with no high-energy, hype or clickbait phrasing.
+- **REQ-CNT-142** `shipped` The product and topic narrator profiles instruct the LLM to target 30-40 seconds of speech at a normal pace, about 75-100 words.
 - **REQ-CNT-009** `shipped` The producer selects a template per product deterministically, so a product gets the same template on every run.
 - **REQ-CNT-010** `shipped` Where `script_templates.template_pool` lists templates, the producer selects only from them; an empty pool means every template.
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
@@ -52,6 +53,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-031** `shipped` A topic script closes on the result rather than on a debatable spec claim.
 - **REQ-CNT-032** `shipped` A topic script carries one honest limit, placed among the steps rather than after them.
   - Why: a limit read last becomes the final spoken line before the call to action and leaves the viewer unsure the fix worked.
+- **REQ-CNT-146** `planned #559` A topic script names the app or settings screen where the steps start, before the first step.
+- **REQ-CNT-147** `partial` A topic script names the most common mistake at the step where it happens.
+  - Gap: only the `topic_mistake_fix` template names a mistake, and it names it in the opening line rather than at its step (#559).
 
 ## Call to action and closing line
 
@@ -64,8 +68,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
 - **REQ-CNT-039** `shipped` The per-platform caption generator places the script's closing line in the caption body, before the hashtag block.
 - **REQ-CNT-040** `shipped` When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
-- **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote or reply with a specific word; closing questions ask for a choice or an experience.
+- **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote, reply with a specific word or emoji, or follow for a promised payoff; closing questions ask for a choice or an experience.
   - On when: the call-to-action pools are edited after the reach-test readout (#540).
+- **REQ-CNT-148** `planned #549` Every configured call to action uses an imperative verb and names an outcome or a destination.
 
 ## Script naturalism and signature
 
@@ -102,6 +107,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-059** `shipped` The default voice profile delivers calm, confident speech rather than high energy.
 - **REQ-CNT-060** `shipped` A voice profile can set speaking rate and pitch.
 - **REQ-CNT-061** `shipped` Where a profile has markup rules, the producer inserts pause tags at sentence boundaries (periods, exclamation marks and question marks).
+- **REQ-CNT-143** `shipped` Where `silence_removal_enabled` is on (the bundled default), the producer trims only the leading and trailing silence below `silence_threshold_db` (bundled -50 dB) from the voiceover before transcription, and `silence_min_duration_sec` defaults to 0.1 s.
+  - Why: the trim discards the audio inside that window, so a longer value cuts off a short final word.
 - **REQ-CNT-062** `held` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
   - On when: `default_voice_profile` or `voice_profile_pool` selects a profile with a `pause_plan` (such as `charon_varied`) after the reach-test readout, in stages (#540).
 - **REQ-CNT-063** `shipped` The config rejects a pause plan that uses a tag not measured as silent, so no tag text reaches the captions.
@@ -158,7 +165,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 
 ## Final mix
 
-- **REQ-CNT-100** `shipped` The producer masters the final mix to a loudness target (default -14 LUFS, true peak -1 dBFS).
+- **REQ-CNT-100** `partial` The producer masters the final mix to a loudness target (default -14 LUFS, true peak -1 dBFS).
+  - Gap: delivered files measure about -15 LUFS and peak at about -0.8 dBFS, because the true-peak ceiling forces dynamic normalisation and the AAC encode adds about 0.2 dB after it.
 - **REQ-CNT-101** `shipped` Where `music_ducking_enabled` is true, the music level drops while narration plays and recovers in the gaps; it is off by default.
 - **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
 - **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video.
@@ -173,6 +181,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-139** `shipped` In optimized mode, the producer also writes `UPLOAD_INSTRUCTIONS.txt` with each platform's metadata for manual upload; a failure to write it doesn't fail the step.
 - **REQ-CNT-140** `shipped` When metadata from a previous run exists for the product, the producer reuses it instead of generating it again.
 - **REQ-CNT-141** `shipped` Where `description_settings.enabled` is false, the producer skips metadata generation.
+- **REQ-CNT-144** `shipped` In optimized metadata mode, a topic render's prompts ask for a YouTube title that front-loads the symptom, in the words a viewer would search, within its first 5-7 words, and for TikTok and Instagram captions that contain the search phrase.
+- **REQ-CNT-145** `shipped` A topic render's description prompts ask for a description that leads with the symptom, and in optimized metadata mode the YouTube prompt asks for the symptom in the first sentence.
+- **REQ-CNT-149** `planned #550` A product video's platform titles and its hook headline make the same promise.
+- **REQ-CNT-150** `planned #590` A product video's YouTube description carries no destination URL, and its call to action points at the profile link.
 
 ## Content pillars
 

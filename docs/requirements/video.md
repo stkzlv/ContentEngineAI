@@ -31,6 +31,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-127** `shipped` The final video is a 1080x1920 H.264 MP4 in yuv420p at 30 fps, with AAC audio at 192 kbps and 48 kHz.
 - **REQ-VID-128** `shipped` Where a profile's `enable_format_normalization` is on (the default), the producer converts each input video clip to H.264, 30 fps and yuv420p before assembly.
 - **REQ-VID-129** `shipped` After assembly, the producer probes the final video and logs a warning when the video or audio stream is missing or the captions match the script below `subtitle_similarity_threshold`; the check never fails the render.
+- **REQ-VID-146** `shipped` A render applies no colour grade or stylistic filter to product or stock visuals; the only colour change darkens the blurred backdrop behind a visual that doesn't fill the frame.
 
 ## Image positioning
 
@@ -74,6 +75,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-034** `shipped` The producer records the caption engine a run resolved in the run state.
 - **REQ-VID-035** `shipped` The pycaps engine burns word-by-word karaoke captions after assembly, with per-word CSS animation and template-driven styling.
 - **REQ-VID-036** `shipped` Where AI word tagging is on, the pycaps engine highlights the words a language model picks per segment.
+- **REQ-VID-150** `shipped` Where AI word tagging is on and `pycaps.ai_tag_prompt_override` is set (the bundled value), the tagger is asked for about 15% of the words, chosen from prices, numbers, product nouns, outcome verbs and factual superlatives, and never articles, prepositions, auxiliaries, absolute praise words or a whole sentence.
 - **REQ-VID-134** `shipped` If AI word tagging fails for a segment, `pycaps.ai_tagging_on_error: skip` (the bundled value) burns that segment without highlights, and `raise` hands the failure to the caption fallback policy.
 - **REQ-VID-135** `shipped` If AI word tagging is on and the Gemini key is missing, the producer logs a warning and burns the captions without AI highlights.
 - **REQ-VID-037** `shipped` The pycaps engine renders one caption track of up to two lines and has no two-part mode.
@@ -105,14 +107,18 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-055** `shipped` Captions use a bold sans-serif font of weight 700 or more.
 - **REQ-VID-056** `partial` The caption font size is `font_size_percent` of the frame height (bundled 7.5%, about 144 px on 1920) multiplied by `font_size_scale` (0.5 to 2.0, default 1.0, `--font-size-scale`).
   - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#577).
-- **REQ-VID-057** `shipped` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
-- **REQ-VID-058** `shipped` A caption line holds at most 3 words, a caption at most 2 lines, and a line at most 80% of the frame width.
+- **REQ-VID-057** `partial` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
+  - Gap: FFmpeg karaoke draws black text with a white outline that fills yellow, the pycaps `explosive` template has a yellow base fill with an orange glow and no outline, and `word-focus` has a white fill with a 2 px black shadow and an orange box behind the active word (#591).
+- **REQ-VID-058** `shipped` A caption holds at most 2 lines, each at most 80% of the frame width; on the FFmpeg engine a line also holds at most `max_words_per_line` words (bundled 3), while the pycaps engine splits lines by the template's character count.
 - **REQ-VID-136** `shipped` On the FFmpeg engine, a caption line also holds at most `max_line_length` characters (bundled 30, `--max-line-length`).
 - **REQ-VID-059** `shipped` A caption segment lasts between 0.6 s and 2.5 s.
 - **REQ-VID-060** `shipped` Each narration word appears slightly before its audio onset, by a configurable lead.
 - **REQ-VID-061** `shipped` The first few words of the opening hook get an extra lead on top of the base lead; the lead and the number of words are configurable per render.
 - **REQ-VID-062** `shipped` Captions never split or alter a number: thousands separators, decimals and hyphenated tokens stay whole and keep their punctuation.
 - **REQ-VID-063** `shipped` Where timing smoothing is on (the bundled default), caption word timings get a minimum time on screen per word (default 0.12 s), gaps shorter than a threshold merge into the preceding word (default 0.08 s), and the last word of a segment is held (default 0.2 s).
+- **REQ-VID-147** `shipped` Captions carry no emoji: they come from the transcription of a voiceover whose script has its emojis removed, and no bundled caption template or style preset adds one.
+- **REQ-VID-156** `planned #591` A caption segment's reading rate stays at or below a configured characters-per-second cap, and a segment over the cap merges into its neighbour.
+- **REQ-VID-157** `planned #591` Caption lines break at phrase boundaries and never split a noun phrase or a product name.
 
 ## Two-part captions
 
@@ -133,6 +139,10 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-072** `partial` A render uses one caption effect, chosen deterministically from the product id.
   - Gap: the choice for the same product differs from one run to the next.
 - **REQ-VID-073** `shipped` Where randomisation is on, the caption font and colour pair are drawn from curated pools.
+- **REQ-VID-148** `shipped` No bundled caption template or style preset flashes, and none scales a word beyond 1.1x: the `explosive` template's word zoom peaks at 1.10x, and `word-focus` has no animation.
+- **REQ-VID-149** `shipped` A render's captions use at most three highlight colours, since one caption template or one colour pair styles the whole render.
+  - Check: `explosive` uses three fills (a word before, during and after its narration), `word-focus` one box colour, and FFmpeg karaoke one sweep colour.
+- **REQ-VID-155** `planned #591` A caption entrance animation lasts at most 250 ms, and a segment leaves with a hard cut or a fade of at most 80 ms.
 
 ## Cold open
 
@@ -140,6 +150,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-075** `shipped` Pre-motion is off by default and on in the short profile; a profile can turn it on or off.
 - **REQ-VID-076** `shipped` The pre-motion peak zoom is configurable globally and per profile (default 1.10).
 - **REQ-VID-077** `shipped` Where the hook overlay is on (the bundled default), the render shows a short headline as static centre-upper text for the first 1.5 s (configurable), sized relative to the captions, with no per-word reveal.
+- **REQ-VID-154** `planned #591` The hook headline renders larger than the narration captions on every caption engine.
 - **REQ-VID-078** `shipped` The on-frame disclosure is drawn above the hook overlay.
 - **REQ-VID-079** `shipped` FFmpeg captions sit below the hook overlay; pycaps captions are burned after assembly and sit above both overlays.
 - **REQ-VID-080** `shipped` When the hook headline is too long, the overlay wraps it to a configurable number of lines, each within a configurable share of the frame width, and shrinks the font when wrapping alone doesn't fit.
@@ -221,6 +232,12 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-123** `planned #560` Where step visuals are on, each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-124** `planned #561` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
+  - On when: `video_settings.graphics.enabled` is set after the reach-test readout (#540).
+- **REQ-VID-151** `planned #559` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
+  - On when: `topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
+- **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
+  - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
+- **REQ-VID-153** `planned #561` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.
   - On when: `video_settings.graphics.enabled` is set after the reach-test readout (#540).
 
 ## Media validation

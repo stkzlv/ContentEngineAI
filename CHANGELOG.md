@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.9] - 2026-10-03
+
+### Documentation
+
+- Every pipeline recommendation in the research is now a requirement, a design doc or a recorded rejection: the already-shipped ones (no colour grade, no caption emoji, the AI tagger recipe, silence trimming, topic titles and descriptions) are stated, and the rest are planned against their issues.
+- Caption, loudness and closing-line requirements that overstated the code are corrected per engine or marked partial.
+- Decision 0007 records why visuals crossfade rather than hard-cut.
+
 ## [0.127.8] - 2026-10-03
 
 ### Documentation
