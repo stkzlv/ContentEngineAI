@@ -1,6 +1,6 @@
 # Global batch reference
 
-The command line of the global batch pipeline, which scrapes, renders and publishes in one run. For the steps of a batch run, see [the batch processing guide](../guides/batch-processing.md); its exit codes are in [Exit Codes](../guides/batch-processing.md#exit-codes). The `global_batch` keys of `config/pipeline.yaml` are in [the configuration reference](configuration.md). The requirements are in [the batch requirements](../requirements/batch.md).
+The command line of the global batch pipeline, which scrapes, renders and publishes in one run. For the steps of a batch run, see [the batch processing guide](../guides/batch-processing.md); its exit codes are in [Exit Codes](../guides/batch-processing.md#exit-codes). Its `global_batch` keys in `config/pipeline.yaml` are under [Configuration keys](#configuration-keys). The requirements are in [the batch requirements](../requirements/batch.md).
 
 ## Command line
 
@@ -74,3 +74,46 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--schedule-time` | `ISO8601` | none | Schedules the posts for this time instead of the next free slot. |
 | `--fail-fast-publish` | switch | off | Stops publishing at the first failure. |
 | `--platform-specific` | switch | off | Creates a separate post per platform with that platform's metadata, instead of one post for all platforms. |
+
+## Configuration keys
+
+The `global_batch` block of `config/pipeline.yaml`. A boolean set to `true` here stays on even when its flag is left out, and no flag turns it off (#587).
+
+### Inputs
+
+| Key | Default | Effect |
+|---|---|---|
+| `product_ids` | `[]` | Products every run scrapes. |
+| `keywords` | `{}` | Keywords grouped by content pillar, or a flat list with no pillar. Empty means the run draws from `batch.keywords` in `config/scraper.yaml`; a value here replaces that pool for batch runs. |
+| `keywords_per_run` | unset | How many keywords one run searches, taken in rotation by date. Unset, it is what the run consumes, `max_products` divided by `products_per_keyword`. |
+| `topics` | two sample topics | Topics rendered without scraping, each a `title` with an optional `description` and `keywords`. Same shape as `--topics-file`. |
+| `topics_file` | `null` | A file whose topics replace `topics`. A relative path resolves against `config/`. `PIPELINE_TOPICS_FILE` overrides it; a missing file is an error. |
+| `topics_per_run` | `1` | How many topics a run with no input flags includes, taken in rotation by date. `0` renders products only. Topics on the command line ignore it. |
+| `alternate_formats` | `true` | A run with no input flags renders one side per day, topics or products, chosen by date parity. A side with nothing configured falls back to the other with a warning. |
+| `max_products` | `10` | Cap on the products collected across all keywords. |
+| `products_per_keyword` | `1` | Cap on the products scraped for one keyword. |
+| `scraper_filters` | all `null` | `min_price`, `max_price`, `min_rating` and `prime_only`. A `null` takes `scrapers.amazon.default_search_parameters` from `config/scraper.yaml`; a flag overrides both. |
+
+### Production and run control
+
+| Key | Default | Effect |
+|---|---|---|
+| `profile` | `null` | The profile for every product. Mutually exclusive with `random_profile`. |
+| `random_profile` | `false` | Picks a profile per product, deterministically from the product id. |
+| `profile_pool` | `[]` | The profiles `random_profile` picks from; empty means every profile. |
+| `fail_fast` | `false` | Stops the pipeline at the first failure. |
+| `outputs_dir` | `outputs` | Where the scraper writes and the producer reads. |
+| `debug` | `false` | Debug logging. |
+
+### `webhook`
+
+Posts phase and pipeline events to an HTTP endpoint. A failed call never stops the pipeline.
+
+| Key | Default | Effect |
+|---|---|---|
+| `url` | `null` | The endpoint, `http://` or `https://`. `null` turns webhooks off. |
+| `enabled` | `true` | Sends events when `url` is set. |
+| `timeout_sec` | `5.0` | Timeout for one call. |
+| `max_retries` | `3` | Retries for a failed call, with the delay doubling each time. |
+| `retry_delay_sec` | `1.0` | The first retry delay. |
+| `events` | all four | Which of `phase.complete`, `phase.failed`, `pipeline.complete` and `pipeline.failed` to send. |

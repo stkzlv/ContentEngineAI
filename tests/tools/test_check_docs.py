@@ -73,6 +73,11 @@ def test_docs_and_a_version_bump_are_docs_only() -> None:
     assert docs_only(paths, ['version = "1.0.0"', 'version = "1.0.1"'])
 
 
+def test_the_doc_tests_data_is_docs() -> None:
+    assert docs_only(["tests/docs/undocumented_config_keys.txt"], [])
+    assert not docs_only(["tests/docs/test_reference_matches_code.py"], [])
+
+
 def test_a_prompt_template_is_code() -> None:
     assert not docs_only(["src/ai/prompts/video_script.md"], [])
 

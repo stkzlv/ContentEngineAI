@@ -273,7 +273,7 @@ There is no `headless` key: the scraper always runs a headful browser, on a virt
 | `affiliate_links.enabled` | bool | `true` | Whether the install takes part in an affiliate program. See [affiliate URLs](#affiliate-urls). |
 | `default_search_parameters` | mapping | see below | Search filters for every keyword search, in the standalone scraper and the batch alike (`REQ-SCR-030`). |
 | `filter_parameters` | mapping | `price_to_cents_multiplier: 100`, `rating_codes` for 4, 3, 2 and 1 stars, `prime_filter_code: p_85:2470955011`, `free_shipping_filter_code: p_76:419122011` | Amazon's codes for the filters. |
-| `http_headers` | mapping | `video_validation`, `media_download` and `standard` header sets | Headers sent with media requests. |
+| `http_headers` | mapping | `video_validation`, `media_download` and `standard` header sets | Headers sent with media requests; see below. |
 
 `default_search_parameters`:
 
@@ -289,6 +289,14 @@ There is no `headless` key: the scraper always runs a headful browser, on a virt
 | `category` | string or null | `null` | Category id. |
 | `include_sponsored` | bool | `false` | Includes sponsored results. |
 | `skip_unavailable` | bool | `true` | Skips unavailable products. |
+
+`http_headers`, each a mapping of header name to value:
+
+| Set | Headers | Sent with |
+|---|---|---|
+| `video_validation` | `User-Agent`, `Accept`, `Accept-Language`, `Accept-Encoding` (`identity`), `Referer` (`https://www.amazon.com/`) | Requests that check a video URL before download. |
+| `media_download` | `User-Agent`, `Accept`, `Accept-Language`, `Referer` (`https://www.amazon.com/`) | Image and video downloads. |
+| `standard` | `User-Agent` | The fallback User-Agent when a set has none. |
 
 ## Affiliate URLs
 

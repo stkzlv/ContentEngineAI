@@ -91,7 +91,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 ## Affiliate URLs
 
 - **REQ-SCR-051** `partial` The scraper canonicalises every scraped product's affiliate URL to `https://www.amazon.com/dp/<ASIN>?tag=<associate_tag>` before writing `data.json`.
-  - Gap: a product URL without a `/dp/<ASIN>` path keeps its original form with only the tag appended.
+  - Gap: a product URL without a `/dp/<ASIN>` path keeps its original form with only the tag appended (#584).
 - **REQ-SCR-052** `shipped` The scraper reads the associate tag from the `AMAZON_ASSOCIATE_TAG` environment variable, falling back to `scrapers.amazon.associate_tag` in the YAML.
 - **REQ-SCR-053** `shipped` `data.json` carries the canonical link in `affiliate_link` and the page URL as visited in `url`.
 - **REQ-SCR-054** `shipped` The publisher's link-in-bio reads `affiliate_link` before `url`.
