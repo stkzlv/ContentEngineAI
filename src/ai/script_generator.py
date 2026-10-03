@@ -459,7 +459,8 @@ def select_script_template(
     topic_templates = templates_cfg.topic_templates
     if fixed and topic_templates and is_topic != (fixed in topic_templates):
         logger.warning(
-            "Ignoring --script-template '%s': it is a %s template and this "
+            "Ignoring fixed script template '%s' (--script-template or "
+            "script_templates.fixed_template): it is a %s template and this "
             "is a %s render",
             fixed,
             "product" if is_topic else "topic",

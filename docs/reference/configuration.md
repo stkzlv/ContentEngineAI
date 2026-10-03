@@ -1325,7 +1325,7 @@ llm_settings:
 
 **Selection rules:**
 
-1. If `fixed_template` is set, that template wins.
+1. If `fixed_template` is set and matches the render's kind (a `topic_templates` entry on a topic, any other template on a product), that template wins; a mismatched one is ignored with a warning.
 2. Otherwise, the active pool is `template_pool` (or all templates when empty).
    For a scraped product, anything in `topic_templates` is then removed: the two
    families share one directory and the default pool is a glob over it.

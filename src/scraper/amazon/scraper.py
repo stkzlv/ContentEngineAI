@@ -44,9 +44,6 @@ from .browser_functions import (
 )
 from .config import CONFIG
 from .constants import (
-    DEFAULT_MIN_IMAGES_IF_NO_VIDEO,
-    DEFAULT_MIN_IMAGES_WITH_VIDEO,
-    DEFAULT_MIN_TOTAL_MEDIA,
     HIGH_RES_DIMENSION,
 )
 from .downloader import download_media_files

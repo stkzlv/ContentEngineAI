@@ -56,8 +56,9 @@ video_settings:
   resolution: [1080, 1920]
 
   # Vertical alignment of video content for profiles that don't set it.
-  # The code default is "center"; pinned to "top" here so the slideshow
-  # profiles render as before until the reach-test readout.
+  # The code default is "center"; pinned to "top" until the reach-test
+  # readout so a video profile that leaves it unset renders as before. Every
+  # bundled profile that draws video sets its own value.
   video_vertical_align: top
 
   # Video frame rate (frames per second)

@@ -59,3 +59,16 @@ def test_the_scraper_s_verification_uses_it() -> None:
     assert "producer_media_minimums" in called
     source = (REPO / "src/scraper/amazon/scraper.py").read_text()
     assert '"min_images_if_no_video"' not in source
+
+
+def test_an_unparseable_producer_config_raises(tmp_path: Path) -> None:
+    """As the producer's loader does: defaults would filter on numbers the
+    producer then refuses to load at all.
+    """
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "video_production.yaml").write_text("video_settings: [")
+    with (
+        patch("src.utils.outputs_paths.get_project_root", return_value=tmp_path),
+        pytest.raises(yaml.YAMLError),
+    ):
+        producer_media_minimums()
