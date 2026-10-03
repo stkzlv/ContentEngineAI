@@ -203,7 +203,7 @@ class TestTheScheduleAutoPathStripsItToo:
 
     It never constructs a `PublishMetadata`, so a guard living only on that
     object left this path publishing the token -- and it does not get the
-    trailing-hashtag rule either. `CLAUDE.md` names both publish paths as
+    trailing-hashtag rule either. `AGENTS.md` names both publish paths as
     re-implementing the same logic, which is why the strip is a shared
     function rather than a method.
     """

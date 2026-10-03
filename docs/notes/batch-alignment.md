@@ -1,8 +1,8 @@
 # Module/Batch Alignment Rule: the cases
 
 <!--
-Moved out of CLAUDE.md (#454). The rule itself stays there; these
-are the places the two implementations have actually drifted, each with
+Read before changing this module; AGENTS.md links here. The rule itself is
+in AGENTS.md; these are the places the two implementations have actually drifted, each with
 what the drift cost.
 -->
 

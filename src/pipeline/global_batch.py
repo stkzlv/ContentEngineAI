@@ -307,7 +307,7 @@ class GlobalPipelineOrchestrator:
         Keys here must match the dotted override keys consumed by
         ``VideoConfig.get_profile_merged_settings`` — keep this in sync with
         ``src.video.producer.cli._build_cli_overrides`` per the
-        Module/Batch Alignment Rule in CLAUDE.md.
+        module/batch alignment rule in AGENTS.md.
         """
         overrides: dict[str, Any] = {}
         if self.config.voice_profile:

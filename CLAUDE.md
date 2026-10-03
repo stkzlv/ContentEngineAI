@@ -6,5 +6,5 @@ The shared instructions for every coding agent are in `AGENTS.md`, imported here
 
 ## Claude Code only
 
-- **After a compaction**, invoke the github-workflow skill before the next branch, commit, PR, merge or release, and check CI on any open PR: the summary does not carry the repository's process rules, so re-read them rather than recall them.
-- **MCP servers**: Context7 for current library docs (resolve the library id first); the GitHub server for issues and PRs, with the `gh` CLI as the fallback. `gh pr edit` fails on this repository with a `projectCards` GraphQL error: update a PR body through the API or the MCP tool instead.
+- **After a compaction**, re-read `CONTRIBUTING.md` and `docs/versioning.md` before the next branch, commit, PR, merge or release, and check CI on any open PR: the summary does not carry the repository's process rules.
+- `gh pr edit` fails on this repository with a `projectCards` GraphQL error: update a PR body through the REST API (`gh api -X PATCH repos/<owner>/<repo>/pulls/<n> -F body=@file`).

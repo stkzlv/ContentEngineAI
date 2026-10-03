@@ -669,7 +669,7 @@ class TestBareURLShortener:
 
     @pytest.mark.asyncio
     async def test_shorten_returns_input_unchanged(self):
-        url = "https://www.amazon.com/dp/B0XXXXXXXX?tag=stealtech0c-20"
+        url = "https://www.amazon.com/dp/B0XXXXXXXX?tag=example-20"
         shortener = BareURLShortener()
         result = await shortener.shorten(url)
         assert result.original_url == url

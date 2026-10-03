@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.11] - 2026-10-03
+
+### Documentation
+
+- The Claude Code instructions state the process rule directly instead of naming local tooling, and code, tests and module notes point to `AGENTS.md` for the rules that moved there.
+- Tests use a placeholder affiliate tag and no longer cite a local scratch path.
+
 ## [0.127.10] - 2026-10-03
 
 ### Documentation
