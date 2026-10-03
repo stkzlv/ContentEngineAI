@@ -188,3 +188,135 @@ async def test_a_scheduled_post_carries_the_phrase_when_it_discloses(
         )
 
     assert (PHRASE in provider.publish.call_args.kwargs["content"]) is discloses
+
+
+def two_platform(outputs: Path, provider: AsyncMock) -> None:
+    (outputs / PRODUCT / "metadata_tiktok.json").write_text(
+        (outputs / PRODUCT / "metadata_youtube.json").read_text()
+    )
+    provider.get_accounts.return_value = [
+        {"platform": "youtube", "account_id": "yt_1"},
+        {"platform": "tiktok", "account_id": "tt_1"},
+    ]
+
+
+@pytest.mark.req("REQ-PUB-046")
+@pytest.mark.asyncio
+async def test_a_rate_limit_retries_only_the_leg_that_hit_it(
+    provider: AsyncMock, outputs: Path
+) -> None:
+    from src.publisher.base import PublishError
+
+    two_platform(outputs, provider)
+    posted: list[str] = []
+    limited = {"done": False}
+
+    async def publish(**kwargs):
+        leg = kwargs["platforms"][0]["platform"]
+        if leg == "tiktok" and not limited["done"]:
+            limited["done"] = True
+            raise PublishError("429 rate limit")
+        posted.append(leg)
+        return {"post_id": f"post_{leg}", "status": "published"}
+
+    provider.publish.side_effect = publish
+    with patch("src.publisher.batch.asyncio.sleep", new_callable=AsyncMock):
+        summary = await BatchPublisher(
+            publisher=provider,
+            outputs_dir=outputs,
+            platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+            stagger_delay_min=0,
+            stagger_delay_max=0,
+        ).publish_batch()
+
+    assert posted == ["youtube", "tiktok"]
+    assert summary.successful == 1
+
+
+@pytest.mark.req("REQ-PUB-057")
+@pytest.mark.asyncio
+async def test_a_leg_that_posted_is_recorded_when_a_later_one_fails(
+    provider: AsyncMock, outputs: Path
+) -> None:
+    two_platform(outputs, provider)
+
+    async def publish(**kwargs):
+        if kwargs["platforms"][0]["platform"] == "tiktok":
+            raise RuntimeError("provider down")
+        return {"post_id": "post_yt", "status": "published"}
+
+    provider.publish.side_effect = publish
+    await BatchPublisher(
+        publisher=provider,
+        outputs_dir=outputs,
+        platforms=[Platform.YOUTUBE, Platform.TIKTOK],
+        stagger_delay_min=0,
+        stagger_delay_max=0,
+    ).publish_batch()
+
+    assert is_already_published(PRODUCT, "youtube", outputs)
+    assert not is_already_published(PRODUCT, "tiktok", outputs)
+
+
+@pytest.mark.asyncio
+async def test_a_queued_product_published_since_leaves_the_queue(
+    provider: AsyncMock, outputs: Path
+) -> None:
+    from src.publisher.tracking import add_to_retry_queue, get_retry_queue
+
+    await immediate(provider, outputs).publish_batch()
+    add_to_retry_queue(PRODUCT, ["youtube"], "earlier failure", outputs_dir=outputs)
+
+    await immediate(provider, outputs, retry_failed=True).publish_batch()
+
+    assert get_retry_queue(outputs) == []
+
+
+@pytest.mark.asyncio
+async def test_metadata_for_an_unconnected_platform_does_not_count(
+    provider: AsyncMock, outputs: Path
+) -> None:
+    product = outputs / PRODUCT
+    (product / "metadata_instagram.json").write_text(
+        (product / "metadata_youtube.json").read_text()
+    )
+    (product / "metadata_youtube.json").unlink()
+
+    summary = await BatchPublisher(
+        publisher=provider,
+        outputs_dir=outputs,
+        platforms=[Platform.YOUTUBE, Platform.INSTAGRAM],
+        stagger_delay_min=0,
+        stagger_delay_max=0,
+    ).publish_batch()
+
+    provider.publish.assert_not_called()
+    assert summary.skipped == 1
+    assert summary.failed == 0
+
+
+@pytest.mark.req("REQ-PUB-024")
+@pytest.mark.asyncio
+async def test_a_retry_dry_run_lists_the_queue(outputs: Path, caplog) -> None:
+    from src.publisher.late import cli as late_cli
+    from src.publisher.tracking import add_to_retry_queue
+
+    add_to_retry_queue(
+        "B0QUEUED01", ["youtube"], "earlier failure", outputs_dir=outputs
+    )
+    args = Namespace(
+        immediate=True,
+        dry_run=True,
+        retry_failed=True,
+        platforms=[Platform.YOUTUBE],
+        outputs_dir=outputs,
+        force=False,
+        debug=False,
+    )
+    with caplog.at_level("INFO"):
+        await late_cli.cmd_schedule_auto(args, config=None, session=None)
+
+    listed = [
+        r.getMessage() for r in caplog.records if "Would publish" in r.getMessage()
+    ]
+    assert listed == ["[DRY RUN] Would publish B0QUEUED01 now"]

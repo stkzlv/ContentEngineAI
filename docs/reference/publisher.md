@@ -70,7 +70,7 @@ python -m src.publisher.late schedule [auto] [options]
 | `--fail-fast` | off | immediate mode | Stop at the first failed product. |
 | `--retry-failed` | off | immediate mode | Publish only the products in the retry queue. |
 
-Each product is posted once, even when it has renders under several profiles: the scanner picks one render per product, honouring `profiles`. Both modes post the way `single` does: one unified post, or one per platform with `use_platform_specific_content`, carrying the first comment and, where `affiliate_disclosure` is on, the program phrase, and each post is written to the publish history.
+Each product is posted once, even when it has renders under several profiles: the scanner picks one render per product, honouring `profiles`. Scheduled mode creates one unified post, or one per platform with `use_platform_specific_content`; immediate mode creates one post per platform, each with that platform's metadata. Both attach the first comment and, where `affiliate_disclosure` is on, the program phrase, and write each post to the publish history. `--dry-run` with `--retry-failed` lists the retry queue.
 
 The command exits with status 1 when any product fails. `recurring_schedule.enabled: false` or an empty slot list stops scheduled mode with an error.
 

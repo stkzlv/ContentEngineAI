@@ -66,7 +66,6 @@ class BatchPublisher:
         link_in_bio_config: LinkInBioConfig | None = None,
         profiles: dict[str, str] | None = None,
         force: bool = False,
-        platform_specific: bool = False,
         disclosure_phrase: str | None = None,
     ):
         """Initialize batch publisher.
@@ -85,7 +84,6 @@ class BatchPublisher:
             profiles: Per-platform render profile, deciding which video
                 each platform gets when a product has more than one.
             force: Publish products already recorded as published.
-            platform_specific: One post per platform instead of one for all.
             disclosure_phrase: The affiliate program phrase for the caption
                 of a post that carries a material connection.
 
@@ -124,7 +122,6 @@ class BatchPublisher:
         # back to the alphabetically first file and disagrees with `single`.
         self.profiles = profiles
         self.force = force
-        self.platform_specific = platform_specific
         self.disclosure_phrase = disclosure_phrase
 
         platforms_str = [p.value for p in self.platforms]
@@ -254,9 +251,12 @@ class BatchPublisher:
                         )
 
                     elif publish_result["status"] == "already_published":
-                        # Not a failure, so it neither errors nor queues a retry.
+                        # Not a failure, so it neither errors nor queues a
+                        # retry, and one already queued (published since,
+                        # through `single`) leaves the queue.
                         skipped += 1
                         summary.skipped += 1
+                        remove_from_retry_queue(product_id, self.outputs_dir)
 
                     elif publish_result["status"] == "skipped":
                         skipped += 1
@@ -511,24 +511,29 @@ class BatchPublisher:
             )
             return {"status": "already_published"}
 
-        if not any(
-            load_platform_metadata(product_id, p, self.outputs_dir) for p in wanted
-        ):
-            return {"status": "skipped", "error": "Missing metadata"}
-
         targets, missing = accounts_for_platforms(wanted, accounts)
         for platform in missing:
             logger.warning("No connected account for %s, skipping", platform.value)
+        # Only the legs that will post, since only their metadata is read.
+        targets = [
+            t
+            for t in targets
+            if load_platform_metadata(product_id, t["platform"], self.outputs_dir)
+        ]
         if not targets:
-            return {"status": "skipped", "error": "No connected account"}
+            return {"status": "skipped", "error": "No account or metadata"}
 
         try:
             logger.info("[%d/%d] Uploading video...", current_idx, total_count)
             media_id = await self.publisher.upload_media(video_path)
-            results = await self._publish_with_rate_limit_retry(
-                media_id, product_id, targets
-            )
-            record_publish_results(product_id, results, targets, self.outputs_dir)
+            # One post per platform, each with its own metadata, as this path
+            # always posted. Each leg is recorded as it lands, so a later leg
+            # failing, or its rate-limit retry, never re-posts an earlier one.
+            for target in targets:
+                results = await self._publish_with_rate_limit_retry(
+                    media_id, product_id, target
+                )
+                record_publish_results(product_id, results, [target], self.outputs_dir)
             return {"status": "success"}
 
         except Exception as e:  # Per-video boundary
@@ -537,18 +542,18 @@ class BatchPublisher:
             return {"status": "failed", "error": error_msg}
 
     async def _publish_with_rate_limit_retry(
-        self, media_id: str, product_id: str, targets: list[dict[str, str]]
+        self, media_id: str, product_id: str, target: dict[str, str]
     ) -> list[dict]:
-        """Publish now, retrying once after a rate limit with the same payload."""
+        """Publish one leg now, retrying once after a rate limit."""
 
         async def attempt() -> list[dict]:
             return await publish_product(
                 publisher=self.publisher,
                 media_id=media_id,
                 product_id=product_id,
-                platforms=targets,
+                platforms=[target],
                 outputs_dir=self.outputs_dir,
-                platform_specific=self.platform_specific,
+                platform_specific=True,
                 schedule_time=None,
                 disclosure_phrase=self.disclosure_phrase,
             )
