@@ -191,7 +191,7 @@ poetry run python -m src.publisher.late schedule --immediate \
   --platform youtube --platform tiktok --fail-fast --debug
 ```
 
-`--dry-run` doesn't apply in this mode: the command publishes.
+`--dry-run` lists the products the run would publish and publishes nothing. A product already published to every target is skipped unless you pass `--force`.
 
 ## Retry failed products
 

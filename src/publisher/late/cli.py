@@ -57,7 +57,11 @@ from src.publisher.product_registry import (
 from src.publisher.publish_modes import accounts_for_platforms
 from src.publisher.registry import create_publisher_from_config
 from src.publisher.schedule import ScheduleManager, record_scheduled_posts
-from src.publisher.tracking import is_already_published, record_publish_results
+from src.publisher.tracking import (
+    get_retry_queue,
+    is_already_published,
+    record_publish_results,
+)
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import dated_log_path, log_context, setup_debug_logging
 from src.utils.outputs_paths import get_project_root
@@ -633,8 +637,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 or config.use_platform_specific_content
             )
 
-            disc_cfg = config.affiliate_disclosure_config
-            disclosure_phrase = disc_cfg.phrase if disc_cfg.enabled else None
+            disclosure_phrase = _disclosure_phrase(config)
             publish_results = await publish_product(
                 publisher=publisher,
                 media_id=media_url,
@@ -841,8 +844,21 @@ async def cmd_schedule_auto(
     logger.info("%s mode", mode)
     logger.info("Target platforms: %s", [p.value for p in args.platforms])
     logger.info("Outputs directory: %s", args.outputs_dir)
-    if getattr(args, "dry_run", False) and not immediate:
-        logger.info("DRY RUN MODE - No actual scheduling will occur")
+    if getattr(args, "dry_run", False):
+        logger.info("DRY RUN MODE - nothing will be published or scheduled")
+        if immediate:
+            # The immediate path has no preview of its own, and it used to
+            # ignore the flag and publish. Answered from disk, before the
+            # provider is contacted at all.
+            if getattr(args, "retry_failed", False):
+                queued = get_retry_queue(args.outputs_dir)
+                product_ids = [item["product_id"] for item in queued]
+            else:
+                videos = _scan_and_filter_videos(args, config)
+                product_ids = [video.parent.name for video in videos]
+            for product_id in product_ids:
+                logger.info("[DRY RUN] Would publish %s now", product_id)
+            return
 
     # Create publisher and authenticate
     publisher = _create_publisher_from_config(config, session)
@@ -893,6 +909,7 @@ async def cmd_schedule_auto(
             auto_resolve=getattr(args, "auto_resolve", False),
             force=getattr(args, "force", False),
             link_in_bio_config=config.link_in_bio_config,
+            disclosure_phrase=_disclosure_phrase(config),
         )
 
         logger.info("--- PUBLISHER SUMMARY ---")
@@ -1017,6 +1034,12 @@ def _scan_and_filter_videos(
     return unpublished
 
 
+def _disclosure_phrase(config) -> str | None:
+    """The affiliate program phrase, or None when the setting is off."""
+    disc_cfg = config.affiliate_disclosure_config
+    return disc_cfg.phrase if disc_cfg.enabled else None
+
+
 async def _run_immediate_batch(
     args: argparse.Namespace,
     config,
@@ -1041,6 +1064,8 @@ async def _run_immediate_batch(
         fail_fast=getattr(args, "fail_fast", False),
         retry_failed=getattr(args, "retry_failed", False),
         link_in_bio_config=config.link_in_bio_config,
+        force=getattr(args, "force", False),
+        disclosure_phrase=_disclosure_phrase(config),
     )
 
     summary = await batch_publisher.publish_batch()

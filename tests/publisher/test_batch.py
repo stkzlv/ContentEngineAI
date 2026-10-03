@@ -27,10 +27,27 @@ def mock_link_in_bio():
         yield mock
 
 
+@contextlib.contextmanager
+def patch_metadata():
+    """One metadata mock for the batch's pre-check and for `publish_product`.
+
+    The batch checks a product has metadata, then `publish_product` loads it
+    again to build the caption, so both lookups have to see the same files.
+    """
+    shared = MagicMock()
+    with (
+        patch("src.publisher.batch.load_platform_metadata", shared),
+        patch("src.publisher.publish_modes.load_platform_metadata", shared),
+    ):
+        yield shared
+
+
 @pytest.fixture
 def mock_publisher():
     """Create mock publisher with common behaviors."""
     publisher = AsyncMock()
+    # No first comments: an AsyncMock attribute would read as a live config.
+    publisher.first_comment_config = None
     publisher.authenticate = AsyncMock(return_value=True)
     publisher.upload_media = AsyncMock(return_value="media_12345")
     publisher.get_accounts = AsyncMock(
@@ -204,7 +221,7 @@ class TestBatchPublishing:
         )
 
         # Mock platform metadata
-        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+        with patch_metadata() as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Test content"
             mock_metadata.return_value = mock_meta
@@ -246,7 +263,7 @@ class TestBatchPublishing:
             fail_fast=False,
         )
 
-        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+        with patch_metadata() as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Test content"
             mock_metadata.return_value = mock_meta
@@ -274,7 +291,9 @@ class TestBatchPublishing:
             fail_fast=True,
         )
 
-        summary = await batch.publish_batch()
+        with patch_metadata() as mock_metadata:
+            mock_metadata.return_value.format_content.return_value = "Body."
+            summary = await batch.publish_batch()
 
         # Should stop after first failure
         assert summary.failed >= 1
@@ -295,7 +314,7 @@ class TestBatchPublishing:
         )
 
         # Return None for metadata (missing)
-        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+        with patch_metadata() as mock_metadata:
             mock_metadata.return_value = None
 
             summary = await batch.publish_batch()
@@ -584,7 +603,7 @@ class TestStaggerDelay:
         )
 
         with (
-            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
+            patch_metadata() as mock_metadata,
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_meta = MagicMock()
@@ -615,7 +634,7 @@ class TestStaggerDelay:
         )
 
         with (
-            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
+            patch_metadata() as mock_metadata,
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_meta = MagicMock()
@@ -648,7 +667,7 @@ class TestBatchCarriesTheDisclosureDecision:
             stagger_delay_max=0,
         )
 
-        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+        with patch_metadata() as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Body."
             mock_meta.carries_affiliate_content = False
@@ -672,7 +691,7 @@ class TestBatchCarriesTheDisclosureDecision:
             stagger_delay_max=0,
         )
 
-        with patch("src.publisher.batch.load_platform_metadata") as mock_metadata:
+        with patch_metadata() as mock_metadata:
             mock_meta = MagicMock()
             mock_meta.format_content.return_value = "Body."
             mock_meta.carries_affiliate_content = True
@@ -713,7 +732,7 @@ class TestBatchCarriesTheDisclosureDecision:
         )
 
         with (
-            patch("src.publisher.batch.load_platform_metadata") as mock_metadata,
+            patch_metadata() as mock_metadata,
             patch("src.publisher.batch.asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_meta = MagicMock()
