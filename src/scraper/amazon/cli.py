@@ -15,6 +15,7 @@ import argparse
 import logging
 import re
 import shutil
+import sys
 import traceback
 from pathlib import Path
 from typing import Any
@@ -769,10 +770,12 @@ def main() -> None:
     args = build_argument_parser().parse_args()
     log_file = _start_logging()
 
+    # A run that stops before scraping has scraped nothing, so it exits 1 like
+    # any other empty run: a wrapper must not read a config error as success.
     if not _merge_input_file(args):
-        return
+        sys.exit(1)
     if not _inputs_from_config(args):
-        return
+        sys.exit(1)
 
     _resolve_debug(args, log_file)
 
@@ -786,7 +789,7 @@ def main() -> None:
 
     built = _build_search_params(args)
     if built is None:
-        return
+        sys.exit(1)
     search_params, cli_overrides = built
     if args.debug:
         _log_search_params(search_params, cli_overrides)

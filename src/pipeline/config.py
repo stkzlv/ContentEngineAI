@@ -985,12 +985,25 @@ def resolve_scraper_filters(
             value = yaml_filters.get(name)
         if value is not None:
             overrides[name] = value
-    if getattr(cli_args, "prime_only", False):
-        overrides["prime_only"] = True
+    cli_prime = getattr(cli_args, "prime_only", None)
+    if cli_prime is not None:
+        overrides["prime_only"] = bool(cli_prime)
     elif yaml_filters.get("prime_only") is not None:
         overrides["prime_only"] = bool(yaml_filters["prime_only"])
     defaults: SearchParameters = get_default_search_parameters()
     return replace(defaults, **overrides)
+
+
+def _flag(cli_args: Any, name: str, yaml_config: dict[str, Any], yaml_key: str) -> bool:
+    """A boolean the CLI overrides only when passed, in either direction.
+
+    The flags are `--x/--no-x` pairs defaulting to None, so an absent flag
+    keeps the YAML value and `--no-x` can turn a YAML `true` off for one run.
+    """
+    value = getattr(cli_args, name, None)
+    if value is None:
+        return bool(yaml_config.get(yaml_key, False))
+    return bool(value)
 
 
 def load_global_batch_config(
@@ -1235,11 +1248,15 @@ def load_global_batch_config(
     )
 
     # Profile configuration
-    profile = getattr(cli_args, "profile", None) or yaml_config.get("profile")
+    cli_profile = getattr(cli_args, "profile", None)
+    profile = cli_profile or yaml_config.get("profile")
 
-    random_profile = getattr(cli_args, "random_profile", False) or yaml_config.get(
-        "random_profile", False
-    )
+    random_profile = _flag(cli_args, "random_profile", yaml_config, "random_profile")
+    # A `--profile` on the command line beats a YAML `random_profile: true`
+    # unless `--random-profile` was passed too; the two tiers used to collide
+    # and refuse the run as both modes at once.
+    if cli_profile and getattr(cli_args, "random_profile", None) is None:
+        random_profile = False
 
     # Default to random profile when no explicit profile is set
     if not profile and not random_profile:
@@ -1249,13 +1266,11 @@ def load_global_batch_config(
     profile_pool = cli_profile_pool or yaml_config.get("profile_pool", []) or []
 
     # Common configuration
-    fail_fast = getattr(cli_args, "fail_fast", False) or yaml_config.get(
-        "fail_fast", False
-    )
+    fail_fast = _flag(cli_args, "fail_fast", yaml_config, "fail_fast")
 
-    process_all_products = getattr(
-        cli_args, "process_all_products", False
-    ) or yaml_config.get("process_all_products", False)
+    process_all_products = _flag(
+        cli_args, "process_all_products", yaml_config, "process_all_products"
+    )
 
     outputs_dir_str = getattr(cli_args, "outputs_dir", None) or yaml_config.get(
         "outputs_dir", "outputs"
@@ -1269,12 +1284,10 @@ def load_global_batch_config(
     if not outputs_dir.is_absolute():
         outputs_dir = get_project_root() / outputs_dir
 
-    debug = getattr(cli_args, "debug", False) or yaml_config.get("debug", False)
+    debug = _flag(cli_args, "debug", yaml_config, "debug")
 
     # Publishing configuration
-    skip_publish = getattr(cli_args, "skip_publish", False) or yaml_config.get(
-        "skip_publish", False
-    )
+    skip_publish = _flag(cli_args, "skip_publish", yaml_config, "skip_publish")
 
     platforms = getattr(cli_args, "platforms", None) or yaml_config.get("platforms")
 
@@ -1282,13 +1295,20 @@ def load_global_batch_config(
         "schedule_time"
     )
 
-    fail_fast_publish = getattr(
-        cli_args, "fail_fast_publish", False
-    ) or yaml_config.get("fail_fast_publish", False)
+    # `--fail-fast` covers every phase, publishing included; the publishing
+    # flag can still turn it off for that phase alone.
+    fail_fast_publish = _flag(
+        cli_args, "fail_fast_publish", yaml_config, "fail_fast_publish"
+    )
+    if (
+        getattr(cli_args, "fail_fast_publish", None) is None
+        and yaml_config.get("fail_fast_publish") is None
+    ):
+        fail_fast_publish = fail_fast
 
-    platform_specific_content = getattr(
-        cli_args, "platform_specific", False
-    ) or yaml_config.get("platform_specific_content", False)
+    platform_specific_content = _flag(
+        cli_args, "platform_specific", yaml_config, "platform_specific_content"
+    )
 
     # Voice profile override
     voice_profile = getattr(cli_args, "voice_profile", None) or yaml_config.get(

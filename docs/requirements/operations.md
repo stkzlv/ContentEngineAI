@@ -34,8 +34,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-015** `shipped` The pipeline retries transient network failures (timeouts, rate limits) with exponential backoff.
 - **REQ-OPS-016** `shipped` If a service fails repeatedly, the pipeline stops calling it for a cool-down period instead of failing every request against it.
 - **REQ-OPS-017** `shipped` If required configuration is missing, the pipeline reports which setting is missing.
-- **REQ-OPS-018** `partial` When `--fail-fast` is passed, the run stops at the first failed item.
-  - Gap: in the global batch it stops scraping and production only, and publishing stops early only on `--fail-fast-publish` (#587).
+- **REQ-OPS-018** `shipped` When `--fail-fast` is passed, the run stops at the first failed item.
 - **REQ-OPS-066** `shipped` Where `pipeline_timeout_sec` sets a render's total time budget, the speech-to-text time limit on every attempt, retries included, is capped at what remains of that budget.
   - Why: an uncapped step can spend the render's budget and let the timeout fire in a later step, which then takes the blame.
 - **REQ-OPS-067** `shipped` If FFmpeg is found neither on `PATH` nor at `ffmpeg_settings.executable_path`, the producer exits 1 at startup, before rendering anything.
@@ -85,8 +84,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
   - Gap: only FFmpeg operations are limited.
 - **REQ-OPS-039** `partial` The concurrency limit per operation type is set by `optimization_settings.async_ffmpeg_max_concurrent`, `async_io_max_concurrent` and `async_network_max_concurrent`.
   - Gap: nothing reads these keys; the limits are fixed in code.
-- **REQ-OPS-040** `partial` The scrape, produce, batch, publish and test runs each have a low-priority `make` target (`scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri`, `test-lowpri`) that runs them at reduced CPU and I/O priority under a memory cap with swap disabled.
-  - Gap: when `systemd-run` is missing, the targets print a warning and run with no memory cap (#587).
+- **REQ-OPS-040** `shipped` The scrape, produce, batch, publish and test runs each have a low-priority `make` target (`scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri`, `test-lowpri`) that runs them at reduced CPU and I/O priority under a memory cap with swap disabled.
   - Check: a run that exceeds `MEM_LIMIT` (default 6G) is stopped without other applications on the machine being killed.
 
 ## Resource cleanup

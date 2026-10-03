@@ -62,7 +62,7 @@ The last five take effect only together with `--debug`. Setting `global_settings
 
 ### Exit status
 
-A run that scrapes no product exits 1 (`REQ-SCR-049`). A run that loses some inputs exits 0 unless `--strict` is passed (`REQ-SCR-050`).
+A run that scrapes no product exits 1, including one that stops before scraping because the input file is missing, no inputs are configured or the search filters are invalid (`REQ-SCR-049`). A run that loses some inputs exits 0 unless `--strict` is passed (`REQ-SCR-050`).
 
 ### Flags the global batch does not take
 

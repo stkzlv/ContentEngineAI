@@ -9,7 +9,7 @@ poetry run python -m src.pipeline [options]
 make batch-lowpri ARGS="[options]"
 ```
 
-The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes through `make batch-lowpri`, which caps its memory. A flag passed on the command line overrides the matching `global_batch` key; a flag left out keeps the YAML value.
+The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes through `make batch-lowpri`, which caps its memory. A flag passed on the command line overrides the matching `global_batch` key; a flag left out keeps the YAML value. Each switch backed by a key has a `--no-` form, so a YAML `true` can be turned off for one run, and `--profile` on the command line wins over a YAML `random_profile: true`.
 
 ### Input
 
@@ -31,14 +31,14 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--min-price` | `PRICE` | Minimum price. |
 | `--max-price` | `PRICE` | Maximum price. |
 | `--min-rating` | `RATING` (1 to 5) | Minimum star rating. |
-| `--prime-only` | switch | Keeps Prime-eligible items only. |
+| `--prime-only` / `--no-prime-only` | switch | Keeps Prime-eligible items only. |
 
 ### Video production
 
 | Flag | Value | Effect |
 |---|---|---|
 | `--profile` | `NAME` | The profile for every product. Mutually exclusive with `--random-profile`. |
-| `--random-profile` | switch | Picks a profile per product, deterministically from the product id, from `--profile-pool` or from every profile. |
+| `--random-profile` / `--no-random-profile` | switch | Picks a profile per product, deterministically from the product id, from `--profile-pool` or from every profile. |
 | `--profile-pool` | one or more `PROFILE` | The profiles `--random-profile` picks from. |
 | `--voice-profile` | `NAME` | Overrides the voice profile. |
 | `--script-template` | `NAME` | Overrides the script template (the name without `.md`). |
@@ -54,11 +54,11 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 
 | Flag | Value | Default | Effect |
 |---|---|---|---|
-| `--fail-fast` | switch | off | Stops the pipeline at the first failure. |
+| `--fail-fast` / `--no-fail-fast` | switch | off | Stops the pipeline at the first failure, publishing included unless `--fail-fast-publish`/`--no-fail-fast-publish` or a `fail_fast_publish` key says otherwise. |
 | `--strict` | switch | off | Exits non-zero when any product was lost to a failure or a skip, not only when none succeeded. |
-| `--process-all-products` | switch | off | Renders every product in the outputs directory, not only those this run scraped. |
+| `--process-all-products` / `--no-process-all-products` | switch | off | Renders every product in the outputs directory, not only those this run scraped. |
 | `--outputs-dir` | `PATH` | `outputs` | Where the scraper writes and the producer reads. Its default shadows the YAML's `global_output_directory` even when the flag isn't passed (`REQ-OPS-002`). |
-| `--debug` | switch | off | Debug logging. |
+| `--debug` / `--no-debug` | switch | off | Debug logging. |
 | `--resume` | switch | off | Resumes an interrupted run from its checkpoint, skipping completed products and phases. |
 | `--dry-run` | switch | off | Validates the configuration and prints the planned products, profiles and platforms without running anything. |
 | `--clean` | switch | off | Removes product directories from the outputs directory before the run; with `--product-ids`, only those products. |
@@ -68,16 +68,16 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 
 | Flag | Value | Default | Effect |
 |---|---|---|---|
-| `--skip-publish` | switch | off | Skips the publishing phase. |
+| `--skip-publish` / `--no-skip-publish` | switch | off | Skips the publishing phase. |
 | `--force` | switch | off | Renders and publishes products already recorded as published. Without it the batch skips them before the render. |
 | `--platforms` | one or more `PLATFORM` | `default_platforms` in `config/publisher.yaml` | The platforms to publish to. |
 | `--schedule-time` | `ISO8601` | none | Schedules the posts for this time instead of the next free slot. |
-| `--fail-fast-publish` | switch | off | Stops publishing at the first failure. |
-| `--platform-specific` | switch | off | Creates a separate post per platform with that platform's metadata, instead of one post for all platforms. |
+| `--fail-fast-publish` / `--no-fail-fast-publish` | switch | off | Stops publishing at the first failure. |
+| `--platform-specific` / `--no-platform-specific` | switch | off | Creates a separate post per platform with that platform's metadata, instead of one post for all platforms. |
 
 ## Configuration keys
 
-The `global_batch` block of `config/pipeline.yaml`. A boolean set to `true` here stays on even when its flag is left out, and no flag turns it off (#587).
+The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds until a flag says otherwise, in either direction.
 
 ### Inputs
 
