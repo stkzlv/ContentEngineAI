@@ -30,7 +30,7 @@
 
 - [ ] `make lint` passes
 - [ ] Docs updated if behavior changed
-- [ ] CHANGELOG.md updated if user-visible
+- [ ] Version bumped in `pyproject.toml` and CHANGELOG entries under its dated heading (every PR is a release, `make release-check`)
 - [ ] No new warnings
 
 ## Deployment notes

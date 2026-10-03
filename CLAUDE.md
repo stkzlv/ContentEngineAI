@@ -296,12 +296,14 @@ make test-cov      # Run tests with coverage report
 
 ### Release Process
 
+**Every PR is a release, documentation-only ones included.** The PR bumps `pyproject.toml` and moves its CHANGELOG entries under a dated heading for that version; `make release-check` checks it before pushing, and the required `version-check` CI job refuses a PR without it. Read `docs/versioning.md` before opening a PR.
+
 **Version Bumping**:
 - Follow semantic versioning: `MAJOR.MINOR.PATCH`
 - Determine version bump based on changes:
   - **Major** (e.g., 1.0.0 → 2.0.0): Breaking API changes
   - **Minor** (e.g., 0.17.0 → 0.18.0): New features (backward compatible)
-  - **Patch** (e.g., 0.17.0 → 0.17.1): Bug fixes only
+  - **Patch** (e.g., 0.17.0 → 0.17.1): Bug fixes, performance improvements, documentation
   - A removed or renamed config key is a breaking change even in 0.x: minor bump, `**Breaking**:` in the CHANGELOG entry (`docs/versioning.md`)
 - Update version in `pyproject.toml`
 
@@ -310,14 +312,10 @@ make test-cov      # Run tests with coverage report
 2. Update version in `pyproject.toml` and code files
 3. Update `CHANGELOG.md` with release notes following [Keep a Changelog](https://keepachangelog.com/) format; the heading date is the UTC date (`date -u +%F`), which after local midnight is still the previous day
 4. Commit version bump: `git commit -m "Bump version to 0.18.0"`
-5. Merge PR and switch to main branch
-6. Create and push version tag: `git tag -a v0.18.0 -m "Release v0.18.0"`
-7. CI workflow automatically creates GitHub release with:
-   - Release notes extracted from CHANGELOG.md
-   - Build artifacts (wheel and source distribution)
-   - Tests and linting verification
+5. Merge the PR
+6. CI tags `v0.18.0` and creates the GitHub release, with notes from CHANGELOG.md, once `main` is green. Check `gh release list`; tag by hand (`git tag -a v0.18.0 -m "Release v0.18.0"`) only if the `release` job failed
 
-**Note**: Do not manually create GitHub releases - CI handles this when tags are pushed
+**Note**: Do not create GitHub releases or tags by hand - CI does both after the merge
 
 ### Dependency Updates (Dependabot)
 

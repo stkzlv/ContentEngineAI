@@ -7,6 +7,31 @@ on:
     branches: [ main ]
 
 jobs:
+  # Every PR is a release (docs/versioning.md): the version is bumped and the
+  # CHANGELOG heading dated in the PR itself. A required check, so it must
+  # never be skipped by a path filter: a skipped required check stays pending.
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - name: Check the release
+      env:
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          python -m tools.release_check --base "origin/$BASE_REF"
+        else
+          python -m tools.release_check
+        fi
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -115,3 +140,66 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
+
+  # Tag and publish the release once main is green. A tag pushed with
+  # GITHUB_TOKEN starts no other workflow, so this job creates the GitHub
+  # release itself rather than relying on release.yml, which stays for tags
+  # pushed by hand.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version-check, lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+
+    - name: Decide whether this commit is a new release
+      id: version
+      run: |
+        VERSION=$(python -m tools.release_check --version)
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+          echo "v$VERSION already tagged; nothing to release"
+          echo "new=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "new=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Tag
+      if: steps.version.outputs.new == 'true'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git tag -a "v$VERSION" -m "Release v$VERSION"
+        git push origin "v$VERSION"
+
+    - name: Extract release notes
+      if: steps.version.outputs.new == 'true'
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > release-notes.md
+        if [ ! -s release-notes.md ]; then
+          printf 'Release %s\n\nSee CHANGELOG.md for details.\n' "$VERSION" > release-notes.md
+        fi
+
+    - name: Create GitHub Release
+      if: steps.version.outputs.new == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body_path: release-notes.md
