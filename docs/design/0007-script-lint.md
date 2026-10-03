@@ -50,6 +50,8 @@ None recorded.
 - The lint ships off: `script_validation.lint.enabled` defaults to false. Set it after the readout, once rejection rates on a batch stay low (the retry loop is paid per call) and the scripts read better on review.
 - The hook and placement rules ship off: `script_templates.hook_rules.enabled` defaults to false. Set it after the readout; the placement rules wait for the report.
 
+Remove the switch when: each of `script_validation.lint.enabled` and `script_templates.hook_rules.enabled` has been on in the bundled config for two weekly batches, the lint rejecting no more than one script in five on its first attempt and the search-phrase report showing the phrase in the hook headline and caption openings at least as often as before; each key and its off path then go, separately, in a minor release with a `**Breaking**:` CHANGELOG entry, and the banned-phrase list and length caps stay.
+
 ## Open questions
 
 None recorded.

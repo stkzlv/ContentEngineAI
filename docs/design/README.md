@@ -12,7 +12,9 @@ Open an issue first; most work is specified in the issue alone. Write a design d
 
 ## Format
 
-One numbered file per feature, `NNNN-short-title.md`, with a status header (status, issue, requirement ids) and the sections Context, Goals, Non-goals, Design, Alternatives considered, Rollout and Open questions. A section with nothing to say reads "None recorded."
+One numbered file per feature, `NNNN-short-title.md`, copied from [0000-template.md](0000-template.md): a status header (status, issue, requirement ids) and the sections Context, Goals, Non-goals, Design, Alternatives considered, Rollout and Open questions. A section with nothing to say reads "None recorded."
+
+Rollout names what ships off, the setting that turns it on and the condition for doing so, and ends with `Remove the switch when:`, the condition for deleting the switch and the off path once the feature is proven. A switch that is a lasting operator choice says so instead. Removing a config key is a breaking change, so the removal ships as a minor release.
 
 ## Statuses
 
@@ -23,7 +25,7 @@ One numbered file per feature, `NNNN-short-title.md`, with a status header (stat
 | `Implemented` | The feature has shipped. |
 | `Superseded by NNNN` | A later design doc replaces this one. |
 
-A design doc is frozen once its feature ships: its status becomes `Implemented`, and a later change to the feature gets a design doc of its own that supersedes it.
+A design doc is frozen once its feature ships. The pull request that ships the feature sets the doc to `Implemented` and its requirements to `shipped`, and a later change to the feature gets a design doc of its own that supersedes it.
 
 ## Rules that apply to every design
 

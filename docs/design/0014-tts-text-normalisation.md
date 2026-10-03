@@ -39,6 +39,8 @@ None recorded.
 
 Ships off: `tts_normalisation.enabled` defaults to false. Set it after the reach-test readout (#540), once the probe has measured which strings the voice misreads.
 
+Remove the switch when: `tts_normalisation.enabled` has been on in the bundled config for 30 days and a probe run transcribes every table entry in its spoken form; the key and the raw-text path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and the table stays as the place for further entries.
+
 ## Open questions
 
 None recorded.

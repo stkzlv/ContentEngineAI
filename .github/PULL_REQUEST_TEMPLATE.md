@@ -4,6 +4,12 @@
 
 <!-- One or two sentences: what this PR does and why. Mention the issue number in prose ("Fixes #123" or "Relates to #123") if any. -->
 
+## Requirements
+
+<!-- The ids this PR adds, changes or implements (`REQ-PUB-024`), and the design doc if one applies. "None" for a change no requirement covers. -->
+
+None
+
 ## Type of change
 
 - [ ] Bug fix

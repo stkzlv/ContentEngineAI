@@ -37,6 +37,8 @@ None recorded.
 
 The guard changes which clips the topic arm shows, and the protocol holds each arm's visuals constant, so it ships off: `stock_reuse_guard.enabled` defaults to false and is set after the reach-test readout (#540). The id store records from day one, so the window is full when the guard is switched on.
 
+Remove the switch when: `stock_reuse_guard.enabled` has been on in the bundled config for 30 days with the [0006](0006-render-choices-and-variety-report.md) report showing fewer repeated stock clips than before and no render short of clips; the key and the unguarded path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `stock_reuse_window` stays as the tuning.
+
 ## Open questions
 
 None recorded.

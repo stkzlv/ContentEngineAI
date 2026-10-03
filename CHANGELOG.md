@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.8] - 2026-10-03
+
+### Documentation
+
+- Each design doc's rollout says when its switch can be removed, a design-doc template joins the decision template, and a feature's shipping pull request marks its design doc implemented and its requirements shipped.
+- Pull requests and feature requests name the requirement ids they touch, and CI prints how many requirements no test cites.
+- Decision 0006 records that research lives in the docs it justifies and that contributor docs stay at the top of `docs/`.
+- Issue forms no longer apply a label the repository doesn't have.
+
 ## [0.127.7] - 2026-10-03
 
 ### Documentation

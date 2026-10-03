@@ -43,6 +43,8 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 The label changes reach for both reach-test arms, so the config change to `tiktok_settings.video_made_with_ai` waits for the reach-test readout (#540). The optional AI-role statement ships off behind its config key.
 
+Remove the switch when: never; it is a lasting option, because the AI-role statement is truthful only where a person reviews each video, which differs from operator to operator.
+
 ## Open questions
 
 - Keep the label on voluntarily, or turn it off.

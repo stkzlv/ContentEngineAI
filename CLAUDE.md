@@ -312,8 +312,9 @@ make test-cov      # Run tests with coverage report
 2. Update version in `pyproject.toml` and code files
 3. Update `CHANGELOG.md` with release notes following [Keep a Changelog](https://keepachangelog.com/) format; the heading date is the UTC date (`date -u +%F`), which after local midnight is still the previous day
 4. Commit version bump: `git commit -m "Bump version to 0.18.0"`
-5. Merge the PR
-6. CI tags `v0.18.0` and creates the GitHub release, with notes from CHANGELOG.md, once `main` is green. Check `gh release list`; tag by hand (`git tag -a v0.18.0 -m "Release v0.18.0"`) only if the `release` job failed
+5. If the PR ships a feature that has a design doc, it sets the doc's status to `Implemented` and the feature's requirements to `shipped`
+6. Merge the PR
+7. CI tags `v0.18.0` and creates the GitHub release, with notes from CHANGELOG.md, once `main` is green. Check `gh release list`; tag by hand (`git tag -a v0.18.0 -m "Release v0.18.0"`) only if the `release` job failed
 
 **Note**: Do not create GitHub releases or tags by hand - CI does both after the merge
 

@@ -47,6 +47,8 @@ None recorded.
 
 Measurement only. It doesn't change rendered output, so it can land before the reach-test readout (#540). The optional YouTube Analytics reader ships off and needs its own credentials.
 
+Remove the switch when: never; it is a lasting option, because the YouTube Analytics reader needs credentials of its own that not every operator holds.
+
 ## Open questions
 
 - Whether the provider exposes YouTube's viewed-vs-swiped-away and engaged views, which decides whether the YouTube Analytics reader is needed.

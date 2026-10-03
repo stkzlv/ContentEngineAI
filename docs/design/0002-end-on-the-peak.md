@@ -38,6 +38,8 @@ None recorded.
 
 Ships off: `ending` defaults to `outro`, today's behaviour. A profile turns it on by setting `ending` to `peak` or `loop` after the reach-test readout (#540), once average percentage viewed rises and the last-word transcript check still passes.
 
+Remove the switch when: `peak` or `loop` has been the bundled `ending` for two weekly batches with average percentage viewed no worse than with `outro` and the last-word transcript check passing on every render; the `outro` value and its path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `ending` stays as the choice between `peak` and `loop`.
+
 ## Open questions
 
 - Whether the 0.25 s default margin covers the AAC frame padding; verify on a render.
