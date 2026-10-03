@@ -8,7 +8,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
   - Gap: environment overrides are applied when the YAML loads and the profile merges afterwards, so for a key a profile also sets, the profile wins over the environment.
 - **REQ-OPS-002** `partial` A CLI flag overrides a lower tier only when the user passes it.
   - Gap: `--outputs-dir` defaults to `outputs`, so it shadows `global_output_directory` from the YAML even when it isn't passed.
-- **REQ-OPS-003** `planned (decision 0003)` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
+- **REQ-OPS-003** `planned #583` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
 - **REQ-OPS-004** `shipped` The YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
 - **REQ-OPS-005** `shipped` A CLI flag can override a nested setting, such as `--pycaps-template` overriding `subtitle_settings.pycaps.template_name`.
 - **REQ-OPS-006** `shipped` If the config is invalid, the pipeline stops at startup with an error that names the setting and the problem.
@@ -18,7 +18,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-007** `shipped` The pipeline reads API keys and other secrets from the `.env` file or the environment, and git ignores `.env`.
 - **REQ-OPS-008** `partial` The repository ships `.env.example`, listing the environment variables the pipeline reads.
   - Gap: it also lists `SUBTITLE_FONT`, `SUBTITLE_FONT_COLOR`, `SUBTITLE_OUTLINE_COLOR` and `SUBTITLE_BACKGROUND_COLOR`, which nothing reads.
-- **REQ-OPS-009** `planned (decision 0003)` `.env.example` lists only secrets and machine-specific settings.
+- **REQ-OPS-009** `planned #583` `.env.example` lists only secrets and machine-specific settings.
 - **REQ-OPS-010** `shipped` Log output masks API keys, tokens and other secret-shaped values before they reach the console or a log file.
 
 ## Test isolation

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.6] - 2026-10-03
+
+### Documentation
+
+- The requirements planned by the configuration-tiers decision and the localized-disclosure roadmap item link their tracking issues.
+
 ## [0.127.5] - 2026-10-03
 
 ### Documentation
