@@ -78,8 +78,8 @@ def load_platform_metadata(
         return metadata
 
     # No fallback to UPLOAD_INSTRUCTIONS.txt: the producer writes it to its
-    # text directory, never the product root, and always writes the JSON
-    # beside it, so a fallback here could not fire.
+    # text directory, never the product root, and only after writing the JSON
+    # to the product root, so a fallback here could not fire.
     logger.error(
         "Could not load metadata for %s/%s (tried %s and %s)",
         product_id,
