@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.4] - 2026-10-03
+
+### Fixed
+
+- Every example in the CLI help runs as written: the publisher's `--account` example puts the global option before the subcommand, and the profile examples in the CLIs and config comments name profiles that exist.
+- `calendar --status` offers only `pending`, `scheduled` and `failed`, the statuses the local schedule records.
+
+### Removed
+
+- The publisher no longer looks for `UPLOAD_INSTRUCTIONS.txt` when a product has no JSON metadata; it looked in a directory the producer never writes the file to.
+
 ## [0.128.3] - 2026-10-03
 
 ### Fixed

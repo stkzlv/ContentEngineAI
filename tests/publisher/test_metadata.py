@@ -6,8 +6,6 @@ from pathlib import Path
 import pytest
 
 from src.publisher.metadata import (
-    _extract_hashtags,
-    _extract_platform_section,
     _load_from_json,
     load_platform_metadata,
 )
@@ -191,54 +189,3 @@ class TestLoadFromJson:
         assert result is not None
         assert result.hashtags == []
         assert result.keywords == []
-
-
-class TestExtractHashtags:
-    """Test _extract_hashtags helper."""
-
-    def test_extracts_hashtags(self):
-        assert _extract_hashtags("Hello #world #test") == ["world", "test"]
-
-    def test_deduplicates_case_insensitive(self):
-        result = _extract_hashtags("#Tech #tech #TECH")
-        assert result == ["Tech"]
-
-    def test_preserves_order(self):
-        result = _extract_hashtags("#zebra #alpha #middle")
-        assert result == ["zebra", "alpha", "middle"]
-
-    def test_empty_text(self):
-        assert _extract_hashtags("") == []
-
-    def test_no_hashtags(self):
-        assert _extract_hashtags("Just plain text") == []
-
-
-class TestExtractPlatformSection:
-    """Test _extract_platform_section helper."""
-
-    def test_extracts_youtube_section(self):
-        content = (
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🎬 YOUTUBE SHORTS\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "YouTube content here\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🎬 TIKTOK\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "TikTok content here\n"
-        )
-        result = _extract_platform_section(content, Platform.YOUTUBE)
-        assert result is not None
-        assert "YouTube content here" in result
-
-    def test_returns_none_for_unknown_platform(self):
-        content = "Some content"
-        # Platform that has no header mapping
-        result = _extract_platform_section(content, Platform.YOUTUBE)
-        assert result is None
-
-    def test_returns_none_when_section_not_found(self):
-        content = "No platform sections here"
-        result = _extract_platform_section(content, Platform.YOUTUBE)
-        assert result is None

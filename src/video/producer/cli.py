@@ -396,7 +396,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "List of profile names to randomly select from when "
             "--random-profile is enabled. "
             "If not specified, all available profiles will be used. "
-            "Example: --profile-pool slideshow_images1 video_sequential"
+            "Example: --profile-pool slideshow_images1 product_video_sequential"
         ),
     )
     parser.add_argument(

@@ -1289,7 +1289,7 @@ batch:
   # - Specific profiles = Only select from the specified profiles
   # - CLI --profile-pool argument overrides this setting
   #
-  # Example: ["slideshow_images1", "video_sequential", "mixed_media"]
+  # Example: ["slideshow_images1", "product_video_sequential", "product_video_mixed"]
   #
   # Note: This is only used when --random-profile is enabled.
   # When using --batch-profile, this setting is ignored.
