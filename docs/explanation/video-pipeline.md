@@ -4,7 +4,7 @@ This page explains how the producer's steps fit together, why their order depend
 
 ## How the steps fit
 
-A render is eight steps declared once, as a dependency graph, in `step_dependencies` in `src/video/producer/orchestration.py`. The parallel executor and the `--step` prerequisite check both read that graph, so a partial run is never refused for a step the graph does not need. The voiceover drives everything after it: the render's duration is the voiceover's (`REQ-VID-001`), and captions are timed against it, so subtitles and music both wait on `create_voiceover` and then run beside each other. [Architecture](../architecture.md) shows the graph.
+A render is eight steps declared once, as a dependency graph, in `step_dependencies` in `src/video/producer/orchestration.py`. The parallel executor and the `--step` prerequisite check both read that graph, so a partial run is never refused for a step the graph does not need. The voiceover drives everything after it: the render's duration is the voiceover's (`REQ-VID-001`), and captions are timed against it, so subtitles and music both wait on `create_voiceover` and then run beside each other. [Architecture](../architecture.md#6-runtime-view) shows the graph.
 
 ## Why stock-only profiles write the script first
 

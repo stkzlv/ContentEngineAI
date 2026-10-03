@@ -34,7 +34,7 @@ Captions have a white fill and an opaque black outline of 2-4 px depending on th
 
 Why:
 
-- White fill against a black stroke is 21:1, far above the WCAG AA minimum of 4.5:1 and the AAA target of 7:1, and it holds on any background [A] ([WCAG 1.4.3](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html), [WCAG 1.4.6](https://www.w3.org/WAI/WCAG21/Understanding/contrast-enhanced.html)). The 21:1 is the fill against the stroke: against a bright backdrop the stroke does the separating, which is why the blurred backdrop behind the captions is darkened (see [architecture](../architecture.md)).
+- White fill against a black stroke is 21:1, far above the WCAG AA minimum of 4.5:1 and the AAA target of 7:1, and it holds on any background [A] ([WCAG 1.4.3](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html), [WCAG 1.4.6](https://www.w3.org/WAI/WCAG21/Understanding/contrast-enhanced.html)). The 21:1 is the fill against the stroke: against a bright backdrop the stroke does the separating, which is why the blurred backdrop behind the captions is darkened (see [aspect modes](../reference/video-producer.md#aspect-modes)).
 - Yellow and green on black are the most common highlight colours in short-form captions, and every pool entry keeps a black outline because coloured outlines lower readability [C] ([Submagic, Hormozi captions](https://www.submagic.co/blog/how-to-make-alex-hormozi-captions)).
 - A background box adds visual weight over a clean product shot, so the presets ship without one; a box helps only on photographically noisy footage.
 
