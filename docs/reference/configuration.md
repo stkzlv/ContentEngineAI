@@ -6,15 +6,18 @@ ContentEngineAI uses a **unified modular configuration system** that splits sett
 
 ## Configuration Overview
 
-ContentEngineAI implements a **triple-precedence configuration system**:
+ContentEngineAI resolves a setting from these tiers, highest first, as the code applies them:
 
 1. **CLI Arguments** (highest priority)
-2. **Environment Variables** (medium priority)
-3. **YAML Configuration** (default values)
+2. **Profile settings**, for renders (see [the video-producer reference](video-producer.md#precedence))
+3. **Environment Variables**, applied when the YAML loads
+4. **YAML Configuration** (default values)
 
-### Three-Tier Precedence in Detail
+A profile value therefore wins over an environment variable for the same key. [Decision 0003](../decisions/0003-config-precedence.md) places the machine environment above the profile; `REQ-OPS-001` records the gap.
 
-The configuration system uses a layered approach where each tier can override values from the tier below it:
+### Global Settings Precedence in Detail
+
+Outside a render's profile, each tier overrides the one below it:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -2567,7 +2570,7 @@ print('Missing optional:', [s.name for s in result.missing_optional])
 
 **Symptom**: Setting a value but it's being overridden by another source.
 
-**Solution**: Remember the precedence order (CLI > ENV > YAML):
+**Solution**: Remember the precedence order (CLI > profile > ENV > YAML):
 ```bash
 # See what's actually being used
 poetry run python -m src.video.producer \
@@ -2578,6 +2581,7 @@ poetry run python -m src.video.producer \
 **Common precedence mistakes**:
 - Setting `SUBTITLE_ANCHOR=top` in `.env` but passing `--subtitle-anchor bottom` on CLI (CLI wins)
 - Editing `config/subtitles.yaml` but forgetting environment variable is set (ENV wins)
+- Setting `SUBTITLE_ANCHOR=top` in `.env` while the render's profile sets the anchor (the profile wins)
 - Having value in both primary and alternative env var names (primary wins)
 
 ### YAML Syntax Errors

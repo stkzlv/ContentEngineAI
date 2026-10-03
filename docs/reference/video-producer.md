@@ -230,7 +230,7 @@ Highest first, as the code resolves it:
 
 1. CLI arguments.
 2. Profile settings.
-3. Environment overrides (`CONTENT_ENGINE_*`, `OUTPUTS_DIR`, `FFMPEG_THREADS`, `SUBTITLE_*`), applied when the YAML loads.
+3. Environment overrides (`CONTENT_ENGINE_*`, `DEBUG_MODE`, `OUTPUTS_DIR`, `FFMPEG_THREADS`, `SUBTITLE_*`), applied when the YAML loads.
 4. Global values from the YAML files.
 
 [Decision 0003](../decisions/0003-config-precedence.md) places the machine environment above the profile and keeps only secrets and machine-specific settings in it; `REQ-OPS-001` records the gap.

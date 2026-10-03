@@ -149,7 +149,7 @@ Every module also uses `utils` and the config layer; the dotted lines stand for 
 
 ### Publisher
 
-`src/publisher/late/client.py::LatePublisher` is the only `BasePublisher` implementation; `registry.py::create_publisher_from_config` builds it for both the CLI and the batch. `schedule.py::ScheduleManager` finds free slots, `tracking.py` writes the publish history, `product_registry.py` the published-products registry, `cleanup.py` removes published product directories, `analytics.py` captures per-post figures, and `blob_retention.py` and `partial_post_sweep.py` are the post-publish sweeps. `link_in_bio/manager.py::LinkInBioManager` adds the product link through `lnkbio.py`. Entry point: `python -m src.publisher.late` with subcommands such as `single`, `schedule` and `analytics`. Notes: [publisher.md](notes/publisher.md), [link-in-bio.md](notes/link-in-bio.md).
+The publisher lives in `src/publisher/`. `late/client.py::LatePublisher` is the only `BasePublisher` implementation; `registry.py::create_publisher_from_config` builds it for both the CLI and the batch. `schedule.py::ScheduleManager` finds free slots, `tracking.py` writes the publish history, `product_registry.py` the published-products registry, `cleanup.py` removes published product directories, `analytics.py` captures per-post figures, and `blob_retention.py` and `partial_post_sweep.py` are the post-publish sweeps. `link_in_bio/manager.py::LinkInBioManager` adds the product link through `lnkbio.py`. Entry point: `python -m src.publisher.late` with subcommands such as `single`, `schedule` and `analytics`. Notes: [publisher.md](notes/publisher.md), [link-in-bio.md](notes/link-in-bio.md).
 
 ### Utilities and configuration
 
@@ -241,7 +241,7 @@ flowchart TB
 
 ### Configuration tiers
 
-Settings resolve from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/` ([decision 0003](decisions/0003-config-precedence.md)). `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
+[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The code resolves CLI, then profile, then environment, then YAML, because environment overrides are applied when the YAML loads (section 11, `REQ-OPS-001`). `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
 
 ### Logging, run ids and product ids
 
