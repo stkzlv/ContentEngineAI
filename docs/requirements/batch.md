@@ -115,7 +115,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-053** `shipped` The batch summary reports the end-to-end success count, the scraped-only count, total failures and total duration.
 - **REQ-BAT-054** `shipped` The batch summary reports how many products each profile rendered.
 - **REQ-BAT-055** `partial` The batch summary's media counts are validated files on disk per product, matching the scraper's own count.
-  - Gap: the batch counts the files the download step reported, which differs from the files on disk when earlier files already existed.
+  - Gap: the batch counts the files the download step reported, which differs from the files on disk when earlier files already existed (#584).
 
 ## Topic batch
 

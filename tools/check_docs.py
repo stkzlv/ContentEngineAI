@@ -55,6 +55,8 @@ DOC_PATTERNS = (
     "LICENSE",
 )
 CODE_ROOTS = ("src/", "tests/", "config/", "tools/", "deploy/")
+# Data only the doc tests read, which the docs-only path still runs.
+DOC_TEST_DATA = ("tests/docs/*.txt",)
 
 # Each CLI module and the page that lists its flags.
 CLI_PAGES = {
@@ -204,6 +206,8 @@ def changed_lines(base: str, path: str) -> list[str]:
 
 
 def is_doc_path(path: str) -> bool:
+    if any(fnmatch.fnmatch(path, pattern) for pattern in DOC_TEST_DATA):
+        return True
     if path.startswith(CODE_ROOTS):
         return False
     return any(fnmatch.fnmatch(path, pattern) for pattern in DOC_PATTERNS)

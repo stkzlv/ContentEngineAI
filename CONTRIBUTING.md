@@ -151,7 +151,7 @@ Cite the requirement ids in the pull request (the template asks), and in a test 
 
 `make check-docs` checks the part of this a script can see, and the `docs-check` CI job runs it on every pull request: a design doc's status agrees with its requirements, every requirement id the pull request cites exists, and a changed CLI flag or config key comes with its page. A change that needs no doc update says `Docs: none` and why in the description. The docs tests also refuse a CLI flag with no row on its reference page, a row for a flag no parser declares, and a new config key that no page in `docs/reference/` names.
 
-A pull request that touches only documentation runs the tests that read the docs (`make test-docs`) instead of the full suite. A new test that reads the docs belongs in that target's list.
+A pull request that touches only documentation runs the tests that read the docs (`make test-docs`) instead of the full suite. A new test that reads the docs belongs in that target's list, and a data file only those tests read goes in `tests/docs/` as a `.txt` file so changing it still counts as documentation.
 
 ### Documentation
 

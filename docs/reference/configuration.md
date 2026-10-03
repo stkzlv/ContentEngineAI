@@ -377,6 +377,7 @@ inter_product_delay_range: [30, 60]  # Random delay in seconds
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
 - `logging_level`: Controls verbosity of logging output
 - `debug_mode`: Enables detailed tracing and intermediate file retention
+- `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word.
 - `inter_product_delay_range`: Random delay between processing multiple products
 
 </details>

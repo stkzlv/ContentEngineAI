@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.2] - 2026-10-03
+
+### Documentation
+
+- The global batch reference lists the `global_batch` keys of `config/pipeline.yaml`, and the reference pages cover `outro_duration_sec` and the scraper's HTTP header sets.
+- Each `partial` requirement whose gap an open issue tracks cites that issue.
+- A pull request that changes only the docs and the data files the doc tests read still takes the docs-only test path.
+
 ## [0.128.1] - 2026-10-03
 
 ### Documentation

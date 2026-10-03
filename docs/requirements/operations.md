@@ -5,9 +5,9 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 ## Configuration
 
 - **REQ-OPS-001** `partial` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
-  - Gap: environment overrides are applied when the YAML loads and the profile merges afterwards, so for a key a profile also sets, the profile wins over the environment.
+  - Gap: environment overrides are applied when the YAML loads and the profile merges afterwards, so for a key a profile also sets, the profile wins over the environment (#583).
 - **REQ-OPS-002** `partial` A CLI flag overrides a lower tier only when the user passes it.
-  - Gap: `--outputs-dir` defaults to `outputs`, so it shadows `global_output_directory` from the YAML even when it isn't passed.
+  - Gap: `--outputs-dir` defaults to `outputs`, so it shadows `global_output_directory` from the YAML even when it isn't passed (#583).
 - **REQ-OPS-003** `planned #583` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
 - **REQ-OPS-004** `shipped` The YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
 - **REQ-OPS-005** `shipped` A CLI flag can override a nested setting, such as `--pycaps-template` overriding `subtitle_settings.pycaps.template_name`.
@@ -47,7 +47,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-021** `shipped` At the end of its work, each module (scraper, producer, publisher, audio) logs a summary in a shared format with the key counts, the product ids and the duration.
 - **REQ-OPS-022** `shipped` Module summaries contain no emojis.
 - **REQ-OPS-023** `partial` A logged duration is measured on a monotonic clock.
-  - Gap: the batch, its phases, the publisher batch and the scraper batch measure durations on the wall clock, so a clock change skews them.
+  - Gap: the batch, its phases, the publisher batch and the scraper batch measure durations on the wall clock, so a clock change skews them (#584).
 - **REQ-OPS-024** `shipped` A logged count names what it counts, such as URLs found on a page against files validated on disk.
 - **REQ-OPS-025** `shipped` A log message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so.
 - **REQ-OPS-026** `shipped` Each log record holds one event.
@@ -120,9 +120,9 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 ## Threshold warnings
 
 - **REQ-OPS-057** `partial` When a render finishes, the pipeline logs a warning for each step that ran longer than `debug_settings.operation_timing_threshold_sec` (default 180 s).
-  - Gap: failed and skipped renders get no threshold warnings.
+  - Gap: failed and skipped renders get no threshold warnings (#584).
 - **REQ-OPS-058** `partial` When a render finishes, the pipeline logs a warning for each step whose process-tree peak memory exceeded `debug_settings.memory_usage_warning_mb` (default 5000 MB).
-  - Gap: failed and skipped renders get no threshold warnings.
+  - Gap: failed and skipped renders get no threshold warnings (#584).
 
 ## Performance reports
 
