@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.10] - 2026-10-03
+
+### Documentation
+
+- `AGENTS.md` holds the instructions for every coding agent in one place; `CLAUDE.md` and `GEMINI.md` import it and keep only tool-specific notes.
+- CONTRIBUTING gains a "Definition of done" table naming the docs each kind of change updates, and pull request titles follow the imperative style the history uses.
+- The development guide links the architecture page instead of repeating it, and the render notes record why the low-priority memory cap stays at 6G.
+
 ## [0.127.9] - 2026-10-03
 
 ### Documentation
