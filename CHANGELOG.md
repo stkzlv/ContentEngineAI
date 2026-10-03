@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.1] - 2026-10-03
+
+### Documentation
+
+- A global batch reference page lists every flag of the batch pipeline, three of which were documented nowhere.
+- A docs test checks that each reference page lists every flag its parser declares and no flag it doesn't, and that a new config key is named in the reference; the keys not yet documented are listed and the list may only shrink.
+
 ## [0.128.0] - 2026-10-03
 
 ### Added

@@ -62,7 +62,7 @@ CLI_PAGES = {
     "src/video/producer/cli.py": "docs/reference/video-producer.md",
     "src/video/producer/shared_cli.py": "docs/reference/video-producer.md",
     "src/publisher/late/cli.py": "docs/reference/publisher.md",
-    "src/pipeline/cli.py": "docs/guides/batch-processing.md",
+    "src/pipeline/cli.py": "docs/reference/global-batch.md",
 }
 
 CONFIG_PAGE = "docs/reference/configuration.md"
