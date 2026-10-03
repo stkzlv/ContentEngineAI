@@ -1,10 +1,7 @@
 # Scraper Module Notes
 
 <!--
-Moved out of CLAUDE.md (#454), which had grown to 224KB -- about 50k tokens
-loaded at the start of every assisted session, most of it per-entry history
-rather than rules that must be in front of you at all times. The text is
-unchanged; AGENTS.md points here from the section each entry left.
+Read before changing this module; AGENTS.md links here.
 
 Each entry records a defect and what it cost, so the shape that produced it is
 recognisable the next time. Add to it the same way: what broke, why it was

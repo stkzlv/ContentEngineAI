@@ -73,7 +73,7 @@ def test_each_notes_file_says_where_it_came_from() -> None:
     missing = [
         p.name
         for p in sorted(NOTES.glob("*.md"))
-        if "Moved out of CLAUDE.md" not in p.read_text(encoding="utf-8")
+        if "AGENTS.md links here" not in p.read_text(encoding="utf-8")
     ]
 
     assert not missing, f"notes files with no provenance header: {missing}"

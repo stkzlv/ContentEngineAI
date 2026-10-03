@@ -7,7 +7,7 @@ the page they wanted is read by nobody.
 
 Two sweeps cover the two ways a page is reached. Markdown links are resolved
 relative to the file that holds them, the way GitHub renders them. A bare
-`docs/...md` path is how code comments, config and `CLAUDE.md` cite a page, and
+`docs/...md` path is how code comments, config and `AGENTS.md` cite a page, and
 it is resolved from the repository root.
 
 `CHANGELOG.md` is left out: it records pages as they were named at each

@@ -239,7 +239,7 @@ class TestTheFilesAreDatedAndPruned:
 class TestEachRunIsFindable:
     """Appending without a boundary makes a grep ambiguous.
 
-    `CLAUDE.md` verifies a render by grepping the log for a completion line.
+    `docs/testing.md` verifies a render by grepping the log for a completion line.
     Under the old overwrite the file held one run, so a match was unambiguous.
     Appending removes that guarantee, and the producer, scraper and publisher
     log no run banner of their own -- only the batch does. So the marker has to

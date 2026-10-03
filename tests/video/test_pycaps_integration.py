@@ -12,9 +12,7 @@ run on every push there, through the ``pictex`` renderer. Locally:
     poetry run pytest tests/video/test_pycaps_integration.py -v -m integration
 
 The fixture (~30s portrait video + matching whisper_json transcript) lives
-under ``tests/fixtures/pycaps/`` and was originally produced during the
-library reality-check spike — see ``/home/user/tmp/pycaps-test`` for the
-source scripts.
+under ``tests/fixtures/pycaps/``.
 """
 
 from __future__ import annotations

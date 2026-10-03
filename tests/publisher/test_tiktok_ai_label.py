@@ -71,7 +71,7 @@ class TestBothPathsHonourTheConfiguredSettings:
 
     #255: the batch built its own publisher and passed no settings, so it ran
     on the dataclass defaults. A deliberate opt-out applied on the `single` and
-    `schedule` paths and was silently ignored on the one `CLAUDE.md` names as
+    `schedule` paths and was silently ignored on the one `AGENTS.md` names as
     the default for batch runs.
 
     Each producer of the settings is driven through its own real code here.
