@@ -90,6 +90,7 @@ See [Installation](docs/guides/installation.md) for complete setup instructions.
 | [Pycaps Subtitles](docs/explanation/pycaps-subtitles.md) | Optional animated caption engine (TikTok/Reels style) |
 | [Platform Safe Zones](docs/explanation/platform-safe-zones.md) | Subtitle safe zones for TikTok, YouTube Shorts, Reels |
 | [Batch Processing](docs/guides/batch-processing.md) | Multi-product pipelines and automation |
+| [Global Batch Reference](docs/reference/global-batch.md) | Global batch CLI flags |
 | [Publishing](docs/guides/publishing.md) | Publish, schedule, retry and clean up videos through Zernio |
 | [Publisher Reference](docs/reference/publisher.md) | Publisher CLI, `config/publisher.yaml` keys, metadata files, webhooks and Python API |
 | [Publishing Explained](docs/explanation/publishing.md) | Slots, the retry queue, cleanup, link-in-bio, first comments, the delivery sweep and analytics |
