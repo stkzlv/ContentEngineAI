@@ -212,6 +212,16 @@ def transitive_prereqs(dependencies: dict[str, set[str]], target: str) -> set[st
     return seen
 
 
+def log_threshold_warnings(monitor: Any, config: Any) -> None:
+    """Warn for each step past the configured time or memory threshold."""
+    debug_settings = config.debug_settings or DebugSettings.model_validate({})
+    for warning in monitor.check_thresholds(
+        timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
+        memory_warning_mb=debug_settings.memory_usage_warning_mb,
+    ):
+        logger.warning("Performance threshold exceeded: %s", warning)
+
+
 async def execute_pipeline_parallel(
     ctx: PipelineContext,
 ) -> tuple[bool, str | None]:
@@ -574,15 +584,6 @@ async def create_video_for_product(
             # Mark pipeline as successful for history tracking
             monitor.finish_pipeline(success=True)
 
-            # Check performance thresholds and log warnings
-            debug_settings = config.debug_settings or DebugSettings.model_validate({})
-            threshold_warnings = monitor.check_thresholds(
-                timing_threshold_sec=debug_settings.operation_timing_threshold_sec,
-                memory_warning_mb=debug_settings.memory_usage_warning_mb,
-            )
-            for warning in threshold_warnings:
-                logger.warning("Performance threshold exceeded: %s", warning)
-
             # Clean up background processing
             if ctx.background_processor:
                 summary = ctx.background_processor.get_summary()
@@ -623,6 +624,10 @@ async def create_video_for_product(
             await cleanup_global_background_processor()
             return f"{FAILED_PREFIX}{step or 'unknown'}"
         finally:
+            # Every render, not only a successful one: a slow or memory-heavy
+            # step is worth a warning most of all on the run it broke.
+            log_threshold_warnings(monitor, config)
+
             # Log performance summary
             summary = monitor.get_pipeline_summary()
             if summary:

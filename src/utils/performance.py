@@ -321,6 +321,7 @@ class PerformanceMonitor:
         self.metrics: list[PerformanceMetrics] = []
         self.current_step: str | None = None
         self.pipeline_start: float | None = None
+        self._pipeline_started = 0.0
         self.process = psutil.Process()
         self.history_manager = history_manager
         self.memory_monitor_interval = memory_monitor_interval
@@ -340,6 +341,7 @@ class PerformanceMonitor:
     ) -> None:
         """Mark the start of pipeline execution."""
         self.pipeline_start = time.time()
+        self._pipeline_started = time.monotonic()
         self.metrics.clear()
 
         # Set context for history tracking
@@ -382,6 +384,9 @@ class PerformanceMonitor:
     async def measure_step(self, step_name: str, **metadata):
         """Context manager for measuring pipeline step performance."""
         start_time = time.time()
+        # The duration comes from the monotonic clock; `start_time` and
+        # `end_time` are kept as timestamps for the history.
+        started = time.monotonic()
         memory_start = self.get_memory_usage()
         io_read_start, io_write_start = self.get_io_stats()
         cpu_start = self._cpu_seconds()
@@ -403,7 +408,7 @@ class PerformanceMonitor:
             sampler.stop()
 
             end_time = time.time()
-            duration = end_time - start_time
+            duration = time.monotonic() - started
             memory_end = self.get_memory_usage()
             memory_peak = max(sampler.peak, memory_start, memory_end)
             cpu_seconds = self._cpu_seconds() - cpu_start
@@ -444,7 +449,7 @@ class PerformanceMonitor:
         if not self.metrics or self.pipeline_start is None:
             return {}
 
-        total_duration = time.time() - self.pipeline_start
+        total_duration = time.monotonic() - self._pipeline_started
         total_io_read = sum(m.io_read_bytes for m in self.metrics)
         total_io_write = sum(m.io_write_bytes for m in self.metrics)
         avg_cpu = sum(m.cpu_percent for m in self.metrics) / len(self.metrics)

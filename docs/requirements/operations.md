@@ -45,8 +45,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-020** `shipped` Batch operations log their progress as `[N/total]`.
 - **REQ-OPS-021** `shipped` At the end of its work, each module (scraper, producer, publisher, audio) logs a summary in a shared format with the key counts, the product ids and the duration.
 - **REQ-OPS-022** `shipped` Module summaries contain no emojis.
-- **REQ-OPS-023** `partial` A logged duration is measured on a monotonic clock.
-  - Gap: the batch, its phases, the publisher batch and the scraper batch measure durations on the wall clock, so a clock change skews them (#584).
+- **REQ-OPS-023** `shipped` A logged duration is measured on a monotonic clock.
 - **REQ-OPS-024** `shipped` A logged count names what it counts, such as URLs found on a page against files validated on disk.
 - **REQ-OPS-025** `shipped` A log message describes the run as executed, not the mode a flag asked for, so a debug run on a virtual display says so.
 - **REQ-OPS-026** `shipped` Each log record holds one event.
@@ -117,10 +116,8 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 ## Threshold warnings
 
-- **REQ-OPS-057** `partial` When a render finishes, the pipeline logs a warning for each step that ran longer than `debug_settings.operation_timing_threshold_sec` (default 180 s).
-  - Gap: failed and skipped renders get no threshold warnings (#584).
-- **REQ-OPS-058** `partial` When a render finishes, the pipeline logs a warning for each step whose process-tree peak memory exceeded `debug_settings.memory_usage_warning_mb` (default 5000 MB).
-  - Gap: failed and skipped renders get no threshold warnings (#584).
+- **REQ-OPS-057** `shipped` When a render finishes, the pipeline logs a warning for each step that ran longer than `debug_settings.operation_timing_threshold_sec` (default 180 s).
+- **REQ-OPS-058** `shipped` When a render finishes, the pipeline logs a warning for each step whose process-tree peak memory exceeded `debug_settings.memory_usage_warning_mb` (default 5000 MB).
 
 ## Performance reports
 

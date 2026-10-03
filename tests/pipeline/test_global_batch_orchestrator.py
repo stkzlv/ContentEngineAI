@@ -146,15 +146,21 @@ async def test_scraping_phase_success(orchestrator, mock_product_data):
             [mock_product_data[1]],
         ]
 
-        # Execute scraping phase
-        summary = await orchestrator._execute_scraping_phase()
+        # Files on disk, which here differ from what the download reported
+        # (an earlier run left two more images for the first product).
+        on_disk = {"B0ABC123": (4, 1), "B0DEF456": (3, 0)}
+        with patch(
+            "src.pipeline.phases.scraping.media_on_disk",
+            side_effect=lambda asin, _root: on_disk[asin],
+        ):
+            summary = await orchestrator._execute_scraping_phase()
 
         # Verify results
         assert summary.total_attempted == 2
         assert summary.successful == 2
         assert summary.failed == 0
-        # Downloaded files (2 + 3, 1), not the URLs found (3 + 3, 2).
-        assert summary.media_stats["total_images"] == 5
+        # Files on disk (4 + 3, 1), not the download lists (2 + 3) or URLs.
+        assert summary.media_stats["total_images"] == 7
         assert summary.media_stats["total_videos"] == 1
         assert summary.duration_sec > 0
 

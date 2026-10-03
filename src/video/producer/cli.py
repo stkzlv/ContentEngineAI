@@ -9,6 +9,7 @@ import os
 import random
 import shutil
 import sys
+import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -883,7 +884,7 @@ async def main():
         sys.exit(1)
 
     batch_summary = BatchSummary(total_attempted=len(indices))
-    batch_start_time = datetime.now(UTC)
+    batch_started = time.monotonic()
     session = await get_http_session()  # Use global connection pool
 
     # Initialize profile selection for batch mode
@@ -967,7 +968,7 @@ async def main():
                     "[%s/%s] Processing product: %s", i + 1, total_products, product_id
                 )
 
-        product_start_time = datetime.now(UTC)
+        product_started = time.monotonic()
         product_error = None
         try:
             # Steps that derive their own limits read this, so an inner limit
@@ -1000,7 +1001,7 @@ async def main():
             )
             result_path = None
 
-        duration = (datetime.now(UTC) - product_start_time).total_seconds()
+        duration = time.monotonic() - product_started
 
         failed_step = failed_step_from_result(result_path)
         if result_path == "SKIPPED":
@@ -1097,9 +1098,7 @@ async def main():
     # Calculate final summary metrics
     batch_end_time = datetime.now(UTC)
     batch_summary.end_time = batch_end_time.isoformat()
-    batch_summary.total_duration_sec = (
-        batch_end_time - batch_start_time
-    ).total_seconds()
+    batch_summary.total_duration_sec = time.monotonic() - batch_started
 
     if batch_summary.results:
         batch_summary.average_duration_sec = sum(

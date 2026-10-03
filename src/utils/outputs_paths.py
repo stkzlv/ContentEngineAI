@@ -146,6 +146,41 @@ def get_product_directory(product_id: str, custom_dir: str | None = None) -> Pat
     return product_dir
 
 
+# The media files the scraper's own verification counts, and so every count.
+MEDIA_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
+MEDIA_VIDEO_SUFFIXES = (".mp4", ".mov")
+
+
+def media_on_disk(product_id: str, custom_dir: object = None) -> tuple[int, int]:
+    """The non-empty image and video files a product has on disk.
+
+    The one count both summaries use: the URLs found on a page overstate it,
+    and the files one download step reports understate it when earlier files
+    were already there. It creates no product directory.
+    """
+    # Anything but a path name is the default root: the callers pass a
+    # scraper's `output_dir`, which is None unless a run set one.
+    root = custom_dir if isinstance(custom_dir, str) else None
+    product_dir = get_outputs_root(root) / product_id
+
+    def files(name: str, suffixes: tuple[str, ...]) -> int:
+        folder = product_dir / name
+        if not folder.is_dir():
+            return 0
+        return sum(
+            1
+            for entry in folder.iterdir()
+            if entry.is_file()
+            and entry.suffix.lower() in suffixes
+            and entry.stat().st_size > 0
+        )
+
+    return (
+        files("images", MEDIA_IMAGE_SUFFIXES),
+        files("videos", MEDIA_VIDEO_SUFFIXES),
+    )
+
+
 def get_global_directory(dir_name: str, custom_outputs_dir: str | None = None) -> Path:
     """Get a global directory (cache, logs, reports, temp).
 

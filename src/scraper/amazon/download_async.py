@@ -78,12 +78,16 @@ async def convert_m3u8_to_mp4(
                 )
                 stderr_text = stderr.decode("utf-8", errors="ignore")[:500]
                 logger.error("   stderr: %s", stderr_text)
+                # A failed conversion leaves a partial file the media count
+                # would read as a saved video.
+                output_path.unlink(missing_ok=True)
                 return False
 
         except TimeoutError:
             logger.error("FFmpeg conversion timed out after %ds", timeout)
             process.kill()
             await process.wait()
+            output_path.unlink(missing_ok=True)
             return False
 
     except FileNotFoundError:
@@ -185,6 +189,7 @@ async def download_file_async(
                 return True
             else:
                 logger.debug("File not created or empty: %s", file_path)
+                file_path.unlink(missing_ok=True)
                 return False
 
         except (TimeoutError, aiohttp.ClientError) as e:

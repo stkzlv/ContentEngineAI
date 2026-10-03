@@ -163,7 +163,7 @@ class BatchPublisher:
             ...     print(f"  {error['video_id']}: {error['error']}")
 
         """
-        batch_start = time.time()
+        batch_start = time.monotonic()
 
         logger.info("Batch publishing started (retry mode: %s)", self.retry_failed)
 
@@ -177,7 +177,7 @@ class BatchPublisher:
                     successful=0,
                     failed=0,
                     skipped=0,
-                    duration_seconds=time.time() - batch_start,
+                    duration_seconds=time.monotonic() - batch_start,
                 )
             logger.info("Found %d failed video(s) to retry", len(videos))
         else:
@@ -189,7 +189,7 @@ class BatchPublisher:
                     successful=0,
                     failed=0,
                     skipped=0,
-                    duration_seconds=time.time() - batch_start,
+                    duration_seconds=time.monotonic() - batch_start,
                 )
             logger.info("Found %d video(s) to publish", len(videos))
 
@@ -305,7 +305,7 @@ class BatchPublisher:
                     await self._apply_staggered_delay(idx, len(videos))
 
         # Finalize summary
-        batch_duration = time.time() - batch_start
+        batch_duration = time.monotonic() - batch_start
         summary.total_videos = total_video_count
         summary.duration_seconds = batch_duration
 

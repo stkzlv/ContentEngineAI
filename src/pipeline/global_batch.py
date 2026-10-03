@@ -413,7 +413,7 @@ class GlobalPipelineOrchestrator:
             PipelineSummary with aggregated statistics from all phases
 
         """
-        pipeline_start = time.time()
+        pipeline_start = time.monotonic()
 
         # Log resume status
         if self.config.resume:
@@ -674,7 +674,7 @@ class GlobalPipelineOrchestrator:
         self._save_state()
 
         # Generate final summary
-        pipeline_duration = time.time() - pipeline_start
+        pipeline_duration = time.monotonic() - pipeline_start
         final_summary = self._generate_final_summary(
             scraping_summary, production_summary, publishing_summary, pipeline_duration
         )
@@ -711,7 +711,7 @@ class GlobalPipelineOrchestrator:
         and the only way this fails is an unwritable outputs directory, which
         is not a reason to discard the topics that did write.
         """
-        phase_start = time.time()
+        phase_start = time.monotonic()
         logger.info("Preparing %s topic(s) (no scraping)", len(self.config.topics))
 
         config = load_video_config_modular()
@@ -743,7 +743,7 @@ class GlobalPipelineOrchestrator:
             successful_products=prepared,
             failed_products=failed,
             media_stats={"total_images": 0, "total_videos": 0},
-            duration_sec=time.time() - phase_start,
+            duration_sec=time.monotonic() - phase_start,
         )
 
     def _execute_handoff_phase(
