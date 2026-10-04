@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.2] - 2026-10-04
+
+### Changed
+
+- CI runs the test suite across the runner's cores, and the retry and backoff tests no longer wait out real delays; the tests that run real encodes and renders carry the `slow` marker, so `-m "not slow"` gives a quick local run.
+
 ## [0.145.1] - 2026-10-04
 
 ### Fixed

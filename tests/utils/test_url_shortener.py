@@ -375,6 +375,7 @@ class TestPicseeURLShortener:
             await picsee_shortener.shorten("https://example.com/long-url")
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("instant_sleep")
     async def test_picsee_shorten_network_error(self, picsee_shortener, mock_session):
         """Test handling of network errors with retry."""
         mock_session.post.side_effect = aiohttp.ClientError("Network error")

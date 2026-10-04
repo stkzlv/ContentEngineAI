@@ -20,6 +20,9 @@ from src.ai.script_generator import (
 )
 from src.scraper.amazon.models import ProductData
 
+# The error-path tests otherwise wait out the real retry backoff.
+pytestmark = pytest.mark.usefixtures("instant_sleep")
+
 
 class TestLoadPromptTemplate:
     """Test prompt template loading functionality."""

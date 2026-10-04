@@ -558,13 +558,16 @@ class TestLatePublisherRetryLogic:
 
         mock_operation = AsyncMock(side_effect=[mock_error, {"success": True}])
 
-        start_time = asyncio.get_event_loop().time()
-        result = await publisher._retry_with_backoff(mock_operation, "test_operation")
-        end_time = asyncio.get_event_loop().time()
+        # The wait is asserted, not sat through: it was a real 10 s sleep.
+        with patch(
+            "src.publisher.late.client.asyncio.sleep", new_callable=AsyncMock
+        ) as sleep:
+            result = await publisher._retry_with_backoff(
+                mock_operation, "test_operation"
+            )
 
-        # Should wait for 10s as specified in Retry-After header
         assert result == {"success": True}
-        assert end_time - start_time >= 9.0  # At least 10s with some tolerance
+        sleep.assert_awaited_once_with(10.0)
 
     @pytest.mark.asyncio
     async def test_retry_no_retry_on_auth_errors(self):

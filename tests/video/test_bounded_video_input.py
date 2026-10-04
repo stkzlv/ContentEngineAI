@@ -71,6 +71,7 @@ def _dims(path: Path) -> tuple[int, int]:
 class TestACompliantOversizedClipIsBounded:
     """The dangerous shape: already h264/30fps/yuv420p, so it used to skip."""
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_a_4k_clip_comes_back_at_the_bound(self, tmp_path):
         src = _clip(tmp_path / "big.mp4", 3840, 2160)
@@ -92,6 +93,7 @@ class TestACompliantOversizedClipIsBounded:
         out = await assembler._normalize_video_format(src, cache_dir=tmp_path)
         assert out == src, "a compliant in-bound clip must not be re-encoded"
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_a_portrait_clip_keeps_its_orientation(self, tmp_path):
         src = _clip(tmp_path / "tall.mp4", 2160, 3840)
@@ -103,6 +105,7 @@ class TestACompliantOversizedClipIsBounded:
 
 
 class TestTheCacheKeyCarriesTheSource:
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_a_changed_source_misses_the_cache(self, tmp_path):
         """Same lesson as the bounded images: the cache outlives runs while
@@ -139,6 +142,7 @@ class TestTheCacheSurvivesKillsAndSweeps:
             "os.replace(partial_path, cache_path)" in window
         ), "the cache entry must reach its name only via os.replace"
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_superseded_entries_are_swept(self, tmp_path):
         """The stat-keyed name can never match again after a re-download,
