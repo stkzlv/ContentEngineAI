@@ -277,6 +277,21 @@ audio_settings:
   # reach test runs.
   signature_sting: null
 
+  # Sparse sound effects on a few beats: each crossfade (transition), the
+  # start of the sentence after the hook (reveal) and the start of the last
+  # sentence (cta, from the Whisper word timings, so only with the pycaps
+  # engine). At most max_per_10_sec, keeping cta and reveal before
+  # transitions; never in a spoken word's first 100 ms. One pool of local
+  # files per event, five or more each so no sound repeats as a template;
+  # nothing is bundled. Off until an A/B after the reach-test readout.
+  sound_effects:
+    enabled: false
+    level_db: -15            # relative to the voice
+    max_per_10_sec: 2
+    transition: []
+    reveal: []
+    cta: []
+
   # Polish on the voiceover before the mix: high-pass, a small cut at the
   # harsh 2-4 kHz peak, gentle compression, de-essing (0 intensity = off), an
   # air shelf and a -1 dBFS limiter. Captions are transcribed from the TTS

@@ -618,6 +618,49 @@ class VideoAssembler:
 
         return final_cmd
 
+    def _sound_effects(
+        self,
+        timed_visuals: list[tuple[Path, float, bool]],
+        total_duration: float,
+        spoken_words: list[dict[str, Any]] | None,
+    ) -> list[tuple[Path, float]]:
+        """The sound effects for this render, when they are on (design 0003)."""
+        settings = self.config.audio_settings.sound_effects
+        if not settings.enabled:
+            return []
+        from src.video.sound_effects import (
+            plan_events,
+            playable_kinds,
+            resolve_effects,
+            transition_times,
+        )
+
+        video_settings = (
+            self.profile_settings.video_settings
+            if self.profile_settings
+            else self.config.video_settings
+        )
+        transitions = transition_times(
+            [duration for _, duration, _ in timed_visuals],
+            video_settings.transition_duration_sec,
+        )
+        if spoken_words is None:
+            logger.info("Sound effects: no word timings, transitions only")
+        events = plan_events(
+            transitions,
+            spoken_words or [],
+            total_duration,
+            settings.max_per_10_sec,
+            playable_kinds(settings),
+        )
+        effects = resolve_effects(settings, events, self.product_id or "")
+        logger.info(
+            "Sound effects: %d placed (%s)",
+            len(effects),
+            ", ".join(f"{e.kind}@{e.time:.1f}s" for e in events),
+        )
+        return effects
+
     def _disclosure_settings(self) -> DisclosureSettings:
         """The overlay settings with the text for this render's language."""
         return self.config.video_settings.disclosure_overlay.model_copy(
@@ -639,6 +682,7 @@ class VideoAssembler:
         hook_headline: str | None = None,
         music_fade_out_sec: float | None = None,
         speech_end_sec: float | None = None,
+        spoken_words: list[dict[str, Any]] | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -665,6 +709,8 @@ class VideoAssembler:
                 one; None keeps `music_fade_out_duration`.
             speech_end_sec: Where the speech ends, when the ending measured
                 it; an end-placed sting finishes there.
+            spoken_words: Whisper's word timings, which place the reveal and
+                call-to-action sound effects; None places transitions only.
 
         Returns:
         -------
@@ -796,6 +842,9 @@ class VideoAssembler:
                 self.media_inspector,
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end_sec,
+                sound_effects=self._sound_effects(
+                    visual_chain_result[2], total_video_duration, spoken_words
+                ),
             )
 
             # FFmpeg writes here, not to the finished name. A killed encode

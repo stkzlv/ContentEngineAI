@@ -679,6 +679,20 @@ audio_settings:
   # signature_sting: {path: "assets/audio/sting.wav", position: "start",
   #                   offset_sec: 0.0, volume_db: -6.0}
 
+  # Sparse sound effects, off by default: each crossfade (transition), the
+  # sentence after the hook (reveal) and the last sentence (cta), at most
+  # max_per_10_sec with cta and reveal kept before transitions, never in a
+  # word's first 100 ms. reveal and cta need the Whisper transcript (pycaps
+  # engine); without it only transitions play. Pools are local files, drawn
+  # per product; a missing file is skipped with a warning.
+  sound_effects:
+    enabled: false
+    level_db: -15            # relative to the voice
+    max_per_10_sec: 2
+    transition: []           # e.g. ["assets/sfx/whoosh_1.wav", ...]
+    reveal: []
+    cta: []
+
   # Polish on the voiceover before the mix, off by default. The stages run
   # in this order; deess_intensity 0, air_shelf_db 0 or limiter false drop
   # theirs. The limiter's ceiling is -1 dBFS, with alimiter's auto-level

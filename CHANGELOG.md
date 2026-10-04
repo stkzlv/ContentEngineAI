@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.159.0] - 2026-10-04
+
+### Added
+
+- An `audio_settings.sound_effects` block, off by default, mixes sparse effects from local per-event pools at each crossfade, the reveal and the call to action, capped per 10 seconds, kept clear of word onsets and drawn per product.
+
 ## [0.158.0] - 2026-10-04
 
 ### Added
