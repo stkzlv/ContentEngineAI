@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.150.3] - 2026-10-04
+
+### Fixed
+
+- The stock-clip transcodes a render starts all at once share the FFmpeg limit (`optimization_settings.async_ffmpeg_max_concurrent`) with the final assembly and caption burn, so a profile with many clips no longer runs every transcode in parallel.
+
 ## [0.150.2] - 2026-10-04
 
 ### Documentation

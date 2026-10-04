@@ -162,3 +162,81 @@ class TestTheCacheSurvivesKillsAndSweeps:
         assert not first.exists(), "the superseded entry was left behind"
         entries = list(tmp_path.glob("clip_normalized*"))
         assert entries == [second]
+
+
+@pytest.mark.req("REQ-OPS-038", "REQ-OPS-039")
+@pytest.mark.asyncio
+async def test_transcodes_wait_for_the_shared_ffmpeg_limit(tmp_path, monkeypatch):
+    """The visual builder normalizes every clip at once; the limit holds them."""
+    import asyncio
+
+    from src.utils.async_io import ffmpeg_semaphore
+    from src.video.assembler import core as assembler_core
+
+    # 25 fps, so each clip needs a transcode rather than skipping it.
+    clips = []
+    for i in range(3):
+        path = tmp_path / f"clip{i}.mp4"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=320x240:duration=1:rate=25",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                str(path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        clips.append(path)
+
+    real_exec = asyncio.create_subprocess_exec
+    active = 0
+    peak = 0
+
+    async def counting_exec(*args, **kwargs):
+        nonlocal active, peak
+        proc = await real_exec(*args, **kwargs)
+        if "libx264" not in args:
+            return proc
+        active += 1
+        peak = max(peak, active)
+        real_communicate = proc.communicate
+
+        async def communicate(*a, **k):
+            nonlocal active
+            try:
+                await asyncio.sleep(0.05)
+                return await real_communicate(*a, **k)
+            finally:
+                active -= 1
+
+        proc.communicate = communicate  # type: ignore[method-assign]
+        return proc
+
+    monkeypatch.setattr(assembler_core.asyncio, "create_subprocess_exec", counting_exec)
+    previous = ffmpeg_semaphore.limit
+    ffmpeg_semaphore.set_limit(1)
+    try:
+        assembler = VideoAssembler(video_config)
+        outs = await asyncio.gather(
+            *[
+                assembler._normalize_video_format(c, cache_dir=tmp_path / "cache")
+                for c in clips
+            ]
+        )
+    finally:
+        ffmpeg_semaphore.set_limit(previous)
+
+    assert all(out != clip for out, clip in zip(outs, clips, strict=True))
+    assert peak == 1
