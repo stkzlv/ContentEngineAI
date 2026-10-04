@@ -283,13 +283,17 @@ Resource limits and optimization:
 ```yaml
 api_settings:
   llm_model_fetch_timeout_sec: 30
+  llm_retry_attempts: 3
   llm_retry_min_wait_sec: 1
+  llm_retry_max_wait_sec: 30
   llm_retry_multiplier: 2
+  stock_media_concurrent_downloads: 5
+  stock_media_search_multiplier: 2
+  stock_media_max_per_page: 80
 ```
 
-`ApiSettings` is a flat model, and the shipped `config/performance.yaml`
-nests these under `llm:`, `tts:` and `stock_media:`, so a nested block is
-dropped silently rather than rejected and none of those values takes effect.
+`api_settings` is flat and refuses a key it does not know, so a nested
+`llm:` block or a misspelled name fails the load with an error naming it.
 `optimization_settings` is set in no config file at all and loads as `None`.
 
 The other `config/performance.yaml` blocks, and whether anything reads them:
@@ -298,7 +302,6 @@ The other `config/performance.yaml` blocks, and whether anything reads them:
 |---|---|---|
 | `ffmpeg_settings.validation_timeout_sec` | `10` | Timeout for the `ffmpeg -version` check at startup. |
 | `circuit_breaker.google_stt` | `failure_threshold: 3`, `timeout_sec: 120` | After that many consecutive Google Speech-to-Text failures, calls stop for `timeout_sec`. |
-| `api_settings.stock_media.search_multiplier`, `api_settings.stock_media.max_per_page` | `2`, `80` | No effect: the model reads the flat `stock_media_search_multiplier` and `stock_media_max_per_page`, and drops the nested block (see above). |
 | `debug_settings.create_ffmpeg_command_logs` | `true` | Writes the FFmpeg command log beside each render. |
 | `debug_settings.create_pipeline_metadata` | `true` | Saves `pipeline_state.json` after each step; off, a run keeps no state to resume from. |
 | `debug_settings.create_performance_metrics` | `true` | In a `--debug` run, saves per-step timing and memory to `performance.json`. |
@@ -1997,18 +2000,7 @@ ffmpeg_settings:
   rw_timeout_microseconds: 30000000  # I/O timeout (30 seconds)
 ```
 
-**API Timeouts** (`config/performance.yaml`):
-```yaml
-api_settings:
-  downloads:
-    timeout_sec: 30
-  tts:
-    request_timeout_sec: 60
-  stock_media:
-    request_timeout_sec: 30
-  general:
-    default_request_timeout_sec: 15
-```
+**API Timeouts** (`config/performance.yaml`): `api_settings.llm_model_fetch_timeout_sec` and the `llm_retry_*` keys; see section 5.
 
 **Whisper STT** (`config/ai_services.yaml`):
 ```yaml
@@ -2169,18 +2161,6 @@ optimization_settings:
   download_manager_max_concurrent: 5
   download_chunk_size_bytes: 8192
   async_ffmpeg_max_concurrent: 4             # concurrent final-assembly and caption-burn encodes
-```
-
-### Download Settings
-
-```yaml
-api_settings:
-  downloads:
-    timeout_sec: 30
-    retry_attempts: 3
-    max_concurrent_downloads: 5
-    chunk_size_bytes: 1048576   # 1MB
-    max_file_size_mb: 50
 ```
 
 ## CLI Override Arguments

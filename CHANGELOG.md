@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.142.0] - 2026-10-04
+
+### Fixed
+
+- `api_settings` in `config/performance.yaml` is applied: the shipped block nested its keys under `llm:`, `tts:` and `stock_media:` while the model is flat, so every value was dropped; it now uses the flat names with the values that were in effect, so behaviour does not change.
+
+### Changed
+
+- **Breaking**: `api_settings` refuses a key it does not know, with an error naming it, so a config that still nests these keys fails to load instead of being ignored.
+
+### Removed
+
+- **Breaking**: the unread `api_settings` download keys (`download_timeout_sec`, `download_retry_attempts`, `download_retry_min_wait_sec`, `download_retry_max_wait_sec`) and the `tts:` block's keys, which no field ever held.
+
 ## [0.141.0] - 2026-10-04
 
 ### Removed
