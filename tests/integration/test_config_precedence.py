@@ -437,14 +437,14 @@ def test_the_unread_video_keys_are_gone(block: str, key: str) -> None:
 
 
 def test_an_old_yaml_setting_the_removed_video_key_fails_the_load() -> None:
+    """The bundled settings validate; the same plus the old key does not."""
     from pydantic import ValidationError
 
+    from src.video.config import load_video_config_modular
     from src.video.config.visual_models import VideoSettings
 
-    fields = {
-        name: field.default
-        for name, field in VideoSettings.model_fields.items()
-        if not field.is_required()
-    }
+    current = load_video_config_modular().video_settings.model_dump()
+    VideoSettings.model_validate(current)
+
     with pytest.raises(ValidationError, match="default_max_chars_per_line"):
-        VideoSettings.model_validate({**fields, "default_max_chars_per_line": 20})
+        VideoSettings.model_validate({**current, "default_max_chars_per_line": 20})
