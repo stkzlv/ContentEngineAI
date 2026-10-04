@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.150.1] - 2026-10-04
+
+### Changed
+
+- The docs test counts a config key as documented only when its name appears in a code span or a fenced block of `docs/reference/`, not in a sentence that happens to use the same word.
+
 ## [0.150.0] - 2026-10-04
 
 ### Removed

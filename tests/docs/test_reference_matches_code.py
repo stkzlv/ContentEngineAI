@@ -7,9 +7,11 @@ The flags are read from the parser source with the same parse the docs check
 uses, so no CLI module is imported.
 
 Config keys are checked one way only: every key in `config/*.yaml` is named
-somewhere in `docs/reference/` as a whole name, so `llm_model` is not covered
-by `llm_model_fetch_timeout_sec`. There is no exception list: an undocumented
-key fails the test.
+somewhere in `docs/reference/` as a whole name inside code (an inline code
+span or a fenced block), so `llm_model` is not covered by
+`llm_model_fetch_timeout_sec`, and a key named `task` is not covered by the
+word in a sentence. There is no exception list: an undocumented key fails the
+test.
 """
 
 from __future__ import annotations
@@ -93,15 +95,28 @@ def yaml_keys(data: Any, prefix: str = "") -> Iterator[tuple[str, str]]:
             yield from yaml_keys(value, f"{path}.")
 
 
+def code_text(markdown: str) -> str:
+    """The fenced blocks and inline code spans of a page, without its prose."""
+    fenced = re.findall(r"```.*?```", markdown, flags=re.S)
+    prose = re.sub(r"```.*?```", "", markdown, flags=re.S)
+    return "\n".join([*fenced, *re.findall(r"`([^`\n]+)`", prose)])
+
+
+def names(key: str, text: str) -> bool:
+    return re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", text) is not None
+
+
 def undocumented_keys() -> set[str]:
-    docs = "".join(p.read_text(encoding="utf-8") for p in REFERENCE.glob("*.md"))
+    docs = code_text(
+        "".join(p.read_text(encoding="utf-8") for p in REFERENCE.glob("*.md"))
+    )
     missing = set()
     for path in sorted((REPO / "config").glob("*.yaml")):
         if ".private." in path.name:
             continue
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         for dotted, key in yaml_keys(data):
-            if not re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", docs):
+            if not names(key, docs):
                 missing.add(f"{path.name}:{dotted}")
     return missing
 
@@ -112,3 +127,18 @@ def test_every_config_key_is_documented() -> None:
         f"config keys with no mention in docs/reference/: {missing}. Document "
         "them in the reference page for their file."
     )
+
+
+def test_a_key_in_prose_alone_is_not_documented() -> None:
+    page = "Browser task retries.\n\n| `llm_model_fetch_timeout_sec` | 5 |\n"
+    code = code_text(page)
+
+    assert not names("task", code)
+    assert not names("llm_model", code)
+    assert names("llm_model_fetch_timeout_sec", code)
+
+
+def test_a_key_in_a_fenced_block_is_documented() -> None:
+    code = code_text("Example:\n\n```yaml\nwhisper_settings:\n  task: x\n```\n")
+
+    assert names("task", code)
