@@ -322,6 +322,7 @@ class GlobalPipelineOrchestrator:
         # attribute names the producer's argparse namespace does, so one
         # helper serves both (declare-and-apply lives in shared_cli).
         overrides.update(subtitle_render_overrides(self.config))
+        overrides.update(self.config.render_overrides)
         return overrides or None
 
     def _resolve_profile_uses_videos(self) -> bool | None:
