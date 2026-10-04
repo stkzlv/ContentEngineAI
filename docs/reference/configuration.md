@@ -391,7 +391,7 @@ outro_duration_sec: 1.0
 
 **Options:**
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
-- `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word.
+- `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word. Applies to the `outro` ending only; `peak` and `loop` use `video_settings.peak_margin_sec` ([Ending](video-producer.md#ending)).
 
 </details>
 

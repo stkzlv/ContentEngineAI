@@ -86,6 +86,8 @@ class AudioFilterBuilder:
         music_track_path: Path | None,
         total_video_duration: float,
         media_inspector: Any,
+        music_fade_out_sec: float | None = None,
+        speech_end_sec: float | None = None,
     ) -> tuple[list[str], str]:
         """Add the audio inputs and build the whole mix, the sting included.
 
@@ -103,11 +105,16 @@ class AudioFilterBuilder:
         sting_idx = self.prepare_sting_input(input_cmd_parts, sting_path)
         delay = 0.0
         if sting_path is not None:
-            voice_end = (
-                await media_inspector.get_media_duration(voiceover_audio_path)
-                if voiceover_audio_path
-                else total_video_duration
-            ) or total_video_duration
+            # A `peak` ending measures where the speech ends; the file can run
+            # past it, and the render is cut at the speech.
+            voice_end = speech_end_sec or (
+                (
+                    await media_inspector.get_media_duration(voiceover_audio_path)
+                    if voiceover_audio_path
+                    else total_video_duration
+                )
+                or total_video_duration
+            )
             delay = self.sting_delay_sec(
                 await media_inspector.get_media_duration(sting_path), voice_end
             )
@@ -117,6 +124,7 @@ class AudioFilterBuilder:
             total_video_duration,
             sting_input_idx=sting_idx,
             sting_delay_sec=delay,
+            music_fade_out_sec=music_fade_out_sec,
         )
 
     def prepare_audio_inputs(
@@ -161,6 +169,7 @@ class AudioFilterBuilder:
         total_video_duration: float,
         sting_input_idx: int | None = None,
         sting_delay_sec: float = 0.0,
+        music_fade_out_sec: float | None = None,
     ) -> tuple[list[str], str]:
         """Build audio processing filters for FFmpeg.
 
@@ -171,6 +180,9 @@ class AudioFilterBuilder:
             total_video_duration: Target video duration for fade calculations
             sting_input_idx: Index of the signature sting input, if any
             sting_delay_sec: When the sting starts, from `sting_delay_sec()`
+            music_fade_out_sec: The music's closing fade, when the ending sets
+                one (a `peak` ending fades within its margin); None uses
+                `music_fade_out_duration`
 
         Returns:
         -------
@@ -190,13 +202,16 @@ class AudioFilterBuilder:
 
         if music_input_idx is not None:
             music_label, proc_label = f"[{music_input_idx}:a]", "[a_music_proc]"
-            fade_out_start = max(
-                0, total_video_duration - audio_settings.music_fade_out_duration
+            fade_out = (
+                audio_settings.music_fade_out_duration
+                if music_fade_out_sec is None
+                else music_fade_out_sec
             )
+            fade_out_start = max(0, total_video_duration - fade_out)
             audio_filters.append(
                 f"{music_label}volume={audio_settings.music_volume_db}dB,"
                 f"afade=t=in:st=0:d={audio_settings.music_fade_in_duration},"
-                f"afade=t=out:st={fade_out_start:.3f}:d={audio_settings.music_fade_out_duration}"
+                f"afade=t=out:st={fade_out_start:.3f}:d={fade_out}"
                 f"{proc_label}"
             )
             audio_to_mix.append(proc_label)

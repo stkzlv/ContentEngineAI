@@ -467,6 +467,18 @@ class VideoSettings(BaseModel):
         default_factory=StillMotionSettings,  # type: ignore[arg-type]
         description="Slow motion on every still image; off by default.",
     )
+    # Design 0002: `outro` keeps the tail after the voiceover; `peak` ends
+    # `peak_margin_sec` after the last spoken word; `loop` also closes on the
+    # opening frame's composition.
+    ending: Literal["outro", "peak", "loop"] = Field(
+        "outro", description="How a render ends after its last spoken word."
+    )
+    peak_margin_sec: float = Field(
+        0.25,
+        ge=0.05,
+        le=1.0,
+        description="Seconds kept after the last spoken word with peak or loop.",
+    )
     max_image_input_edge: int = Field(
         2560,
         ge=0,
@@ -817,6 +829,12 @@ class VideoProfile(BaseModel):
     still_motion: StillMotionSettings | None = Field(
         None,
         description="Override VideoSettings.still_motion as a whole block.",
+    )
+    ending: Literal["outro", "peak", "loop"] | None = Field(
+        None, description="Override VideoSettings.ending."
+    )
+    peak_margin_sec: float | None = Field(
+        None, ge=0.05, le=1.0, description="Override VideoSettings.peak_margin_sec."
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----

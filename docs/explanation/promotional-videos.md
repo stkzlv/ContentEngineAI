@@ -126,7 +126,7 @@ Why:
 
 Not supported: Wistia's State of Video 2025 report does not contain the "well-placed CTAs reach about 40%" figure or the claim that a soft-early plus hard-late call to action beats a single end card. The 40% is an unattributed secondary citation, and the two-stage pattern is a playbook tactic, not a finding. [Wistia](https://wistia.com/learn/marketing/using-video-ctas)
 
-Planned: ending on the last spoken word, with no silent tail after the call to action ([design 0002](../design/0002-end-on-the-peak.md), `REQ-VID-011`). The call to action stays the last sentence.
+Built and held off until the reach-test readout: ending on the last spoken word, with no silent tail after the call to action, and optionally closing on the opening frame so a replay reads as continuous (`ending: peak` or `loop`, [design 0002](../design/0002-end-on-the-peak.md), `REQ-VID-011`). The call to action stays the last sentence.
 
 ## Where a call to action can point
 
