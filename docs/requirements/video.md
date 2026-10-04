@@ -207,7 +207,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-107** `shipped` A profile that also draws scraped media still renders without the stock provider key.
 - **REQ-VID-108** `shipped` Where the stock relevance judge is on (the bundled default), the producer scores stock candidates against the script from their thumbnails and uses the best; candidates below `min_score` are used only to fill a shortfall.
 - **REQ-VID-109** `shipped` If the relevance judge returns no scores, the producer uses a random sample of the candidates.
-- **REQ-VID-110** `held` Where the reuse guard is on, a stock clip or image used in a recent render is excluded while alternatives exist, and the ids each render uses are recorded so the rule survives cleanup.
+- **REQ-VID-110** `held` Where the reuse guard is on, a stock clip or image used in a recent render loses to a fresh one (with the relevance judge on, among candidates at or above `min_score`; without it, it is excluded while alternatives exist), and the ids each render uses are recorded so the rule survives cleanup.
   - On when: `stock_media_settings.stock_reuse_guard.enabled` is set after the reach-test readout (#540).
 
 ## Topic input
