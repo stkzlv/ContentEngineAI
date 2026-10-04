@@ -14,6 +14,14 @@ from src.publisher.models import Platform, PublishMetadata, disclosure_from_reco
 
 logger = logging.getLogger(__name__)
 
+# The order a post with no metadata file of its own borrows another
+# platform's, shared by every publish path.
+METADATA_PLATFORM_ORDER: tuple[str, ...] = (
+    Platform.YOUTUBE.value,
+    Platform.TIKTOK.value,
+    Platform.INSTAGRAM.value,
+)
+
 
 def load_platform_metadata(
     product_id: str,

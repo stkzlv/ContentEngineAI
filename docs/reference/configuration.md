@@ -997,7 +997,7 @@ platform_metadata:
 
 **Which platforms:**
 
-With `metadata_mode: optimized`, the producer generates metadata in parallel for each platform whose block has `enabled: true` (all three in the bundled config) and saves `metadata_<platform>.json` for each. `platform_metadata.enabled: false` turns optimized mode off, so the render writes unified `metadata.json` instead. `single` and both batches publish a platform with no metadata file of its own from another platform's; `schedule` auto-scheduling uses the scraped listing in `data.json` instead.
+With `metadata_mode: optimized`, the producer generates metadata in parallel for each platform whose block has `enabled: true` (all three in the bundled config) and saves `metadata_<platform>.json` for each. `platform_metadata.enabled: false` turns optimized mode off, so the render writes unified `metadata.json` instead. Every publish path posts a platform with no metadata file of its own from another platform's, in YouTube, TikTok, Instagram order, and uses the scraped listing in `data.json` only when no metadata file exists.
 
 **Best Practices by Platform:**
 

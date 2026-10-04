@@ -21,6 +21,7 @@ from src.publisher.constants import (
 )
 from src.publisher.first_comment import build_first_comment
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
+from src.publisher.metadata import METADATA_PLATFORM_ORDER
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -901,9 +902,16 @@ class ScheduleManager:
         for p in platforms:
             meta = unified_meta
             if not meta:
-                platform_meta = video.parent / f"metadata_{p.value}.json"
-                if platform_meta.exists():
-                    meta = json.loads(platform_meta.read_text())
+                # The platform's own file first, then another platform's, as
+                # `publish_product` does, before the raw scraped listing.
+                order = [p.value] + [
+                    other for other in METADATA_PLATFORM_ORDER if other != p.value
+                ]
+                for name in order:
+                    platform_meta = video.parent / f"metadata_{name}.json"
+                    if platform_meta.exists():
+                        meta = json.loads(platform_meta.read_text())
+                        break
 
             if meta:
                 carries_affiliate[p.value] = bool(
