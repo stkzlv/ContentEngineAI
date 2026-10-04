@@ -156,12 +156,12 @@ def media_on_disk(product_id: str, custom_dir: object = None) -> tuple[int, int]
 
     The one count both summaries use: the URLs found on a page overstate it,
     and the files one download step reports understate it when earlier files
-    were already there. It creates no product directory.
+    were already there. It creates nothing, not even the outputs root.
     """
     # Anything but a path name is the default root: the callers pass a
     # scraper's `output_dir`, which is None unless a run set one.
     root = custom_dir if isinstance(custom_dir, str) else None
-    product_dir = get_outputs_root(root) / product_id
+    product_dir = get_project_root() / (root or "outputs") / product_id
 
     def files(name: str, suffixes: tuple[str, ...]) -> int:
         folder = product_dir / name

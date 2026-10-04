@@ -82,11 +82,12 @@ def get_output_path(path_type: str, **kwargs) -> str:
 
     """
     try:
-        from ...utils.outputs_paths import get_outputs_root
+        from ...utils.outputs_paths import get_project_root
 
         output_config = CONFIG.get("global_settings", {}).get("output_config", {})
-        # Use centralized outputs path as default
-        default_base = str(get_outputs_root())
+        # The outputs path without creating it: this runs at import, through
+        # the browser config, and a resolved path must not plant a directory.
+        default_base = str(get_project_root() / "outputs")
         base_dir = output_config.get("base_directory", default_base)
         subdirs = output_config.get("subdirectories", {})
 

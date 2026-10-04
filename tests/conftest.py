@@ -608,22 +608,24 @@ def _outputs_entries() -> set[str]:
         return set()
 
 
-def _outputs_snapshot() -> dict[str, tuple[int, int]] | None:
+def _outputs_snapshot(
+    root: Path = _REAL_OUTPUTS,
+) -> dict[str, tuple[int, int]] | None:
     """Every entry under outputs/, files with mtime and size; None when absent."""
-    if not _REAL_OUTPUTS.exists():
+    if not root.exists():
         return None
     snapshot: dict[str, tuple[int, int]] = {}
-    for root, dirs, files in os.walk(_REAL_OUTPUTS):
+    for dirpath, dirs, files in os.walk(root):
         for name in dirs:
-            path = Path(root) / name
-            snapshot[str(path.relative_to(_REAL_OUTPUTS)) + "/"] = (0, 0)
+            path = Path(dirpath) / name
+            snapshot[str(path.relative_to(root)) + "/"] = (0, 0)
         for name in files:
-            path = Path(root) / name
+            path = Path(dirpath) / name
             try:
                 stat = path.stat()
             except OSError:
                 continue
-            snapshot[str(path.relative_to(_REAL_OUTPUTS))] = (
+            snapshot[str(path.relative_to(root))] = (
                 stat.st_mtime_ns,
                 stat.st_size,
             )
@@ -666,9 +668,12 @@ def no_writes_to_real_outputs(request):
     if _is_xdist_worker(request.config):
         yield
         return
+    existed = _REAL_OUTPUTS.exists()
     before = _outputs_entries()
     yield
     added = sorted(_outputs_entries() - before)
+    if not existed and _REAL_OUTPUTS.exists():
+        added.insert(0, "outputs/ (created)")
     if added:
         pytest.fail(
             f"{request.node.nodeid} wrote to the real outputs/ tree: {added}",

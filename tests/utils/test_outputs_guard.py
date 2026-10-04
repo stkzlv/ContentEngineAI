@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-import tests.conftest as conftest
 from tests.conftest import _outputs_snapshot, _snapshot_changes
 
 
@@ -33,24 +32,16 @@ def test_every_change_is_reported(before, after, expected) -> None:
 
 
 @pytest.mark.req("REQ-OPS-013")
-def test_the_snapshot_holds_directories_and_files(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_the_snapshot_holds_directories_and_files(tmp_path: Path) -> None:
     root = tmp_path / "outputs"
     (root / "logs").mkdir(parents=True)
     (root / "logs" / "a.log").write_text("x")
-    monkeypatch.setattr(conftest, "_REAL_OUTPUTS", root)
-
-    snapshot = _outputs_snapshot()
+    snapshot = _outputs_snapshot(root)
 
     assert snapshot is not None
     assert set(snapshot) == {"logs/", "logs/a.log"}
     assert snapshot["logs/a.log"][1] == 1
 
 
-def test_an_absent_tree_has_no_snapshot(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(conftest, "_REAL_OUTPUTS", tmp_path / "outputs")
-
-    assert _outputs_snapshot() is None
+def test_an_absent_tree_has_no_snapshot(tmp_path: Path) -> None:
+    assert _outputs_snapshot(tmp_path / "outputs") is None

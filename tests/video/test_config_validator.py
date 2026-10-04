@@ -11,11 +11,22 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.video.config_adapter import load_video_config_modular
+from src.video.config_adapter import load_video_config_modular as _load_config
 from src.video.config_validator import (
     VideoConfigValidator,
     validate_config_and_exit_on_error,
 )
+
+
+def load_video_config_modular():
+    """The bundled config, writing under a temporary directory.
+
+    The validator creates and probes `global_output_directory`, which is the
+    repository's own `outputs/` in the bundled config.
+    """
+    config = _load_config()
+    config.global_output_directory = tempfile.mkdtemp(prefix="validator_outputs_")
+    return config
 
 
 class TestVideoConfigValidator:
