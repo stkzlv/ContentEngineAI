@@ -40,25 +40,23 @@ ffmpeg_settings:
 # API SETTINGS
 # ============================================================================
 api_settings:
-  # ---- LLM API specific settings ----
-  llm:
-    model_fetch_timeout_sec: 15
-    retry_attempts: 3
-    retry_min_wait_sec: 2
-    retry_max_wait_sec: 30
-    retry_multiplier: 1.5
-    
-  # ---- TTS API settings ----
-  tts:
-    request_timeout_sec: 60
-    retry_attempts: 2
+  # LLM model-list fetch and retries
+  llm_model_fetch_timeout_sec: 30
+  llm_retry_attempts: 3
+  llm_retry_min_wait_sec: 1
+  llm_retry_max_wait_sec: 30
+  llm_retry_multiplier: 2
 
-  # ---- Stock media API settings ----
-  stock_media:
-    concurrent_downloads: 5
-    search_multiplier: 2
-    max_per_page: 80
-    request_timeout_sec: 30
+  # Stock media search and downloads
+  stock_media_concurrent_downloads: 5
+  stock_media_search_multiplier: 2     # results requested per item needed
+  stock_media_max_per_page: 80
+
+  # Stock media file downloads
+  download_timeout_sec: 30
+  download_retry_attempts: 3
+  download_retry_min_wait_sec: 1
+  download_retry_max_wait_sec: 10
 
 # ============================================================================
 # CIRCUIT BREAKER SETTINGS

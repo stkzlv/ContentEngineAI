@@ -28,7 +28,7 @@ from pexelsapi.pexels import Pexels
 from src.utils import download_file, ensure_dirs_exist, get_filename_from_url
 from src.utils.circuit_breaker import pexels_circuit_breaker
 from src.utils.retry import retry_network
-from src.video.config import MediaSettings, StockMediaSettings
+from src.video.config import ApiSettings, MediaSettings, StockMediaSettings
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -356,19 +356,15 @@ class StockMediaFetcher:
 
         async def download_with_semaphore(url: str, save_path: Path) -> bool:
             async with self._semaphore:
-                api_config = self.api_settings or {}
+                api = self.api_settings or ApiSettings.model_validate({})
                 return await download_file(
                     url,
                     save_path,
                     session,
-                    timeout_sec=getattr(api_config, "download_timeout_sec", 30),
-                    retry_attempts=getattr(api_config, "download_retry_attempts", 3),
-                    retry_min_wait_sec=getattr(
-                        api_config, "download_retry_min_wait_sec", 2
-                    ),
-                    retry_max_wait_sec=getattr(
-                        api_config, "download_retry_max_wait_sec", 10
-                    ),
+                    timeout_sec=api.download_timeout_sec,
+                    retry_attempts=api.download_retry_attempts,
+                    retry_min_wait_sec=api.download_retry_min_wait_sec,
+                    retry_max_wait_sec=api.download_retry_max_wait_sec,
                 )
 
         if image_count > 0 and self.pexels_client:
