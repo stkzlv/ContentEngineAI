@@ -490,7 +490,7 @@ def producer_media_minimums() -> tuple[int, int, int]:
     # to defaults would filter products on numbers the producer then refuses.
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except FileNotFoundError:
         text = ""
     settings = (yaml.safe_load(text) or {}).get("video_settings") or {}
     # The file, not the video package: the scraper doesn't import the producer.

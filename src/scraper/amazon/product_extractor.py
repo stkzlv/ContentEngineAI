@@ -307,7 +307,7 @@ def extract_product_data_from_page(
             "description": description,
             "images": images,
             "videos": videos,
-            "affiliate_link": build_affiliate_url(driver.current_url),
+            "affiliate_link": build_affiliate_url(driver.current_url, asin=asin),
             "url": driver.current_url,
             "asin": asin,
             "keyword": keyword,

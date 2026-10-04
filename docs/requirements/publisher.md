@@ -113,8 +113,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-063** `shipped` The publisher supports Lnk.Bio as the link-in-bio provider.
 - **REQ-PUB-064** `shipped` Where `link_in_bio.max_links` is above 0, the publisher removes the oldest link when the page reaches that count; 0 (the default) sets no limit.
 - **REQ-PUB-065** `shipped` If the link-in-bio update fails, the publisher logs a warning and the publish result is unchanged.
-- **REQ-PUB-066** `partial` Link-in-bio updates are on by default, and `--no-link-in-bio` skips them for one run.
-  - Gap: the flag exists only on `single`, not on `schedule` or the batch (#584).
+- **REQ-PUB-066** `shipped` Link-in-bio updates are on by default, and `--no-link-in-bio` skips them for one run.
 - **REQ-PUB-067** `shipped` When `single` is run without `--force` on a product already published to every target platform, the publisher refreshes the product's link-in-bio entry and exits without publishing.
 - **REQ-PUB-129** `shipped` When `single --link-in-bio` is passed, the publisher updates the link-in-bio page even where `link_in_bio.enabled` is off.
 - **REQ-PUB-130** `shipped` If a link the provider lists for the bio page already contains the product id, the publisher skips the update as a duplicate.

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.132.0] - 2026-10-04
+
+### Added
+
+- `schedule` and the global batch take `--link-in-bio` and `--no-link-in-bio`, as `single` does, overriding `link_in_bio.enabled` for one run.
+
+### Fixed
+
+- Affiliate links are canonical for `/gp/product/` and mobile `/gp/aw/d/` URLs and for URLs that carry no ASIN in the path.
+- The scraper reads the producer's media minimums once per run, and an unreadable producer config raises instead of falling back to defaults.
+
 ## [0.131.0] - 2026-10-04
 
 ### Changed

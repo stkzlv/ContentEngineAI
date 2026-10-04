@@ -72,3 +72,19 @@ def test_an_unparseable_producer_config_raises(tmp_path: Path) -> None:
         pytest.raises(yaml.YAMLError),
     ):
         producer_media_minimums()
+
+
+def test_an_unreadable_producer_config_raises(tmp_path: Path) -> None:
+    """Only a missing file falls back to the defaults."""
+    (tmp_path / "config").mkdir()
+    target = tmp_path / "config" / "video_production.yaml"
+    target.write_text("video_settings: {}")
+    target.chmod(0)
+    try:
+        with (
+            patch("src.utils.outputs_paths.get_project_root", return_value=tmp_path),
+            pytest.raises(PermissionError),
+        ):
+            producer_media_minimums()
+    finally:
+        target.chmod(0o600)

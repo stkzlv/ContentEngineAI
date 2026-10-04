@@ -18,6 +18,7 @@ import logging
 import os
 import random
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -358,10 +359,13 @@ async def run_publishing_phase(
                         update_link_in_bio_safe,
                     )
 
+                    bio_config = published.link_in_bio_config
+                    if batch_config.link_in_bio is not None:
+                        bio_config = replace(
+                            bio_config, enabled=batch_config.link_in_bio
+                        )
                     await update_link_in_bio_safe(
-                        product_id,
-                        batch_config.outputs_dir,
-                        published.link_in_bio_config,
+                        product_id, batch_config.outputs_dir, bio_config
                     )
 
                     # Cleanup through the manager, the same policy as `single`

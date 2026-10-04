@@ -866,6 +866,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                 "[FINAL VERIFICATION] Checking scraped products and " "media files..."
             )
 
+        # The producer's own minimums, read once from its config rather than
+        # a copy in scraper.yaml that had to be kept equal by hand.
+        min_total, min_imgs_no_vid, min_imgs_with_vid = producer_media_minimums()
         for i, product in enumerate(products):
             product_dir = get_product_directory(
                 product.asin or "unknown", custom_dir=self.output_dir
@@ -906,10 +909,6 @@ class BotasaurusAmazonScraper(BaseScraper):
                     img_count,
                     vid_count,
                 )
-
-            # The producer's own minimums, read from its config rather than
-            # a copy in scraper.yaml that had to be kept equal by hand.
-            min_total, min_imgs_no_vid, min_imgs_with_vid = producer_media_minimums()
 
             # When profile doesn't use videos, ignore them for validation
             effective_vid_count = vid_count

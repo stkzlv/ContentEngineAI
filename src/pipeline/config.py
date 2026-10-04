@@ -396,6 +396,8 @@ class GlobalBatchConfig:
     schedule_time: str | None = None
     fail_fast_publish: bool = False
     platform_specific_content: bool = False
+    # None keeps publisher.yaml's link_in_bio.enabled; a flag overrides it.
+    link_in_bio: bool | None = None
 
     # Voice profile override
     voice_profile: str | None = None
@@ -1376,6 +1378,7 @@ def load_global_batch_config(
         platforms=platforms,
         schedule_time=schedule_time,
         fail_fast_publish=fail_fast_publish,
+        link_in_bio=getattr(cli_args, "link_in_bio", None),
         platform_specific_content=platform_specific_content,
         voice_profile=voice_profile,
         script_template=script_template,
