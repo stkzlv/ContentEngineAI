@@ -540,7 +540,7 @@ def cleanup_invalid_outputs(
 
 
 def main() -> None:
-    """Print the outputs root the publisher and the batch resolve.
+    """Print the outputs root the publisher resolves when given no flag.
 
     For the shell tools that check the analytics timer: they cannot read
     `.env` the way the Python side does.
