@@ -80,7 +80,6 @@ class TestDownloadConfig:
         config = DownloadConfig()
         assert config.download_timeout == 30
         assert config.video_download_timeout == 300
-        assert config.retry_video_downloads == 2
         assert config.download_chunk_size == 8192
         assert config.validation_range_bytes == "0-1023"
         assert config.concurrent_image_downloads == 5
@@ -119,8 +118,6 @@ class TestVideoConfig:
         assert config.min_dimension == 640
         assert config.min_duration == 1.0
         assert config.max_videos_per_product == 10
-        assert config.mute_video_tabs is True
-        assert config.enable_metadata_extraction is True
         assert config.enable_m3u8_monitoring is False
         assert config.m3u8_download_timeout == 120
         assert config.network_capture_timeout == 20
@@ -160,9 +157,6 @@ class TestSearchParameters:
         assert params.free_shipping is False
         assert params.brands == []
         assert params.sort_order == "relevanceblender"
-        assert params.category is None
-        assert params.include_sponsored is False
-        assert params.skip_unavailable is True
 
     def test_search_parameters_custom_values(self):
         """Test custom search parameter values."""
@@ -503,3 +497,27 @@ class TestFilterParameters:
         custom_codes = {4.5: "custom_code"}
         params = FilterParameters(rating_codes=custom_codes)
         assert params.rating_codes == custom_codes
+
+
+class TestRemovedKeysAreRefused:
+    """Keys nothing read were removed, and a config still carrying one fails
+    at load rather than being silently ignored again.
+    """
+
+    @pytest.mark.parametrize(
+        "key", ["category", "include_sponsored", "skip_unavailable"]
+    )
+    def test_search_parameters(self, key):
+        from src.scraper.config_models import SearchParameters as Params
+
+        with pytest.raises(ValidationError, match=key):
+            Params(**{key: None})
+
+    @pytest.mark.parametrize("key", ["mute_video_tabs", "enable_metadata_extraction"])
+    def test_video_config(self, key):
+        with pytest.raises(ValidationError, match=key):
+            VideoConfig(**{key: True})
+
+    def test_download_config(self):
+        with pytest.raises(ValidationError, match="retry_video_downloads"):
+            DownloadConfig(retry_video_downloads=2)

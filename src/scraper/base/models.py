@@ -172,9 +172,8 @@ class BaseSearchParameters:
     # Quality filtering
     min_rating: float | None = None
 
-    # Brand and category filtering
+    # Brand filtering
     brands: list[str] = field(default_factory=list)
-    category: str | None = None
 
     # Shipping options
     free_shipping: bool = False
@@ -184,8 +183,6 @@ class BaseSearchParameters:
 
     # Results configuration
     max_results: int = 10
-    include_sponsored: bool = False
-    skip_unavailable: bool = True
 
     def __post_init__(self):
         """Post-initialization validation and setup."""

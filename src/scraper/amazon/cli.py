@@ -124,11 +124,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--clean", action="store_true", help="Clean output directory before scraping"
     )
     parser.add_argument(
-        "--pause-on-error",
-        action="store_true",
-        help="Pause execution when errors occur (debug mode only)",
-    )
-    parser.add_argument(
         "--save-screenshots",
         action="store_true",
         help="Save screenshots at key steps (debug mode only)",
@@ -200,9 +195,6 @@ def _add_search_arguments(parser: argparse.ArgumentParser) -> None:
         ],
         default="relevance",
         help="Sort order for search results",
-    )
-    parser.add_argument(
-        "--category", metavar="ID", help="Category ID for filtering (advanced usage)"
     )
 
 
@@ -469,7 +461,6 @@ def _log_debug_options(args: argparse.Namespace, config_debug_mode: bool) -> Non
     logger.debug("Debug mode set globally for browser visibility")
 
     switches = (
-        (args.pause_on_error, "Pause-on-error enabled - execution pauses on errors"),
         (args.save_screenshots, "Screenshot saving enabled - key steps captured"),
         (args.save_page_source, "Page source saving enabled - HTML saved for analysis"),
         (args.analyze_images, "Deep image analysis enabled - all images analyzed"),
@@ -534,7 +525,7 @@ def _build_search_params(
         value = getattr(args, name)
         if value is not None:
             cli_overrides[name] = value
-    for name in ("prime_only", "free_shipping", "brands", "category"):
+    for name in ("prime_only", "free_shipping", "brands"):
         value = getattr(args, name)
         if value:
             cli_overrides[name] = value
@@ -553,7 +544,6 @@ def _build_search_params(
                     "free_shipping",
                     "brands",
                     "sort_order",
-                    "category",
                 )
             }
         )
@@ -816,7 +806,6 @@ def main() -> None:
                 "save_page_source": args.save_page_source if args.debug else False,
                 "analyze_images": args.analyze_images if args.debug else False,
                 "dump_image_urls": args.dump_image_urls if args.debug else False,
-                "pause_on_error": args.pause_on_error if args.debug else False,
             },
             output_dir=getattr(args, "output_dir", None),
             profile_uses_videos=args.profile_uses_videos,

@@ -78,7 +78,9 @@ def test_every_row_names_a_real_flag(page: str) -> None:
 
 
 def test_the_flag_parse_sees_the_parsers() -> None:
-    assert len(every_flag()) > 100
+    assert (
+        len(every_flag()) > 90
+    ), "the flag parse found too few to be reading the parsers"
 
 
 def yaml_keys(data: Any, prefix: str = "") -> Iterator[tuple[str, str]]:

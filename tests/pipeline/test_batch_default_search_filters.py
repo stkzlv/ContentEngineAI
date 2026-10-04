@@ -28,7 +28,6 @@ def _cli_args(**overrides) -> argparse.Namespace:
         "prime_only": False,
         "free_shipping": False,
         "brands": [],
-        "category": None,
         "sort": "relevance",
     }
     args.update(overrides)

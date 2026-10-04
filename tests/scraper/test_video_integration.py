@@ -499,9 +499,7 @@ class TestConfigurationIntegration:
 
         video_config = CONFIG["global_settings"]["video_config"]
 
-        # Verify new parameters from task 6
-        assert "enable_metadata_extraction" in video_config
-        assert isinstance(video_config["enable_metadata_extraction"], bool)
+        assert "enable_m3u8_monitoring" in video_config
 
     def test_download_config_parameters_available(self):
         """Test download configuration parameters for videos.
@@ -519,9 +517,7 @@ class TestConfigurationIntegration:
 
         # Verify new parameters from task 6
         assert "video_download_timeout" in download_config
-        assert "retry_video_downloads" in download_config
         assert download_config["video_download_timeout"] == 300
-        assert download_config["retry_video_downloads"] == 2
 
 
 # Test summary and coverage verification

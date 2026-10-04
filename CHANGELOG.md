@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.133.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: the scraper options nothing read are gone: `--pause-on-error`, `--category`, and the `category`, `include_sponsored`, `skip_unavailable`, `video_config.mute_video_tabs`, `video_config.enable_metadata_extraction` and `download_config.retry_video_downloads` keys in `config/scraper.yaml`. A scraper config still carrying one fails at load.
+
+### Documentation
+
+- The scraper reference's list of flags the global batch doesn't take is current.
+
 ## [0.132.1] - 2026-10-04
 
 ### Documentation
