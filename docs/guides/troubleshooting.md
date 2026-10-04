@@ -1369,16 +1369,6 @@ lookup was removed) -- they are written whenever `debug_mode` is on.
 
 ```yaml
 debug_settings:
-  # Logging configuration
-  max_log_line_length: 200
-  debug_file_retention_days: 7
-
-  # File cleanup behavior
-  intermediate_file_cleanup: true      # Master cleanup switch
-  cleanup_on_success: false            # Remove files after success
-  cleanup_on_failure: false            # Remove files after failure (keep for debugging)
-  cleanup_whisper_files: false         # Remove Whisper temporary files
-
   # Debug file generation (set to false to disable specific files)
   create_media_validation_reports: true
   create_ffmpeg_command_logs: true
