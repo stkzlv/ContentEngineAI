@@ -780,6 +780,48 @@ subtitle_settings:
 - Profile-specific configuration support
 - **CTA-synchronized timing**: Upper line appears only during CTA moments
 
+#### Further `subtitles.yaml` keys
+
+Keys the examples above don't show. Defaults are the bundled values. The `subtitle_effects` keys apply only on the FFmpeg engine with an ASS preset that selects the effect; pycaps never reads them.
+
+| Key | Type | Default | Effect |
+|---|---|---|---|
+| `subtitle_effects` | block | present | Timing and colours of the ASS animations (karaoke, pulse, bounce, glow, typewriter). |
+| `subtitle_effects.karaoke_use_fill` | bool | true | `\kf` (progressive fill) when true, `\k` (instant switch) when false. |
+| `subtitle_effects.karaoke_timing_min_ms`, `karaoke_timing_max_ms` | int | 20, 200 | Clamp on each word's karaoke time. Despite the names the unit is centiseconds, so the bundled values hold a word between 0.2 s and 2 s. |
+| `subtitle_effects.karaoke_primary_color` | ASS colour | `&H0000FFFF` | Colour a word fills to as the sweep passes. |
+| `subtitle_effects.karaoke_secondary_color` | ASS colour | `&H00000000` | Colour of a word before the sweep reaches it. |
+| `subtitle_effects.karaoke_outline_color` | ASS colour | `&H00FFFFFF` | Replaces the preset's outline colour while karaoke runs. |
+| `subtitle_effects.pulse_duration_factor` | int | 500 | Grow and shrink time of the pulse, each segment seconds times this in ms, capped at 1000 ms. |
+| `subtitle_effects.pulse_scale_max`, `pulse_scale_normal` | int | 110, 100 | Scale percentage the pulse grows to and returns to. |
+| `subtitle_effects.bounce_duration_factor` | int | 300 | Length of each of the three bounce steps, segment seconds times this in ms. |
+| `subtitle_effects.bounce_rotation_max`, `bounce_rotation_min`, `bounce_rotation_rest` | int | 5, -5, 0 | Rotation in degrees of the three bounce steps. |
+| `subtitle_effects.glow_duration_factor` | int | 400 | Time the outline takes to turn yellow and back, segment seconds times this in ms each way. The glow colour is fixed in code. |
+| `subtitle_effects.typewriter_char_reveal_max_sec` | float | 0.1 | Longest time per character. The line starts visible, fades out over character count times that time (at most the segment's length), then fades back in; it isn't a per-character reveal. |
+| `subtitle_effects.typewriter_min_timing_ms` | int | 50 | The typewriter fade is added only when the time per character exceeds this. |
+| `text_rendering` | block | present | Line-width estimates for the ASS generator and the global caption safe zone. |
+| `text_rendering.narrow_char_width_factor`, `wide_char_width_factor`, `space_char_width_factor` | float | 0.4, 1.2, 0.3 | Width of narrow characters (`iIjl|':;,.`), wide ones (`mwMWAGOQ`) and spaces relative to the average, when the FFmpeg engine wraps a script that has no word timestamps. |
+| `text_rendering.safe_zone.min_x`, `max_x` | float (0-1) | 0.056, 0.833 | Left and right edges of the caption safe zone as a fraction of frame width. They clamp FFmpeg caption position and width and cap the pycaps caption width. A profile's `subtitle_settings.safe_zone` wins. |
+| `text_rendering.safe_zone.min_y` | float (0-1) | 0.141 | Top edge of the safe zone as a fraction of frame height; it also sets the top of the image band and of the two-part layout. |
+| `subtitle_segmentation` | block | present | Timing for the FFmpeg engine's script path, used when there are no word timestamps. |
+| `subtitle_segmentation.fallback_segment_duration_sec` | float | 2.5 | A words-per-second estimate the script path replaces at once with the real rate from the voiceover length, so it changes nothing unless set to 0, which fails. |
+| `subtitle_settings.subtitle_similarity_threshold` | float (0-1) | 0.70 | After a render, the script is compared with the caption text; below this ratio the result carries a warning. It never fails the run. |
+| `subtitle_settings.font_size_percent` | float (0-1) | 0.075 | Font size as a fraction of frame height on the SRT burn path only; ASS takes its size from the preset, so with the bundled `subtitle_format: ass` it has no effect. |
+| `subtitle_settings.pycaps.enable_ai_tagging` | bool | true | Lets a pycaps template's AI tagger rules call Gemini to pick the words to highlight. Without the Gemini key the rules do nothing and a warning is logged. |
+| `subtitle_settings.pycaps.ai_tag_prompt_override` | string | a recipe for concrete, information-dense words | Replaces the instruction of every AI tagger rule in the template. A template with no AI rule ignores it. |
+| `subtitle_settings.pycaps.ai_tagging_on_error` | `skip` or `raise` | `skip` | On a Gemini error, `skip` leaves the segment untagged and carries on; `raise` hands the error to `fallback_policy`. |
+| `subtitle_settings.pycaps.max_number_of_lines` | int | 2 | Most lines per caption segment, overriding the template. |
+| `subtitle_settings.pycaps.max_width_ratio` | float (0-1) | 0.80 | Widest caption line as a fraction of frame width, overriding the template after the safe-zone clamp. |
+| `subtitle_settings.pycaps.vertical_align_offset` | float (-1 to 1) or null | -0.20 | Places the caption block at `subtitle_settings.pycaps.vertical_align` (bundled `bottom`) with this offset, replacing the template's own alignment; null keeps the template's position. The image band is placed against it too. |
+| `subtitle_settings.pycaps.caption_block_height` | float (0-0.5) | 0.12 | Estimated caption block height as a fraction of the frame; the assembler keeps the product image above it. pycaps doesn't read it. |
+| `subtitle_settings.pycaps.mute_template_sound_effects` | bool | true | Drops the template's sound effects, such as the ding on each highlighted word. |
+| `subtitle_settings.timing_smoothing` | block | on | Adjusts Whisper word timings before either engine sees them; timings from the Google STT fallback are left alone. |
+| `subtitle_settings.timing_smoothing.lead_sec` | float | 0.04 | Shows each word this many seconds before it is spoken. |
+| `subtitle_settings.timing_smoothing.hook_lead_sec`, `hook_lead_word_count` | float, int | 0.20, 3 | Extra lead for the first words of the script; 0 turns it off. |
+| `subtitle_settings.timing_smoothing.min_word_sec` | float | 0.12 | Shortest time a word stays up. |
+| `subtitle_settings.timing_smoothing.gap_merge_sec` | float | 0.08 | A gap shorter than this between two words is closed, which stops flicker. |
+| `subtitle_settings.timing_smoothing.hold_last_sec` | float | 0.20 | Keeps the last word of each segment up this much longer. |
+
 </details>
 
 <details>
@@ -874,6 +916,38 @@ tts_config:
     model_name: "tts_models/en/ljspeech/vits"
     speaker_name: null               # For multi-speaker models
 ```
+
+#### Voice profiles and further TTS keys
+
+A voice profile is a named preset under `tts_config.voice_profiles`. One is chosen per render in this order: `--voice-profile`, a pick from `voice_profile_pool` seeded by the product id, `default_voice_profile`, then a seeded pick from all profiles. A `gemini` profile is tried through Gemini TTS first and falls back through `provider_order` with its markup stripped; a `google_cloud` profile overrides the Google Cloud voice, rate and pitch.
+
+| Key | Type | Default | Effect |
+|---|---|---|---|
+| `tts_config.voice_profiles_enabled` | bool | true | When false, no profile is used: the plain `google_cloud` voice criteria, rate and pitch apply, with no markup. |
+| `tts_config.default_voice_profile` | string | `charon` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
+| `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product. Unknown names are dropped, and if none remain no profile is used; `default_voice_profile` is not consulted. |
+| `tts_config.google_cloud.api_max_retries` | int | 2 | Retries after the first synthesis attempt, for Google Cloud and Gemini TTS; a credentials error stops at once. |
+| `tts_config.google_cloud.api_retry_delay_sec` | int | 5 | Seconds between those retries. |
+| `tts_config.google_cloud.last_word_buffer_sec` | float | 0.5 | Silence appended to Google Cloud speech so the last word isn't cut; Gemini ignores it. |
+| `voice_profiles.<name>.gemini_model_name` | string | `gemini-2.5-flash-tts` | Gemini TTS model. |
+| `voice_profiles.<name>.voice_criteria` | list | per profile | Voice filter (`language_code`, `name_contains`, `ssml_gender`); a gemini profile picks its Gemini voice with it. |
+| `voice_profiles.<name>.style_prompt` | string | per profile | Logged only. It isn't sent, because Gemini TTS reads a prompt aloud; the voice choice sets the character. |
+| `voice_profiles.<name>.markup_rules` | list | none; most bundled profiles add `[short pause]` after sentence punctuation | Regex rules that insert tags such as `[short pause]` into the script before synthesis. |
+| `voice_profiles.<name>.pause_plan` | block | `charon_varied` only | Replaces `markup_rules` with pauses chosen by position: `sentence`, `paragraph` (a line break), `after_hook` (the first sentence boundary), `before_last` (before the closing sentence), and `jitter`, the share of ordinary sentence pauses that change, half to no pause and half to the paragraph tag, seeded by the product id. |
+
+| Profile | Provider | Voice and style |
+|---|---|---|
+| `charon` | gemini | Charon; calm and confident, a friend recommending something over coffee. The bundled default. |
+| `charon_varied` | gemini | Charon with the same style and a `pause_plan`; not selected during the reach test. |
+| `calm_confident` | gemini | Warm but grounded, no voice pinned. |
+| `calm_authority` | gemini | Calm and authoritative, like a trusted tech reviewer; no voice pinned. |
+| `fenrir` | gemini | Fenrir; energy and conviction, a reviewer who uses the product. |
+| `orus` | gemini | Orus; quiet authority. |
+| `puck` | gemini | Puck; warm, friendly and conversational. |
+| `gentle_storyteller` | gemini | Gentle, natural pacing; no voice pinned. |
+| `soft_intimate` | gemini | Soft, like a late-night reviewer; no voice pinned. |
+| `warm_conversational` | gemini | Warm, friendly and conversational; no voice pinned. |
+| `chirp3_natural` | google_cloud | Chirp 3 voices, female then male; no style prompt. |
 
 </details>
 

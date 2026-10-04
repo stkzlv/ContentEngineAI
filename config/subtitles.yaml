@@ -609,9 +609,9 @@ subtitle_effects:
   karaoke_timing_max_ms: 200
 
   # Karaoke color configuration (ASS color format: &HAABBGGRR)
-  karaoke_primary_color: "&H0000FFFF"   # Yellow - initial text color (before sweep)
-  karaoke_secondary_color: "&H00000000" # Black - fill color (during sweep)
-  karaoke_outline_color: "&H00FFFFFF"   # White outline - makes black fill visible
+  karaoke_primary_color: "&H0000FFFF"   # Yellow - colour a word fills to as the sweep passes
+  karaoke_secondary_color: "&H00000000" # Black - colour before the sweep reaches the word
+  karaoke_outline_color: "&H00FFFFFF"   # White outline - keeps the black pre-sweep text visible
 
   # Use fill karaoke (\kf) instead of timing-only karaoke (\k)
   # true = Fill effect (recommended for visibility)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.149.1] - 2026-10-04
+
+### Documentation
+
+- The configuration reference gives the type, default and effect of the `config/subtitles.yaml` keys it did not name: the ASS effect timings and colours, the safe zone and line-width factors, the pycaps layout and AI-tagging switches, the word-timing smoothing, and the TTS voice profiles with the order a render picks one in.
+- The `config/subtitles.yaml` comments on the karaoke colours say which colour shows before the sweep and which after; they had the two reversed.
+
 ## [0.149.0] - 2026-10-04
 
 ### Removed
