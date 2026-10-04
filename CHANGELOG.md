@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.141.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: `config/ai_services.yaml` keys nothing read are gone: the `platform_metadata_config` reference block, `audio_processing.min_audio_file_size_bytes` and `audio_validation_timeout_sec`, and under `description_settings.platform_metadata` the `youtube.seo_keywords`, `tiktok.avoid_generic_viral_tags`, `tiktok.prioritize_search_keywords`, `instagram.caption_length_short_max`, `instagram.caption_length_seo_max` and `instagram.hashtags_in_caption` keys; a config that still sets one loads and ignores it.
+
 ## [0.140.0] - 2026-10-04
 
 ### Removed

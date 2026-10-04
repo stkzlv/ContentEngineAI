@@ -287,8 +287,6 @@ class AudioProcessingSettings(BaseModel):
 
     coqui_gpu_enabled: bool = Field(False)
     google_tts_audio_encoding: str = Field("LINEAR16")
-    min_audio_file_size_bytes: int = Field(100)
-    audio_validation_timeout_sec: int = Field(30)
 
     # Silence removal settings for TTS voiceover trimming
     # These settings ensure Whisper STT timestamps align with actual audio
