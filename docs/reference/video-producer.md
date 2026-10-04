@@ -348,7 +348,7 @@ A successful run without `--debug` deletes `temp/`.
 
 ## Render choices
 
-Each finished render, not a `--step` run, appends one row to `state/render_choices.jsonl` under the outputs root: product id, profile, `script_template`, pillar, CTA, `hook_headline`, `voice_profile` and `voice_name`, whether the voice chain was on, the caption engine and pycaps template, the music track, `cold_open_variant`, the assembly mode, pre-motion, the transition duration, the ending, and the script. A failed write is logged and the render still succeeds. The file is durable state, so cleanup leaves it. When `generate_script` writes a new script, it logs a warning for each of the last 14 recorded scripts it closely repeats; it never blocks the script.
+Each finished render, not a `--step` run, appends one row to `state/render_choices.jsonl` under the outputs root: product id, profile, `script_template`, pillar, CTA, `hook_headline`, `voice_profile` and `voice_name`, whether the voice chain was on, the stock ids it gathered, the caption engine and pycaps template, the music track, `cold_open_variant`, the assembly mode, pre-motion, the transition duration, the ending, and the script. A failed write is logged and the render still succeeds. The file is durable state, so cleanup leaves it. When `generate_script` writes a new script, it logs a warning for each of the last 14 recorded scripts it closely repeats; it never blocks the script.
 
 ```bash
 python -m src.video.render_choices [--last N] [--dominance SHARE] [--similarity RATIO] [--outputs-dir PATH]

@@ -71,6 +71,8 @@ class StockMediaInfo:
     duration: float | None = None
     query: str | None = None
     relevance_score: int | None = None
+    # `<source>:<provider id>`, recorded per render for the reuse guard.
+    stock_id: str | None = None
 
 
 class StockMediaFetcher:
@@ -91,6 +93,7 @@ class StockMediaFetcher:
         media_settings: MediaSettings,
         api_settings=None,
         llm_settings: Any = None,
+        recent_stock_ids: dict[str, int] | None = None,
     ):
         """Initialize the stock media fetcher with configuration and credentials.
 
@@ -102,6 +105,8 @@ class StockMediaFetcher:
             api_settings: API configuration for timeouts and concurrency limits
             llm_settings: The LLM settings, for the relevance judge and its API
                 key name; None leaves selection as the random sample
+            recent_stock_ids: Stock ids used in recent renders, each with how
+                many renders ago; the reuse guard keeps them out of the pool
 
         """
         self.settings = settings
@@ -111,6 +116,7 @@ class StockMediaFetcher:
         # Carries `stock_relevance` and the model's API key name; None means
         # the judge is off and selection is the random sample (#341).
         self.llm_settings = llm_settings
+        self.recent_stock_ids = recent_stock_ids or {}
         self.api_key = secrets.get(settings.pexels_api_key_env_var)
         self.pexels_client = None
         # Cache for API query results
@@ -282,6 +288,93 @@ class StockMediaFetcher:
         logger.debug("Selected %s %s for download.", len(selected_items), item_type)
         return selected_items
 
+    def _stock_id(self, item: dict[str, Any]) -> str | None:
+        item_id = item.get("id")
+        if item_id is None:
+            return None
+        return f"{str(item.get('source') or self.settings.source).lower()}:{item_id}"
+
+    def _guarding(self) -> bool:
+        guard = getattr(self.settings, "stock_reuse_guard", None)
+        return bool(guard is not None and guard.enabled and self.recent_stock_ids)
+
+    def _select_judged_fresh_first(
+        self,
+        candidates: list[dict[str, Any]],
+        scores: list[int | None],
+        count: int,
+        min_score: int,
+    ) -> list[dict[str, Any]] | None:
+        """The judge's pick with the reuse guard as a tie-break.
+
+        The judge scores the whole page, so a fresh clip below `min_score`
+        never displaces a reused one above it. Above the floor fresh clips
+        come first, best score first, then reused ones least recently used
+        first; below the floor only fills a shortfall, in the same order.
+        None when nothing was scored, like `select_by_relevance`.
+        """
+        from src.video.stock_relevance import UNKNOWN
+
+        if not any(s is not None for s in scores):
+            return None
+        recent = self.recent_stock_ids
+
+        def rank(pair: tuple[dict[str, Any], int | None]) -> tuple:
+            candidate, score = pair
+            known = score if score is not None else UNKNOWN
+            age = recent.get(self._stock_id(candidate) or "")
+            fresh = age is None
+            return (
+                known < min_score,
+                not fresh,
+                -known if fresh else -(age or 0),
+                random.random(),  # noqa: S311
+            )
+
+        ranked = sorted(zip(candidates, scores, strict=True), key=rank)[:count]
+        reused = sum(1 for c, _ in ranked if self._stock_id(c) in recent)
+        if reused:
+            logger.info(
+                "Stock reuse guard: reusing %d least recently used of %d judged",
+                reused,
+                len(candidates),
+            )
+        return [{**c, "score": s} for c, s in ranked]
+
+    def _avoid_recent(
+        self, candidates: list[dict[str, Any]], count: int, search_query: str
+    ) -> list[dict[str, Any]]:
+        """The candidates without those used in recent renders (design 0013).
+
+        When fewer than `count` fresh ones remain, the least recently used
+        fill the gap, so a render is never short of clips because of the guard.
+        """
+        if not self._guarding():
+            return candidates
+        recent = self.recent_stock_ids
+        fresh = [c for c in candidates if self._stock_id(c) not in recent]
+        if len(fresh) >= count:
+            if len(fresh) < len(candidates):
+                logger.info(
+                    "Stock reuse guard: dropped %d recently used for '%s'",
+                    len(candidates) - len(fresh),
+                    search_query,
+                )
+            return fresh
+        used = sorted(
+            (c for c in candidates if self._stock_id(c) in recent),
+            key=lambda c: recent[self._stock_id(c) or ""],
+            reverse=True,
+        )
+        fill = used[: count - len(fresh)]
+        logger.info(
+            "Stock reuse guard: %d fresh for '%s'; reusing %d least recently used",
+            len(fresh),
+            search_query,
+            len(fill),
+        )
+        return fresh + fill
+
     def _relevance(self) -> tuple[Any, str] | None:
         """The judge's settings and API key when it is on and reachable."""
         settings = self.llm_settings
@@ -324,7 +417,13 @@ class StockMediaFetcher:
                 settings=cfg,
                 session=session,
             )
-            chosen = select_by_relevance(candidates, scores, count, cfg.min_score)
+            chosen = (
+                self._select_judged_fresh_first(
+                    candidates, scores, count, cfg.min_score
+                )
+                if self._guarding()
+                else select_by_relevance(candidates, scores, count, cfg.min_score)
+            )
             if chosen is not None:
                 logger.info(
                     "Stock relevance for '%s': %d candidates judged, chose scores %s",
@@ -337,6 +436,7 @@ class StockMediaFetcher:
                 "Stock relevance judge returned no scores for '%s'; random sample",
                 search_query,
             )
+        candidates = self._avoid_recent(candidates, count, search_query)
         return random.sample(candidates, min(count, len(candidates)))  # noqa: S311
 
     @pexels_circuit_breaker
@@ -395,7 +495,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(img_url, save_path))
                 download_tasks.append(
                     (task, "image", img_url, author, save_path, source, None)
-                    + (item.get("score"),)
+                    + (item.get("score"), self._stock_id(item))
                 )
 
         if video_count > 0 and self.pexels_client:
@@ -426,7 +526,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(vid_url, save_path))
                 download_tasks.append(
                     (task, "video", vid_url, author, save_path, source, duration)
-                    + (item.get("score"),)
+                    + (item.get("score"), self._stock_id(item))
                 )
 
         if not download_tasks:
@@ -442,9 +542,16 @@ class StockMediaFetcher:
 
         for i, result in enumerate(download_results):
             task_info = download_tasks[i]
-            media_type, media_url, author, save_path, source, duration, score = (
-                task_info[1:]
-            )
+            (
+                media_type,
+                media_url,
+                author,
+                save_path,
+                source,
+                duration,
+                score,
+                stock_id,
+            ) = task_info[1:]
             if isinstance(result, Exception):
                 logger.error(
                     "Stock media download failed for %s from %s: %s",
@@ -463,6 +570,7 @@ class StockMediaFetcher:
                             path=save_path,
                             duration=duration,
                             relevance_score=score,
+                            stock_id=stock_id,
                         )
                     )
                 else:

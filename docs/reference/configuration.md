@@ -1444,9 +1444,24 @@ See [the content requirements](../requirements/content.md#content-pillars) for t
 stock_media_settings:
   pexels_api_key_env_var: "PEXELS_API_KEY"   # required
   source: "pexels"
+  stock_reuse_guard:
+    enabled: false   # held until the reach-test readout
+    window: 30       # recent renders whose stock stays out
 ```
 
-Those are the only two fields. Search terms live on
+With `stock_reuse_guard.enabled`, candidates used in the last `window`
+renders lose to fresh ones. With the relevance judge on, the judge still
+scores the whole page: above `min_score`, fresh clips come before reused ones
+(least recently used first), so a fresh clip below the floor never displaces
+a relevant reused one. Without the judge, recently used candidates are dropped
+before the random sample while enough others remain. Either way a fill from
+reused clips is logged. Every render
+records its stock ids (`<source>:<provider id>`) in
+`state/render_choices.jsonl` whether or not the guard is on, so the window is
+full when it is switched on, and the record outlives product-directory
+cleanup.
+
+Search terms live on
 `media_settings.stock_media_keywords` and the per-profile
 `stock_media_keywords` override; download concurrency is
 `api_settings.stock_media_concurrent_downloads`.

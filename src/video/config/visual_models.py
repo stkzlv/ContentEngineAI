@@ -704,9 +704,25 @@ class MediaSettings(BaseModel):
     product_title_keyword_min_length: int = Field(3)
 
 
+class StockReuseGuard(BaseModel):
+    """Keep stock clips used in recent renders out of the next (design 0013).
+
+    The ids are recorded per render whether or not the guard is on, so the
+    window is full when it is switched on.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False)
+    window: int = Field(30, ge=1, description="How many recent renders to avoid.")
+
+
 class StockMediaSettings(BaseModel):
     pexels_api_key_env_var: str
     source: str = Field("Pexels")
+    stock_reuse_guard: StockReuseGuard = Field(
+        default_factory=StockReuseGuard  # type: ignore[arg-type]
+    )
 
 
 class VideoProfile(BaseModel):

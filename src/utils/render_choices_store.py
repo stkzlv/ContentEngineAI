@@ -55,3 +55,19 @@ def latest_per_product(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         newest.pop(key, None)
         newest[key] = row
     return list(newest.values())
+
+
+def recent_stock_ids(outputs_dir: Path, window: int) -> dict[str, int]:
+    """Stock ids from the last `window` renders, each with how many renders ago
+    it was last used (0 for the newest render). Rows without ids add nothing.
+    """
+    rows = latest_per_product(load_recent(outputs_dir, 0))[-window:]
+    ages: dict[str, int] = {}
+    for age, row in enumerate(reversed(rows)):
+        ids = row.get("stock_ids")
+        if not isinstance(ids, list):
+            continue
+        for stock_id in ids:
+            if isinstance(stock_id, str):
+                ages.setdefault(stock_id, age)
+    return ages

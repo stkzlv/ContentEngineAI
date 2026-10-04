@@ -532,6 +532,15 @@ stock_media_settings:
   # Rate limits: 200 requests/hour (free tier)
   pexels_api_key_env_var: "PEXELS_API_KEY"
 
+  # Keep stock clips and images used in the last `window` renders out of the
+  # candidate pool while enough others remain; when too few do, the least
+  # recently used fill the gap. Every render records its stock ids in
+  # state/render_choices.jsonl whether or not this is on. Off until the
+  # reach-test readout.
+  stock_reuse_guard:
+    enabled: false
+    window: 30
+
   # Note: Freesound integration removed - background music uses audio_settings instead
 
 # ============================================================================
