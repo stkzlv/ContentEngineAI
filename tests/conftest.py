@@ -362,9 +362,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "supported_audio_extensions": [".wav", ".mp3", ".aac", ".flac"],
         },
         "debug_settings": {
-            "max_log_line_length": 200,
-            "debug_file_retention_days": 7,
-            "intermediate_file_cleanup": True,
             "operation_timing_threshold_sec": 5.0,
             "memory_usage_warning_mb": 1000,
         },

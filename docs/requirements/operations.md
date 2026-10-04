@@ -16,8 +16,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 ## Secrets
 
 - **REQ-OPS-007** `shipped` The pipeline reads API keys and other secrets from the `.env` file or the environment, and git ignores `.env`.
-- **REQ-OPS-008** `partial` The repository ships `.env.example`, listing the environment variables the pipeline reads.
-  - Gap: it also lists `SUBTITLE_FONT`, `SUBTITLE_FONT_COLOR`, `SUBTITLE_OUTLINE_COLOR` and `SUBTITLE_BACKGROUND_COLOR`, which nothing reads.
+- **REQ-OPS-008** `shipped` The repository ships `.env.example`, listing the environment variables the pipeline reads.
 - **REQ-OPS-009** `planned #583` `.env.example` lists only secrets and machine-specific settings.
 - **REQ-OPS-010** `shipped` Log output masks API keys, tokens and other secret-shaped values before they reach the console or a log file.
 

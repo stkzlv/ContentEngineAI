@@ -14,8 +14,6 @@ class TestCleanupConfig:
         config = CleanupConfig()
 
         assert config.remove_temp_on_success is True
-        assert config.keep_temp_on_failure is True
-        assert config.cache_max_age_hours == 168
         assert config.debug_file_patterns == [
             "incomplete_script_*.txt",
             "voiceover_whisper_*.json",
@@ -42,14 +40,10 @@ class TestCleanupConfig:
         # Valid config should work
         config = CleanupConfig(
             remove_temp_on_success=False,
-            keep_temp_on_failure=False,
-            cache_max_age_hours=24,
             debug_file_patterns=["*.log"],
         )
 
         assert config.remove_temp_on_success is False
-        assert config.keep_temp_on_failure is False
-        assert config.cache_max_age_hours == 24
         assert config.debug_file_patterns == ["*.log"]
 
 
@@ -59,8 +53,6 @@ class TestPathConfig:
     def test_path_config_defaults(self):
         """Test PathConfig with default values."""
         config = PathConfig()
-
-        assert config.use_product_oriented_structure is True
         assert config.gathered_visuals == "gathered_visuals.json"
         assert config.temp_dir == "temp"
         assert config.music_dir == "music"
@@ -80,14 +72,11 @@ class TestPathConfig:
 
     def test_path_config_with_custom_cleanup(self):
         """Test PathConfig with custom cleanup configuration."""
-        cleanup = CleanupConfig(
-            debug_file_patterns=["custom_*.log"], cache_max_age_hours=48
-        )
+        cleanup = CleanupConfig(debug_file_patterns=["custom_*.log"])
 
         config = PathConfig(cleanup=cleanup)
 
         assert config.cleanup.debug_file_patterns == ["custom_*.log"]
-        assert config.cleanup.cache_max_age_hours == 48
 
     def test_path_config_validation(self):
         """Test PathConfig validation for field types."""

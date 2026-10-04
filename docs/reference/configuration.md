@@ -307,8 +307,6 @@ The other `config/performance.yaml` blocks, and whether anything reads them:
 | `debug_settings.create_performance_metrics` | `true` | In a `--debug` run, saves per-step timing and memory to `performance.json`. |
 | `debug_settings.operation_timing_threshold_sec` | `180.0` | After a successful run, a step slower than this logs a warning. |
 | `debug_settings.memory_usage_warning_mb` | `5000` | After a successful run, a step using more memory than this logs a warning. |
-| `debug_settings.max_log_line_length`, `debug_settings.debug_file_retention_days` | `200`, `7` | Read by nothing (#577). |
-| `debug_settings.intermediate_file_cleanup`, `debug_settings.cleanup_on_success`, `debug_settings.cleanup_on_failure`, `debug_settings.cleanup_whisper_files` | `true`, `false`, `false`, `false` | Read by nothing (#577). |
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings, validated at load through the Pydantic
@@ -453,14 +451,10 @@ output_structure:
     reports: "reports"                  # Performance reports
     temp: "temp"                        # Global temp files
 
-# Path building configuration
+# Path building configuration (model defaults; core.yaml does not set it)
 path_config:
-  use_product_oriented_structure: true
-  
   cleanup:
     remove_temp_on_success: true        # Auto-cleanup temp files
-    keep_temp_on_failure: true          # Preserve debug files
-    cache_max_age_hours: 168            # 7-day cache TTL
 ```
 
 ### Directory Structure Example
@@ -2178,8 +2172,6 @@ optimization_settings:
   download_manager_max_concurrent: 5
   download_chunk_size_bytes: 8192
   async_ffmpeg_max_concurrent: 4             # concurrent final-assembly and caption-burn encodes
-  cache_media_metadata_ttl_sec: 86400
-  cache_api_response_ttl_sec: 3600
 ```
 
 ### Download Settings

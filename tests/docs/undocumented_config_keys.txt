@@ -1,8 +1,5 @@
 # Config keys no page in docs/reference/ names yet (#598). Document a key, then
 # remove its line; the test refuses a new key that isn't documented.
-core.yaml:path_config.audio_extensions
-core.yaml:path_config.image_extensions
-core.yaml:path_config.video_extensions
 subtitles.yaml:subtitle_effects
 subtitles.yaml:subtitle_effects.bounce_duration_factor
 subtitles.yaml:subtitle_effects.bounce_rotation_max

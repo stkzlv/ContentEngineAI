@@ -331,12 +331,6 @@ class LLMValidationSettings(BaseModel):
 class DebugSettings(BaseModel):
     """Configuration for debug output and development settings."""
 
-    max_log_line_length: int = Field(200)
-    debug_file_retention_days: int = Field(7)
-    intermediate_file_cleanup: bool = Field(True)
-    cleanup_on_success: bool = Field(False)
-    cleanup_on_failure: bool = Field(False)
-    cleanup_whisper_files: bool = Field(False)
     operation_timing_threshold_sec: float = Field(180.0)
     # Peak memory is the whole process tree since 0.121.11, and a stock
     # render's tree passes 4 GB while Whisper and the subtitle renderer's
@@ -406,8 +400,6 @@ class CleanupConfig(BaseModel):
     """Cleanup and maintenance settings"""
 
     remove_temp_on_success: bool = Field(True)
-    keep_temp_on_failure: bool = Field(True)
-    cache_max_age_hours: int = Field(168)  # 7 days
     debug_file_patterns: list[str] = Field(
         [
             "incomplete_script_*.txt",  # AI model attempt files
@@ -421,7 +413,6 @@ class CleanupConfig(BaseModel):
 class PathConfig(BaseModel):
     """Path building configuration"""
 
-    use_product_oriented_structure: bool = Field(True)
     cleanup: CleanupConfig = Field(default_factory=lambda: CleanupConfig())  # type: ignore[call-arg]
 
     # Internal files configuration
@@ -509,11 +500,6 @@ class OptimizationSettings(BaseModel):
     async_ffmpeg_max_concurrent: int = Field(4, ge=1)
     async_default_timeout_sec: int = Field(300)
     async_ffprobe_timeout_sec: int = Field(30)
-
-    # Caching Configuration
-    cache_media_metadata_ttl_sec: int = Field(86400)  # 24 hours
-    cache_api_response_ttl_sec: int = Field(3600)  # 1 hour
-    cache_key_max_length: int = Field(16)
 
 
 def _default_font_pool() -> list[FontPoolEntry]:
@@ -917,12 +903,12 @@ class VideoConfig(BaseModel):
             "max_subtitle_duration": (
                 ss.get("max_subtitle_duration")
                 or ss.get("max_duration")
-                or ss.get("max_subtitle_duration_sec", 2.5)
+                or SubtitleSettings.model_fields["max_duration"].default
             ),
             "min_subtitle_duration": (
                 ss.get("min_subtitle_duration")
                 or ss.get("min_duration")
-                or ss.get("min_subtitle_duration_sec", 0.6)
+                or SubtitleSettings.model_fields["min_duration"].default
             ),
             "enabled": ss["enabled"],
             "font_directory": ss["font_directory"],
