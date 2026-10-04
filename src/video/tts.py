@@ -622,6 +622,43 @@ async def _generate_gemini_speech(
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
+def normalise_for_tts(text: str, settings: Any) -> str:
+    """`text` with the configured misread strings rewritten for the voice.
+
+    A unit is rewritten only straight after a digit, with an optional space or
+    hyphen between ("5000mAh", "65 W", "1.83-inch"), so the same letters
+    inside a word ("Watch") stay. A lexicon term is rewritten only as a whole
+    term.
+    """
+    if not settings.enabled:
+        return text
+    for unit, spoken in settings.units.items():
+        text = re.sub(
+            rf"(?<=\d)[ -]?{re.escape(unit)}(?![\w-])",
+            " " + spoken.replace("\\", r"\\"),
+            text,
+        )
+    for term, spoken in settings.lexicon.items():
+        text = re.sub(
+            rf"(?<![\w-]){re.escape(term)}(?![\w-])",
+            spoken.replace("\\", r"\\"),
+            text,
+        )
+    return text
+
+
+def spoken_script(script: str | None, tts_config: Any) -> str | None:
+    """The script as the voice says it, for captions built from the script.
+
+    Captions are transcribed from the audio, but a run whose speech-to-text
+    returns no timings falls back to the script; that copy must match what
+    was said. With normalisation off it is the script itself.
+    """
+    if script is None:
+        return None
+    return normalise_for_tts(script, tts_config.tts_normalisation)
+
+
 def apply_pause_plan(text: str, plan: PausePlan, seed_key: str | None) -> str:
     """Insert the plan's pause tags at sentence and paragraph boundaries.
 
@@ -811,12 +848,18 @@ class TTSManager:
         # the rules if the profile defines them.
         markup_rules = profile.markup_rules if profile else []
         pause_plan = profile.pause_plan if profile else None
-        processed_text = text
+        # The voice's copy only: the caller's script, the script file and
+        # the state keep the written form.
+        processed_text = normalise_for_tts(text, self.config.tts_normalisation)
+        if processed_text != text:
+            logger.info("Rewrote misread strings for the voice")
         if pause_plan is not None:
-            processed_text = apply_pause_plan(text, pause_plan, self.product_id)
+            processed_text = apply_pause_plan(
+                processed_text, pause_plan, self.product_id
+            )
             logger.info("Applied the pause plan of voice profile '%s'", profile_name)
         elif markup_rules:
-            processed_text = self._apply_markup_rules(text, markup_rules)
+            processed_text = self._apply_markup_rules(processed_text, markup_rules)
             logger.debug(
                 "Applied %d markup rules from profile '%s'",
                 len(markup_rules),

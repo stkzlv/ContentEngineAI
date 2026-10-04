@@ -947,6 +947,9 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 | `tts_config.voice_profiles_enabled` | bool | true | When false, no profile is used: the plain `google_cloud` voice criteria, rate and pitch apply, with no markup. |
 | `tts_config.default_voice_profile` | string | `charon` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
 | `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product. Unknown names are dropped, and if none remain no profile is used; `default_voice_profile` is not consulted. |
+| `tts_config.tts_normalisation.enabled` | bool | false | Rewrite the `units` and `lexicon` entries in the text sent to the voice only; the script file, state and captions keep the written form. |
+| `tts_config.tts_normalisation.units` | mapping | empty | Unit spelling to spoken form (`mAh: milliamp hours`), applied only straight after a digit, with an optional space or hyphen between, never inside a word. |
+| `tts_config.tts_normalisation.lexicon` | mapping | empty | Whole term to spoken form, for model names and codes. |
 | `tts_config.google_cloud.api_max_retries` | int | 2 | Retries after the first synthesis attempt, for Google Cloud and Gemini TTS; a credentials error stops at once. |
 | `tts_config.google_cloud.api_retry_delay_sec` | int | 5 | Seconds between those retries. |
 | `tts_config.google_cloud.last_word_buffer_sec` | float | 0.5 | Silence appended to Google Cloud speech so the last word isn't cut; Gemini ignores it. |

@@ -254,6 +254,23 @@ class VoiceProfileConfig(BaseModel):
     pause_plan: PausePlan | None = Field(None)
 
 
+class TTSNormalisationSettings(BaseModel):
+    """Rewrite strings the voice misreads, in the text sent to TTS only.
+
+    Design 0014. `units` maps a unit spelling to its spoken form and applies
+    only straight after a number ("5000mAh", "65 W"), never inside a word;
+    `lexicon` maps a whole term to how it should be said. Only strings
+    `tools/tts_normalisation_probe.py` shows the voice misreading belong
+    here. The script file, the state and the captions are untouched.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    enabled: bool = Field(False)
+    units: dict[str, str] = Field(default_factory=dict)
+    lexicon: dict[str, str] = Field(default_factory=dict)
+
+
 class TTSConfig(BaseModel):
     provider_order: list[str] = Field(..., min_length=1)
     google_cloud: GoogleCloudTTSSettings | None = Field(None)
@@ -262,6 +279,9 @@ class TTSConfig(BaseModel):
     voice_profiles: dict[str, VoiceProfileConfig] = Field(default_factory=dict)
     voice_profile_pool: list[str] = Field(default_factory=list)
     default_voice_profile: str | None = Field(None)
+    tts_normalisation: TTSNormalisationSettings = Field(
+        default_factory=TTSNormalisationSettings  # type: ignore[arg-type]
+    )
 
     @model_validator(mode="after")
     def check_provider_settings_exist(self) -> "TTSConfig":

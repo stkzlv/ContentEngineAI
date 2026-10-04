@@ -586,6 +586,17 @@ tts_config:
   voice_profile_pool: []
   default_voice_profile: charon
 
+  # Rewrite numbers, units and model names the voice misreads, in the text
+  # sent to TTS only; the script, state and captions keep the written form.
+  # units: {mAh: "milliamp hours"} applies only straight after a number;
+  # lexicon: {A2337: "A two three three seven"} replaces a whole term. Add only
+  # what tools/tts_normalisation_probe.py shows misread: on the pinned voice
+  # it found nothing, so both tables are empty and the switch stays off.
+  tts_normalisation:
+    enabled: false
+    units: {}
+    lexicon: {}
+
 # ============================================================================
 # SUBTITLE EFFECTS (ASS Format Animations)
 # ============================================================================
