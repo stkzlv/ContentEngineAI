@@ -80,9 +80,8 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 ## Resource limits
 
 - **REQ-OPS-038** `partial` The pipeline limits how many FFmpeg, I/O and network operations run at once.
-  - Gap: only FFmpeg operations are limited.
-- **REQ-OPS-039** `partial` The concurrency limit per operation type is set by `optimization_settings.async_ffmpeg_max_concurrent`, `async_io_max_concurrent` and `async_network_max_concurrent`.
-  - Gap: nothing reads these keys; the limits are fixed in code.
+  - Gap: only the final-assembly and caption-burn FFmpeg encodes take a limit, and within one render they never overlap; probes, transcodes, I/O and network calls are not limited.
+- **REQ-OPS-039** `shipped` The limit on concurrent final-assembly and caption-burn FFmpeg encodes is set by `optimization_settings.async_ffmpeg_max_concurrent` (default 4).
 - **REQ-OPS-040** `shipped` The scrape, produce, batch, publish and test runs each have a low-priority `make` target (`scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri`, `test-lowpri`) that runs them at reduced CPU and I/O priority under a memory cap with swap disabled.
   - Check: a run that exceeds `MEM_LIMIT` (default 6G) is stopped without other applications on the machine being killed.
 
