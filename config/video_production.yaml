@@ -106,9 +106,10 @@ video_settings:
   # scraped image is judged once by `model` for the share of the frame
   # covered by text the seller added; the score is cached
   # beside the image. Images above max_text_share are dropped while at least
-  # min_clean_images remain, and never below media validation's image
-  # minimum; a failed judgement never drops an image. Off until the
-  # reach-test readout.
+  # min_clean_images remain, and never below what media validation asked
+  # for (the image minimum, and the part of min_total_media the clips and
+  # stock media leave to images); a failed judgement never drops an image.
+  # Off until the reach-test readout.
   image_curation:
     enabled: false
     max_text_share: 0.15
