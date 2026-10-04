@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.137.0] - 2026-10-04
+
+### Changed
+
+- **Breaking**: the nested `pycaps`, `safe_zone` and `two_part_subtitles` caption blocks refuse a key they don't know, with an error naming it, in the global subtitle config and in a profile override.
+- **Breaking**: the global subtitle config is validated when the config loads, so a typo there stops the global batch at start instead of failing every render, and the old `use_random_font` and `use_random_colors` spellings are refused there as the producer already refused them; use `randomize_fonts` and `randomize_colors`.
+
 ## [0.136.0] - 2026-10-04
 
 ### Changed

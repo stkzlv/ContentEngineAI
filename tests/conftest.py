@@ -198,8 +198,8 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "horizontal_alignment": "center",
             "font_directory": "static/fonts",
             "font_size_percent": 0.05,
-            "use_random_font": False,
-            "use_random_colors": False,
+            "randomize_fonts": False,
+            "randomize_colors": False,
             "randomize_effects": False,
             "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
             "available_color_combinations": [
