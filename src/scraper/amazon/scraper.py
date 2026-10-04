@@ -21,7 +21,7 @@ from src.scraper.base.keyword_pillars import (
     pillar_for,
     read_keyword_pillars,
 )
-from src.scraper.config_models import ScraperConfig
+from src.scraper.config_models import ScraperConfig, producer_media_minimums
 from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import (
     MEDIA_IMAGE_SUFFIXES,
@@ -44,9 +44,6 @@ from .browser_functions import (
 )
 from .config import CONFIG
 from .constants import (
-    DEFAULT_MIN_IMAGES_IF_NO_VIDEO,
-    DEFAULT_MIN_IMAGES_WITH_VIDEO,
-    DEFAULT_MIN_TOTAL_MEDIA,
     HIGH_RES_DIMENSION,
 )
 from .downloader import download_media_files
@@ -910,19 +907,9 @@ class BotasaurusAmazonScraper(BaseScraper):
                     vid_count,
                 )
 
-            # Get producer-aligned media requirements from config
-            validation_config = CONFIG.get("global_settings", {}).get(
-                "validation_config", {}
-            )
-            min_total = validation_config.get(
-                "min_total_media", DEFAULT_MIN_TOTAL_MEDIA
-            )
-            min_imgs_no_vid = validation_config.get(
-                "min_images_if_no_video", DEFAULT_MIN_IMAGES_IF_NO_VIDEO
-            )
-            min_imgs_with_vid = validation_config.get(
-                "min_images_with_video", DEFAULT_MIN_IMAGES_WITH_VIDEO
-            )
+            # The producer's own minimums, read from its config rather than
+            # a copy in scraper.yaml that had to be kept equal by hand.
+            min_total, min_imgs_no_vid, min_imgs_with_vid = producer_media_minimums()
 
             # When profile doesn't use videos, ignore them for validation
             effective_vid_count = vid_count

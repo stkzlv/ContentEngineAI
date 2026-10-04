@@ -24,8 +24,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
 - **REQ-CNT-012** `partial` The producer records the chosen template in `pipeline_state.json`.
   - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
-- **REQ-CNT-013** `partial` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
-  - Gap: `--script-template` is applied before the topic-or-product check, so a forced product template runs on a topic, and the reverse (#584).
+- **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
 

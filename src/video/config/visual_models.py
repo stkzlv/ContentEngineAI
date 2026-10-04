@@ -584,7 +584,7 @@ class VideoSettings(BaseModel):
         ),
     )
     video_vertical_align: str = Field(
-        "top",
+        "center",
         description=(
             "Vertical alignment for video content: 'top' uses "
             "video_top_position_percent, 'center' centers in frame."

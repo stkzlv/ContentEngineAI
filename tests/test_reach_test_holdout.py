@@ -38,3 +38,15 @@ def test_the_author_signature_is_off() -> None:
     config = load_video_config_modular()
     assert not config.llm_settings.script_templates.signature.configured
     assert config.audio_settings.signature_sting is None
+
+
+@pytest.mark.req("REQ-VID-022")
+def test_video_content_stays_top_aligned() -> None:
+    """The code default is centre; the shipped config pins top for the
+    profiles that don't set it, so their renders don't move mid-test.
+    """
+    from src.video.config.visual_models import VideoSettings
+
+    assert VideoSettings.model_fields["video_vertical_align"].default == "center"
+    config = load_video_config_modular()
+    assert config.video_settings.video_vertical_align == "top"

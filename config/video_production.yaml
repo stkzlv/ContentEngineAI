@@ -55,6 +55,12 @@ video_settings:
   # Used by: the assembler for frame size, subtitle_utils.py for positioning
   resolution: [1080, 1920]
 
+  # Vertical alignment of video content for profiles that don't set it.
+  # The code default is "center"; pinned to "top" until the reach-test
+  # readout so a video profile that leaves it unset renders as before. Every
+  # bundled profile that draws video sets its own value.
+  video_vertical_align: top
+
   # Video frame rate (frames per second)
   # 30 fps = standard for social media, balances smoothness and file size
   # Higher fps (60) increases file size significantly
