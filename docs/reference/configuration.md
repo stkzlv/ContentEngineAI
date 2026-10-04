@@ -808,6 +808,7 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_settings.subtitle_similarity_threshold` | float (0-1) | 0.70 | After a render, the script is compared with the caption text; below this ratio the result carries a warning. It never fails the run. |
 | `subtitle_settings.font_size_percent` | float (0-1) | 0.075 | Font size as a fraction of frame height on the SRT burn path only; ASS takes its size from the preset, so with the bundled `subtitle_format: ass` it has no effect. |
 | `subtitle_settings.pycaps.enable_ai_tagging` | bool | true | Lets a pycaps template's AI tagger rules call Gemini to pick the words to highlight. Without the Gemini key the rules do nothing and a warning is logged. |
+| `subtitle_settings.pycaps.llm_model` | string | `gemini-2.5-flash` | Gemini model the AI tagger calls; read only when `enable_ai_tagging` is on. |
 | `subtitle_settings.pycaps.ai_tag_prompt_override` | string | a recipe for concrete, information-dense words | Replaces the instruction of every AI tagger rule in the template. A template with no AI rule ignores it. |
 | `subtitle_settings.pycaps.ai_tagging_on_error` | `skip` or `raise` | `skip` | On a Gemini error, `skip` leaves the segment untagged and carries on; `raise` hands the error to `fallback_policy`. |
 | `subtitle_settings.pycaps.max_number_of_lines` | int | 2 | Most lines per caption segment, overriding the template. |

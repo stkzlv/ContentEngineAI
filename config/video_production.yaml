@@ -430,11 +430,8 @@ audio_settings:
   # After repeated failures, circuit opens to fast-fail and use local files
   # This prevents wasting time on unavailable services during batch processing
 
-  # Background music settings
-  background_music:
-    enabled: true
-    # NOTE: the fades are `music_fade_in_duration` and `music_fade_out_duration`,
-    # NOTE: Background music always loops to match video duration
+  # Background music always loops to match the video's length; the fades are
+  # `music_fade_in_duration` and `music_fade_out_duration`.
 
 # ============================================================================
 # MEDIA GATHERING
