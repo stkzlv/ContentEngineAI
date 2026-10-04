@@ -649,7 +649,7 @@ def _is_xdist_worker(config) -> bool:
 
 @pytest.fixture(autouse=True)
 def no_writes_to_real_outputs(request):
-    """A test may not add anything to the repository's `outputs/` tree.
+    """A test may not write to or delete from the repository's `outputs/` tree.
 
     The suite used to create `TEST*` product directories there and delete
     them after each test, so a test that wrote real outputs passed, and one
@@ -658,7 +658,8 @@ def no_writes_to_real_outputs(request):
     a pipeline run in the same checkout writes there too.
 
     Per test, only new top-level entries and only in a serial run, which is
-    cheap and names the test; `pytest_sessionfinish` compares every file.
+    cheap and names the test; `pytest_sessionfinish` compares every file and
+    directory, removals included.
     Under xdist a neighbour's write would be blamed on whichever test is
     running, so there only the session check runs.
     """
@@ -701,7 +702,7 @@ def pytest_sessionfinish(session, exitstatus):
     )
     if changed:
         sys.stderr.write(
-            f"\nThe run wrote to the real outputs/ tree ({len(changed)} paths, "
+            f"\nThe run changed the real outputs/ tree ({len(changed)} paths, "
             f"first: {changed[:10]}). A pipeline run in this checkout during "
             "the suite also counts. Run with -p no:xdist to name the test.\n"
         )
