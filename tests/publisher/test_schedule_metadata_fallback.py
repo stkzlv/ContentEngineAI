@@ -18,16 +18,19 @@ from src.publisher.schedule import ScheduleManager
 PRODUCT = "B0FALLBACK"
 
 
-def product_with(tmp_path: Path, files: dict[str, dict]) -> Path:
+def product_with(
+    tmp_path: Path, files: dict[str, dict], data: str | None = None
+) -> Path:
     product = tmp_path / PRODUCT
     product.mkdir()
     video = product / f"video_{PRODUCT}_slideshow.mp4"
     video.write_bytes(b"video")
     for name, record in files.items():
         (product / name).write_text(json.dumps(record))
-    (product / "data.json").write_text(
-        json.dumps({"title": "Raw scraped listing", "description": "raw"})
-    )
+    if data is None:
+        data = json.dumps({"title": "Raw scraped listing", "description": "raw"})
+    if data:
+        (product / "data.json").write_text(data)
     return video
 
 
@@ -88,3 +91,14 @@ def test_borrowing_follows_the_order_and_keeps_a_title(tmp_path: Path) -> None:
 
     assert metas["youtube"].description == "tt"
     assert titles == {"youtube": "Raw scraped listing"}
+
+
+@pytest.mark.parametrize("data", ["", "{truncated"], ids=["missing", "garbled"])
+def test_a_borrowed_title_survives_a_missing_listing(tmp_path: Path, data) -> None:
+    video = product_with(
+        tmp_path, {"metadata_tiktok.json": record(None, "tt")}, data=data
+    )
+
+    _, titles, _ = captions(tmp_path, video, [Platform.YOUTUBE, Platform.INSTAGRAM])
+
+    assert titles["youtube"] == f"Product video for {PRODUCT}"

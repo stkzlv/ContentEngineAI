@@ -49,10 +49,10 @@ logger = logging.getLogger(__name__)
 
 def _listing_title(product_dir: Path) -> str:
     """The scraped listing title from `data.json`, or "" when there is none."""
-    data_path = product_dir / "data.json"
-    if not data_path.exists():
+    try:
+        record = json.loads((product_dir / "data.json").read_text())
+    except (OSError, ValueError):
         return ""
-    record = json.loads(data_path.read_text())
     if isinstance(record, list) and record:
         record = record[0]
     return str(record.get("title") or "") if isinstance(record, dict) else ""
@@ -935,8 +935,13 @@ class ScheduleManager:
                 title = meta.get("title") or ""
                 if borrowed and not title:
                     # TikTok and Instagram files carry no title; a post that
-                    # borrows one keeps the listing title rather than none.
-                    title = _listing_title(video.parent)
+                    # borrows one takes the listing title, else the title
+                    # `metadata_from_file` repaired, rather than none.
+                    title = (
+                        _listing_title(video.parent)
+                        or platform_metas[p.value].title
+                        or ""
+                    )
                 titles[p.value] = _trim_on_word_boundary(title, 100)
                 continue
 

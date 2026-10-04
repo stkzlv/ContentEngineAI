@@ -390,7 +390,7 @@ For each platform, the publisher reads the first of these that it can load from 
 
 The producer's `UPLOAD_INSTRUCTIONS.txt` is a guide for uploading by hand; the publisher does not read it.
 
-In unified publishing mode the post uses the first metadata found among its platforms; in platform-specific mode a platform with no metadata of its own uses another platform's. A product with no metadata at all fails with `No metadata found for <product_id>`. `schedule` auto-scheduling borrows another platform's file in either mode, keeping the listing title when the borrowed file has none, and with no metadata at all posts the scraped listing from `data.json` rather than failing.
+In unified publishing mode the post uses the first metadata found among its platforms; in platform-specific mode a platform with no metadata of its own uses another platform's. A product with no metadata at all fails with `No metadata found for <product_id>`. `schedule` auto-scheduling borrows another platform's file in either mode, taking the listing title (or a generic one) when the borrowed file has none, and with no metadata at all posts the scraped listing from `data.json` rather than failing.
 
 The JSON fields the publisher reads:
 
