@@ -64,7 +64,7 @@ Published guidance agrees that stock alone underperforms for instructional conte
 
 Planned:
 
-- A stock clip or image used in a recent render is excluded while alternatives exist (REQ-VID-110, [design 0013](../design/0013-stock-clip-reuse-guard.md)).
+- A stock clip or image used in a recent render loses to a fresh one that is relevant enough (REQ-VID-110, [design 0013](../design/0013-stock-clip-reuse-guard.md)).
 - Each step gets its own visual, timed to its narration ([Visuals that show the spoken step](#visuals-that-show-the-spoken-step)).
 
 ## Search discovery
