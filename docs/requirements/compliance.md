@@ -20,8 +20,9 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 - **REQ-CMP-011** `shipped` If the caption's hashtags include the disclosure token, the published caption shows the disclosure once, on the leading line.
 - **REQ-CMP-012** `shipped` If a render has no material connection, the publisher removes `#ad` and the configured disclosure token from its description and hashtags.
 - **REQ-CMP-013** `shipped` The disclosure text is configurable per render, so language-matched variants need no code change.
-- **REQ-CMP-022** `shipped` The overlay and the caption disclosure are in the script's language, taken from the TTS `language_code`: `#ad` for English, `#publi` for Spanish, from `video_settings.disclosure_overlay.variants`.
-- **REQ-CMP-023** `shipped` If `disclosure_overlay.language` differs from the script's language, or the script's language has no variant, the config load logs a warning naming both; the render falls back to `disclosure_overlay.text` for a language with no variant.
+- **REQ-CMP-022** `shipped` The overlay and the caption disclosure are in the language of the TTS voice (`tts_config.google_cloud.language_code`): `#ad` for English, `#publi` for Spanish, from `video_settings.disclosure_overlay.variants`.
+  - Why: the voice's language is the only language setting a render has. The script and caption prompts are English-only, so changing `language_code` alone does not produce a Spanish script; a Spanish render also needs Spanish prompts and voice profiles, which do not exist yet.
+- **REQ-CMP-023** `shipped` If `disclosure_overlay.language` differs from the voice's language, the voice's language has no variant, or a configured `text` is shadowed by a variant, the config load logs a warning naming both; the render falls back to `disclosure_overlay.text` for a language with no variant.
 - **REQ-CMP-024** `shipped` At config load, every disclosure variant and the fallback text are checked for glyphs the overlay font can draw.
 
 ## Platform disclosure settings

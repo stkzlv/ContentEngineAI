@@ -754,17 +754,26 @@ class VideoConfig(BaseModel):
 
     @model_validator(mode="after")
     def disclosure_matches_the_script(self) -> "VideoConfig":
-        """Warn when the disclosure would be in another language than the script."""
+        """Warn when the disclosure would be in another language than the voice."""
         overlay = self.video_settings.disclosure_overlay
         script = self.script_language()
         if overlay.language and overlay.language.lower() != script:
             logger.warning(
-                "disclosure_overlay.language is %s but the script language is "
+                "disclosure_overlay.language is %s but the voice language is "
                 "%s: the disclosure must be in the language of the video",
                 overlay.language,
                 script,
             )
         language = self.disclosure_language()
+        resolved = self.disclosure_text()
+        if "text" in overlay.model_fields_set and overlay.text != resolved:
+            logger.warning(
+                "disclosure_overlay.text is %r but the %s variant %r is used; "
+                "text applies only to a language with no variant",
+                overlay.text,
+                language,
+                resolved,
+            )
         if language not in {k.lower() for k in overlay.variants}:
             logger.warning(
                 "disclosure_overlay.variants has no entry for %s; the "
@@ -775,7 +784,12 @@ class VideoConfig(BaseModel):
         return self
 
     def script_language(self) -> str:
-        """The script's language code, from the TTS voice (`en-US` -> `en`)."""
+        """The render's language code, from the TTS voice (`en-US` -> `en`).
+
+        The only language setting a render has: the script and caption prompts
+        are English-only, so this is the voice's language, not a guarantee
+        about the script's.
+        """
         google = self.tts_config.google_cloud
         code = google.language_code if google else ""
         return (code.split("-")[0] or "en").lower()

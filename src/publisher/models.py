@@ -244,8 +244,9 @@ DEFAULT_DISCLOSURE = "#ad"
 def disclosure_from_record(meta: dict) -> str:
     """The caption disclosure token a metadata file records.
 
-    The producer writes the configured on-frame text (`disclosure_overlay.text`)
-    into the file, so the caption and the frame use one setting. A file
+    The producer writes the on-frame text it resolved for the voice's language
+    (`disclosure_overlay.variants`, then `text`) into the file, so the caption
+    and the frame use one setting. A file
     written before the key existed, or with it blank, gets `#ad`.
     """
     token = meta.get("disclosure")

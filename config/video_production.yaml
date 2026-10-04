@@ -116,9 +116,9 @@ video_settings:
   # discloses without dominating the frame. See docs/explanation/compliance.md.
   disclosure_overlay:
     # Disclosure text, on the frame and leading the caption, picked by the
-    # script language (the TTS language_code: en-US -> en). `text` is used
+    # TTS voice's language (language_code: en-US -> en). `text` is used only
     # for a language with no variant. Set `language` only to force one; a
-    # language that differs from the script's makes the config load warn.
+    # language that differs from the voice's makes the config load warn.
     variants:
       en: "#ad"
       es: "#publi"                    # Spain, Royal Decree 444/2024

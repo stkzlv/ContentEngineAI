@@ -71,7 +71,7 @@ def test_a_disclosure_in_another_language_warns(
         config = config_in("es-ES", language="en")
 
     assert config.disclosure_text() == "#ad"
-    assert "the script language is es" in caplog.text
+    assert "the voice language is es" in caplog.text
 
 
 @pytest.mark.req("REQ-CMP-023")
@@ -83,6 +83,121 @@ def test_a_language_with_no_variant_falls_back_and_warns(
 
     assert config.disclosure_text() == "#ad"
     assert "no entry for fr" in caplog.text
+
+
+@pytest.mark.req("REQ-CMP-023")
+def test_a_custom_text_a_variant_shadows_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`text` was the only setting; an English `#sponsored` now loses to `en`."""
+    with caplog.at_level(logging.WARNING):
+        config = config_in("en-US", text="#sponsored")
+
+    assert config.disclosure_text() == "#ad"
+    assert "'#sponsored'" in caplog.text
+
+
+@pytest.mark.req("REQ-CMP-022")
+def test_the_assembler_draws_the_resolved_text(tmp_path: Path) -> None:
+    """Driven through `assemble_video` as far as the overlay call."""
+
+    class ReachedError(Exception):
+        pass
+
+    seen: list[str] = []
+
+    def capture(filters, settings, *args, **kwargs):
+        seen.append(settings.text)
+        raise ReachedError
+
+    assembler = VideoAssembler(config_in("es-ES"))
+    assembler.carries_affiliate_content = True
+    assembler.visual_builder = MagicMock()
+    assembler.visual_builder.build_visual_chain = AsyncMock(return_value=MagicMock())
+    assembler.subtitle_builder = MagicMock()
+    assembler.subtitle_builder.build_subtitle_graph = AsyncMock(
+        return_value=(["[0:v]copy[v_out]"], [])
+    )
+    with (
+        patch("src.video.assembler.core.apply_hook_overlay", lambda f, *a, **k: f),
+        patch(
+            "src.video.assembler.core.apply_upper_line_overlay",
+            lambda f, *a, **k: f,
+        ),
+        patch("src.video.assembler.core.apply_disclosure_overlay", capture),
+        pytest.raises(ReachedError),
+    ):
+        asyncio.run(
+            assembler.assemble_video(
+                visual_inputs=[tmp_path / "v.mp4"],
+                voiceover_audio_path=None,
+                music_track_path=None,
+                output_path=tmp_path / "out.mp4",
+                subtitle_path=None,
+                total_video_duration=5.0,
+                temp_dir=tmp_path,
+            )
+        )
+
+    assert seen == ["#publi"]
+
+
+@pytest.mark.req("REQ-CMP-022")
+@pytest.mark.asyncio
+async def test_the_platform_records_carry_the_resolved_text(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from src.video.producer import steps
+
+    ctx = SimpleNamespace(
+        config=config_in("es-ES"),
+        product=MagicMock(topic=None, pillar=None, title="Lámpara"),
+        run_paths={
+            "run_root": tmp_path,
+            "description_file": tmp_path / "text" / "description.txt",
+            "script_file": tmp_path / "text" / "script.txt",
+            "final_video_output": tmp_path / "video.mp4",
+        },
+        state={},
+        secrets={},
+        session=None,
+        debug_mode=False,
+    )
+    save = MagicMock()
+    with (
+        patch(
+            "src.ai.platform_metadata.PlatformMetadataFactory.generate_multi_platform",
+            AsyncMock(return_value={"youtube": MagicMock()}),
+        ),
+        patch("src.ai.platform_metadata.save_metadata_to_file", save),
+        patch(
+            "src.ai.platform_metadata.text_formatter.format_upload_instructions",
+            return_value="",
+        ),
+    ):
+        await steps._generate_optimized_metadata(ctx)
+
+    assert save.call_args.kwargs["disclosure"] == "#publi"
+
+
+@pytest.mark.req("REQ-CMP-022")
+def test_a_stale_record_gets_the_current_text(tmp_path: Path) -> None:
+    from src.video.producer.steps import _check_existing_metadata
+
+    (tmp_path / "metadata.json").write_text(
+        json.dumps(
+            {"description": "d", "carries_affiliate_content": True, "disclosure": "#ad"}
+        ),
+        encoding="utf-8",
+    )
+    ctx = MagicMock()
+    ctx.config = config_in("es-ES")
+    ctx.state = {}
+    ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
+
+    assert _check_existing_metadata(ctx) is True
+    written = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
+    assert written["disclosure"] == "#publi"
 
 
 def test_the_bundled_config_loads_without_a_warning(

@@ -118,9 +118,9 @@ class DisclosureSettings(BaseModel):
     language: str | None = Field(
         None,
         description=(
-            "Language of the disclosure. Unset, it follows the script "
-            "language (the TTS `language_code`); set to a different language, "
-            "the config load warns."
+            "Language of the disclosure. Unset, it follows the TTS voice's "
+            "`language_code`; set to a different language, the config load "
+            "warns."
         ),
     )
     position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(

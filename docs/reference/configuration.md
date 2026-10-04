@@ -535,11 +535,11 @@ Three text overlays are burned into the frame by the assembler, all nested under
 ```yaml
 video_settings:
   disclosure_overlay:
-    variants:                    # Overlay text and caption token per script language
+    variants:                    # Overlay text and caption token per voice language
       en: "#ad"
       es: "#publi"
     text: "#ad"                  # For a language with no variant
-    language: null               # Unset: the TTS language_code (en-US -> en); a different language warns
+    language: null               # Unset: the TTS voice's language_code (en-US -> en); a different one warns
     position: "top-right"        # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45            # Font size as a fraction of the subtitle font (0.2-1.0)
     font_color: "white"

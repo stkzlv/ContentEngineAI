@@ -822,6 +822,13 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
                 "Backfilled disclosure decision into existing metadata.json: %s",
                 meta["carries_affiliate_content"],
             )
+        # The token too: a run after a change of language would otherwise draw
+        # the new text on the frame over a caption in the old one.
+        disclosure = ctx.config.disclosure_text()
+        if meta.get("disclosure") != disclosure:
+            meta["disclosure"] = disclosure
+            rewrite = True
+            logger.info("Refreshed the recorded disclosure token: %s", disclosure)
         if rewrite:
             unified_metadata_path.write_text(
                 json.dumps(meta, indent=2), encoding="utf-8"

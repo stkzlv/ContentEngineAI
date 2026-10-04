@@ -287,6 +287,7 @@ class TestTheWiring:
         )
         ctx = MagicMock()
         ctx.product = self._topic_product()
+        ctx.config.disclosure_text.return_value = "#ad"
         # A real dict: the step reads the run's resolved pillar out of it and
         # writes the value into the file, which a MagicMock cannot serialise.
         ctx.state = {}
