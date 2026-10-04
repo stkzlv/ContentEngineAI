@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.151.0] - 2026-10-04
+
+### Added
+
+- Each finished render records the choices that shaped it (template, hook, voice, caption template, music, cold-open variant, motion, transition and the script) in `state/render_choices.jsonl`, and `python -m src.video.render_choices` reports their distribution over recent renders, with an alert when one value dominates or two scripts are near-identical; `generate_script` also logs a warning when a new script closely repeats a recent one.
+
 ## [0.150.3] - 2026-10-04
 
 ### Fixed

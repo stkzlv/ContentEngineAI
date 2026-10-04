@@ -154,7 +154,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-142** `shipped` The `make install-analytics-timer` target runs one sweep after installing and fails if `state/post_metrics.json` under the outputs root was not updated.
 - **REQ-PUB-143** `shipped` The `make uninstall-analytics-timer` target removes the timer and its units, and keeps the captured figures and `deploy/schedule.env`.
 - **REQ-PUB-144** `shipped` The `make analytics-timer-status` target shows the last and next sweep, the recorded failures and when the figures were last written.
-- **REQ-PUB-083** `planned #547` The choices that shape each render (template, hook archetype, voice, caption template, music, motion, transitions, effects) are recorded, and a report shows their distribution over recent renders, with an alert when one value dominates or two scripts are near-identical.
+- **REQ-PUB-083** `shipped` The choices that shape each render (script template, pillar, CTA, hook headline, voice, caption engine and template, music, cold-open variant, assembly mode, pre-motion, transition) are recorded, and a report shows their distribution over recent renders, with an alert when one value dominates or two scripts are near-identical.
 - **REQ-PUB-084** `planned #551` The analytics sweep stores each first-seconds and quality metric a platform exposes (engaged views and viewed-vs-swiped on YouTube, watch time or completion on TikTok, sends or shares per reach on Instagram), records an unavailable metric as unknown, and segments them by format arm and render choice.
 
 ## Published products registry

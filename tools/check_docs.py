@@ -63,6 +63,7 @@ CLI_PAGES = {
     "src/scraper/amazon/cli.py": "docs/reference/scraper.md",
     "src/video/producer/cli.py": "docs/reference/video-producer.md",
     "src/video/producer/shared_cli.py": "docs/reference/video-producer.md",
+    "src/video/render_choices.py": "docs/reference/video-producer.md",
     "src/publisher/late/cli.py": "docs/reference/publisher.md",
     "src/pipeline/cli.py": "docs/reference/global-batch.md",
 }
