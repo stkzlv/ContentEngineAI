@@ -194,7 +194,7 @@ Video pipeline settings and effects:
 video_settings:
   resolution: [1080, 1920]  # 9:16 vertical format
   frame_rate: 30
-  codec: "libx264"
+  output_codec: "libx264"
 
   # Media validation requirements; the scraper reads these too
   min_total_media: 3              # Minimum total media files
@@ -522,9 +522,7 @@ video_settings:
   output_pixel_format: "yuv420p"     # Pixel format for compatibility
   
   # Duration controls
-  default_image_duration_sec: 3      # Default duration for images
   min_visual_segment_duration_sec: 0.1 # Minimum segment duration
-  total_duration_limit_sec: 90       # Maximum video length
   
   # Visual positioning
   image_width_percent: 0.9           # Image width as a fraction of the frame (0.0-1.0)
@@ -534,9 +532,10 @@ video_settings:
   transition_duration_sec: 0.5       # Crossfade transition duration
   
   # Quality settings
-  min_video_file_size_mb: 0.1        # Minimum output file size
   video_duration_tolerance_sec: 1.0  # Acceptable duration variance
 ```
+
+`video_settings` refuses a key it does not know, with an error naming it, and so does `disclosure_overlay`.
 
 </details>
 
@@ -552,7 +551,6 @@ Three text overlays are burned into the frame by the assembler, all nested under
 ```yaml
 video_settings:
   disclosure_overlay:
-    enabled: true                # Deprecated: ignored, see below
     text: "#ad"                  # Overlay text and caption token; e.g. "#publi"
     position: "top-right"        # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45            # Font size as a fraction of the subtitle font (0.2-1.0)
@@ -565,7 +563,7 @@ video_settings:
     margin_y_percent: 0.12       # Distance from the vertical edge (0.0-0.5)
 ```
 
-Every render with a material connection carries the overlay; a render without one carries none. `enabled: false` is ignored with a warning, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there. A product scheduled from `data.json` alone, with no metadata file, leads with `#ad` rather than the configured token when it discloses.
+Every render with a material connection carries the overlay; a render without one carries none. There is no switch to turn it off, and a render whose filter chain can't take the overlay fails rather than ship without it. `text` is also the caption's leading disclosure: the producer records it in the metadata files and the publisher reads it from there. A product scheduled from `data.json` alone, with no metadata file, leads with `#ad` rather than the configured token when it discloses.
 
 `size_factor` sits slightly under the FTC's 50-60% guidance band because the corner placement is tighter than a full-width caption; the rendered font is floored at 8px so a small subtitle base can't produce an illegible disclosure. `margin_y_percent` clears the YouTube Shorts top header and the TikTok username strip.
 

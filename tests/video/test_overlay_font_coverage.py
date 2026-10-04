@@ -74,7 +74,7 @@ class TestTheBuildersCarryTheFace:
         from src.video.assembler.overlay_builder import build_disclosure_drawtext
         from src.video.config.visual_models import DisclosureSettings
 
-        settings = DisclosureSettings(enabled=True, text=CJK_SAMPLE)
+        settings = DisclosureSettings(text=CJK_SAMPLE)
         filt = build_disclosure_drawtext(settings, 40, tmp_path, "[0:v]", "[v_out]")
         assert "fontfile=" in filt
 
@@ -82,7 +82,7 @@ class TestTheBuildersCarryTheFace:
         from src.video.assembler.overlay_builder import build_disclosure_drawtext
         from src.video.config.visual_models import DisclosureSettings
 
-        settings = DisclosureSettings(enabled=True, text="#ad")
+        settings = DisclosureSettings(text="#ad")
         filt = build_disclosure_drawtext(settings, 40, tmp_path, "[0:v]", "[v_out]")
         assert "fontfile=" not in filt
 
@@ -95,7 +95,7 @@ class TestTheBuildersCarryTheFace:
         from src.video.assembler.overlay_builder import build_disclosure_drawtext
         from src.video.config.visual_models import DisclosureSettings
 
-        settings = DisclosureSettings(enabled=True, text=CJK_SAMPLE)
+        settings = DisclosureSettings(text=CJK_SAMPLE)
         filt = build_disclosure_drawtext(settings, 40, tmp_path, "[0:v]", "[v_out]")
         out = tmp_path / "frame.png"
         r = subprocess.run(
