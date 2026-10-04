@@ -677,6 +677,24 @@ audio_settings:
   signature_sting: null
   # signature_sting: {path: "assets/audio/sting.wav", position: "start",
   #                   offset_sec: 0.0, volume_db: -6.0}
+
+  # Polish on the voiceover before the mix, off by default. The stages run
+  # in this order; deess_intensity 0, air_shelf_db 0 or limiter false drop
+  # theirs. The limiter's ceiling is -1 dBFS with auto-level off. Captions
+  # are transcribed from the TTS file, so they don't hear it.
+  voice_chain:
+    enabled: false
+    highpass_hz: 80
+    harsh_cut_hz: 3000          # a peaking cut, one octave wide
+    harsh_cut_db: -2
+    compressor_threshold_db: -18
+    compressor_ratio: 3
+    compressor_attack_ms: 5
+    compressor_release_ms: 80
+    deess_intensity: 0.4
+    air_shelf_hz: 9000
+    air_shelf_db: 1.5
+    limiter: true
 ```
 
 Five keys this block used to list do not exist on `AudioSettings` and never

@@ -28,6 +28,32 @@ class AudioProviderConfig(BaseModel):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class VoiceChainSettings(BaseModel):
+    """Polish on the voiceover before the mix (design 0004), off by default.
+
+    High-pass, a small cut at the harsh 2-4 kHz peak, gentle compression,
+    de-essing, an air shelf and a limiter. Only the mix hears it: captions
+    are transcribed from the TTS file, and the final loudness pass still
+    sets the programme level.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    enabled: bool = Field(False)
+    highpass_hz: float = Field(80.0, gt=0, le=400)
+    harsh_cut_hz: float = Field(3000.0, ge=1000, le=6000)
+    harsh_cut_db: float = Field(-2.0, ge=-12, le=0)
+    compressor_threshold_db: float = Field(-18.0, ge=-60, le=0)
+    compressor_ratio: float = Field(3.0, ge=1, le=20)
+    compressor_attack_ms: float = Field(5.0, ge=0.01, le=2000)
+    compressor_release_ms: float = Field(80.0, ge=0.01, le=9000)
+    # `deesser` does nothing at its own default intensity of 0; 0 turns it off.
+    deess_intensity: float = Field(0.4, ge=0, le=1)
+    air_shelf_hz: float = Field(9000.0, ge=4000, le=16000)
+    air_shelf_db: float = Field(1.5, ge=0, le=6)
+    limiter: bool = Field(True)
+
+
 class SignatureSting(BaseModel):
     """A short recurring audio mark mixed into every render.
 
@@ -80,6 +106,9 @@ class AudioSettings(BaseModel):
     music_fade_out_duration: float = Field(3.0)
     # Recurring audio identity mark. None (the default) mixes nothing.
     signature_sting: SignatureSting | None = Field(None)
+    voice_chain: VoiceChainSettings = Field(
+        default_factory=VoiceChainSettings  # type: ignore[arg-type]
+    )
 
     # Voice-keyed ducking. `sidechaincompress` attenuates the music while
     # narration plays and lets it back up in the gaps, instead of holding one

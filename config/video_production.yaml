@@ -261,6 +261,26 @@ audio_settings:
   # reach test runs.
   signature_sting: null
 
+  # Polish on the voiceover before the mix: high-pass, a small cut at the
+  # harsh 2-4 kHz peak, gentle compression, de-essing (0 intensity = off), an
+  # air shelf and a -1 dBFS limiter. Captions are transcribed from the TTS
+  # file, so they don't hear it, and loudness normalization still sets the
+  # programme level. Off until a voice-by-chain comparison after the
+  # reach-test readout shows no loss.
+  voice_chain:
+    enabled: false
+    highpass_hz: 80
+    harsh_cut_hz: 3000
+    harsh_cut_db: -2
+    compressor_threshold_db: -18
+    compressor_ratio: 3
+    compressor_attack_ms: 5
+    compressor_release_ms: 80
+    deess_intensity: 0.4
+    air_shelf_hz: 9000
+    air_shelf_db: 1.5
+    limiter: true
+
   # Voice-keyed ducking: the music drops while narration plays and recovers
   # in the gaps, instead of holding music_volume_db for the whole clip.
   # Off by default because it changes the sound of every render; the

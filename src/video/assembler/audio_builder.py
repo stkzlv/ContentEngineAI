@@ -22,6 +22,32 @@ from src.video.config import VideoConfig
 logger = logging.getLogger(__name__)
 
 
+# The limiter's ceiling, -1 dBFS. `level=0` stops `alimiter` from raising
+# the level back up to the ceiling, which would undo the loudness target.
+VOICE_LIMIT = 0.891
+
+
+def voice_chain_filters(audio_settings: Any) -> str:
+    """The voice chain as a filter prefix ending in a comma, or "" when off."""
+    chain = audio_settings.voice_chain
+    if not chain.enabled:
+        return ""
+    stages = [
+        f"highpass=f={chain.highpass_hz:g}",
+        f"equalizer=f={chain.harsh_cut_hz:g}:t=q:w=1:g={chain.harsh_cut_db:g}",
+        f"acompressor=threshold={chain.compressor_threshold_db:g}dB"
+        f":ratio={chain.compressor_ratio:g}:attack={chain.compressor_attack_ms:g}"
+        f":release={chain.compressor_release_ms:g}",
+    ]
+    if chain.deess_intensity > 0:
+        stages.append(f"deesser=i={chain.deess_intensity:g}")
+    if chain.air_shelf_db > 0:
+        stages.append(f"highshelf=f={chain.air_shelf_hz:g}:g={chain.air_shelf_db:g}")
+    if chain.limiter:
+        stages.append(f"alimiter=limit={VOICE_LIMIT}:level=0")
+    return ",".join(stages) + ","
+
+
 class AudioFilterBuilder:
     """Build FFmpeg audio filter chains for the voiceover and music mix.
 
@@ -196,7 +222,8 @@ class AudioFilterBuilder:
         if voiceover_input_idx is not None:
             proc_label = "[a_voice_proc]"
             audio_filters.append(
-                f"[{voiceover_input_idx}:a]volume={audio_settings.voiceover_volume_db}dB{proc_label}"
+                f"[{voiceover_input_idx}:a]{voice_chain_filters(audio_settings)}"
+                f"volume={audio_settings.voiceover_volume_db}dB{proc_label}"
             )
             audio_to_mix.append(proc_label)
 

@@ -43,6 +43,7 @@ DIMENSIONS = (
     "cta",
     "voice_profile",
     "voice_name",
+    "voice_chain",
     "caption_engine",
     "caption_template",
     "music",
@@ -66,6 +67,12 @@ def _setting(profile: Any, global_settings: Any, name: str) -> Any:
     """A profile's value for a video setting, else the global one."""
     value = getattr(profile, name, None)
     return value if value is not None else getattr(global_settings, name, None)
+
+
+def _voice_chain_on(config: Any) -> bool | None:
+    """Whether the voice chain ran; None when the config carries no chain."""
+    chain = getattr(getattr(config, "audio_settings", None), "voice_chain", None)
+    return getattr(chain, "enabled", None)
 
 
 def _music_name(music_info_file: Path | None) -> str | None:
@@ -97,6 +104,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "hook_headline": state.get("hook_headline"),
         "voice_profile": tts.get("voice_profile"),
         "voice_name": tts.get("voice_name"),
+        "voice_chain": _voice_chain_on(ctx.config),
         "caption_engine": state.get("subtitle_engine_resolved"),
         "caption_template": pycaps.get("template"),
         "music": _music_name(ctx.run_paths.get("music_info_file")),
