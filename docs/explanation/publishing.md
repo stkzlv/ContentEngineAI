@@ -52,7 +52,7 @@ The publisher records each post it creates, per product and platform, in `publis
 
 On `single`, a product already published to every requested platform still gets its link-in-bio entry refreshed before the command exits (`REQ-PUB-067`), so a rerun touches the bio. Pass `--no-link-in-bio` for a rerun that changes nothing.
 
-`schedule --immediate` does not consult the guard and writes no publish history, so it republishes and later checks can't see its posts (gaps in `REQ-PUB-046` and `REQ-PUB-057`).
+`schedule --immediate` applies the same guard and writes the same publish history as a scheduled run (`REQ-PUB-046`, `REQ-PUB-057`), so a second run skips what the first posted and `--force` posts again.
 
 ## Immediate batches and the retry queue
 
@@ -69,7 +69,7 @@ The stagger keeps a burst of uploads under the provider's rate limit. At the def
 
 A product that fails or is skipped goes into the retry queue in `publish_history.json`, with its platforms, error, original scheduled time and a retry count (`REQ-PUB-032`). `--retry-failed` publishes only the queued products (`REQ-PUB-033`): it keeps their original scheduled times, removes each one that succeeds, increments the count of each that fails again, and reports `Retry queue is empty - no failed items to retry` when there is nothing to do. Successful products are never reprocessed.
 
-Immediate mode posts no first comment and no affiliate phrase (gaps in `REQ-PUB-043` and `REQ-PUB-068`), and `--dry-run` does not stop it from publishing (gap in `REQ-PUB-024`).
+Immediate mode posts the first comment and the affiliate phrase as a scheduled post does (`REQ-PUB-043`, `REQ-PUB-068`). With `--dry-run` it lists what it would publish, or the retry queue with `--retry-failed`, and contacts no provider (`REQ-PUB-024`).
 
 ## Cleanup and its grace period
 

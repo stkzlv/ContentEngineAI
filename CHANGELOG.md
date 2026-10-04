@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.150.2] - 2026-10-04
+
+### Documentation
+
+- The publishing explanation describes `schedule --immediate` as it now behaves: the duplicate guard, the publish history, the first comment, the affiliate phrase and `--dry-run` all apply; the architecture overview no longer lists the monotonic-duration and disclosure-overlay requirements among the partial ones.
+
 ## [0.150.1] - 2026-10-04
 
 ### Changed
