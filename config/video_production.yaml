@@ -430,8 +430,7 @@ audio_settings:
   # After repeated failures, circuit opens to fast-fail and use local files
   # This prevents wasting time on unavailable services during batch processing
 
-  # Background music always loops to match the video's length; the fades are
-  # `music_fade_in_duration` and `music_fade_out_duration`.
+  # The music fades are `music_fade_in_duration` and `music_fade_out_duration`.
 
 # ============================================================================
 # MEDIA GATHERING
@@ -509,7 +508,6 @@ video_profiles:
     use_dynamic_image_count: true
     # NOTE: Video settings (transitions, aspect ratio) controlled by profile-level config
     # NOTE: Audio normalization handled automatically by pipeline
-    # NOTE: Background music controlled by audio_settings.background_music section
     # NOTE: Subtitle settings controlled by the profile's subtitle_settings block
 
   # Short-form slideshow profile (15-30s) for hook iteration

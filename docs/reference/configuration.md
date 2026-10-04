@@ -233,6 +233,7 @@ The other `config/ai_services.yaml` keys the sections below don't cover, and whe
 | `description_settings.target_platforms` | all three | Recorded with the description step's timing. `optimized` mode generates the platforms whose `platform_metadata.<platform>.enabled` is true. |
 | `whisper_settings.model_download_root` | empty | Where Whisper models are downloaded; empty uses Whisper's own cache. |
 | `whisper_settings.patience` | `null` | Beam-search patience passed to Whisper when set. |
+| `whisper_settings.task` | `transcribe` | Whisper task: `transcribe` keeps the spoken language, `translate` writes English. |
 
 ### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
 Subtitle positioning, styling, TTS settings, and two-part subtitle system:
