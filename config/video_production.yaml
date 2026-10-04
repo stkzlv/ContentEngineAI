@@ -47,7 +47,7 @@ file_naming:
 # Pipeline Impact:
 # - resolution: Affects subtitle positioning, image scaling, text readability
 # - frame_rate: Higher = smoother motion but larger files (30 fps recommended)
-# - codec/preset/crf: Balance between encoding speed and file size/quality
+# - output_codec/output_preset: Balance between encoding speed and file size
 # - Media validation thresholds determine minimum content needed for production
 video_settings:
   # Video resolution [width, height]
