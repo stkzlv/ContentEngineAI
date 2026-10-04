@@ -102,6 +102,21 @@ video_settings:
     max_zoom: 1.15
     min_zoom: 1.0
 
+  # Prefer clean product images over text-heavy seller infographics. Each
+  # scraped image is judged once by `model` for the share of the frame
+  # covered by text the seller added; the score is cached
+  # beside the image. Images above max_text_share are dropped while at least
+  # min_clean_images remain, and never below media validation's image
+  # minimum; a failed judgement never drops an image. Off until the
+  # reach-test readout.
+  image_curation:
+    enabled: false
+    max_text_share: 0.15
+    min_clean_images: 3
+    # flash-lite counted on-product text (a watch screen) and could not tell
+    # plain shots from marketing images; flash could.
+    model: gemini-2.5-flash
+
   # How a render ends. "outro" adds outro_duration_sec (config/core.yaml)
   # after the voiceover and fades the music over music_fade_out_duration.
   # "peak" ends peak_margin_sec after the last spoken word and fades the

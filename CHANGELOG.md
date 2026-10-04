@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.158.0] - 2026-10-04
+
+### Added
+
+- A `video_settings.image_curation` block, off by default, judges each scraped listing image once for seller-added text, caches the score beside the image, and drops text-heavy infographics while enough clean images remain, recording the scores and the choice in the pipeline state.
+
 ## [0.157.0] - 2026-10-04
 
 ### Added

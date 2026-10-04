@@ -24,9 +24,10 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - On when: `video_settings.beat_snap.enabled` is set once a blind listening comparison prefers it or completion improves.
 - **REQ-VID-014** `planned #552` Every render produces a cover image (the hero visual plus the hook headline inside the centred 3:4 area), set on each platform that accepts one.
   - Why: it ships without a switch, since it doesn't change the feed video, once the publish payload change is verified on one post.
-- **REQ-VID-015** `planned #554` Where image curation is on, a product render prefers clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist.
+- **REQ-VID-015** `held` Where image curation is on, a product render prefers clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist.
   - On when: `video_settings.image_curation.enabled` is set after the reach-test readout (#540), once a side-by-side review prefers the curated set and swipe-away is no worse.
 - **REQ-VID-016** `planned #554` Where image curation is on and the profile accepts video, a product render prefers the listing's product video over stills.
+  - Gap: not built. Profiles that take scraped video already build their timeline from the clips through their assembly mode, and the assembly step shuffles the visuals, so what "prefer" should change needs deciding first.
   - On when: `video_settings.image_curation.enabled` is set, on the same condition as REQ-VID-015.
 - **REQ-VID-127** `shipped` The final video is a 1080x1920 H.264 MP4 in yuv420p at 30 fps, with AAC audio at 192 kbps and 48 kHz.
 - **REQ-VID-128** `shipped` Where a profile's `enable_format_normalization` is on (the default), the producer converts each input video clip to H.264, 30 fps and yuv420p before assembly.
