@@ -35,6 +35,43 @@ logger = logging.getLogger(__name__)
 # Views after this many days count as durable rather than launch traffic.
 DURABILITY_WINDOW_DAYS = 30
 
+# Per-platform quality metrics, from the provider's per-post analytics
+# (REQ-PUB-084). The provider returns 0 for a field a platform does not
+# expose, so a 0 is only trusted for the fields listed as exposed; every other
+# field is stored as None, unknown. Exposed fields follow each platform's own
+# public post metrics. The first-seconds metrics the platforms rank on
+# (YouTube engaged views and viewed-vs-swiped-away, TikTok watch time and
+# completion) are not exposed at all and are listed so the gap stays visible.
+QUALITY_METRICS: dict[str, dict[str, bool]] = {
+    "youtube": {
+        "views": True,
+        "likes": True,
+        "comments": True,
+        "engagedViews": False,
+        "viewedVsSwipedAway": False,
+        "averageViewDuration": False,
+    },
+    "tiktok": {
+        "views": True,
+        "likes": True,
+        "comments": True,
+        "shares": True,
+        "averageWatchTime": False,
+        "completionRate": False,
+    },
+    "instagram": {
+        "views": True,
+        "reach": True,
+        "likes": True,
+        "comments": True,
+        "shares": True,
+        "saves": True,
+        "igReelsAvgWatchTime": True,
+        "igReelsVideoViewTotalTime": True,
+        "reelsSkipRate": True,
+    },
+}
+
 # The launch figures worth keeping. Day 2 is most of the curve; day 7 is where
 # it has essentially finished.
 LAUNCH_DAYS = (2, 7)
@@ -92,9 +129,46 @@ class PostMetrics:
     # warn daily forever -- the outcome the rule above was chosen to avoid.
     # Cleared as soon as a figure comes back, so a later break still reports.
     stopped_reporting: bool = False
+    # Per platform, per field: the latest reading, or None when the platform
+    # does not expose the field or the sweep could not read it (REQ-PUB-084).
+    platform_metrics: dict[str, dict[str, float | None]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def quality_metrics(
+    platform_analytics: Any,
+) -> dict[str, dict[str, float | None]]:
+    """The exposed quality fields per platform from one post's analytics.
+
+    `platform_analytics` is the provider's `platformAnalytics` list. A field
+    the platform does not expose is None however the provider fills it.
+    """
+    out: dict[str, dict[str, float | None]] = {}
+    if not isinstance(platform_analytics, list):
+        return out
+    for entry in platform_analytics:
+        if not isinstance(entry, dict):
+            continue
+        platform = str(entry.get("platform") or "").lower()
+        exposed = QUALITY_METRICS.get(platform)
+        if exposed is None:
+            continue
+        # A leg not synced yet, or whose post failed, is no reading at all:
+        # its zero-filled figures would overwrite stored counts.
+        if entry.get("syncStatus") not in (None, "synced"):
+            continue
+        if entry.get("status") == "failed":
+            continue
+        figures = entry.get("analytics") or {}
+        row: dict[str, float | None] = {}
+        for name, is_exposed in exposed.items():
+            value = figures.get(name) if isinstance(figures, dict) else None
+            is_number = isinstance(value, int | float) and not isinstance(value, bool)
+            row[name] = value if is_exposed and is_number else None
+        out[platform] = row
+    return out
 
 
 def timeline_resource(client: Any) -> Any:
@@ -648,8 +722,26 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         covers_publication=(
             fresh.covers_publication if ratio_from_fresh else stored.covers_publication
         ),
+        # Per field, like the views: a fresh reading wins, and a sweep whose
+        # analytics call failed (an empty dict) loses nothing already stored.
+        platform_metrics=_combine_quality(
+            stored.platform_metrics, fresh.platform_metrics
+        ),
     )
     return _withdraw_lagged(merged)
+
+
+def _combine_quality(
+    stored: dict[str, dict[str, float | None]],
+    fresh: dict[str, dict[str, float | None]],
+) -> dict[str, dict[str, float | None]]:
+    merged = {platform: dict(row) for platform, row in stored.items()}
+    for platform, row in fresh.items():
+        target = merged.setdefault(platform, {})
+        for name, value in row.items():
+            if value is not None or name not in target:
+                target[name] = value
+    return merged
 
 
 def _readable(path: Path) -> bool:
@@ -660,3 +752,53 @@ def _readable(path: Path) -> bool:
     except (json.JSONDecodeError, OSError, TypeError, ValueError):
         return False
     return True
+
+
+# The render choices a quality report groups by, beside the content format.
+SEGMENT_CHOICES = (
+    "profile",
+    "script_template",
+    "voice_profile",
+    "caption_template",
+    "cold_open_variant",
+)
+
+
+def segment_quality(
+    metrics: list[PostMetrics],
+    product_by_post: dict[str, str],
+    labels_by_product: dict[str, dict[str, str]],
+) -> list[str]:
+    """Mean of each exposed quality metric per segment (REQ-PUB-084).
+
+    A segment is a value of `content_format` or of a recorded render choice.
+    Unknown readings are left out of the mean rather than counted as zero, and
+    each mean carries the number of posts it rests on.
+    """
+    dimensions = ("content_format", *SEGMENT_CHOICES)
+    lines = []
+    for dim in dimensions:
+        groups: dict[str, list[PostMetrics]] = {}
+        for m in metrics:
+            label = labels_by_product.get(product_by_post.get(m.post_id, ""), {})
+            value = label.get(dim)
+            if value:
+                groups.setdefault(str(value), []).append(m)
+        for value, posts in sorted(groups.items()):
+            parts = []
+            for platform, exposed in QUALITY_METRICS.items():
+                for name, is_exposed in exposed.items():
+                    if not is_exposed:
+                        continue
+                    readings = [
+                        reading
+                        for p in posts
+                        if (reading := p.platform_metrics.get(platform, {}).get(name))
+                        is not None
+                    ]
+                    if readings:
+                        mean = sum(readings) / len(readings)
+                        parts.append(f"{platform}.{name}={mean:.1f}(n={len(readings)})")
+            if parts:
+                lines.append(f"{dim}={value} [{len(posts)} post(s)]: {' '.join(parts)}")
+    return lines

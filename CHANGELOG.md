@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.152.0] - 2026-10-04
+
+### Added
+
+- The analytics sweep stores each post's per-platform quality metrics (views, likes, comments, shares; on Instagram also reach, saves, average watch time and skip rate), keeps a field a platform doesn't expose as unknown rather than zero, and logs each metric's mean by content format and by render choice.
+
 ## [0.151.0] - 2026-10-04
 
 ### Added
