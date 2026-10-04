@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: `create_pipeline_metadata`, `create_ffmpeg_command_logs`, `create_performance_metrics` and `create_media_validation_reports` under `debug_settings` in `config/performance.yaml`; no model declared them, so setting one to false never stopped its file, and `debug_settings` now refuses any key it does not know. The scraper's `create_media_validation_reports` in `config/scraper.yaml` is unchanged.
+
 ## [0.144.0] - 2026-10-04
 
 ### Fixed

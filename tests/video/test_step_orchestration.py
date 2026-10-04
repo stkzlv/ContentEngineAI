@@ -302,6 +302,7 @@ class TestMusicArtifactRecording:
 class TestStateBelongsToThisRun:
     """`pipeline_state.json` is product-level; some artifacts are not."""
 
+    @pytest.mark.req("REQ-VID-137")
     def test_this_runs_artifact_is_accepted(self, tmp_path):
         from unittest.mock import MagicMock
 
@@ -313,6 +314,7 @@ class TestStateBelongsToThisRun:
         ctx.run_paths = {"final_video_output": video}
         assert _artifact_invalid_reason(ctx, "final_video_output", str(video)) is None
 
+    @pytest.mark.req("REQ-VID-137")
     def test_another_profiles_video_is_rejected(self, tmp_path):
         from unittest.mock import MagicMock
 

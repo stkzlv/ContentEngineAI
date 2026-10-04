@@ -214,21 +214,6 @@ def get_video_run_paths(
 
 async def _save_pipeline_state(ctx: PipelineContext):
     """Saves the current pipeline state to a JSON file."""
-    # Check if pipeline metadata should be created
-    create_metadata = True
-    try:
-        create_metadata = (
-            getattr(ctx.config.debug_settings, "create_pipeline_metadata", True)
-            if hasattr(ctx.config, "debug_settings") and ctx.config.debug_settings
-            else True
-        )
-    except Exception:
-        create_metadata = True
-
-    if not create_metadata:
-        logger.debug("Pipeline metadata creation disabled")
-        return
-
     state_file = ctx.run_paths["state_file"]
     try:
         ensure_dirs_exist(state_file.parent)

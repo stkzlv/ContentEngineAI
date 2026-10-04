@@ -106,7 +106,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 - **REQ-VID-055** `shipped` Captions use a bold sans-serif font of weight 700 or more.
 - **REQ-VID-056** `partial` The caption font size is `font_size_percent` of the frame height (bundled 7.5%, about 144 px on 1920) multiplied by `font_size_scale` (0.5 to 2.0, default 1.0, `--font-size-scale`).
-  - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#577).
+  - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#591).
 - **REQ-VID-057** `partial` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
   - Gap: FFmpeg karaoke draws black text with a white outline that fills yellow, the pycaps `explosive` template has a yellow base fill with an orange glow and no outline, and `word-focus` has a white fill with a 2 px black shadow and an orange box behind the active word (#591).
 - **REQ-VID-058** `shipped` A caption holds at most 2 lines, each at most 80% of the frame width; on the FFmpeg engine a line also holds at most `max_words_per_line` words (bundled 3), while the pycaps engine splits lines by the template's character count.
@@ -177,8 +177,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 ## Run state and resume
 
-- **REQ-VID-137** `partial` When the producer renders a product again, it skips each step recorded as done in `pipeline_state.json` whose artifacts still exist and belong to the same profile's run.
-  - Gap: with `debug_settings.create_pipeline_metadata: false` no state file is written, so nothing is resumed.
+- **REQ-VID-137** `shipped` When the producer renders a product again, it skips each step recorded as done in `pipeline_state.json` whose artifacts still exist and belong to the same profile's run.
 - **REQ-VID-138** `shipped` If a recorded artifact is missing or belongs to another profile's run, the producer re-runs from that step and deletes the stale outputs that would make the later steps reuse an old result.
 - **REQ-VID-139** `shipped` When a step runs again, the producer forgets the completed steps that read its output, so the next full run redoes them.
 - **REQ-VID-140** `shipped` When `--step <name>` is passed, the producer runs only that step, after loading the artifacts of the steps it depends on.
@@ -189,8 +188,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 - **REQ-VID-143** `shipped` When `--product-index N` is passed, the producer renders only the product at 0-based position N in the input file.
 - **REQ-VID-144** `shipped` If `--product-index` is combined with `--batch`, the producer refuses the run.
-- **REQ-VID-145** `partial` If `--product-index` is outside the input file's range, the producer exits non-zero naming the index and the product count.
-  - Gap: an out-of-range index renders every product in the file instead (#587).
+- **REQ-VID-145** `shipped` If `--product-index` is outside the input file's range, the producer exits non-zero naming the index and the product count.
 
 ## Stock visual media
 

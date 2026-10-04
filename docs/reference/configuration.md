@@ -308,11 +308,8 @@ The other `config/performance.yaml` blocks, and whether anything reads them:
 |---|---|---|
 | `ffmpeg_settings.validation_timeout_sec` | `10` | Timeout for the `ffmpeg -version` check at startup. |
 | `circuit_breaker.google_stt` | `failure_threshold: 3`, `timeout_sec: 120` | After that many consecutive Google Speech-to-Text failures, calls stop for `timeout_sec`. |
-| `debug_settings.create_ffmpeg_command_logs` | `true` | Writes the FFmpeg command log beside each render. |
-| `debug_settings.create_pipeline_metadata` | `true` | Saves `pipeline_state.json` after each step; off, a run keeps no state to resume from. |
-| `debug_settings.create_performance_metrics` | `true` | In a `--debug` run, saves per-step timing and memory to `performance.json`. |
-| `debug_settings.operation_timing_threshold_sec` | `180.0` | After a successful run, a step slower than this logs a warning. |
-| `debug_settings.memory_usage_warning_mb` | `5000` | After a successful run, a step using more memory than this logs a warning. |
+| `debug_settings.operation_timing_threshold_sec` | `180.0` | After each render, a step slower than this logs a warning. |
+| `debug_settings.memory_usage_warning_mb` | `5000` | After each render, a step using more memory than this logs a warning. |
 
 ### 6. **Scraper Configuration** (`config/scraper.yaml`)
 Web scraping and browser settings, validated at load through the Pydantic

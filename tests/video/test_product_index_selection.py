@@ -26,8 +26,11 @@ def test_an_index_out_of_range_is_refused() -> None:
     assert selected_indices(-1, 3) is None
 
 
+@pytest.mark.req("REQ-VID-145")
 @pytest.mark.asyncio
-async def test_main_exits_one_for_an_index_out_of_range(tmp_path: Path, mock_config):
+async def test_main_exits_one_for_an_index_out_of_range(
+    tmp_path: Path, mock_config, caplog: pytest.LogCaptureFixture
+):
     """Driven through `main`, so a fallback to every product can't come back."""
     products = tmp_path / "products.json"
     products.write_text(
@@ -88,3 +91,4 @@ async def test_main_exits_one_for_an_index_out_of_range(tmp_path: Path, mock_con
 
     assert exit_info.value.code == 1
     create.assert_not_called()
+    assert "Product index 5 out of range for file with 2 products" in caplog.text

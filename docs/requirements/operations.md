@@ -71,10 +71,10 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-073** `shipped` If removing any item fails, the outputs cleanup exits 1.
 - **REQ-OPS-074** `shipped` When a render succeeds without `--debug`, the producer deletes the product's `temp/` directory, which holds the intermediate files.
 - **REQ-OPS-075** `shipped` If a render fails or is skipped, or `--debug` is passed, the producer keeps the product's `temp/` directory, so the product can be resumed or inspected.
-- **REQ-OPS-076** `shipped` When `--debug` is passed, a successful render writes `performance.json` with its step metrics to the product's `temp/` directory, unless `debug_settings.create_performance_metrics` is false.
-- **REQ-OPS-077** `shipped` The final assembly writes the FFmpeg command it ran to an `*_ffmpeg_command.log` file in the product's `temp/` directory, unless `debug_settings.create_ffmpeg_command_logs` is false.
-- **REQ-OPS-078** `shipped` The producer records each render's step progress in `pipeline_state.json` in the product's `temp/` directory, unless `debug_settings.create_pipeline_metadata` is false.
-  - Why: a re-run resumes from this file, so switching it off makes every re-run start from the first step.
+- **REQ-OPS-076** `shipped` When `--debug` is passed, a successful render writes `performance.json` with its step metrics to the product's `temp/` directory.
+- **REQ-OPS-077** `shipped` The final assembly writes the FFmpeg command it ran to an `*_ffmpeg_command.log` file in the product's `temp/` directory.
+- **REQ-OPS-078** `shipped` The producer records each render's step progress in `pipeline_state.json` in the product's `temp/` directory.
+  - Why: a re-run resumes from this file; without it every re-run starts from the first step.
 
 ## Resource limits
 

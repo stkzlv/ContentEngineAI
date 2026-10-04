@@ -30,6 +30,7 @@ class TestLoadPipelineState:
             assert loaded is False
             assert ctx.state == {}
 
+    @pytest.mark.req("REQ-CNT-120")
     def test_top_level_scalar_keys_dont_crash(self):
         # Regression for the 0.43.x pillar tagging bug: pillar / script_template
         # land at the top level as bare strings alongside step dicts. The old

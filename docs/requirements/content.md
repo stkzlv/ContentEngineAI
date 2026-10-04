@@ -22,8 +22,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-009** `shipped` The producer selects a template per product deterministically, so a product gets the same template on every run.
 - **REQ-CNT-010** `shipped` Where `script_templates.template_pool` lists templates, the producer selects only from them; an empty pool means every template.
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
-- **REQ-CNT-012** `partial` The producer records the chosen template in `pipeline_state.json`.
-  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
+- **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
 - **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
@@ -63,8 +62,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-035** `shipped` If a script's last sentence is not a configured call to action, validation rejects the script and the producer retries.
 - **REQ-CNT-036** `shipped` If every attempt misses the call to action, the producer ships the first otherwise complete script with the chosen line appended, or substituted for a last sentence that reads as a paraphrased call to action, and logs a warning.
 - **REQ-CNT-037** `shipped` When `--cta <line>` (or `script_templates.fixed_cta`) names a configured option, every record closes on that line; a line that is not configured is ignored.
-- **REQ-CNT-038** `partial` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
-  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded.
+- **REQ-CNT-038** `shipped` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
 - **REQ-CNT-039** `shipped` The per-platform caption generator places the script's closing line in the caption body, before the hashtag block.
 - **REQ-CNT-040** `shipped` When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
 - **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote, reply with a specific word or emoji, or follow for a promised payoff; closing questions ask for a choice or an experience.
@@ -207,8 +205,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-117** `shipped` If the pillar's audience entry is missing or empty, `{AUDIENCE}` falls back to `target_audience`.
 - **REQ-CNT-118** `shipped` If `--pillar` names a pillar configured in none of the pillar maps, the run logs an info-level hint listing the configured pillars and continues with no template filter, preamble or audience override.
 - **REQ-CNT-119** `shipped` Whenever the producer generates a script, it writes the full prompt to `outputs/<id>/temp/script_prompt.txt`.
-- **REQ-CNT-120** `partial` The producer records the render's pillar in `pipeline_state.json`, and a resumed run keeps it.
-  - Gap: with `debug_settings.create_pipeline_metadata: false` the state file is not written, so nothing is recorded or kept.
+- **REQ-CNT-120** `shipped` The producer records the render's pillar in `pipeline_state.json`, and a resumed run keeps it.
 - **REQ-CNT-121** `shipped` Subtitle styling and the TTS voice are the same for every pillar.
 - **REQ-CNT-122** `shipped` The bundled pillar preambles frame a `value` video around the deal, a `novelty` video around discovery and a `utility` video around the problem and its solution.
 - **REQ-CNT-123** `shipped` The bundled audience hints target budget-conscious shoppers for `value`, curious early discoverers for `novelty` and practical problem-solvers for `utility`.

@@ -97,12 +97,6 @@ circuit_breaker:
 # DEBUG SETTINGS
 # ============================================================================
 debug_settings:
-  # Debug file generation controls
-  create_media_validation_reports: true
-  create_ffmpeg_command_logs: true
-  create_pipeline_metadata: true
-  create_performance_metrics: true
-
   # Performance thresholds (Whisper STT runs 60-120s; the process-tree peak
   # passes 4 GB on a stock render, and the lowpri cgroup cap is 6 GB)
   operation_timing_threshold_sec: 180.0
