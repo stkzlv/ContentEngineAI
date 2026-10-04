@@ -36,7 +36,7 @@ def test_the_chain_follows_the_configured_parameters() -> None:
     voice = next(f for f in filters if f.startswith("[0:a]"))
 
     assert voice.startswith(
-        "[0:a]highpass=f=90,equalizer=f=3500:t=q:w=1:g=-2,"
+        "[0:a]highpass=f=90,equalizer=f=3500:t=o:w=1:g=-2,"
         "acompressor=threshold=-18dB:ratio=4:attack=5:release=80,"
         "deesser=i=0.4,highshelf=f=9000:g=1.5,alimiter=limit=0.891:level=0,"
         "volume="
@@ -131,3 +131,61 @@ def test_the_mastered_mix_keeps_its_loudness_target(tmp_path: Path) -> None:
     # the chain must not push it past the target or further below it.
     assert levels[True] <= target + 0.5
     assert abs(levels[True] - target) <= abs(levels[False] - target) + 0.5
+
+
+def _levels(path: Path) -> tuple[float, float]:
+    """Integrated loudness (LUFS) and true peak (dBTP) of `path`."""
+    log = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af"]
+        + ["ebur128=peak=true", "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stderr
+    loud = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", log)[-1])
+    peak = float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", log)[-1])
+    return loud, peak
+
+
+def _chain_output(tmp_path: Path, clicks: float) -> tuple[Path, Path]:
+    """A speech-like source, and the same through the chain alone.
+
+    A low and a sibilant partial in syllable-length bursts, plus 0.5 ms
+    clicks of amplitude `clicks`: shorter than the compressor's attack, so
+    only the limiter can hold them. Float samples keep peaks above 0 dBFS.
+    """
+    voice = tmp_path / f"voice_{clicks}.wav"
+    expr = (
+        "0.1*(0.7*sin(2*PI*220*t)+0.3*sin(2*PI*5000*t))"
+        f"*(0.2+0.8*gt(sin(2*PI*3*t),0))+{clicks}*lt(mod(t,0.5),0.0005)"
+    )
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i"]
+        + [f"aevalsrc='{expr}':s=48000:d=8", "-c:a", "pcm_f32le", str(voice)],
+        check=True,
+    )
+    chained = tmp_path / f"chained_{clicks}.wav"
+    chain = voice_chain_filters(_settings().audio_settings).rstrip(",")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-i", str(voice), "-af", chain]
+        + ["-c:a", "pcm_f32le", str(chained)],
+        check=True,
+    )
+    return voice, chained
+
+
+@pytest.mark.req("REQ-CNT-073")
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+def test_the_chain_polishes_without_moving_the_level(tmp_path: Path) -> None:
+    """The chain alone, before the mastering pass that would hide a gain change.
+
+    Without clicks the limiter never engages, so the level must hold within
+    0.5 LU: an auto-levelling limiter adds a fixed 1 dB. With clicks the
+    ceiling must hold.
+    """
+    plain, plain_out = _chain_output(tmp_path, 0.0)
+    clicked, clicked_out = _chain_output(tmp_path, 2.0)
+
+    assert abs(_levels(plain_out)[0] - _levels(plain)[0]) <= 0.5
+    assert _levels(clicked)[1] > 0.0
+    assert _levels(clicked_out)[1] <= -0.5

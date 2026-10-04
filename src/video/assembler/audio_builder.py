@@ -22,8 +22,8 @@ from src.video.config import VideoConfig
 logger = logging.getLogger(__name__)
 
 
-# The limiter's ceiling, -1 dBFS. `level=0` stops `alimiter` from raising
-# the level back up to the ceiling, which would undo the loudness target.
+# The limiter's ceiling, -1 dBFS. `level=0` stops `alimiter` scaling its
+# output by 1/limit, a fixed +1 dB on everything it passes.
 VOICE_LIMIT = 0.891
 
 
@@ -34,7 +34,7 @@ def voice_chain_filters(audio_settings: Any) -> str:
         return ""
     stages = [
         f"highpass=f={chain.highpass_hz:g}",
-        f"equalizer=f={chain.harsh_cut_hz:g}:t=q:w=1:g={chain.harsh_cut_db:g}",
+        f"equalizer=f={chain.harsh_cut_hz:g}:t=o:w=1:g={chain.harsh_cut_db:g}",
         f"acompressor=threshold={chain.compressor_threshold_db:g}dB"
         f":ratio={chain.compressor_ratio:g}:attack={chain.compressor_attack_ms:g}"
         f":release={chain.compressor_release_ms:g}",

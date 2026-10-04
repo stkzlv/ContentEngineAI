@@ -680,12 +680,13 @@ audio_settings:
 
   # Polish on the voiceover before the mix, off by default. The stages run
   # in this order; deess_intensity 0, air_shelf_db 0 or limiter false drop
-  # theirs. The limiter's ceiling is -1 dBFS with auto-level off. Captions
+  # theirs. The limiter's ceiling is -1 dBFS, with alimiter's auto-level
+  # (a fixed +1 dB) off. Captions
   # are transcribed from the TTS file, so they don't hear it.
   voice_chain:
     enabled: false
     highpass_hz: 80
-    harsh_cut_hz: 3000          # a peaking cut, one octave wide
+    harsh_cut_hz: 3000          # a peaking cut, one octave wide (t=o:w=1)
     harsh_cut_db: -2
     compressor_threshold_db: -18
     compressor_ratio: 3
