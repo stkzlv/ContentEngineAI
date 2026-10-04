@@ -125,7 +125,7 @@ def _ctx(tmp_path: Path, music: Path | None) -> SimpleNamespace:
             first_frame_pre_motion=None,
             video_transition_duration=0.5,
         ),
-        run_paths={"music_info_file": music},
+        run_paths={"music_info_file": music, "run_root": tmp_path / "B0CTX"},
         script="The script.",
     )
 
@@ -263,7 +263,8 @@ def test_a_write_cut_mid_character_does_not_break_reading(tmp_path: Path) -> Non
     """An out-of-memory kill can stop a write inside a multi-byte character."""
     record_render_choices(tmp_path, _row(product_id="B01"))
     with choices_path(tmp_path).open("ab") as fh:
-        fh.write('{"product_id": "B02", "script": "a –'.encode()[:-2] + b"\n")
+        # No newline: a real torn write stops mid-row.
+        fh.write('{"product_id": "B02", "script": "a –'.encode()[:-2])
     record_render_choices(tmp_path, _row(product_id="B03"))
 
     assert [r["product_id"] for r in load_recent(tmp_path, 10)] == ["B01", "B03"]
@@ -329,3 +330,9 @@ async def test_a_step_run_records_nothing(tmp_path: Path) -> None:
         )
 
     assert load_recent(tmp_path, 10) == []
+
+
+def test_rows_without_a_product_id_are_kept_apart() -> None:
+    rows = [_row(product_id=None, script_template=t) for t in "abcde"]
+
+    assert "last 5 product(s)" in report(rows, 0.6, 0.5)[0]

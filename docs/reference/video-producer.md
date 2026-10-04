@@ -342,7 +342,7 @@ python -m src.video.render_choices [--last N] [--dominance SHARE] [--similarity 
 | Option | Default | Effect |
 |---|---|---|
 | `--last N` | 14 | How many of the most recent renders to read. |
-| `--dominance SHARE` | 0.6 | Alert when one value of a dimension holds more than this share. Needs at least 5 renders; a dimension with a single value in the window is a fixed setting and doesn't alert. |
+| `--dominance SHARE` | 0.6 | Alert when one value of a dimension holds more than this share. Needs at least 5 products; a dimension with a single value in the window is a fixed setting and doesn't alert. |
 | `--similarity RATIO` | 0.5 | Alert for each pair of scripts whose character 5-grams overlap at least this much (Jaccard similarity, case and spacing ignored); the generation-time warning uses the same measure and threshold. |
 | `--outputs-dir PATH` | the outputs root (`OUTPUTS_DIR`, else `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`) | Where `state/render_choices.jsonl` is read from. |
 

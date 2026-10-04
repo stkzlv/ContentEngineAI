@@ -86,7 +86,9 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
     settings = ctx.config.video_settings
     return {
         "recorded_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "product_id": ctx.product.asin,
+        # The product directory's name: the id the run logs under, which falls
+        # back to the title when a record has no ASIN.
+        "product_id": Path(ctx.run_paths["run_root"]).name,
         "profile": ctx.profile_name,
         "script_template": state.get("script_template"),
         "pillar": state.get("pillar"),
@@ -112,8 +114,14 @@ def record_render_choices(outputs_dir: Path, row: dict[str, Any]) -> None:
     path = choices_path(outputs_dir)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
+        # A write cut off before its newline would swallow the next row.
+        lead = ""
+        if path.exists() and path.stat().st_size:
+            with path.open("rb") as fh:
+                fh.seek(-1, 2)
+                lead = "" if fh.read(1) == b"\n" else "\n"
         with path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fh.write(lead + json.dumps(row, ensure_ascii=False) + "\n")
     except OSError as exc:
         logger.warning("Could not record render choices in %s: %s", path, exc)
 
@@ -146,9 +154,11 @@ def latest_per_product(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     appends a second row for the same render, which would count twice.
     """
     newest: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        newest.pop(str(row.get("product_id")), None)
-        newest[str(row.get("product_id"))] = row
+    for i, row in enumerate(rows):
+        # A row with no id is its own product, not one shared "None".
+        key = str(row["product_id"]) if row.get("product_id") else f"#{i}"
+        newest.pop(key, None)
+        newest[key] = row
     return list(newest.values())
 
 
