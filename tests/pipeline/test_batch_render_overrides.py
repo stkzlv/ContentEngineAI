@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -130,12 +129,10 @@ async def test_the_batch_passes_the_overrides_to_the_render(tmp_path: Path) -> N
         seen["cli_overrides"] = kwargs.get("cli_overrides")
         seen["metadata_mode"] = kwargs["config"].description_settings.metadata_mode
 
-    video_config = SimpleNamespace(
-        pipeline_timeout_sec=900, llm_settings=SimpleNamespace(api_key_env_var=None)
-    )
+    # The real config loads: the assertion below reads what that load made of
+    # the overrides.
     with (
         patch("src.video.producer.orchestration.create_video_for_product", fake_create),
-        patch("src.video.config.load_video_config", return_value=video_config),
         patch("asyncio.sleep", return_value=None),
     ):
         await GlobalPipelineOrchestrator(config)._execute_production_phase(
