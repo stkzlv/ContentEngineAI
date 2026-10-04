@@ -400,3 +400,20 @@ def test_the_publisher_and_batch_root_matches_the_producers(
     producer = get_project_root() / video_config({})["global_output_directory"]
 
     assert resolve_outputs_dir(None) == producer
+
+
+@pytest.mark.req("REQ-OPS-001")
+def test_an_override_does_not_outlive_its_load() -> None:
+    """A later load without the override sees the YAML value again.
+
+    Through the shared manager, whose adapter caches the merged YAML: the
+    batch loads with overrides and other phases load without them.
+    """
+    from src.config_manager import get_unified_config_manager
+
+    manager = get_unified_config_manager()
+    before = manager.get_video_config(None)["description_settings"]["metadata_mode"]
+    manager.get_video_config({"description_settings.metadata_mode": "optimized"})
+
+    after = manager.get_video_config(None)["description_settings"]["metadata_mode"]
+    assert after == before != "optimized"

@@ -128,6 +128,7 @@ async def test_the_batch_passes_the_overrides_to_the_render(tmp_path: Path) -> N
 
     async def fake_create(*_args, **kwargs):
         seen["cli_overrides"] = kwargs.get("cli_overrides")
+        seen["metadata_mode"] = kwargs["config"].description_settings.metadata_mode
 
     video_config = SimpleNamespace(
         pipeline_timeout_sec=900, llm_settings=SimpleNamespace(api_key_env_var=None)
@@ -142,6 +143,9 @@ async def test_the_batch_passes_the_overrides_to_the_render(tmp_path: Path) -> N
         )
 
     assert EXPECTED.items() <= (seen["cli_overrides"] or {}).items()
+    # Read from the config the render gets, not only the override dict: the
+    # per-render merge drops description keys, so the dict alone proves nothing.
+    assert seen["metadata_mode"] == "optimized"
 
 
 @pytest.mark.req("REQ-BAT-017")

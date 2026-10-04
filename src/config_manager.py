@@ -6,6 +6,7 @@ during the migration from monolithic to modular configuration structure.
 It handles backward compatibility and provides a unified precedence system.
 """
 
+import copy
 import logging
 import os
 import sys
@@ -169,8 +170,11 @@ class UnifiedConfigManager:
             Configuration with precedence rules applied
 
         """
-        # Start with YAML config (lowest precedence)
-        final_config = config.copy()
+        # Start with YAML config (lowest precedence). A deep copy: the adapters
+        # cache the merged YAML and hand out shallow copies, so a nested
+        # override written into a shallow copy stayed in the cache, and every
+        # later load in the process inherited it.
+        final_config = copy.deepcopy(config)
 
         # Apply environment variable overrides (medium precedence)
         self._apply_env_overrides(final_config)

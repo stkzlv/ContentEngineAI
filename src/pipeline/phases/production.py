@@ -65,8 +65,10 @@ async def run_production_phase(
 
     phase_start = time.monotonic()
 
-    # Load video configuration
-    config = load_video_config_modular()
+    # Load the config with the overrides applied, as the producer does: the
+    # per-render merge reads only video and subtitle keys, so a key such as
+    # `description_settings.metadata_mode` takes effect only here.
+    config = load_video_config_modular(cli_overrides=build_cli_overrides())
 
     # Build secrets dict from environment variables (shared definition)
     secrets = collect_producer_secrets(config)
