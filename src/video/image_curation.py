@@ -21,6 +21,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import aiohttp
+from PIL import Image
+
 logger = logging.getLogger(__name__)
 
 # Measured on a ten-image listing: gemini-2.5-flash scored the four plain
@@ -121,8 +124,6 @@ def write_cache(image: Path, score: ImageScore) -> None:
 
 
 def _jpeg_bytes(image: Path) -> bytes:
-    from PIL import Image
-
     with Image.open(image) as source:
         rgb = source.convert("RGB")
     rgb.thumbnail((_JUDGE_EDGE, _JUDGE_EDGE))
@@ -174,10 +175,12 @@ async def score_images(
                     model=model, config=config, contents=content
                 )
         except (
+            aiohttp.ClientError,
             TimeoutError,
             OSError,
             ValueError,
             RuntimeError,
+            Image.DecompressionBombError,
             genai_errors.APIError,
         ) as e:
             logger.debug("Image curation judgement failed for %s: %s", image, e)

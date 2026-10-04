@@ -519,7 +519,9 @@ async def step_gather_visuals(ctx: PipelineContext):
 
         # After validation, which counts every image the listing has: curation
         # only trims, and never below the count validation asked for.
-        scraped_images = await _curate_images(ctx, scraped_images, scraped_videos)
+        scraped_images = await _curate_images(
+            ctx, scraped_images, scraped_videos, len(stock_media_fetched)
+        )
         ctx.visuals = (
             scraped_images
             + scraped_videos
@@ -1699,14 +1701,18 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
 
 
 async def _curate_images(
-    ctx: PipelineContext, images: list[Path], videos: list[Path]
+    ctx: PipelineContext,
+    images: list[Path],
+    videos: list[Path],
+    other_media: int = 0,
 ) -> list[Path]:
     """The scraped images with text-heavy infographics dropped (design 0012).
 
     Off, or with no judge available, the images come back as they were. Never
-    below `min_clean_images`, nor below the image count media validation asks
-    of a render like this one, so curation cannot fail a render validation
-    passed. The scores and the choice are recorded in the state.
+    below `min_clean_images`, the image minimum media validation asks of a
+    render like this one, or what `min_total_media` leaves to images after the
+    clips and the `other_media` stock items, so curation cannot fail a render
+    validation passed. The scores and the choice are recorded in the state.
     """
     curation = ctx.config.video_settings.image_curation
     if not curation.enabled or not images:
@@ -1727,7 +1733,12 @@ async def _curate_images(
         timeout_seconds=judge.timeout_seconds,
     )
     vs = ctx.config.video_settings
-    floor = vs.min_images_with_video if videos else vs.min_images_if_no_video
+    floor = max(
+        vs.min_images_with_video if videos else vs.min_images_if_no_video,
+        # The total minimum counts every medium, so the images need only make
+        # up what the clips and stock media don't.
+        vs.min_total_media - len(videos) - other_media,
+    )
     kept, dropped = curate(
         images,
         scores,

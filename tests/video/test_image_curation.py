@@ -173,6 +173,47 @@ def test_the_gather_step_curates_after_media_validation() -> None:
 
     source = inspect.getsource(steps.step_gather_visuals)
     validate = source.index("validate_media_requirements(")
-    curated = source.index("await _curate_images(ctx, scraped_images, scraped_videos)")
+    curated = source.index("await _curate_images(\n")
     saved = source.index("save_visuals_info(")
     assert validate < curated < saved
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        __import__("aiohttp").ServerDisconnectedError(),
+        __import__("aiohttp").ClientPayloadError("cut"),
+        OSError("net"),
+        TimeoutError(),
+    ],
+)
+@pytest.mark.asyncio
+async def test_a_failed_call_is_an_unknown_score(tmp_path: Path, error) -> None:
+    image = _image(tmp_path)
+    client = AsyncMock()
+    client.aio.models.generate_content = AsyncMock(side_effect=error)
+
+    with patch("google.genai.Client", return_value=client):
+        scores = await score_images(
+            [image], api_key="k", model="m", concurrency=1, timeout_seconds=5
+        )
+
+    assert scores == [ImageScore(None)]
+    assert read_cached(image) is None
+
+
+@pytest.mark.asyncio
+async def test_the_total_minimum_counts_toward_the_floor() -> None:
+    from src.video.producer import steps
+
+    images = _paths(8)
+    ctx = _ctx(True, {config.llm_settings.api_key_env_var: "k"})
+    ctx.config.video_settings.min_images_if_no_video = 2
+    ctx.config.video_settings.min_total_media = 6
+    fake = AsyncMock(return_value=[ImageScore(0.0)] * 2 + [ImageScore(0.5)] * 6)
+
+    with patch("src.video.image_curation.score_images", fake):
+        kept = await steps._curate_images(ctx, images, [], other_media=1)
+
+    # Five images plus one stock item meet the total of six.
+    assert len(kept) == 5

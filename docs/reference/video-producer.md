@@ -254,7 +254,7 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 |---|---|---|
 | `enabled` | `false` | Judge and trim the scraped images after media validation. |
 | `max_text_share` | `0.15` | An image whose seller-added text and graphics cover more than this share of the frame is text-heavy. |
-| `min_clean_images` | `3` | Text-heavy images are dropped while at least this many images remain, and never below the image count media validation asks for (`min_images_if_no_video`, or `min_images_with_video` when the render has clips); otherwise the least text-heavy are kept. |
+| `min_clean_images` | `3` | Text-heavy images are dropped while at least this many images remain, and never below what media validation asks for: the image minimum (`min_images_if_no_video`, or `min_images_with_video` when the render has clips), and the share of `min_total_media` the clips and stock media don't cover; otherwise the least text-heavy are kept. |
 | `model` | `gemini-2.5-flash` | The multimodal model that judges each image. On a ten-image listing it scored plain product shots 0.0 and marketing images 0.2-0.3; `gemini-2.5-flash-lite` counted a watch's own screen as text and could not tell them apart. |
 
 Each image is judged once and the score is cached beside it as `<image>.text_score.json`, keyed to the file's size and modification time. A failed judgement is unknown and never removes an image. The scores and the kept and dropped images are recorded in `pipeline_state.json` under `image_curation`. The judge uses the `llm_settings.stock_relevance` concurrency and timeout and the LLM API key; without the key, curation is skipped with a warning.
