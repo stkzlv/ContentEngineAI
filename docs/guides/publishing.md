@@ -452,7 +452,7 @@ Day-2 and day-7 figures can be captured only while a post is inside the provider
    make install-analytics-timer
    ```
 
-   This renders a systemd user timer, installs and enables it, runs one sweep, and checks that `outputs/state/post_metrics.json` changed. It needs no root, and with lingering enabled it runs whether or not you're logged in.
+   This renders a systemd user timer, installs and enables it, runs one sweep, and checks that `state/post_metrics.json` under the outputs root changed (`OUTPUTS_DIR` moves the root; `python -m src.utils.outputs_paths` prints it). It needs no root, and with lingering enabled it runs whether or not you're logged in.
 
 3. Check on it later with `make analytics-timer-status`. Remove it with `make uninstall-analytics-timer`; the captured figures stay.
 

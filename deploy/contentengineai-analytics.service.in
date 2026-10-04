@@ -11,11 +11,11 @@ Documentation=file://@REPO_DIR@/docs/explanation/publishing.md
 [Service]
 Type=oneshot
 
-# Load-bearing. The sweep's --outputs-dir defaults to the relative path
-# "outputs", so a wrong working directory writes the figures into another
-# tree and still exits 0. The installer checks that post_metrics.json's
-# mtime actually moved, which is what catches this on day zero rather than
-# five weeks later.
+# The sweep's outputs root is --outputs-dir, then OUTPUTS_DIR or
+# CONTENT_ENGINE_OUTPUT, then the repository's outputs/, all anchored at the
+# repository rather than the working directory. The installer still checks
+# that post_metrics.json's mtime moved under that root, which catches a
+# sweep that wrote nowhere on day zero rather than five weeks later.
 WorkingDirectory=@REPO_DIR@
 
 # The interpreter is named absolutely, and neither `poetry run` nor `make` is

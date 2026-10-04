@@ -118,13 +118,14 @@ def resolve_outputs_dir(
 ) -> Path:
     """The outputs root: the CLI, then the machine environment, then config.
 
-    A relative path is taken from the repository root, as the producer does.
+    The producer's rule, so the two agree: an empty variable is unset, a
+    relative path is taken from the repository root, and `~` is not expanded.
     """
     env_value = next(
         (os.environ[n] for n in OUTPUTS_ENV_VARS if os.environ.get(n)), None
     )
     raw = cli_value or env_value or configured or "outputs"
-    path = Path(raw).expanduser()
+    path = Path(raw)
     return path if path.is_absolute() else get_project_root() / path
 
 
@@ -536,3 +537,19 @@ def cleanup_invalid_outputs(
         cleanup_results["errors"].append(f"Cleanup error: {e}")
 
     return cleanup_results
+
+
+def main() -> None:
+    """Print the outputs root the publisher and the batch resolve.
+
+    For the shell tools that check the analytics timer: they cannot read
+    `.env` the way the Python side does.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(get_project_root() / ".env")
+    print(resolve_outputs_dir(None))
+
+
+if __name__ == "__main__":
+    main()

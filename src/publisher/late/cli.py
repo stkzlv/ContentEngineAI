@@ -220,7 +220,14 @@ def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     return out
 
 
-def _record_regression(regressed: list[str], measured: int, outputs_dir: Path) -> None:
+# Under the repo's outputs/logs whatever the outputs root: the status target
+# and the OnFailure handler both read this path, and neither knows OUTPUTS_DIR.
+ANALYTICS_FAILURES_LOG = (
+    get_project_root() / "outputs" / "logs" / "analytics-failures.log"
+)
+
+
+def _record_regression(regressed: list[str], measured: int) -> None:
     """Append a regression to the file `make analytics-timer-status` reads.
 
     A log line is not enough on its own. The status target shows the last five
@@ -233,7 +240,7 @@ def _record_regression(regressed: list[str], measured: int, outputs_dir: Path) -
     this timer surface in one place. Best effort: a sweep that captured
     figures must not fail because it could not write a note about them.
     """
-    log = outputs_dir / "logs" / "analytics-failures.log"
+    log = ANALYTICS_FAILURES_LOG
     sample = ", ".join(regressed[:5])
     more = f" (+{len(regressed) - 5} more)" if len(regressed) > 5 else ""
     # Local time with an offset, matching `date` in the OnFailure handler that
@@ -364,7 +371,7 @@ async def cmd_analytics(
             sys.exit(1)
         regressed = save_metrics(metrics, outputs_dir)
         if regressed:
-            _record_regression(regressed, len(metrics), outputs_dir)
+            _record_regression(regressed, len(metrics))
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")

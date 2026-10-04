@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The publisher's commands and the global batch take their outputs directory from `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT` when `--outputs-dir` is not passed, as the producer does, instead of the repository's `outputs/`; the publisher's local schedule file follows the same directory.
+- On a machine that sets `OUTPUTS_DIR`, the publish history, registry, schedule and analytics figures are read and written under that root's `state/` directory instead of the repository's; move existing files there when upgrading. The analytics failure note stays in the repository's `outputs/logs/`, and `make analytics-timer-status` and the timer installer look for the figures under the resolved root.
+- An empty `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT` counts as unset.
 
 ## [0.147.0] - 2026-10-04
 

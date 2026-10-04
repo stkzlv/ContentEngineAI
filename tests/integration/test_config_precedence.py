@@ -374,3 +374,29 @@ async def test_a_single_publish_looks_for_the_product_under_that_root(
         await publisher_cli.cmd_single(args, None, None)
 
     assert str(tmp_path / "B0MISSING1") in caplog.text
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.parametrize(
+    "env",
+    [
+        {},
+        {"OUTPUTS_DIR": "/srv/env"},
+        {"OUTPUTS_DIR": "renders"},
+        {"OUTPUTS_DIR": "~/renders"},
+        {"OUTPUTS_DIR": "", "CONTENT_ENGINE_OUTPUT": "/srv/alt"},
+        {"OUTPUTS_DIR": "/srv/env", "CONTENT_ENGINE_OUTPUT": "/srv/alt"},
+    ],
+)
+def test_the_publisher_and_batch_root_matches_the_producers(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str]
+) -> None:
+    from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
+
+    for name in ("OUTPUTS_DIR", "CONTENT_ENGINE_OUTPUT"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    producer = get_project_root() / video_config({})["global_output_directory"]
+
+    assert resolve_outputs_dir(None) == producer

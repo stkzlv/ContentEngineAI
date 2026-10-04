@@ -207,7 +207,10 @@ fi
 
 # The sweep writes under the durable-state directory; a legacy root copy is
 # migrated there on the sweep's first touch, so the root path never advances.
-METRICS="$REPO_DIR/outputs/state/post_metrics.json"
+# The outputs root, as the sweep resolves it: OUTPUTS_DIR moves it.
+OUTPUTS_ROOT="$(cd "$REPO_DIR" && "$PYTHON" -m src.utils.outputs_paths)" \
+    || die "Could not resolve the outputs root with $PYTHON."
+METRICS="$OUTPUTS_ROOT/state/post_metrics.json"
 before=0
 if [ -f "$METRICS" ]; then before="$(stat -c %Y "$METRICS")"; fi
 
