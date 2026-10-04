@@ -155,6 +155,12 @@ def quality_metrics(
         exposed = QUALITY_METRICS.get(platform)
         if exposed is None:
             continue
+        # A leg not synced yet, or whose post failed, is no reading at all:
+        # its zero-filled figures would overwrite stored counts.
+        if entry.get("syncStatus") not in (None, "synced"):
+            continue
+        if entry.get("status") == "failed":
+            continue
         figures = entry.get("analytics") or {}
         row: dict[str, float | None] = {}
         for name, is_exposed in exposed.items():

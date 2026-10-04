@@ -166,7 +166,7 @@ Per-platform quality metrics come from the provider's per-post analytics and are
 | TikTok | `views`, `likes`, `comments`, `shares` | `averageWatchTime`, `completionRate` |
 | Instagram | `views`, `reach`, `likes`, `comments`, `shares`, `saves`, `igReelsAvgWatchTime` (ms), `igReelsVideoViewTotalTime` (ms), `reelsSkipRate` (%) | |
 
-A failed per-post analytics call keeps the post's views and stored metrics. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
+A failed per-post analytics call keeps the post's views and stored metrics, and so does a platform whose figures are not synced yet or whose post failed. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
 
 ### `verify-comments`
 

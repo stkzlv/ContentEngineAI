@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import httpx
 from aiohttp.client_exceptions import ClientError
 from dotenv import load_dotenv
 from late import LateError
@@ -382,7 +383,10 @@ async def cmd_analytics(
                 measured = replace(
                     measured, platform_metrics=quality_metrics(platforms)
                 )
-            except LateError as exc:
+            # The SDK raises its own error for an API failure, but a dropped
+            # connection escapes as httpx's and an HTML error page as a
+            # JSON decode error.
+            except (LateError, httpx.HTTPError, ValueError) as exc:
                 logger.warning("No per-platform analytics for %s: %s", post_id, exc)
             metrics.append(measured)
         # Every post failing is a broken sweep, not a quiet one, and the whole

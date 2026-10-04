@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from late import LateError
 
@@ -72,6 +73,25 @@ def test_odd_input_yields_nothing_or_unknown() -> None:
     assert quality_metrics(["x", {"platform": None}]) == {}
     odd = quality_metrics([{"platform": "TikTok", "analytics": {"views": True}}])
     assert odd["tiktok"]["views"] is None
+
+
+@pytest.mark.req("REQ-PUB-084")
+@pytest.mark.parametrize(
+    "leg",
+    [{"syncStatus": "pending"}, {"syncStatus": "unavailable"}, {"status": "failed"}],
+)
+def test_a_leg_with_no_reading_keeps_the_stored_figures(
+    tmp_path: Path, leg: dict
+) -> None:
+    save_metrics(
+        [PostMetrics(post_id="p1", platform_metrics={"tiktok": {"views": 257}})],
+        tmp_path,
+    )
+    fresh = quality_metrics([{"platform": "tiktok", "analytics": {"views": 0}, **leg}])
+    save_metrics([PostMetrics(post_id="p1", platform_metrics=fresh)], tmp_path)
+
+    assert fresh == {}
+    assert load_metrics(tmp_path)[0].platform_metrics["tiktok"]["views"] == 257
 
 
 @pytest.mark.req("REQ-PUB-084")
@@ -165,8 +185,18 @@ async def test_the_sweep_stores_each_posts_platform_metrics(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
-async def test_a_failed_analytics_call_still_stores_the_post(tmp_path: Path) -> None:
-    await _sweep(tmp_path, LateError("analytics add-on missing"))
+@pytest.mark.parametrize(
+    "error",
+    [
+        LateError("analytics add-on missing"),
+        httpx.ReadError("connection reset"),
+        json.JSONDecodeError("Expecting value", "<html>", 0),
+    ],
+)
+async def test_a_failed_analytics_call_still_stores_the_post(
+    tmp_path: Path, error: Exception
+) -> None:
+    await _sweep(tmp_path, error)
 
     stored = load_metrics(tmp_path)
     assert [m.post_id for m in stored] == ["p1"]
