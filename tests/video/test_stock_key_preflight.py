@@ -242,6 +242,15 @@ class TestCandidateProfiles:
             "b",
         ]
 
+    @pytest.mark.req("REQ-BAT-057")
+    def test_a_random_run_without_a_cli_pool_returns_the_yaml_pool(self):
+        from src.video.producer.cli import _profiles_this_run_may_use
+
+        config = self._config_with("a", "b")
+        config.batch = BatchSettings(profile_pool=["b"])
+        args = self._args(random_profile=True)
+        assert _profiles_this_run_may_use(args, config) == ["b"]
+
     def test_an_unusable_pool_does_not_raise(self):
         """`load_profile_pool` raises on an unknown name.
 

@@ -581,9 +581,9 @@ video_profiles:
   # short topic description yields a short script. The budget is a prompt
   # instruction, not a constraint anything enforces.
   #
-  # Deliberately absent from profile_pool below and listed in
-  # EXCLUDED_RANDOM_PROFILES, so a random product batch cannot draw a profile
-  # that would render a scraped product with no product imagery.
+  # Listed in EXCLUDED_RANDOM_PROFILES, so a random product batch with an
+  # empty profile_pool cannot draw a profile that would render a scraped
+  # product with no product imagery. Keep it out of any pool set below.
   slideshow_stock:
     description: "Stock-only slideshow for topic renders with no product imagery. Duration follows the script, not this profile: measured renders land between 20 and 28 seconds against a global budget of 30-40."
     use_scraped_images: false

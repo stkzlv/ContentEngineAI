@@ -17,7 +17,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from src.config_manager import get_unified_config_manager
+from src.config_manager import UnifiedConfigManager, get_unified_config_manager
 from src.video.config import VideoConfig, load_video_config_modular
 from src.video.config.core_models import BatchSettings
 
@@ -27,7 +27,14 @@ READ_ELSEWHERE = {
 }
 
 
-def test_every_top_level_block_is_a_field_or_read_elsewhere() -> None:
+def test_every_top_level_block_is_a_field_or_read_elsewhere(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The YAML files only: an exported DEBUG_MODE or OUTPUTS_DIR writes
+    # scraper paths into this dict, which is not a YAML block.
+    monkeypatch.setattr(
+        UnifiedConfigManager, "_apply_env_overrides", lambda self, config: None
+    )
     merged = get_unified_config_manager().get_video_config(None)
 
     unread = set(merged) - set(VideoConfig.model_fields) - set(READ_ELSEWHERE)
