@@ -41,7 +41,7 @@ The filters apply to keyword searches. Each one overrides the matching field of 
 | `--prime-only` | switch | Prime-eligible items only. |
 | `--free-shipping` | switch | Items with free shipping only. |
 | `--brands` | one or more `BRAND` | Brand names to filter by. |
-| `--sort` | `relevance`, `price-low`, `price-high`, `rating`, `newest` or `featured` | Sort order of the results. The default `relevance` leaves the configured `sort_order` in force. |
+| `--sort` | `relevance`, `price-low`, `price-high`, `rating`, `newest` or `featured` | Sort order of the results. Without the flag, the configured `sort_order` applies. |
 
 `--sort` values map to Amazon's sort tokens: `relevance` -> `relevanceblender`, `price-low` -> `price-asc-rank`, `price-high` -> `price-desc-rank`, `rating` -> `review-rank`, `newest` -> `date-desc-rank`, `featured` -> `featured-rank`. The config key `sort_order` takes the token, not the CLI value. Invalid combinations, such as a minimum price above the maximum, stop the run before the browser starts.
 
