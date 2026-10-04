@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.148.0] - 2026-10-04
+
+### Added
+
+- The global batch accepts the producer's caption style, position, segmentation, randomization, image layout and metadata-mode overrides (`--preset`, `--subtitle-anchor`, `--font-size-scale`, `--max-words-per-line`, `--randomize-fonts`, `--image-width-percent`, `--metadata-mode` and the rest) with the same names and effects; both entry points declare them from one place.
+
+### Fixed
+
+- A nested config override no longer stays in the cached configuration, where every later load in the same process inherited it.
+
 ## [0.147.1] - 2026-10-04
 
 ### Fixed

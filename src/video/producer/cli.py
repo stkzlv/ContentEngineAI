@@ -37,6 +37,7 @@ from src.video.producer.orchestration import (
 )
 from src.video.producer.shared_cli import (
     add_shared_render_args,
+    layout_render_overrides,
     subtitle_render_overrides,
 )
 from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
@@ -181,77 +182,9 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     """
     overrides: dict[str, Any] = {}
 
-    if args.preset:
-        overrides["subtitle_settings.style_preset"] = args.preset
-
-    # Shared subtitle-engine overrides (declare-and-apply lives together in
-    # shared_cli; the batch reads the same helper)
+    # Subtitle, layout and metadata overrides, shared with the global batch.
     overrides.update(subtitle_render_overrides(args))
-
-    # Positioning
-    if args.subtitle_anchor:
-        overrides["subtitle_settings.anchor"] = args.subtitle_anchor
-    if args.subtitle_margin is not None:
-        overrides["subtitle_settings.margin"] = args.subtitle_margin
-    if (
-        hasattr(args, "subtitle_content_aware")
-        and args.subtitle_content_aware is not None
-    ):
-        overrides["subtitle_settings.content_aware"] = args.subtitle_content_aware
-
-    # Styling
-    if args.font_size_scale is not None:
-        overrides["subtitle_settings.font_size_scale"] = args.font_size_scale
-    if args.max_subtitle_width_fraction is not None:
-        overrides["subtitle_settings.max_subtitle_width_fraction"] = (
-            args.max_subtitle_width_fraction
-        )
-    if args.subtitle_alignment:
-        overrides["subtitle_settings.horizontal_alignment"] = args.subtitle_alignment
-
-    # Text formatting
-    if args.max_line_length is not None:
-        overrides["subtitle_settings.max_line_length"] = args.max_line_length
-    if args.max_words_per_line is not None:
-        overrides["subtitle_settings.max_words_per_line"] = args.max_words_per_line
-    if args.max_duration is not None:
-        overrides["subtitle_settings.max_duration"] = args.max_duration
-    if args.min_duration is not None:
-        overrides["subtitle_settings.min_duration"] = args.min_duration
-
-    # Randomization
-    if (
-        hasattr(args, "subtitle_randomize_fonts")
-        and args.subtitle_randomize_fonts is not None
-    ):
-        overrides["subtitle_settings.randomize_fonts"] = args.subtitle_randomize_fonts
-    if (
-        hasattr(args, "subtitle_randomize_colors")
-        and args.subtitle_randomize_colors is not None
-    ):
-        overrides["subtitle_settings.randomize_colors"] = args.subtitle_randomize_colors
-    if (
-        hasattr(args, "subtitle_randomize_effects")
-        and args.subtitle_randomize_effects is not None
-    ):
-        overrides["subtitle_settings.randomize_effects"] = (
-            args.subtitle_randomize_effects
-        )
-
-    # Image positioning
-    if hasattr(args, "image_width_percent") and args.image_width_percent is not None:
-        overrides["video_settings.image_width_percent"] = args.image_width_percent
-    if (
-        hasattr(args, "image_top_position_percent")
-        and args.image_top_position_percent is not None
-    ):
-        overrides["video_settings.image_top_position_percent"] = (
-            args.image_top_position_percent
-        )
-
-    # Metadata mode
-    if hasattr(args, "metadata_mode") and args.metadata_mode is not None:
-        overrides["description_settings.metadata_mode"] = args.metadata_mode
+    overrides.update(layout_render_overrides(args))
 
     # Voice profile override
     if hasattr(args, "voice_profile") and args.voice_profile is not None:
@@ -454,145 +387,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "before starting."
         ),
     )
-    parser.add_argument(
-        "--preset",
-        choices=["minimal", "modern", "bold", "animated", "random"],
-        help="Override subtitle style preset: minimal, modern, bold, animated, random.",
-    )
-
     add_shared_render_args(parser)
 
-    # Subtitle positioning arguments
-    parser.add_argument(
-        "--subtitle-anchor",
-        choices=["top", "center", "bottom", "above_content", "below_content"],
-        help="Subtitle anchor position.",
-    )
-    parser.add_argument(
-        "--subtitle-margin",
-        type=float,
-        help="Subtitle margin as fraction of frame height (0.0-0.5).",
-    )
-    parser.add_argument(
-        "--content-aware",
-        action="store_true",
-        dest="subtitle_content_aware",
-        default=None,
-        help="Enable content-aware subtitle positioning.",
-    )
-    parser.add_argument(
-        "--no-content-aware",
-        action="store_false",
-        dest="subtitle_content_aware",
-        default=None,
-        help="Disable content-aware subtitle positioning.",
-    )
-
-    # Subtitle styling arguments
-    parser.add_argument(
-        "--font-size-scale",
-        type=float,
-        help="Font size scale factor (0.5-2.0).",
-    )
-    parser.add_argument(
-        "--max-subtitle-width-fraction",
-        type=float,
-        help="Max subtitle width as fraction of frame width (0.0-1.0).",
-    )
-    parser.add_argument(
-        "--subtitle-alignment",
-        choices=["left", "center", "right"],
-        help="Horizontal text alignment.",
-    )
-
-    # Subtitle text formatting arguments
-    parser.add_argument(
-        "--max-line-length",
-        type=int,
-        help="Maximum characters per subtitle line.",
-    )
-    parser.add_argument(
-        "--max-words-per-line",
-        type=int,
-        help="Maximum words per subtitle line (0 to disable).",
-    )
-    parser.add_argument(
-        "--max-duration",
-        type=float,
-        help="Maximum subtitle duration in seconds.",
-    )
-    parser.add_argument(
-        "--min-duration",
-        type=float,
-        help="Minimum subtitle duration in seconds.",
-    )
-
-    # Randomization arguments
-    parser.add_argument(
-        "--randomize-fonts",
-        action="store_true",
-        dest="subtitle_randomize_fonts",
-        default=None,
-        help="Enable font randomization.",
-    )
-    parser.add_argument(
-        "--no-randomize-fonts",
-        action="store_false",
-        dest="subtitle_randomize_fonts",
-        default=None,
-        help="Disable font randomization.",
-    )
-    parser.add_argument(
-        "--randomize-colors",
-        action="store_true",
-        dest="subtitle_randomize_colors",
-        default=None,
-        help="Enable color randomization.",
-    )
-    parser.add_argument(
-        "--no-randomize-colors",
-        action="store_false",
-        dest="subtitle_randomize_colors",
-        default=None,
-        help="Disable color randomization.",
-    )
-    parser.add_argument(
-        "--randomize-effects",
-        action="store_true",
-        dest="subtitle_randomize_effects",
-        default=None,
-        help="Enable effect randomization.",
-    )
-    parser.add_argument(
-        "--no-randomize-effects",
-        action="store_false",
-        dest="subtitle_randomize_effects",
-        default=None,
-        help="Disable effect randomization.",
-    )
-
-    # Image positioning arguments
-    parser.add_argument(
-        "--image-width-percent",
-        type=float,
-        help="Override image width as percentage of frame (0.0-1.0).",
-    )
-    parser.add_argument(
-        "--image-top-position-percent",
-        type=float,
-        help="Override image top position as percentage from top (0.0-1.0).",
-    )
-
-    # Metadata mode argument
-    parser.add_argument(
-        "--metadata-mode",
-        choices=["unified", "optimized"],
-        help=(
-            "Metadata generation mode. "
-            "unified: Single title/description/hashtags for all platforms (default). "
-            "optimized: Platform-specific SEO-tailored metadata."
-        ),
-    )
     parser.add_argument(
         "--output-format",
         choices=["text", "json"],

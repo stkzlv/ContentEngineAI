@@ -829,6 +829,9 @@ class TestTheDropReachesTheVerdict:
 
         pipeline.state = PipelineState.create_new(pipeline.config)
         pipeline._save_state = MagicMock()  # type: ignore[method-assign]
+        # The production phase loads the real config with these; a MagicMock
+        # config would hand it mock values.
+        pipeline._build_cli_overrides = MagicMock(return_value=None)  # type: ignore[method-assign]
         pipeline._execute_scraping_phase = AsyncMock(  # type: ignore[method-assign]
             return_value=ScrapingPhaseSummary(2, 2, 0, [published, fresh], [], {}, 1.0)
         )

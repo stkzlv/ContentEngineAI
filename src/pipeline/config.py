@@ -40,6 +40,7 @@ from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pillars
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
 from src.video.config import VideoConfig
+from src.video.producer.shared_cli import layout_render_overrides
 from src.video.producer.topic_input import (
     TopicSpec,
     load_topics_file,
@@ -415,6 +416,10 @@ class GlobalBatchConfig:
     pycaps_template: str | None = None
     pycaps_template_pool: list[str] | None = None
     pycaps_renderer: str | None = None
+
+    # Subtitle layout, image and metadata overrides from the CLI, as dotted
+    # keys (shared_cli.layout_render_overrides); they have no YAML key here.
+    render_overrides: dict[str, Any] = field(default_factory=dict)
 
     # Resume configuration
     resume: bool = False
@@ -1386,6 +1391,7 @@ def load_global_batch_config(
         pycaps_template=pycaps_template,
         pycaps_template_pool=pycaps_template_pool,
         pycaps_renderer=pycaps_renderer,
+        render_overrides=layout_render_overrides(cli_args),
         resume=resume,
         dry_run=dry_run,
         webhook_yaml=yaml_config,

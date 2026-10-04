@@ -87,51 +87,51 @@ Read only when the resolved engine is `pycaps`. Install and configuration are in
 
 Read only by the FFmpeg engine.
 
-| Argument | Description | Example |
-|---|---|---|
-| `--preset` | Style preset: `minimal`, `modern`, `bold`, `animated`, `random`. See [Style presets](#style-presets). | `--preset bold` |
-| `--font-size-scale` | Font size multiplier (0.5-2.0). | `--font-size-scale 1.2` |
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--preset` | yes | Style preset: `minimal`, `modern`, `bold`, `animated`, `random`. See [Style presets](#style-presets). | `--preset bold` |
+| `--font-size-scale` | yes | Font size multiplier (0.5-2.0). | `--font-size-scale 1.2` |
 
 ### Caption position
 
-| Argument | Description | Example |
-|---|---|---|
-| `--subtitle-anchor` | `top`, `center`, `bottom`, `above_content` or `below_content`. | `--subtitle-anchor bottom` |
-| `--subtitle-margin` | Margin from the anchor as a fraction of frame height (0.0-0.5). | `--subtitle-margin 0.05` |
-| `--subtitle-alignment` | Horizontal alignment: `left`, `center` or `right`. | `--subtitle-alignment center` |
-| `--max-subtitle-width-fraction` | Maximum caption width as a fraction of frame width (0.0-1.0). | `--max-subtitle-width-fraction 0.8` |
-| `--content-aware` | Position captions against the media's actual bounds. | `--content-aware` |
-| `--no-content-aware` | Turn content-aware positioning off. | `--no-content-aware` |
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--subtitle-anchor` | yes | `top`, `center`, `bottom`, `above_content` or `below_content`. | `--subtitle-anchor bottom` |
+| `--subtitle-margin` | yes | Margin from the anchor as a fraction of frame height (0.0-0.5). | `--subtitle-margin 0.05` |
+| `--subtitle-alignment` | yes | Horizontal alignment: `left`, `center` or `right`. | `--subtitle-alignment center` |
+| `--max-subtitle-width-fraction` | yes | Maximum caption width as a fraction of frame width (0.0-1.0). | `--max-subtitle-width-fraction 0.8` |
+| `--content-aware` | yes | Position captions against the media's actual bounds. | `--content-aware` |
+| `--no-content-aware` | yes | Turn content-aware positioning off. | `--no-content-aware` |
 
 ### Caption text segmentation
 
-| Argument | Description | Example |
-|---|---|---|
-| `--max-line-length` | Maximum characters per line. | `--max-line-length 25` |
-| `--max-words-per-line` | Maximum words per line (0 disables the limit). | `--max-words-per-line 4` |
-| `--max-duration` | Maximum caption duration in seconds. | `--max-duration 5.0` |
-| `--min-duration` | Minimum caption duration in seconds. | `--min-duration 0.8` |
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--max-line-length` | yes | Maximum characters per line. | `--max-line-length 25` |
+| `--max-words-per-line` | yes | Maximum words per line (0 disables the limit). | `--max-words-per-line 4` |
+| `--max-duration` | yes | Maximum caption duration in seconds. | `--max-duration 5.0` |
+| `--min-duration` | yes | Minimum caption duration in seconds. | `--min-duration 0.8` |
 
 ### Randomization
 
-| Argument | Description |
-|---|---|
-| `--randomize-fonts` / `--no-randomize-fonts` | Draw the caption font per product from `font_pool`, or don't. |
-| `--randomize-colors` / `--no-randomize-colors` | Draw the caption colour per product from `color_pool`, or don't. |
-| `--randomize-effects` / `--no-randomize-effects` | Draw the caption effect per product from the preset's effects, or don't. |
+| Argument | Shared | Description |
+|---|---|---|
+| `--randomize-fonts` / `--no-randomize-fonts` | yes | Draw the caption font per product from `font_pool`, or don't. |
+| `--randomize-colors` / `--no-randomize-colors` | yes | Draw the caption colour per product from `color_pool`, or don't. |
+| `--randomize-effects` / `--no-randomize-effects` | yes | Draw the caption effect per product from the preset's effects, or don't. |
 
 ### Image layout
 
-| Argument | Description | Example |
-|---|---|---|
-| `--image-width-percent` | Image width as a fraction of the frame (0.0-1.0). | `--image-width-percent 0.75` |
-| `--image-top-position-percent` | Image top edge as a fraction of frame height (0.0-1.0). | `--image-top-position-percent 0.2` |
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--image-width-percent` | yes | Image width as a fraction of the frame (0.0-1.0). | `--image-width-percent 0.75` |
+| `--image-top-position-percent` | yes | Image top edge as a fraction of frame height (0.0-1.0). | `--image-top-position-percent 0.2` |
 
 ### Platform and metadata
 
-| Argument | Description | Example |
-|---|---|---|
-| `--metadata-mode` | `unified` (one title, description and hashtag set for all platforms, the default) or `optimized` (platform-specific SEO). | `--metadata-mode optimized` |
+| Argument | Shared | Description | Example |
+|---|---|---|---|
+| `--metadata-mode` | yes | `unified` (one title, description and hashtag set for all platforms, the default) or `optimized` (platform-specific SEO). | `--metadata-mode optimized` |
 
 ### Argument rules
 
