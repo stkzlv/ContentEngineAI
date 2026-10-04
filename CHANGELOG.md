@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.140.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: config keys nothing read are gone: `debug_settings.max_log_line_length`, `debug_file_retention_days`, `intermediate_file_cleanup`, `cleanup_on_success`, `cleanup_on_failure` and `cleanup_whisper_files`; the `optimization_settings` cache TTL keys; `path_config.use_product_oriented_structure`, `cleanup.keep_temp_on_failure` and `cleanup.cache_max_age_hours`; and the `path_config` subdirectory and extension lists in `config/core.yaml`. A config that still sets one loads and ignores it.
+- `.env.example` no longer lists `SUBTITLE_FONT`, `SUBTITLE_FONT_COLOR`, `SUBTITLE_OUTLINE_COLOR` and `SUBTITLE_BACKGROUND_COLOR`, which nothing reads.
+
 ## [0.139.0] - 2026-10-04
 
 ### Fixed

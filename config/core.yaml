@@ -75,8 +75,6 @@ output_structure:
 # Global cleanup settings
 cleanup:
   remove_temp_on_success: true
-  keep_temp_on_failure: true
-  cache_max_age_hours: 168  # 7 days
 
 # Global directories (shared across all products and systems)
 global_dirs:
@@ -84,18 +82,3 @@ global_dirs:
   logs: "logs" 
   reports: "reports"
   temp: "temp"
-
-# Path configuration
-path_config:
-  # Directory names within each product directory
-  subdirs:
-    media: "media"
-    images: "images"
-    videos: "videos"
-    temp: "temp"
-    audio: "audio"
-  
-  # Image formats for media processing  
-  image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".gif"]
-  video_extensions: [".mp4", ".mov", ".avi", ".webm", ".mkv"]
-  audio_extensions: [".wav", ".mp3", ".aac", ".flac", ".ogg"]
