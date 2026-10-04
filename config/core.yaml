@@ -8,9 +8,6 @@
 # Base directory for ALL outputs (videos, logs, scraped data, intermediate files)
 global_output_directory: "outputs"
 
-# Global debug mode - can be overridden by CLI flags
-debug_mode: false
-
 # Total pipeline execution timeout in seconds (applies to both video and scraper).
 #
 # What makes it binding is machine contention and script length, not the
@@ -67,18 +64,3 @@ output_structure:
 # NOTE: Scraper-specific settings are in config/scraper.yaml
 # This includes: output_config, retry_config, rate_limiting, image_config,
 # video_config, download_config, validation_config, browser_config, etc.
-
-# ============================================================================
-# GLOBAL CLEANUP AND DIRECTORIES
-# ============================================================================
-
-# Global cleanup settings
-cleanup:
-  remove_temp_on_success: true
-
-# Global directories (shared across all products and systems)
-global_dirs:
-  cache: "cache"
-  logs: "logs" 
-  reports: "reports"
-  temp: "temp"

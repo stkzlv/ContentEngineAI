@@ -20,6 +20,7 @@ import pytest
 import yaml
 
 from src.video.config import VideoConfig
+from src.video.config.core_models import BatchSettings
 from src.video.producer.cli import discover_products_for_batch
 from src.video.producer.utils import (
     ProfileUsageTracker,
@@ -78,7 +79,7 @@ def mock_video_config():
         "mixed_media": Mock(),
         "slideshow_images2": Mock(),
     }
-    config.batch = {"profile_pool": ["slideshow_images1", "video_sequential"]}
+    config.batch = BatchSettings(profile_pool=["slideshow_images1", "video_sequential"])
     return config
 
 

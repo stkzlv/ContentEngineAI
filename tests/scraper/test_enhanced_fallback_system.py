@@ -226,10 +226,8 @@ class TestEnhancedFallbackSystem:
             manager = UnifiedConfigManager(config_root=temp_dir)
 
             assert manager.get_video_config() == {}
-            # An override sets its own key and nothing else; `debug` writes
-            # both spellings, which is the precedence layer's business.
+            # An override sets its own key and nothing else.
             assert set(manager.get_video_config({"debug": True})) == {
-                "debug_mode",
                 "global_settings",
             }
 

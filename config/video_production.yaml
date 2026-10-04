@@ -2,43 +2,6 @@
 # Video encoding, audio processing, media gathering, and production profiles
 
 # ============================================================================
-# FILE NAMING CONVENTIONS
-# ============================================================================
-# Standard filenames for pipeline outputs across all stages of production
-# These patterns are used by the producer, the assembler, and other modules
-# to locate and save media files consistently throughout the pipeline
-#
-# Pipeline Impact:
-# - Changing these requires updating all modules that reference file names
-# - Video profile configurations reference these for output naming
-# - Scripts and automation tools depend on these patterns
-file_naming:
-  # Audio output filenames
-  # Used by TTS module (src/video/tts.py) for voiceover generation
-  # Format: WAV for high-quality uncompressed audio
-  voiceover: "voiceover.wav"
-
-  # Subtitle output filenames
-  # Used by subtitle_utils.py and unified_subtitle_generator.py
-  # SRT: Simple subtitle format (timing + text only)
-  # ASS: Advanced format supporting styling, effects, and precise positioning
-  subtitles_srt: "subtitles.srt"
-  subtitles_ass: "subtitles.ass"
-  subtitles_content_aware: "subtitles_content_aware.ass"
-  # NOTE: temp_subtitle removed - system uses subtitles.srt, subtitles.ass, etc. directly
-
-  # Video output filenames
-  # Used by the assembler for final video generation
-  # Placeholders: {product_id} = ASIN/product ID, {profile} = video profile name
-  # Example: video_B07BHXYCXQ_slideshow_images1.mp4
-  final_video: "video_{product_id}_{profile}.mp4"
-
-  # Script input paths (legacy compatibility)
-  # Fallback paths when script location not specified
-  # Modern workflow uses data.json with embedded script text
-  script_paths: ["info/script.txt"]
-
-# ============================================================================
 # VIDEO ENCODING SETTINGS
 # ============================================================================
 # Core video encoding parameters used by the assembler (FFmpeg wrapper)
@@ -618,9 +581,9 @@ video_profiles:
   # short topic description yields a short script. The budget is a prompt
   # instruction, not a constraint anything enforces.
   #
-  # Deliberately absent from profile_pool below and listed in
-  # EXCLUDED_RANDOM_PROFILES, so a random product batch cannot draw a profile
-  # that would render a scraped product with no product imagery.
+  # Listed in EXCLUDED_RANDOM_PROFILES, so a random product batch with an
+  # empty profile_pool cannot draw a profile that would render a scraped
+  # product with no product imagery. Keep it out of any pool set below.
   slideshow_stock:
     description: "Stock-only slideshow for topic renders with no product imagery. Duration follows the script, not this profile: measured renders land between 20 and 28 seconds against a global budget of 30-40."
     use_scraped_images: false
@@ -1170,26 +1133,6 @@ aspect_ratio:
   smart_scale_tolerance: 0.10
 
 # ============================================================================
-# TIMING CONSTRAINTS
-# ============================================================================
-# Minimum duration constraints for video segments and subtitle display
-# Used by: src/video/subtitle_positioning.py and the assembler
-#
-# Pipeline Impact:
-# - Prevents too-short clips that feel jarring or fail to render
-# - Ensures subtitles display long enough to be readable
-timing:
-  # Minimum segment duration in seconds
-  # Prevents creation of video clips shorter than this
-  # Too-short clips can cause rendering issues or feel jarring
-  min_segment_duration_sec: 0.1
-
-  # Minimum safe trim duration (provides buffer for timing accuracy)
-  # Used when trimming video segments to ensure clean cuts
-  min_safe_trim_duration_sec: 0.5
-
-
-# ============================================================================
 # TEXT-TO-SPEECH SETTINGS
 # ============================================================================
 # NOTE: TTS configuration is defined in config/subtitles.yaml
@@ -1235,14 +1178,14 @@ timing:
 #
 # Pipeline Impact:
 # - profile_pool: Controls which video profiles are used for random selection
-# - Empty list = all available profiles will be used
+# - Empty list = every profile eligible for random selection
 # - Specified list = only those profiles will be randomly selected
 batch:
   # Profile pool for random profile selection (--random-profile mode)
   # List of profile names to randomly select from when processing products
   #
   # Behavior:
-  # - Empty list [] = Use all available video profiles (default)
+  # - Empty list [] = every profile except base and slideshow_stock (default)
   # - Specific profiles = Only select from the specified profiles
   # - CLI --profile-pool argument overrides this setting
   #
@@ -1250,12 +1193,4 @@ batch:
   #
   # Note: This is only used when --random-profile is enabled.
   # When using --batch-profile, this setting is ignored.
-  profile_pool:
-    - slideshow_images1
-    - slideshow_images2
-    - slideshow_images3
-    - slideshow_images4
-    - product_video_sequential
-    - product_video_single
-    - product_video_mixed
-    - product_video_primary
+  profile_pool: []

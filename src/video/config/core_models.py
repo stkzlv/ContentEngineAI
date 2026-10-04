@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from src.ai.llm_settings import LLMSettings
 
@@ -401,7 +401,6 @@ class OutputStructure(BaseModel):
 class CleanupConfig(BaseModel):
     """Cleanup and maintenance settings"""
 
-    remove_temp_on_success: bool = Field(True)
     debug_file_patterns: list[str] = Field(
         [
             "incomplete_script_*.txt",  # AI model attempt files
@@ -568,6 +567,18 @@ def _default_color_pool() -> list[ColorPoolEntry]:
     ]
 
 
+class BatchSettings(BaseModel):
+    """The producer's `--batch` settings (`batch:` in video_production.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    profile_pool: list[str] = Field(
+        default_factory=list,
+        description="Profiles `--random-profile` draws from when "
+        "`--profile-pool` is not passed. Empty means every eligible profile.",
+    )
+
+
 class VideoConfig(BaseModel):
     global_output_directory: str = Field("outputs")
     output_structure: OutputStructure = Field(
@@ -579,6 +590,7 @@ class VideoConfig(BaseModel):
     cleanup_settings: CleanupSettings = Field(
         default_factory=lambda: CleanupSettings()  # type: ignore[call-arg]
     )
+    batch: BatchSettings = Field(default_factory=BatchSettings)
     pipeline_timeout_sec: int = Field(
         2700,
         description="Total pipeline timeout in seconds. Sized against "

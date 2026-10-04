@@ -13,7 +13,6 @@ class TestCleanupConfig:
         """Test CleanupConfig with default values."""
         config = CleanupConfig()
 
-        assert config.remove_temp_on_success is True
         assert config.debug_file_patterns == [
             "incomplete_script_*.txt",
             "voiceover_whisper_*.json",
@@ -38,12 +37,8 @@ class TestCleanupConfig:
     def test_cleanup_config_validation(self):
         """Test CleanupConfig validation for invalid values."""
         # Valid config should work
-        config = CleanupConfig(
-            remove_temp_on_success=False,
-            debug_file_patterns=["*.log"],
-        )
+        config = CleanupConfig(debug_file_patterns=["*.log"])
 
-        assert config.remove_temp_on_success is False
         assert config.debug_file_patterns == ["*.log"]
 
 
