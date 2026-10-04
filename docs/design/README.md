@@ -63,7 +63,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0003](0003-sparse-sound-effects.md) | Sparse event sound effects | #544 | Accepted |
 | [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Accepted |
 | [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Accepted |
-| [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Accepted |
+| [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Implemented |
 | [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Accepted |
 | [0008](0008-bait-free-closing-lines.md) | Remove engagement-bait lines from the CTA pools | #549 | Accepted |
 | [0009](0009-product-titles.md) | YouTube titles for products | #550 | Accepted |

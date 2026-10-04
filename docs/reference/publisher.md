@@ -420,6 +420,8 @@ The publisher keeps its state in `outputs/state/`. A legacy copy at the outputs 
 | `post_metrics.json` | Figures captured by `analytics`, merged per field. |
 | `published_products.json`, `published_products.csv` | The published-products registry. Each write keeps the previous file as `<name>.bak`. |
 
+The producer adds `render_choices.jsonl` there, one row per finished render ([Render choices](video-producer.md#render-choices)).
+
 Cleanup appends a record per removed product to `outputs/cleanup_audit.json`, with the archive path when one was written.
 
 The retry queue sits under `retry_queue` in `publish_history.json`:

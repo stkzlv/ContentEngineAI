@@ -1,6 +1,6 @@
 # 0006. Record render choices and report output variety
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #547
 - **Requirements:** REQ-PUB-083
 
@@ -36,6 +36,17 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - A script similarity check: character 5-gram Jaccard similarity between the generated script and each of the last N scripts, with a warning above a threshold (default 0.5) logged at generation time and counted in the report. Warn, do not block.
 
 **Tests.** A render records every listed choice; the report flags a dimension dominated by one value in a fixture; two near-identical scripts cross the similarity threshold and two unrelated ones do not.
+
+## As built
+
+Where the shipped feature differs from the design above, and why:
+
+- **Where the choices live.** Each finished render appends a row to `state/render_choices.jsonl` under the outputs root rather than adding columns to the published-products registry. The report then covers what was rendered, published or not, and needs no change to the registry's format; a consumer such as [0010](0010-first-seconds-metrics.md) joins on the product id.
+- **Window.** The last N rendered videos, not published ones, for the same reason (`--last`, default 14).
+- **Dimensions.** Script template, pillar, CTA, hook headline, voice profile and voice, caption engine and pycaps template, music track, cold-open variant, assembly mode, pre-motion and transition duration. There is no hook archetype in the pipeline, so the hook headline stands for it, recorded but not counted since each is written for its product; the FFmpeg engine's per-product ASS effect and a voice chain are not recorded, since the bundled engine is pycaps, whose effect is its template, and no voice chain exists yet.
+- **The report** is `python -m src.video.render_choices`, not a report type of the analytics command, because it reads render records rather than platform figures.
+
+The similarity check, its threshold, and the warning logged at generation time follow the design.
 
 ## Alternatives considered
 

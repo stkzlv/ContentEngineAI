@@ -330,3 +330,21 @@ Files a render leaves for inspection:
 | `temp/script_fact_check.json` | The script fact-check outcome. |
 
 A successful run without `--debug` deletes `temp/`.
+
+## Render choices
+
+Each finished render, not a `--step` run, appends one row to `state/render_choices.jsonl` under the outputs root: product id, profile, `script_template`, pillar, CTA, `hook_headline`, `voice_profile` and `voice_name`, the caption engine and pycaps template, the music track, `cold_open_variant`, the assembly mode, pre-motion, the transition duration, and the script. A failed write is logged and the render still succeeds. The file is durable state, so cleanup leaves it. When `generate_script` writes a new script, it logs a warning for each of the last 14 recorded scripts it closely repeats; it never blocks the script.
+
+```bash
+python -m src.video.render_choices [--last N] [--dominance SHARE] [--similarity RATIO] [--outputs-dir PATH]
+```
+
+| Option | Default | Effect |
+|---|---|---|
+| `--last N` | 14 | How many of the most recent renders to read. |
+| `--dominance SHARE` | 0.6 | Alert when one value of a dimension holds more than this share. Needs at least 5 products; a dimension with a single value in the window is a fixed setting and doesn't alert. |
+| `--similarity RATIO` | 0.5 | Alert for each pair of scripts whose character 5-grams overlap at least this much (Jaccard similarity, case and spacing ignored); the generation-time warning uses the same measure and threshold. |
+| `--outputs-dir PATH` | the outputs root (`OUTPUTS_DIR`, else `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`) | Where `state/render_choices.jsonl` is read from. |
+
+The report keeps each product's newest row, since a rerun of a finished product appends another, and prints each dimension's distribution and the alerts. The hook headline and script are recorded but not counted: each is written for its product. It measures only; nothing in it changes what a render picks.
+

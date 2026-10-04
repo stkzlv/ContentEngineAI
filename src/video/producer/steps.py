@@ -64,6 +64,7 @@ from src.video.producer.utils import (
     profile_needs_stock_media,
     validate_media_requirements,
 )
+from src.video.render_choices import warn_if_similar
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager
@@ -627,6 +628,13 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.run_paths["script_file"].name,
             )
             await _ensure_fact_checked(ctx, pillar)
+            # Variety check (REQ-PUB-083): warn when the new script repeats
+            # a recent one. A reused script was checked when it was written.
+            warn_if_similar(
+                Path(ctx.run_paths["run_root"]).parent,
+                ctx.product.asin or "",
+                ctx.script or "",
+            )
 
         await _ensure_hook_headline(ctx, pillar)
 

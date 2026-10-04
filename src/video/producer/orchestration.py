@@ -73,6 +73,7 @@ from src.video.producer.utils import (
     setup_logging,
     validate_media_requirements,
 )
+from src.video.render_choices import choices_from_context, record_render_choices
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +565,13 @@ async def create_video_for_product(
                 product_id,
                 run_paths.get("final_video_output", "N/A"),
             )
+
+            # One row per finished render for the variety report (REQ-PUB-083).
+            # A `--step` run did not make a whole video, so it records nothing.
+            if debug_step_target is None:
+                record_render_choices(
+                    Path(run_paths["run_root"]).parent, choices_from_context(ctx)
+                )
 
             # Save performance metrics for successful runs
             if debug_mode:
