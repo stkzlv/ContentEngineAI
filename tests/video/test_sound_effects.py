@@ -262,7 +262,8 @@ def test_an_empty_pool_does_not_take_the_caps_places(tmp_path: Path) -> None:
     assembler = VideoAssembler(cfg)
     timed = [(Path(f"{i}.png"), 4.0, False) for i in range(3)]
 
-    placed = assembler._sound_effects(timed, 12.0, WORDS)
+    # 13 s, so the call to action at 12.1 s is inside the render.
+    placed = assembler._sound_effects(timed, 13.0, WORDS)
 
     assert sorted(start for _, start in placed) == [3.75, 7.25]
 
