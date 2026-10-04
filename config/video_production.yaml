@@ -77,7 +77,6 @@ video_settings:
   # Assembler-specific settings (FFmpeg subtitle rendering)
   # Used by: the assembler when generating embedded subtitles
   # Note: Modern workflow uses external ASS files, these are legacy fallbacks
-  default_max_chars_per_line: 20      # Character limit for subtitle wrapping
   subtitle_box_border_width: 5        # Border thickness around subtitle box
   base_font_height_percent: 0.05      # Base font size for subtitle height calculation (5% of frame height)
                                       # Used by: visual_builder.py to estimate subtitle vertical space
@@ -421,12 +420,6 @@ audio_settings:
   # The refresh request has a built-in 5 s timeout and one retry, and each
   # download candidate is fetched once; neither is configurable.
 
-  # --- Download Settings ---
-  # Download chunk size for streaming (bytes)
-  # Larger = faster downloads but more memory usage
-  # 32KB (32768) is optimal for most use cases
-  freesound_download_chunk_size: 32768
-
   # --- Fallback Behavior ---
   # When Freesound unavailable (circuit breaker open or API errors):
   # 1. OAuth2 fails → Fallback to API key preview download
@@ -450,15 +443,9 @@ audio_settings:
 # Used by: the producer and media_extractor.py for stock media integration
 #
 # Pipeline Impact:
-# - temp_media_dir: Stores downloaded Pexels/stock assets during production
 # - stock_media_keywords: Influences relevance of stock media searches
 # - Duration limits: Filters stock videos to appropriate lengths
 media_settings:
-  # Temporary directory for downloaded stock media assets
-  # Created automatically during video production, can be cleaned up after
-  # Location: Relative to project root
-  temp_media_dir: "downloaded_media_assets"
-
   # Keywords for stock media search queries
   # Used when profile enables use_stock_images or use_stock_videos
   # Tips: Use broad, generic terms; avoid product-specific words

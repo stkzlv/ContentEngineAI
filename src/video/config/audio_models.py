@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.video.config.constants import (
     DEFAULT_WHISPER_MODEL_DIR,
-    FREESOUND_DOWNLOAD_CHUNK_SIZE,
     FREESOUND_TOKEN_EXPIRY_SEC,
     FREESOUND_TOKEN_REFRESH_BUFFER_SEC,
     TTS_PITCH_MAX,
@@ -75,7 +74,6 @@ class AudioSettings(BaseModel):
     freesound_token_refresh_buffer_sec: int = Field(
         FREESOUND_TOKEN_REFRESH_BUFFER_SEC, ge=0
     )
-    freesound_download_chunk_size: int = Field(FREESOUND_DOWNLOAD_CHUNK_SIZE)
     output_audio_codec: str = Field("aac")
     output_audio_bitrate: str = Field("192k")
     music_fade_in_duration: float = Field(2.0)

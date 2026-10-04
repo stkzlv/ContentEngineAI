@@ -99,6 +99,3 @@ subtitles.yaml:tts_config.voice_profiles.warm_conversational.gemini_model_name
 subtitles.yaml:tts_config.voice_profiles.warm_conversational.markup_rules
 subtitles.yaml:tts_config.voice_profiles.warm_conversational.style_prompt
 subtitles.yaml:tts_config.voice_profiles_enabled
-video_production.yaml:audio_settings.freesound_download_chunk_size
-video_production.yaml:media_settings.temp_media_dir
-video_production.yaml:video_settings.default_max_chars_per_line

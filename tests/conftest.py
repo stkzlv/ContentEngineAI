@@ -105,7 +105,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "inter_product_delay_max_sec": 4.0,
             "min_visual_segment_duration_sec": 0.1,
             "verification_probe_timeout_sec": 30,
-            "default_max_chars_per_line": 20,
             "subtitle_box_border_width": 5,
             "image_loop": 1,
             "pad_color": "black",
@@ -114,7 +113,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "stock_media_keywords": ["product", "lifestyle"],
             "stock_video_min_duration_sec": 5,
             "stock_video_max_duration_sec": 30,
-            "temp_media_dir": "downloaded_media_assets",
             "product_title_keyword_min_length": 3,
         },
         "audio_settings": {

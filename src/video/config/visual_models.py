@@ -463,7 +463,6 @@ class VideoSettings(BaseModel):
     inter_product_delay_max_sec: float = Field(4.0)
     min_visual_segment_duration_sec: float = Field(0.1)
     verification_probe_timeout_sec: int = Field(30)
-    default_max_chars_per_line: int = Field(20)  # Configurable via YAML
     subtitle_box_border_width: int = Field(5)  # Configurable via YAML
     image_loop: int = Field(ASSEMBLER_IMAGE_LOOP)
     pad_color: str = Field(ASSEMBLER_PAD_COLOR)
@@ -647,7 +646,6 @@ class MediaSettings(BaseModel):
     stock_media_keywords: list[str]
     stock_video_min_duration_sec: int
     stock_video_max_duration_sec: int
-    temp_media_dir: str = Field("downloaded_media_assets")
     product_title_keyword_min_length: int = Field(3)
 
 
