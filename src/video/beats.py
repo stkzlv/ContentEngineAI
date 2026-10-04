@@ -52,6 +52,9 @@ def detect_beats(track: Path) -> list[float] | None:
         return cached
     try:
         import librosa.beat  # type: ignore[import-untyped, import-not-found, unused-ignore]
+        from librosa.util.exceptions import (  # type: ignore[import-untyped, import-not-found, unused-ignore]
+            LibrosaError,
+        )
     except ImportError:
         logger.warning("Beat snapping needs librosa, which is not installed")
         return None
@@ -59,7 +62,7 @@ def detect_beats(track: Path) -> list[float] | None:
         samples, rate = librosa.load(str(track), sr=None, mono=True)
         _, frames = librosa.beat.beat_track(y=samples, sr=rate)
         beats = [float(t) for t in librosa.frames_to_time(frames, sr=rate)]
-    except (OSError, ValueError, RuntimeError, AttributeError) as exc:
+    except (OSError, ValueError, RuntimeError, AttributeError, LibrosaError) as exc:
         logger.warning("Beat detection failed for %s: %s", track.name, exc)
         return None
     try:

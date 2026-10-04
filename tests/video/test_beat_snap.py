@@ -154,3 +154,21 @@ def test_librosa_finds_the_beats_of_a_click_track(tmp_path: Path) -> None:
     assert beats is not None and len(beats) >= 15
     # librosa's frame hop (512 samples, 23 ms at 22.05 kHz) bounds the error.
     assert all(min(abs(b - k * 0.5) for k in range(25)) <= 0.035 for b in beats)
+
+
+def test_a_cut_may_shorten_a_clip_but_never_lengthen_one() -> None:
+    # Cuts at 2.75 and 5.25 s; the beats at 2.62 and 5.12 s are in the window.
+    durations = [3.0, 3.0, 3.0]
+
+    clip_first = snap_durations(
+        durations, [True, False, False], TD, BEATS, 0.15, 1.5, 9.0
+    )
+    clip_second = snap_durations(
+        durations, [False, True, False], TD, BEATS, 0.15, 1.5, 9.0
+    )
+
+    # Both cuts move back 0.13 s: each shortens the segment before it.
+    assert clip_first == pytest.approx([2.87, 3.0, 3.13])
+    # With the clip second, the first cut would lengthen it and stays; the
+    # second shortens it and moves.
+    assert clip_second == pytest.approx([3.0, 2.87, 3.13])
