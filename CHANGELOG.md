@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.160.0] - 2026-10-04
+
+### Added
+
+- A `video_settings.beat_snap` setting, off by default, moves each visual cut to the nearest music beat within 150 ms without changing the video's length or the captions, using librosa when it is installed and caching the beats beside the track.
+
 ## [0.159.0] - 2026-10-04
 
 ### Added

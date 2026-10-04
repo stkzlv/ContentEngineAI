@@ -319,6 +319,15 @@ class ImageCurationSettings(BaseModel):
     )
 
 
+class BeatSnapSettings(BaseModel):
+    """Move visual cuts to the nearest music beat (design 0005), off by default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False)
+    window_ms: float = Field(150.0, gt=0, le=1000)
+
+
 StillMove = Literal["push_in", "pull_out", "pan_left", "pan_right", "pan_up"]
 STILL_MOVES: tuple[StillMove, ...] = (
     "push_in",
@@ -483,6 +492,10 @@ class VideoSettings(BaseModel):
     still_motion: StillMotionSettings = Field(
         default_factory=StillMotionSettings,  # type: ignore[arg-type]
         description="Slow motion on every still image; off by default.",
+    )
+    beat_snap: BeatSnapSettings = Field(
+        default_factory=BeatSnapSettings,  # type: ignore[arg-type]
+        description="Move visual cuts to music beats; needs librosa.",
     )
     image_curation: ImageCurationSettings = Field(
         default_factory=ImageCurationSettings,  # type: ignore[arg-type]

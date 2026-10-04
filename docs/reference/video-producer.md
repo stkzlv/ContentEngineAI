@@ -246,6 +246,10 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | `upper_line` | A static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Off by default; see [Configuration](configuration.md#31-overlay-settings). |
 | `cold_open_variant_pool` | Named cold-open variants (`mid_zoom_title_card`, `static_title_card`, `pre_motion_only`), one picked per product by salted MD5. The choice is stored in `pipeline_state.json::assemble_video.cold_open_variant`. An empty list turns rotation off. |
 
+## Beat snapping
+
+`video_settings.beat_snap` (off by default) moves each visual cut, the middle of a crossfade, to the nearest beat of the render's music within `window_ms` (default 150). The neighbouring segments trade the difference, so the video's length, the voiceover and the captions don't move. A move is skipped when it would shorten a segment below `min_visual_segment_duration_sec`, reach the end of the video, or lengthen a video clip. Beats come from `librosa.beat.beat_track`, once per track, cached beside it as `<track>.beats.json` keyed to the file's size and modification time. librosa is optional and not in the project's dependencies; without it the setting logs a warning and the cuts stay where they were.
+
 ## Image curation
 
 `video_settings.image_curation` (off by default) prefers clean product images over text-heavy seller infographics.

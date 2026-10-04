@@ -618,6 +618,19 @@ class VideoAssembler:
 
         return final_cmd
 
+    async def _beat_times(self, music_track_path: Path | None) -> list[float] | None:
+        """The music's beats when beat snapping is on (design 0005)."""
+        video_settings = (
+            self.profile_settings.video_settings
+            if self.profile_settings
+            else self.config.video_settings
+        )
+        if not video_settings.beat_snap.enabled or music_track_path is None:
+            return None
+        from src.video.beats import detect_beats
+
+        return await asyncio.to_thread(detect_beats, music_track_path)
+
     def _sound_effects(
         self,
         timed_visuals: list[tuple[Path, float, bool]],
@@ -746,6 +759,7 @@ class VideoAssembler:
             video_settings_dict = self._get_effective_video_settings()
             is_relative_mode = video_settings_dict.get("subtitle_relative_mode", True)
 
+            self.visual_builder.beat_times = await self._beat_times(music_track_path)
             visual_chain_result = await self.visual_builder.build_visual_chain(
                 visual_inputs,
                 total_video_duration,
