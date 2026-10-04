@@ -46,11 +46,9 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 
    # Required for videos over 4 MB
    LATE_VERCEL_TOKEN=vercel_blob_rw_your_token_here
-
-   # Optional overrides
-   PUBLISHER_TIMEOUT=120.0
-   PUBLISHER_MAX_RETRIES=3
    ```
+
+   Retries, the request timeout and the default platforms are set in `config/publisher.yaml`.
 
    Never commit `.env`; use `.env.example` as the template.
 

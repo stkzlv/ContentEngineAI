@@ -1,350 +1,228 @@
-"""Integration tests for configuration precedence (CLI > ENV > YAML).
+"""Configuration precedence: CLI, machine environment, profile, YAML.
 
-Tests the three-tier configuration precedence system end-to-end:
-1. YAML configuration files provide base/default values
-2. Environment variables override YAML values
-3. CLI arguments override both ENV and YAML values
-
-Note: This test uses a standalone config manager to avoid circular imports
-from the main conftest.py.
+Decision 0003 limits the environment to secrets and machine settings. These
+drive the real loaders; an earlier version of this file tested a hand-written
+copy of the config manager, which kept the old variable list after the code
+changed.
 """
 
-import contextlib
+from __future__ import annotations
+
+import json
 import os
-import tempfile
+import re
+import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
 
-# Standalone config manager for testing (mirrors UnifiedConfigManager logic)
-# This avoids circular import issues from the main codebase
+from src.config_manager import MACHINE_ENV_SETTINGS, UnifiedConfigManager
+from src.video.config.core_models import VideoProfile
+
+REPO = Path(__file__).resolve().parents[2]
+
+# Behaviour settings the environment used to carry. None may change a run now.
+REMOVED_BEHAVIOUR_VARS = {
+    "DEBUG_MODE": "true",
+    "CONTENT_ENGINE_DEBUG": "true",
+    "CONTENT_ENGINE_TIMEOUT": "17",
+    "SUBTITLE_ANCHOR": "top",
+    "SUBTITLE_MARGIN": "0.31",
+    "SUBTITLE_CONTENT_AWARE": "false",
+    "SUBTITLE_STYLE_PRESET": "minimal",
+    "SUBTITLE_FONT_SIZE_SCALE": "1.7",
+    "SUBTITLE_ALIGNMENT": "left",
+    "SUBTITLE_MAX_WIDTH_FRACTION": "0.33",
+    "SUBTITLE_RANDOMIZE_FONTS": "true",
+    "SUBTITLE_RANDOMIZE_COLORS": "true",
+    "SUBTITLE_RANDOMIZE_EFFECTS": "true",
+    "SUBTITLE_MAX_LINE_LENGTH": "11",
+    "SUBTITLE_MAX_WORDS_PER_LINE": "2",
+    "SUBTITLE_MAX_DURATION": "9.5",
+    "SUBTITLE_MIN_DURATION": "0.2",
+}
 
 
-class _TestableConfigManager:
-    """Minimal config manager for testing precedence logic.
+def video_config(env: dict[str, str], cli: dict | None = None) -> dict:
+    with patch.dict(os.environ, env):
+        return UnifiedConfigManager().get_video_config(cli)
 
-    This mirrors the core logic of UnifiedConfigManager without
-    importing the full module tree that causes circular imports.
+
+@pytest.mark.req("REQ-OPS-001")
+def test_a_machine_setting_from_the_environment_beats_the_yaml() -> None:
+    config = video_config({"OUTPUTS_DIR": "/srv/renders", "FFMPEG_THREADS": "3"})
+
+    assert config["global_output_directory"] == "/srv/renders"
+    assert config["ffmpeg_settings"]["encoding"]["threads"] == 3
+
+
+@pytest.mark.req("REQ-OPS-001")
+def test_the_cli_beats_the_environment() -> None:
+    config = video_config(
+        {"OUTPUTS_DIR": "/srv/renders"}, cli={"output_dir": "/srv/from-cli"}
+    )
+
+    assert config["global_output_directory"] == "/srv/from-cli"
+
+
+@pytest.mark.req("REQ-OPS-001")
+def test_no_environment_setting_is_one_a_profile_can_set() -> None:
+    """What keeps the environment above the profile without a second merge.
+
+    The profile merges after the environment is applied, so a key both could
+    set would let the profile win. None is shared, so the order holds.
     """
-
-    def __init__(self, config_root: str = "config"):
-        self.config_root = Path(config_root)
-
-    def apply_precedence_rules(
-        self, config: dict, cli_overrides: dict | None = None
-    ) -> dict:
-        """Apply unified precedence rules: CLI > ENV > YAML."""
-        final_config = dict(self._deep_copy_dict(config))
-        self._apply_env_overrides(final_config)
-        if cli_overrides:
-            self._apply_cli_overrides(final_config, cli_overrides)
-        return final_config
-
-    def _deep_copy_dict(self, obj: dict) -> dict:
-        """Deep copy a nested dict."""
-        return {k: self._deep_copy_value(v) for k, v in obj.items()}
-
-    def _deep_copy_value(self, obj: object) -> object:
-        """Deep copy a value (dict, list, or primitive)."""
-        if isinstance(obj, dict):
-            return {k: self._deep_copy_value(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [self._deep_copy_value(i) for i in obj]
-        return obj
-
-    def _apply_env_overrides(self, config: dict) -> None:
-        """Apply environment variable overrides to config."""
-        env_mappings = {
-            "DEBUG_MODE": ["debug_mode", "global_settings.debug_mode"],
-            "CONTENT_ENGINE_DEBUG": ["debug_mode", "global_settings.debug_mode"],
-            "CONTENT_ENGINE_OUTPUT": ["global_output_directory"],
-            "OUTPUTS_DIR": ["global_output_directory"],
-            "CONTENT_ENGINE_TIMEOUT": ["pipeline_timeout_sec"],
-            "FFMPEG_THREADS": ["ffmpeg_settings.encoding.threads"],
-            "SUBTITLE_ANCHOR": ["subtitle_settings.anchor"],
-            "SUBTITLE_MARGIN": ["subtitle_settings.margin"],
-            "SUBTITLE_CONTENT_AWARE": ["subtitle_settings.content_aware"],
-            "SUBTITLE_STYLE_PRESET": ["subtitle_settings.style_preset"],
-            "SUBTITLE_FONT_SIZE_SCALE": ["subtitle_settings.font_size_scale"],
-        }
-
-        for env_var, config_paths in env_mappings.items():
-            env_value = os.environ.get(env_var)
-            if env_value is not None:
-                for path in config_paths:
-                    self._set_nested_value(config, path, env_value)
-
-    def _apply_cli_overrides(self, config: dict, cli_overrides: dict) -> None:
-        """Apply CLI argument overrides to config."""
-        cli_mappings = {
-            "debug": ["debug_mode", "global_settings.debug_mode"],
-            "output_dir": ["global_output_directory"],
-            "timeout": ["pipeline_timeout_sec"],
-            "headless": ["global_settings.browser_config.headless"],
-        }
-
-        for cli_key, config_paths in cli_mappings.items():
-            if cli_key in cli_overrides:
-                cli_value = cli_overrides[cli_key]
-                for path in config_paths:
-                    self._set_nested_value(config, path, cli_value)
-
-        for cli_key, cli_value in cli_overrides.items():
-            if cli_key not in cli_mappings:
-                self._set_nested_value(config, cli_key, cli_value)
-
-    def _set_nested_value(self, config: dict, path: str, value) -> None:
-        """Set a nested configuration value using dot notation."""
-        keys = path.split(".")
-        current = config
-
-        for key in keys[:-1]:
-            if key not in current:
-                current[key] = {}
-            current = current[key]
-
-        final_key = keys[-1]
-        if isinstance(value, str):
-            if value.lower() in ("true", "1", "yes"):
-                value = True
-            elif value.lower() in ("false", "0", "no"):
-                value = False
-            else:
-                with contextlib.suppress(ValueError):
-                    value = float(value) if "." in value else int(value)
-        current[final_key] = value
+    profile_keys = set(VideoProfile.model_fields) | {"video_settings"}
+    for paths in MACHINE_ENV_SETTINGS.values():
+        for path in paths:
+            assert path.split(".")[0] not in profile_keys, path
 
 
-@pytest.fixture
-def base_config():
-    """Base configuration dictionary for testing."""
-    return {
-        "debug_mode": False,
-        "global_output_directory": "outputs",
-        "pipeline_timeout_sec": 300,
-        "global_settings": {
-            "debug_mode": False,
-            "browser_config": {"headless": True},
-        },
-        "subtitle_settings": {
-            "anchor": "bottom",
-            "margin": 0.05,
-            "content_aware": True,
-            "style_preset": "modern",
-            "font_size_scale": 1.0,
-            "max_line_length": 42,
-        },
-        "ffmpeg_settings": {"encoding": {"threads": 0}},
+@pytest.mark.req("REQ-OPS-003")
+def test_behaviour_variables_no_longer_change_the_config() -> None:
+    baseline = video_config({})
+    with_vars = video_config(REMOVED_BEHAVIOUR_VARS)
+
+    assert with_vars == baseline
+
+
+@pytest.mark.req("REQ-OPS-003")
+def test_the_publisher_reads_only_secrets_from_the_environment(
+    tmp_path: Path,
+) -> None:
+    from src.publisher.config import load_publisher_config
+
+    env = {
+        "LATE_API_KEY": "sk_test_env",
+        "PUBLISHER_PROVIDER": "nonexistent",
+        "PUBLISHER_IMMEDIATE": "true",
+        "PUBLISHER_MAX_RETRIES": "9",
+        "PUBLISHER_TIMEOUT": "1",
+        "PUBLISHER_DEFAULT_PLATFORMS": "tiktok",
     }
+    with patch.dict(os.environ, {"LATE_API_KEY": "sk_test_env"}):
+        baseline = load_publisher_config()
+    with patch.dict(os.environ, env):
+        config = load_publisher_config()
+
+    assert config.api_key == "sk_test_env"
+    assert config.provider == baseline.provider
+    assert config.immediate_publish == baseline.immediate_publish
+    assert config.max_retries == baseline.max_retries
+    assert config.timeout == baseline.timeout
+    assert config.default_platforms == baseline.default_platforms
 
 
-@pytest.fixture
-def config_manager():
-    """Create a testable config manager instance."""
-    return _TestableConfigManager()
+@pytest.mark.req("REQ-OPS-009")
+def test_the_env_example_lists_only_secrets_and_machine_settings() -> None:
+    from src.utils.secrets import is_secret_key
+
+    # Machine or account values: where outputs go and how this machine runs,
+    # and the operator's own links and program state, which a public YAML
+    # must not carry.
+    allowed = set(MACHINE_ENV_SETTINGS) | {
+        "COQUI_TTS_GPU",
+        "PIPELINE_TOPICS_FILE",
+        "AMAZON_ASSOCIATE_TAG",
+        "AMAZON_AFFILIATE_LINKS_ENABLED",
+        "SUBTITLE_BUSINESS_URL",
+        "LINK_IN_BIO_URL",
+        "JAMENDO_CLIENT_ID",
+        "FREESOUND_CLIENT_ID",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+    }
+    text = (REPO / ".env.example").read_text(encoding="utf-8")
+    names = re.findall(r"^([A-Z][A-Z0-9_]*)=", text, flags=re.M)
+
+    assert names
+    unexpected = [n for n in names if n not in allowed and not is_secret_key(n)]
+    assert unexpected == []
 
 
-class TestConfigPrecedence:
-    """Test three-tier configuration precedence: CLI > ENV > YAML."""
+@pytest.mark.req("REQ-OPS-002")
+def test_the_batch_takes_its_outputs_dir_from_the_yaml(tmp_path: Path) -> None:
+    from src.pipeline.cli import create_argument_parser
+    from src.pipeline.config import load_global_batch_config
 
-    @pytest.mark.integration
-    def test_yaml_values_used_when_no_overrides(self, config_manager, base_config):
-        """Test YAML values are used when no ENV or CLI overrides exist."""
-        env_vars_to_clear = [
-            "DEBUG_MODE",
-            "CONTENT_ENGINE_DEBUG",
-            "SUBTITLE_ANCHOR",
-            "SUBTITLE_MARGIN",
-        ]
-        clean_env = {k: v for k, v in os.environ.items() if k not in env_vars_to_clear}
-
-        with patch.dict(os.environ, clean_env, clear=True):
-            result = config_manager.apply_precedence_rules(base_config)
-
-            assert result["debug_mode"] is False
-            assert result["global_output_directory"] == "outputs"
-            assert result["subtitle_settings"]["anchor"] == "bottom"
-            assert result["subtitle_settings"]["margin"] == 0.05
-
-    @pytest.mark.integration
-    def test_env_overrides_yaml(self, config_manager, base_config):
-        """Test environment variables override YAML values."""
-        env_overrides = {
-            "CONTENT_ENGINE_DEBUG": "true",
-            "SUBTITLE_ANCHOR": "top",
-            "SUBTITLE_MARGIN": "0.10",
-            "CONTENT_ENGINE_OUTPUT": "/custom/output",
-        }
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(base_config)
-
-            assert result["debug_mode"] is True
-            assert result["subtitle_settings"]["anchor"] == "top"
-            assert result["subtitle_settings"]["margin"] == 0.10
-            assert result["global_output_directory"] == "/custom/output"
-
-    @pytest.mark.integration
-    def test_cli_overrides_env_and_yaml(self, config_manager, base_config):
-        """Test CLI arguments override both ENV and YAML values."""
-        env_overrides = {
-            "CONTENT_ENGINE_DEBUG": "true",
-            "SUBTITLE_ANCHOR": "top",
-        }
-
-        cli_overrides = {
-            "debug": False,
-            "subtitle_settings.anchor": "center",
-            "timeout": 600,
-        }
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(
-                base_config, cli_overrides=cli_overrides
-            )
-
-            assert result["debug_mode"] is False
-            assert result["subtitle_settings"]["anchor"] == "center"
-            assert result["pipeline_timeout_sec"] == 600
-
-    @pytest.mark.integration
-    def test_partial_overrides_preserve_other_values(self, config_manager, base_config):
-        """Test that partial overrides don't affect unrelated settings."""
-        env_overrides = {"SUBTITLE_ANCHOR": "top"}
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(base_config)
-
-            assert result["subtitle_settings"]["anchor"] == "top"
-            assert result["subtitle_settings"]["margin"] == 0.05
-            assert result["subtitle_settings"]["content_aware"] is True
-            assert result["subtitle_settings"]["style_preset"] == "modern"
-
-    @pytest.mark.integration
-    def test_type_conversion_from_env_strings(self, config_manager, base_config):
-        """Test environment variables are correctly converted from strings."""
-        env_overrides = {
-            "CONTENT_ENGINE_DEBUG": "true",
-            "SUBTITLE_MARGIN": "0.15",
-            "FFMPEG_THREADS": "4",
-            "SUBTITLE_CONTENT_AWARE": "false",
-            "CONTENT_ENGINE_TIMEOUT": "900",
-        }
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(base_config)
-
-            assert result["debug_mode"] is True
-            assert isinstance(result["debug_mode"], bool)
-            assert result["subtitle_settings"]["margin"] == 0.15
-            assert isinstance(result["subtitle_settings"]["margin"], float)
-            assert result["ffmpeg_settings"]["encoding"]["threads"] == 4
-            assert isinstance(result["ffmpeg_settings"]["encoding"]["threads"], int)
-            assert result["subtitle_settings"]["content_aware"] is False
-            assert isinstance(result["subtitle_settings"]["content_aware"], bool)
-
-    @pytest.mark.integration
-    def test_boolean_conversion_variants(self, config_manager, base_config):
-        """Test various boolean string representations."""
-        for true_value in ["true", "True", "TRUE", "1", "yes", "Yes"]:
-            with patch.dict(os.environ, {"CONTENT_ENGINE_DEBUG": true_value}):
-                result = config_manager.apply_precedence_rules(base_config)
-                assert result["debug_mode"] is True, f"Failed for '{true_value}'"
-
-        for false_value in ["false", "False", "FALSE", "0", "no", "No"]:
-            with patch.dict(os.environ, {"CONTENT_ENGINE_DEBUG": false_value}):
-                result = config_manager.apply_precedence_rules(base_config)
-                assert result["debug_mode"] is False, f"Failed for '{false_value}'"
-
-    @pytest.mark.integration
-    def test_nested_cli_overrides(self, config_manager, base_config):
-        """Test CLI can override deeply nested values using dot notation."""
-        cli_overrides = {
-            "subtitle_settings.anchor": "above_content",
-            "subtitle_settings.margin": 0.08,
-            "ffmpeg_settings.encoding.threads": 8,
-            "global_settings.browser_config.headless": False,
-        }
-
-        result = config_manager.apply_precedence_rules(
-            base_config, cli_overrides=cli_overrides
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(
+        yaml.dump(
+            {"global_batch": {"product_ids": ["B0CONFIG01"], "outputs_dir": "custom"}}
         )
+    )
+    args = create_argument_parser().parse_args([])
 
-        assert result["subtitle_settings"]["anchor"] == "above_content"
-        assert result["subtitle_settings"]["margin"] == 0.08
-        assert result["ffmpeg_settings"]["encoding"]["threads"] == 8
-        assert result["global_settings"]["browser_config"]["headless"] is False
+    config = load_global_batch_config(args, config_path=path)
 
-    @pytest.mark.integration
-    def test_complete_precedence_chain(self, config_manager, base_config):
-        """Test the complete precedence chain with all three tiers."""
-        env_overrides = {
-            "SUBTITLE_ANCHOR": "top",
-            "CONTENT_ENGINE_DEBUG": "true",
-        }
+    assert config.outputs_dir.name == "custom"
 
-        cli_overrides = {
-            "subtitle_settings.anchor": "center",
-        }
 
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(
-                base_config, cli_overrides=cli_overrides
-            )
+@pytest.mark.req("REQ-OPS-002")
+@pytest.mark.asyncio
+async def test_the_producer_scans_the_configured_outputs_dir(tmp_path: Path) -> None:
+    from src.video.config import load_video_config_modular
 
-            # CLI > ENV > YAML
-            assert result["subtitle_settings"]["anchor"] == "center"  # CLI wins
-            assert result["debug_mode"] is True  # ENV wins over YAML
-            assert result["subtitle_settings"]["margin"] == 0.05  # YAML (no override)
-            assert result["pipeline_timeout_sec"] == 300  # YAML (no override)
-
-    @pytest.mark.integration
-    def test_empty_cli_overrides(self, config_manager, base_config):
-        """Test empty CLI overrides don't affect config."""
-        env_overrides = {"SUBTITLE_ANCHOR": "top"}
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(
-                base_config, cli_overrides={}
-            )
-            assert result["subtitle_settings"]["anchor"] == "top"
-
-            result = config_manager.apply_precedence_rules(
-                base_config, cli_overrides=None
-            )
-            assert result["subtitle_settings"]["anchor"] == "top"
-
-    @pytest.mark.integration
-    def test_alternative_env_var_names(self, config_manager, base_config):
-        """Test alternative environment variable names work correctly."""
-        env_overrides = {
-            "DEBUG_MODE": "true",  # Alternative to CONTENT_ENGINE_DEBUG
-            "OUTPUTS_DIR": "/alt/output",  # Alternative to CONTENT_ENGINE_OUTPUT
-        }
-
-        with patch.dict(os.environ, env_overrides, clear=False):
-            result = config_manager.apply_precedence_rules(base_config)
-
-            assert result["debug_mode"] is True
-            assert result["global_output_directory"] == "/alt/output"
-
-    @pytest.mark.integration
-    def test_cli_legacy_short_names(self, config_manager, base_config):
-        """Test CLI short names are mapped correctly."""
-        cli_overrides = {
-            "debug": True,
-            "output_dir": "/cli/output",
-            "timeout": 1200,
-            "headless": False,
-        }
-
-        result = config_manager.apply_precedence_rules(
-            base_config, cli_overrides=cli_overrides
+    product = tmp_path / "B0CONFIG02"
+    product.mkdir()
+    (product / "data.json").write_text(
+        json.dumps(
+            {
+                "asin": "B0CONFIG02",
+                "title": "Lamp",
+                "price": "$1",
+                "url": "https://example.com",
+                "platform": "amazon",
+            }
         )
+    )
+    config = load_video_config_modular()
+    config.global_output_directory = str(tmp_path)
+    argv = ["producer", "--batch", "--batch-profile", "slideshow_images1"]
 
-        assert result["debug_mode"] is True
-        assert result["global_output_directory"] == "/cli/output"
-        assert result["pipeline_timeout_sec"] == 1200
-        assert result["global_settings"]["browser_config"]["headless"] is False
+    with (
+        patch.object(sys, "argv", argv),
+        patch("src.video.producer.cli.load_video_config_modular", return_value=config),
+        patch("src.video.producer.cli.setup_logging", return_value=Path("t.log")),
+        patch("src.video.producer.cli.validate_config_and_exit_on_error"),
+        patch("src.video.producer.cli.load_dotenv"),
+        patch("os.getenv", return_value="dummy_key"),
+        patch("shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch(
+            "src.video.producer.cli.create_video_for_product", new_callable=AsyncMock
+        ) as create,
+        patch("asyncio.sleep", return_value=None),
+        patch("src.utils.connection_pool.close_global_pool", new_callable=AsyncMock),
+    ):
+        from src.video.producer.cli import main
+
+        create.return_value = Path("video.mp4")
+        await main()
+
+    assert create.call_count == 1
+    assert create.call_args.args[1].asin == "B0CONFIG02"
+
+
+@pytest.mark.req("REQ-OPS-002")
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [([], "price-asc-rank"), (["--sort", "relevance"], "relevanceblender")],
+)
+def test_the_scraper_sort_follows_the_yaml_unless_passed(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str], expected: str
+) -> None:
+    from src.scraper.amazon import cli as scraper_cli
+    from src.scraper.amazon.models import SearchParameters
+
+    monkeypatch.setattr(
+        scraper_cli,
+        "get_default_search_parameters",
+        lambda: SearchParameters(sort_order="price-asc-rank"),
+    )
+    args = scraper_cli.build_argument_parser().parse_args(argv)
+
+    result = scraper_cli._build_search_params(args)
+
+    assert result is not None
+    assert result[0].sort_order == expected

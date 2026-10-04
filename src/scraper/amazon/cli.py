@@ -193,8 +193,11 @@ def _add_search_arguments(parser: argparse.ArgumentParser) -> None:
             "newest",
             "featured",
         ],
-        default="relevance",
-        help="Sort order for search results",
+        default=None,
+        help=(
+            "Sort order for search results "
+            "(default: default_search_parameters.sort_order in config/scraper.yaml)"
+        ),
     )
 
 
@@ -529,7 +532,7 @@ def _build_search_params(
         value = getattr(args, name)
         if value:
             cli_overrides[name] = value
-    if args.sort != "relevance":
+    if args.sort is not None:
         cli_overrides["sort_order"] = _SORT_MAPPING[args.sort]
 
     if cli_overrides:

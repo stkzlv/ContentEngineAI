@@ -57,7 +57,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--fail-fast` / `--no-fail-fast` | switch | off | Stops the pipeline at the first failure, publishing included unless `--fail-fast-publish`/`--no-fail-fast-publish` or a `fail_fast_publish` key says otherwise. |
 | `--strict` | switch | off | Exits non-zero when any product was lost to a failure or a skip, not only when none succeeded. |
 | `--process-all-products` / `--no-process-all-products` | switch | off | Renders every product in the outputs directory, not only those this run scraped. |
-| `--outputs-dir` | `PATH` | `outputs` | Where the scraper writes and the producer reads. Its default shadows the YAML's `global_output_directory` even when the flag isn't passed (`REQ-OPS-002`). |
+| `--outputs-dir` | `PATH` | `global_batch.outputs_dir` in `config/pipeline.yaml` | Where the scraper writes and the producer reads. |
 | `--debug` / `--no-debug` | switch | off | Debug logging. |
 | `--resume` | switch | off | Resumes an interrupted run from its checkpoint, skipping completed products and phases. |
 | `--dry-run` | switch | off | Validates the configuration and prints the planned products, profiles and platforms without running anything. |

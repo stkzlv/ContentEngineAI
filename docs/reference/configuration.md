@@ -8,29 +8,23 @@ ContentEngineAI uses a **unified modular configuration system** that splits sett
 
 ContentEngineAI resolves a setting from these tiers, highest first, as the code applies them:
 
-1. **CLI Arguments** (highest priority)
-2. **Profile settings**, for renders (see [the video-producer reference](video-producer.md#precedence))
-3. **Environment Variables**, applied when the YAML loads
-4. **YAML Configuration** (default values)
+1. **CLI arguments** (highest priority), applied only when passed
+2. **Machine environment**: secrets and machine settings only
+3. **Profile settings**, for renders (see [the video-producer reference](video-producer.md#precedence))
+4. **YAML configuration** (default values)
 
-A profile value therefore wins over an environment variable for the same key. [Decision 0003](../decisions/0003-config-precedence.md) places the machine environment above the profile; `REQ-OPS-001` records the gap.
+[Decision 0003](../decisions/0003-config-precedence.md) sets the order and limits the environment to secrets and machine settings; [decision 0008](../decisions/0008-operator-account-values-in-the-environment.md) adds the operator's account values (affiliate tag and program switch, link-in-bio address, topics file). No setting the environment reads is one a profile can set, so the order holds without a second merge.
 
 ### Global Settings Precedence in Detail
 
-Outside a render's profile, each tier overrides the one below it:
+Each tier overrides the one below it:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  CLI Arguments (Highest Priority)                           │
-│  --debug --subtitle-anchor top --font-size-scale 1.2       │
-├─────────────────────────────────────────────────────────────┤
-│  Environment Variables (Medium Priority)                     │
-│  CONTENT_ENGINE_DEBUG=true SUBTITLE_ANCHOR=bottom           │
-├─────────────────────────────────────────────────────────────┤
-│  YAML Configuration (Default Values)                         │
-│  config/core.yaml, config/subtitles.yaml, etc.              │
-└─────────────────────────────────────────────────────────────┘
-```
+| Tier | Example |
+|---|---|
+| CLI | `--debug --subtitle-anchor top --outputs-dir /srv/renders` |
+| Machine environment | `OUTPUTS_DIR=/srv/renders FFMPEG_THREADS=4` |
+| Profile | `video_profiles.<name>.subtitle_settings` in `config/video_production.yaml` |
+| YAML | `config/core.yaml`, `config/subtitles.yaml`, and the rest |
 
 **Example: Subtitle Anchor Configuration**
 
@@ -38,11 +32,6 @@ Outside a render's profile, each tier overrides the one below it:
 # config/subtitles.yaml (YAML default)
 subtitle_settings:
   anchor: "below_content"
-```
-
-```bash
-# .env file (environment override)
-SUBTITLE_ANCHOR=bottom
 ```
 
 ```bash
@@ -2048,44 +2037,25 @@ These enhance functionality but are not required for basic operation.
 | `FREESOUND_CLIENT_SECRET` | string | None | OAuth2 client secret |
 | `FREESOUND_REFRESH_TOKEN` | string | None | OAuth2 refresh token (auto-updated by system) |
 
-### Runtime Configuration
+### Machine settings
+
+The only non-secret settings the config reads from the environment. Behaviour settings live in the YAML files or a profile.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CONTENT_ENGINE_DEBUG` | bool | false | Enable debug mode (alt: `DEBUG_MODE`) |
-| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory (alt: `OUTPUTS_DIR`) |
-| `CONTENT_ENGINE_TIMEOUT` | int | 2700 | Pipeline timeout in seconds |
+| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory |
+| `OUTPUTS_DIR` | string | outputs | Base output directory, also used as the scraper's output base |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 
-### Subtitle Configuration
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `SUBTITLE_ANCHOR` | string | below_content | Anchor: top, center, bottom, above_content, below_content |
-| `SUBTITLE_MARGIN` | float | 0.04 | Margin from anchor (0.0-0.5 fraction of frame height) |
-| `SUBTITLE_CONTENT_AWARE` | bool | true | Enable content-aware positioning |
-| `SUBTITLE_STYLE_PRESET` | string | modern | Style preset: minimal, modern, bold, animated, random |
-| `SUBTITLE_FONT_SIZE_SCALE` | float | 1.0 | Font size multiplier (0.5-2.0) |
-| `SUBTITLE_ALIGNMENT` | string | center | Text alignment: left, center, right |
-| `SUBTITLE_MAX_WIDTH_FRACTION` | float | 0.8 | Max subtitle width (0.0-1.0 fraction) |
-| `SUBTITLE_MAX_LINE_LENGTH` | int | 30 | Maximum characters per line |
-| `SUBTITLE_MAX_WORDS_PER_LINE` | int | 3 | Maximum words per line (0 to disable) |
-| `SUBTITLE_MAX_DURATION` | float | 2.5 | Maximum subtitle duration (seconds) |
-| `SUBTITLE_MIN_DURATION` | float | 0.6 | Minimum subtitle duration (seconds) |
-| `SUBTITLE_RANDOMIZE_FONTS` | bool | false | Enable random font selection |
-| `SUBTITLE_RANDOMIZE_COLORS` | bool | false | Enable random color selection |
-| `SUBTITLE_RANDOMIZE_EFFECTS` | bool | false | Enable random effect selection |
+Debug mode is `global_settings.debug_mode` in `config/scraper.yaml` or `--debug`; the pipeline timeout is `pipeline_timeout_sec`.
 
 ### Publishing Configuration
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `LATE_VERCEL_TOKEN` | string | None | Vercel Blob token for large uploads (alt: `BLOB_READ_WRITE_TOKEN`) |
-| `PUBLISHER_DEFAULT_PLATFORMS` | string | None | Comma-separated platforms: youtube,tiktok,instagram |
-| `PUBLISHER_IMMEDIATE` | bool | false | Publish immediately without scheduling |
-| `PUBLISHER_MAX_RETRIES` | int | 3 | Maximum retry attempts for failed publishes |
-| `PUBLISHER_TIMEOUT` | int | 120 | Request timeout in seconds |
-| `PUBLISHER_PROVIDER` | string | late | Publishing service provider |
+
+The provider, platforms, retries, timeout and immediate publishing are set in `config/publisher.yaml`.
 
 ### Advanced Configuration
 
@@ -2133,9 +2103,9 @@ AMAZON_ASSOCIATE_TAG=your-tag-20
 LNKBIO_CLIENT_ID=your-client-id
 LNKBIO_CLIENT_SECRET=your-client-secret
 
-# Runtime overrides
-CONTENT_ENGINE_DEBUG=false
-SUBTITLE_STYLE_PRESET=modern
+# Machine settings
+OUTPUTS_DIR=/srv/renders
+FFMPEG_THREADS=4
 ```
 
 ## Performance Tuning
@@ -2532,7 +2502,7 @@ print('Missing optional:', [s.name for s in result.missing_optional])
 
 **Symptom**: Setting a value but it's being overridden by another source.
 
-**Solution**: Remember the precedence order (CLI > profile > ENV > YAML):
+**Solution**: Remember the precedence order (CLI > machine environment > profile > YAML):
 ```bash
 # See what's actually being used
 poetry run python -m src.video.producer \
@@ -2541,10 +2511,9 @@ poetry run python -m src.video.producer \
 ```
 
 **Common precedence mistakes**:
-- Setting `SUBTITLE_ANCHOR=top` in `.env` but passing `--subtitle-anchor bottom` on CLI (CLI wins)
-- Editing `config/subtitles.yaml` but forgetting environment variable is set (ENV wins)
-- Setting `SUBTITLE_ANCHOR=top` in `.env` while the render's profile sets the anchor (the profile wins)
-- Having value in both primary and alternative env var names (primary wins)
+- Editing `subtitle_settings.anchor` in `config/subtitles.yaml` while the render's profile sets the anchor (the profile wins)
+- Setting a behaviour value such as a subtitle or publisher setting in `.env` (the environment reads only secrets, machine settings and the operator's account values, so it has no effect)
+- Setting `OUTPUTS_DIR` in `.env` and passing `--outputs-dir` (the CLI wins)
 
 ### YAML Syntax Errors
 
@@ -2577,15 +2546,14 @@ for f in Path('config').glob('*.yaml'):
 **Environment variables are always strings**. The system converts them:
 - Booleans: `true`, `false`, `1`, `0`, `yes`, `no` (case-insensitive)
 - Numbers: Parsed automatically (`"42"` → `42`, `"3.14"` → `3.14`)
-- Lists: Comma-separated (`"a,b,c"` → `["a", "b", "c"]`)
 
 **Verify type conversion**:
 ```bash
 # Check how a value is being interpreted
-CONTENT_ENGINE_DEBUG=true poetry run python -c "
+FFMPEG_THREADS=4 poetry run python -c "
 from src.config_manager import UnifiedConfigManager
-v = UnifiedConfigManager().get_scraper_config()['global_settings']['debug_mode']
-print('debug_mode:', v, type(v))
+v = UnifiedConfigManager().get_video_config(None)['ffmpeg_settings']['encoding']['threads']
+print('threads:', v, type(v))
 "
 ```
 
@@ -2607,10 +2575,10 @@ print('Max width:', s['max_subtitle_width_fraction'])
 ```
 
 **Common subtitle issues**:
-- **Subtitles cut off**: Increase `SUBTITLE_MAX_WIDTH_FRACTION` (default 0.8)
-- **Text too small/large**: Adjust `SUBTITLE_FONT_SIZE_SCALE` (0.5-2.0)
-- **Wrong position**: Check `SUBTITLE_ANCHOR` value (top/center/bottom/above_content/below_content)
-- **Overlapping content**: Enable `SUBTITLE_CONTENT_AWARE=true`
+- **Subtitles cut off**: Increase `subtitle_settings.max_subtitle_width_fraction` (default 0.8)
+- **Text too small/large**: Adjust `subtitle_settings.font_size_scale` (0.5-2.0)
+- **Wrong position**: Check `subtitle_settings.anchor` (top/center/bottom/above_content/below_content), in the YAML and in the profile
+- **Overlapping content**: Set `subtitle_settings.content_aware: true`
 
 ### Publishing Configuration Issues
 
@@ -2620,16 +2588,16 @@ print('Max width:', s['max_subtitle_width_fraction'])
 ```bash
 poetry run python -c "
 import os
-keys = ['LATE_API_KEY', 'PUBLISHER_API_KEY', 'LATE_VERCEL_TOKEN', 'PUBLISHER_TIMEOUT']
+keys = ['LATE_API_KEY', 'PUBLISHER_API_KEY', 'LATE_VERCEL_TOKEN']
 for k in keys:
     v = os.environ.get(k)
     print(f'{k}: {\"set\" if v else \"not set\"}')"
 ```
 
 **Common publishing issues**:
-- **Timeout on large files**: Increase `PUBLISHER_TIMEOUT` (default 120 seconds)
+- **Timeout on large files**: Increase `timeout` in `config/publisher.yaml` (default 120 seconds)
 - **Upload fails**: Set `LATE_VERCEL_TOKEN` for Vercel Blob uploads
-- **Wrong platform**: Check `PUBLISHER_DEFAULT_PLATFORMS` value
+- **Wrong platform**: Check `default_platforms` in `config/publisher.yaml`
 
 ### Google TTS Not Working
 
@@ -2658,17 +2626,11 @@ else:
 
 **Enable comprehensive debugging**:
 ```bash
-# Via environment variable
-CONTENT_ENGINE_DEBUG=true poetry run python -m src.video.producer ...
-
-# Via CLI flag
+# Producer: the CLI flag only
 poetry run python -m src.video.producer outputs/B0TEST/data.json profile --debug
 
-# Check if debug is active
-poetry run python -c "
-from src.config_manager import UnifiedConfigManager
-print('Debug mode:', UnifiedConfigManager().debug_mode)
-"
+# Scraper: --debug, or global_settings.debug_mode: true in config/scraper.yaml
+# Global batch: --debug, or global_batch.debug: true in config/pipeline.yaml
 ```
 
 ### Configuration File Locations

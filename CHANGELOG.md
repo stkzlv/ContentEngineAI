@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.147.0] - 2026-10-04
+
+### Changed
+
+- **Breaking**: The environment carries only secrets and machine settings (`CONTENT_ENGINE_OUTPUT`, `OUTPUTS_DIR`, `FFMPEG_THREADS`); `DEBUG_MODE` and `CONTENT_ENGINE_DEBUG` are replaced by `global_settings.debug_mode` or `--debug`, `CONTENT_ENGINE_TIMEOUT` by `pipeline_timeout_sec`, and the fourteen `SUBTITLE_*` overrides by the matching `subtitle_settings` keys in the YAML or the profile.
+- **Breaking**: The publisher no longer reads `PUBLISHER_PROVIDER`, `PUBLISHER_IMMEDIATE`, `PUBLISHER_MAX_RETRIES`, `PUBLISHER_TIMEOUT` or `PUBLISHER_DEFAULT_PLATFORMS`; set `provider`, `immediate_publish`, `max_retries`, `timeout` and `default_platforms` in `config/publisher.yaml`.
+- `.env.example` lists only secrets, machine settings and the operator's account values.
+
+### Fixed
+
+- Without `--outputs-dir`, the global batch uses `global_batch.outputs_dir` from `config/pipeline.yaml` and the producer's batch mode uses `global_output_directory`, instead of the repository's `outputs/`.
+- The scraper's `--sort relevance` applies when passed, and without `--sort` the configured `sort_order` is used.
+
 ## [0.146.0] - 2026-10-04
 
 ### Added

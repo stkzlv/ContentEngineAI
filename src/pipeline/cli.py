@@ -217,11 +217,11 @@ Examples:
     common_group.add_argument(
         "--outputs-dir",
         type=str,
-        default="outputs",
+        default=None,
         metavar="PATH",
         help=(
             "Directory for scraper output and producer input "
-            "(default: the repo outputs/)"
+            "(default: global_batch.outputs_dir in config/pipeline.yaml)"
         ),
     )
     common_group.add_argument(

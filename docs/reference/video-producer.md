@@ -33,7 +33,7 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--random-profile` | Pick a profile per product, deterministic by product id. | `--random-profile` |
 | `--profile-pool` | Profiles `--random-profile` draws from. Without it, the YAML `batch.profile_pool` applies, then every profile except `base` and `slideshow_stock`. | `--profile-pool prof1 prof2` |
 | `--product-ids` | Limit `--batch` to these product ids. | `--product-ids B0ASIN1 B0ASIN2` |
-| `--outputs-dir` | Directory to scan for products (default `outputs`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
+| `--outputs-dir` | Directory to scan for products in batch mode (default `global_output_directory` from `config/core.yaml`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
 | `--fail-fast` | Stop the batch on the first failure. | `--fail-fast` |
 | `--strict` | Exit non-zero when any product was lost, to a failure or a skip. By default only a run where nothing succeeded exits non-zero. | `--strict` |
 | `--output-format` | Batch summary format: `text` (default) or `json`. | `--output-format json` |
@@ -225,12 +225,12 @@ video_profiles:
 
 Highest first, as the code resolves it:
 
-1. CLI arguments.
-2. Profile settings.
-3. Environment overrides (`CONTENT_ENGINE_*`, `DEBUG_MODE`, `OUTPUTS_DIR`, `FFMPEG_THREADS`, `SUBTITLE_*`), applied when the YAML loads.
+1. CLI arguments, when passed.
+2. Machine environment: `CONTENT_ENGINE_OUTPUT`, `OUTPUTS_DIR` and `FFMPEG_THREADS`, besides the secrets.
+3. Profile settings.
 4. Global values from the YAML files.
 
-[Decision 0003](../decisions/0003-config-precedence.md) places the machine environment above the profile and keeps only secrets and machine-specific settings in it; `REQ-OPS-001` records the gap.
+[Decision 0003](../decisions/0003-config-precedence.md) sets the order. No machine setting is one a profile can set, so the environment stays above the profile although it is applied when the YAML loads.
 
 ## Opening overlays and pre-motion
 

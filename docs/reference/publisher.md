@@ -186,17 +186,12 @@ python -m src.publisher.late verify-delivery [--limit N] [--outputs-dir PATH]
 
 ## Environment variables
 
-Settings resolve in this order, highest first: command-line options, environment variables, `config/publisher.yaml`. Ten settings have environment overrides; nothing under `cleanup`, `link_in_bio`, `first_comment`, `blob_retention`, `delivery_sweep`, `affiliate_disclosure`, `analytics`, `tiktok_settings`, `recurring_schedule` or `schedule_validation` does.
+Settings resolve in this order, highest first: command-line options, environment variables, `config/publisher.yaml`. The environment carries only the two credentials below; every other setting, the provider, platforms, retries, timeout and immediate publishing included, is set in `config/publisher.yaml`.
 
 | Variable | Setting | Notes |
 |---|---|---|
 | `LATE_API_KEY`, then `PUBLISHER_API_KEY` | `api_key` | Required. At least 10 characters. Keys start with `sk_live_` or `sk_test_`. |
 | `BLOB_READ_WRITE_TOKEN`, then `LATE_VERCEL_TOKEN`, then `PUBLISHER_VERCEL_TOKEN` | `vercel_token` | Vercel Blob token. Required to upload videos over 4 MB. |
-| `PUBLISHER_PROVIDER` | `provider` | |
-| `PUBLISHER_IMMEDIATE` | `immediate_publish` | `true`, `1` or `yes` is true; anything else is false. |
-| `PUBLISHER_MAX_RETRIES` | `max_retries` | Integer. |
-| `PUBLISHER_TIMEOUT` | `timeout` | Seconds, float. |
-| `PUBLISHER_DEFAULT_PLATFORMS` | `default_platforms` | Comma-separated, such as `youtube,tiktok`. |
 
 The link-in-bio provider reads `LNKBIO_CLIENT_ID` and `LNKBIO_CLIENT_SECRET`; both are required while `link_in_bio.enabled` is on.
 
