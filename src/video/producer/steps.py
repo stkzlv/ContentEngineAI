@@ -849,7 +849,15 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
             path = product_root / f"metadata_{platform}.json"
             if not path.exists():
                 continue
-            record = json.loads(path.read_text(encoding="utf-8"))
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                # The publisher refuses an unreadable file anyway; the render
+                # must not fail on a record it does not otherwise need.
+                logger.warning("Could not refresh %s: %s", path.name, e)
+                continue
+            if not isinstance(record, dict):
+                continue
             if record.get("disclosure") != disclosure:
                 record["disclosure"] = disclosure
                 path.write_text(

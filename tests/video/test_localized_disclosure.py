@@ -200,6 +200,22 @@ def test_a_stale_record_gets_the_current_text(tmp_path: Path) -> None:
     assert written["disclosure"] == "#publi"
 
 
+@pytest.mark.parametrize("content", ["{not json", "[1, 2]"])
+def test_an_unreadable_platform_record_does_not_stop_the_run(
+    tmp_path: Path, content: str
+) -> None:
+    from src.video.producer.steps import _check_existing_metadata
+
+    (tmp_path / "metadata_tiktok.json").write_text(content, encoding="utf-8")
+    ctx = MagicMock()
+    ctx.config = config_in("es-ES")
+    ctx.state = {}
+    ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
+
+    assert _check_existing_metadata(ctx) is True
+    assert (tmp_path / "metadata_tiktok.json").read_text("utf-8") == content
+
+
 @pytest.mark.parametrize("language_code", ["en-US", "es-ES"])
 def test_the_bundled_config_loads_without_a_warning(
     caplog: pytest.LogCaptureFixture, language_code: str
