@@ -752,6 +752,62 @@ class VideoConfig(BaseModel):
             raise ValueError(f"subtitle_settings: {e}") from e
         return self
 
+    @model_validator(mode="after")
+    def disclosure_matches_the_script(self) -> "VideoConfig":
+        """Warn when the disclosure would be in another language than the voice."""
+        overlay = self.video_settings.disclosure_overlay
+        script = self.script_language()
+        if overlay.language and overlay.language.lower() != script:
+            logger.warning(
+                "disclosure_overlay.language is %s but the voice language is "
+                "%s: the disclosure must be in the language of the video",
+                overlay.language,
+                script,
+            )
+        language = self.disclosure_language()
+        resolved = self.disclosure_text()
+        # Against the default rather than `model_fields_set`: the bundled YAML
+        # spells out `text: "#ad"`, which would otherwise warn on every
+        # Spanish voice though nothing was customised.
+        default_text = type(overlay).model_fields["text"].default
+        if overlay.text != default_text and overlay.text != resolved:
+            logger.warning(
+                "disclosure_overlay.text is %r but the %s variant %r is used; "
+                "text applies only to a language with no variant",
+                overlay.text,
+                language,
+                resolved,
+            )
+        if language not in {k.lower() for k in overlay.variants}:
+            logger.warning(
+                "disclosure_overlay.variants has no entry for %s; the "
+                "disclosure falls back to %r",
+                language,
+                overlay.text,
+            )
+        return self
+
+    def script_language(self) -> str:
+        """The render's language code, from the TTS voice (`en-US` -> `en`).
+
+        The only language setting a render has: the script and caption prompts
+        are English-only, so this is the voice's language, not a guarantee
+        about the script's.
+        """
+        google = self.tts_config.google_cloud
+        code = google.language_code if google else ""
+        return (code.split("-")[0] or "en").lower()
+
+    def disclosure_language(self) -> str:
+        overlay = self.video_settings.disclosure_overlay
+        return (overlay.language or self.script_language()).lower()
+
+    def disclosure_text(self) -> str:
+        """The disclosure for this render's language, on the frame and the caption."""
+        overlay = self.video_settings.disclosure_overlay
+        variants = {k.lower(): v for k, v in overlay.variants.items()}
+        return variants.get(self.disclosure_language(), overlay.text)
+
     def get_profile(self, profile_name: str) -> VideoProfile:
         if profile_name not in self.video_profiles:
             raise KeyError(f"Video profile '{profile_name}' not found.")

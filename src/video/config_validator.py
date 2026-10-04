@@ -85,9 +85,12 @@ class VideoConfigValidator:
         errors: list[str] = []
         candidates: dict[str, str] = {}
 
-        disclosure = getattr(config.video_settings, "disclosure_overlay", None)
-        if disclosure is not None and getattr(disclosure, "enabled", False):
-            candidates["disclosure_overlay.text"] = disclosure.text
+        # Every variant: the one this run resolves to is the one drawn, and a
+        # change of TTS language picks another without a config edit.
+        disclosure = config.video_settings.disclosure_overlay
+        candidates["disclosure_overlay.text"] = disclosure.text
+        for language, text in disclosure.variants.items():
+            candidates[f"disclosure_overlay.variants.{language}"] = text
 
         for profile_name in config.video_profiles or {}:
             try:

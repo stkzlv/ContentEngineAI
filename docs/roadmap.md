@@ -8,13 +8,7 @@ Output-changing items ship off by default and are turned on only on measured res
 
 ## Phase 0: Disclosure compliance baseline (Now, gates 1.0.0)
 
-Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags and the affiliate phrase have shipped; see [docs/explanation/compliance.md](explanation/compliance.md).
-
-### 0.4 Localized disclosure variants
-
-The disclosure matches the script language (`#ad` in English, `#publi` in Spanish), as the FTC's same-language rule and Spain's Royal Decree 444/2024 require.
-
-**Done when:** a Spanish render emits a Spanish overlay and caption line, an English render English, and a language mismatch raises a config-load warning. #585.
+Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags, the affiliate phrase and the language-matched disclosure have shipped; see [docs/explanation/compliance.md](explanation/compliance.md).
 
 ## Phase 1: Hook and retention (Now)
 

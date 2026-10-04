@@ -822,6 +822,13 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
                 "Backfilled disclosure decision into existing metadata.json: %s",
                 meta["carries_affiliate_content"],
             )
+        # The token too: a run after a change of language would otherwise draw
+        # the new text on the frame over a caption in the old one.
+        disclosure = ctx.config.disclosure_text()
+        if meta.get("disclosure") != disclosure:
+            meta["disclosure"] = disclosure
+            rewrite = True
+            logger.info("Refreshed the recorded disclosure token: %s", disclosure)
         if rewrite:
             unified_metadata_path.write_text(
                 json.dumps(meta, indent=2), encoding="utf-8"
@@ -835,6 +842,33 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
     # Fallback to platform-specific metadata or description.txt
     if platform_metadata_exists or description_file.exists():
         logger.info("Loading existing description/metadata from previous run")
+        # The publisher falls back to these files when `metadata.json` is
+        # absent, so their recorded token is refreshed the same way.
+        disclosure = ctx.config.disclosure_text()
+        for platform in SUPPORTED_PLATFORMS:
+            path = product_root / f"metadata_{platform}.json"
+            if not path.exists():
+                continue
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                # The publisher refuses an unreadable file anyway; the render
+                # must not fail on a record it does not otherwise need.
+                logger.warning("Could not refresh %s: %s", path.name, e)
+                continue
+            if not isinstance(record, dict):
+                continue
+            if record.get("disclosure") != disclosure:
+                record["disclosure"] = disclosure
+                path.write_text(
+                    json.dumps(record, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                logger.info(
+                    "Refreshed the recorded disclosure token in %s: %s",
+                    path.name,
+                    disclosure,
+                )
         if description_file.exists():
             ctx.description = description_file.read_text(encoding="utf-8")
             logger.info(
@@ -946,7 +980,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                     metadata,
                     metadata_file,
                     disclose=carries_affiliate_content(ctx.product),
-                    disclosure=ctx.config.video_settings.disclosure_overlay.text,
+                    disclosure=ctx.config.disclosure_text(),
                 )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
                 saved_count += 1
@@ -1053,7 +1087,7 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         # either choice made consistently.
         "carries_affiliate_content": disclose,
         # The caption token, from the same setting as the on-frame text.
-        "disclosure": ctx.config.video_settings.disclosure_overlay.text,
+        "disclosure": ctx.config.disclosure_text(),
     }
 
     metadata_file = product_root / "metadata.json"

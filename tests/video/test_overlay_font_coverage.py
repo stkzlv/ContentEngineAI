@@ -138,7 +138,7 @@ class TestConfigValidationRefusesTheUndrawable:
         )
         return SimpleNamespace(
             video_settings=SimpleNamespace(
-                disclosure_overlay=SimpleNamespace(enabled=True, text=disclosure_text),
+                disclosure_overlay=SimpleNamespace(text=disclosure_text, variants={}),
             ),
             video_profiles={"p1": object()},
             get_profile_merged_settings=lambda name, overrides: merged,

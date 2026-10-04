@@ -115,7 +115,15 @@ video_settings:
   # endorsement). Sized smaller than narration captions (50-60%) so it
   # discloses without dominating the frame. See docs/explanation/compliance.md.
   disclosure_overlay:
-    text: "#ad"                       # Disclosure text, on the frame and leading the caption. Override for non-English renders.
+    # Disclosure text, on the frame and leading the caption, picked by the
+    # TTS voice's language (language_code: en-US -> en). `text` is used only
+    # for a language with no variant. Set `language` only to force one; a
+    # language that differs from the voice's makes the config load warn.
+    variants:
+      en: "#ad"
+      es: "#publi"                    # Spain, Royal Decree 444/2024
+    text: "#ad"
+    # language: es
     position: "top-right"             # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45                 # Font size as fraction of subtitle font size (slightly under FTC's 50-60% band; tuned for tighter corner placement)
     font_color: "white"

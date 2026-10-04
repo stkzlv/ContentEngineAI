@@ -277,7 +277,7 @@ A feature that changes rendered output ships behind a switch that keeps the exis
 
 ### Disclosure
 
-The material-connection decision is made once, by the producer, and recorded in the render's metadata. The assembler burns the on-frame overlay from it, and the publisher reads it to lead the caption with the disclosure. The token is recorded beside it, from `disclosure_overlay.text`, so the frame and the caption carry the same text. When the record doesn't positively show there is nothing to disclose, both disclose. The rules are in [the compliance requirements](requirements/compliance.md) and [the compliance explanation](explanation/compliance.md).
+The material-connection decision is made once, by the producer, and recorded in the render's metadata. The assembler burns the on-frame overlay from it, and the publisher reads it to lead the caption with the disclosure. The token is recorded beside it, the disclosure text resolved for the voice's language (`disclosure_overlay.variants`, falling back to `text`), so the frame and the caption carry the same text. When the record doesn't positively show there is nothing to disclose, both disclose. The rules are in [the compliance requirements](requirements/compliance.md) and [the compliance explanation](explanation/compliance.md).
 
 ## 9. Architecture decisions
 

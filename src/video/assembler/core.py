@@ -40,7 +40,7 @@ from src.video.assembler.subtitle_utils import SubtitleStyler
 from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_builder import VisualFilterBuilder
 from src.video.config import VideoConfig
-from src.video.config.visual_models import MergedProfileSettings
+from src.video.config.visual_models import DisclosureSettings, MergedProfileSettings
 
 logger = logging.getLogger(__name__)
 
@@ -606,6 +606,12 @@ class VideoAssembler:
 
         return final_cmd
 
+    def _disclosure_settings(self) -> DisclosureSettings:
+        """The overlay settings with the text for this render's language."""
+        return self.config.video_settings.disclosure_overlay.model_copy(
+            update={"text": self.config.disclosure_text()}
+        )
+
     async def assemble_video(
         self,
         visual_inputs: list[Path],
@@ -752,7 +758,7 @@ class VideoAssembler:
                 temp_dir,
             )
 
-            disclosure = self.config.video_settings.disclosure_overlay
+            disclosure = self._disclosure_settings()
             if self.carries_affiliate_content:
                 video_filters = apply_disclosure_overlay(
                     video_filters, disclosure, subtitle_font_size_pixels, temp_dir
