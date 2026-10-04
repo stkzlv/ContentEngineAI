@@ -48,6 +48,7 @@ def test_each_entry_rewrites_its_fixture(written: str, spoken: str) -> None:
         "A 65Wh battery",  # a longer unit the table doesn't list
         "Order XA2337 or A2337B",  # the term inside a longer code
         "Room 3W-2 is open",  # a unit followed by a hyphenated tail
+        "Order X-A2337 or A2337-B",  # the term inside a hyphenated code
     ],
 )
 def test_letters_outside_an_entry_stay(text: str) -> None:
@@ -98,3 +99,27 @@ async def test_off_sends_todays_text(tmp_path: Path) -> None:
     sent = await _voice(tmp_path, TTSNormalisationSettings())
 
     assert "5000mAh" in sent and "A2337" in sent
+
+
+@pytest.mark.req("REQ-CNT-076")
+def test_captions_built_from_the_script_get_the_spoken_form() -> None:
+    from src.video.tts import spoken_script
+
+    tts = load_video_config_modular().tts_config.model_copy(deep=True)
+    assert spoken_script("A 5000mAh pack", tts) == "A 5000mAh pack"
+    tts.tts_normalisation = TABLE
+    assert spoken_script("A 5000mAh pack", tts) == "A 5000 milliamp hours pack"
+    assert spoken_script(None, tts) is None
+
+
+@pytest.mark.req("REQ-CNT-076")
+def test_every_caption_call_site_passes_the_spoken_script() -> None:
+    """Script-timed captions are the fallback when STT returns no timings."""
+    from src.video.producer import steps, two_part_subtitles
+
+    for module in (steps, two_part_subtitles):
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        calls = source.split("create_unified_subtitles(")[1:]
+        assert calls, module.__name__
+        for call in calls:
+            assert "spoken_script(" in call.split(")\n")[0], module.__name__

@@ -34,6 +34,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 ## As built
 
 - The block is `tts_config.tts_normalisation` (`enabled`, `units`, `lexicon`) in `config/subtitles.yaml`, applied in `TTSManager.generate_speech` before the pause plan or markup rules.
+- Captions built from the script, the fallback when speech-to-text returns no timings, get the same rewritten copy (`spoken_script`), so they show what the voice said.
 - A unit matches only straight after a digit, with an optional space or hyphen, and not before a letter, digit or hyphen; a lexicon term matches only as a whole term.
 - The probe (`tools/tts_normalisation_probe.py`) voices each case as written and spelled out in the same sentence and compares the transcripts, since Whisper writes units back in either form. On `charon` (Gemini 2.5 Flash TTS) all twelve cases read as intended: the transcripts that differed did so because Whisper abbreviated a spoken unit or spelled out a written one, and the pair durations agreed within about 5% for every unit. No entry qualified, so both tables ship empty and the switch stays off.
 

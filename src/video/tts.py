@@ -647,6 +647,18 @@ def normalise_for_tts(text: str, settings: Any) -> str:
     return text
 
 
+def spoken_script(script: str | None, tts_config: Any) -> str | None:
+    """The script as the voice says it, for captions built from the script.
+
+    Captions are transcribed from the audio, but a run whose speech-to-text
+    returns no timings falls back to the script; that copy must match what
+    was said. With normalisation off it is the script itself.
+    """
+    if script is None:
+        return None
+    return normalise_for_tts(script, tts_config.tts_normalisation)
+
+
 def apply_pause_plan(text: str, plan: PausePlan, seed_key: str | None) -> str:
     """Insert the plan's pause tags at sentence and paragraph boundaries.
 

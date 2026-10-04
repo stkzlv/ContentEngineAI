@@ -15,6 +15,7 @@ from src.video.producer.constants import (
     DEFAULT_VIDEO_TOP_POSITION,
     DEFAULT_VIDEO_WIDTH,
 )
+from src.video.tts import spoken_script
 
 if TYPE_CHECKING:
     from src.video.assembler.visual_band import VisualBand
@@ -418,7 +419,7 @@ class TwoPartSubtitleHandler:
             self.ctx.config.whisper_settings,
             self.ctx.config.google_cloud_stt_settings,
             self.ctx.secrets,
-            self.ctx.script,
+            spoken_script(self.ctx.script, self.ctx.config.tts_config),
             self.ctx.voiceover_duration,
             self.ctx.debug_mode,
             self.ctx.config,

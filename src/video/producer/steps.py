@@ -68,7 +68,7 @@ from src.video.render_choices import warn_if_similar
 from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
-from src.video.tts import TTSManager
+from src.video.tts import TTSManager, spoken_script
 
 logger = logging.getLogger(__name__)
 
@@ -1465,7 +1465,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 ctx.config.whisper_settings,
                 ctx.config.google_cloud_stt_settings,
                 ctx.secrets,
-                ctx.script,
+                spoken_script(ctx.script, ctx.config.tts_config),
                 ctx.voiceover_duration,
                 ctx.debug_mode,
                 ctx.config,
@@ -1520,7 +1520,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 ctx.config.whisper_settings,
                 ctx.config.google_cloud_stt_settings,
                 ctx.secrets,
-                ctx.script,
+                spoken_script(ctx.script, ctx.config.tts_config),
                 ctx.voiceover_duration,
                 ctx.debug_mode,
                 ctx.config,

@@ -12,8 +12,11 @@ Usage:
     python tools/tts_normalisation_probe.py [--profile charon] [--repeat 1]
 
 Writes the WAVs under the output directory and prints one row per case:
-whether the transcripts agree, then both transcripts. Costs two TTS calls
-per case and repeat.
+whether the transcripts agree, the written form's duration over the spoken
+form's, then both transcripts. Whisper writes a unit back as its
+abbreviation or spells it out either way, so a disagreement with a ratio
+near 1 is usually the transcriber; a misreading also changes the length.
+Costs two TTS calls per case and repeat.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import re
+import wave
 from pathlib import Path
 
 import whisper
@@ -61,11 +65,12 @@ async def _probe(profile_name: str, out_dir: Path, repeat: int) -> None:
     model = whisper.load_model(config.whisper_settings.model_size)
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"profile={profile_name} model={profile.gemini_model_name}")
-    print(f"{'written':<12} agree  written transcript | spoken transcript")
+    print(f"{'written':<12} agree  ratio  written transcript | spoken transcript")
     for written, spoken in CASES:
         slug = re.sub(r"[^a-z0-9]+", "_", written.lower()).strip("_")
         for n in range(repeat):
             heard = []
+            seconds = []
             for kind, text in (("written", written), ("spoken", spoken)):
                 path, _ = await _generate_gemini_speech(
                     FRAME.format(text),
@@ -76,10 +81,16 @@ async def _probe(profile_name: str, out_dir: Path, repeat: int) -> None:
                 if not path:
                     heard.append("(failed)")
                     continue
+                with wave.open(str(path)) as audio:
+                    seconds.append(audio.getnframes() / audio.getframerate())
                 result = model.transcribe(str(path), language="en")
                 heard.append(result["text"].strip())
             agree = len(heard) == 2 and _words(heard[0]) == _words(heard[1])
-            print(f"{written:<12} {'yes' if agree else 'NO ':<5}  {' | '.join(heard)}")
+            ratio = f"{seconds[0] / seconds[1]:.2f}" if len(seconds) == 2 else "-"
+            print(
+                f"{written:<12} {'yes' if agree else 'NO ':<5}  {ratio:<5}  "
+                f"{' | '.join(heard)}"
+            )
 
 
 def main() -> None:
