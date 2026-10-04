@@ -38,6 +38,7 @@ from src.video.config.subtitle_models import (
     StylePresetConfig,
     SubtitleEffectsSettings,
     SubtitleSegmentationSettings,
+    SubtitleSettings,
 )
 
 __all_reexported__ = ["PlatformSafeZone"]
@@ -743,6 +744,20 @@ class VideoConfig(BaseModel):
         )
         return self
 
+    @model_validator(mode="after")
+    def subtitle_settings_are_known(self) -> "VideoConfig":
+        """Validate the global caption block at load, nested blocks included.
+
+        It is a plain dict here and becomes a model only when a profile is
+        merged, so without this a typo in `config/subtitles.yaml` passed the
+        load and failed every render of a batch.
+        """
+        try:
+            SubtitleSettings.from_legacy_dict(dict(self.subtitle_settings))
+        except ValidationError as e:
+            raise ValueError(f"subtitle_settings: {e}") from e
+        return self
+
     def get_profile(self, profile_name: str) -> VideoProfile:
         if profile_name not in self.video_profiles:
             raise KeyError(f"Video profile '{profile_name}' not found.")
@@ -817,8 +832,6 @@ class VideoConfig(BaseModel):
 
         # --- Subtitle settings: YAML dict -> SubtitleSettings, then deep-merge
         # the profile's nested subtitle_settings PartialSubtitleSettings on top.
-        from src.video.config.subtitle_models import SubtitleSettings
-
         subtitle_data = self._build_subtitle_base()
         if profile.subtitle_positioning:
             subtitle_data.update(profile.subtitle_positioning)
@@ -922,12 +935,8 @@ class VideoConfig(BaseModel):
             "enabled": ss["enabled"],
             "font_directory": ss["font_directory"],
             "font_size_percent": ss["font_size_percent"],
-            "randomize_fonts": (
-                ss.get("randomize_fonts") or ss.get("use_random_font", False)
-            ),
-            "randomize_colors": (
-                ss.get("randomize_colors") or ss.get("use_random_colors", False)
-            ),
+            "randomize_fonts": ss.get("randomize_fonts", False),
+            "randomize_colors": ss.get("randomize_colors", False),
             "available_fonts": ss.get("available_fonts", []),
             "available_color_combinations": ss.get("available_color_combinations", []),
             "temp_subtitle_dir": ss.get("temp_subtitle_dir", "temp"),

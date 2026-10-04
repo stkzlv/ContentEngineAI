@@ -489,8 +489,8 @@ class TestVideoConfig:
                 "content_aware": False,
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
-                "use_random_font": False,
-                "use_random_colors": False,
+                "randomize_fonts": False,
+                "randomize_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
                 "available_color_combinations": [
                     ["&H00FFFFFF", "&HFF000000"],
@@ -697,8 +697,8 @@ class TestLoadVideoConfig:
                 "content_aware": False,
                 "font_directory": "static/fonts",
                 "font_size_percent": 0.05,
-                "use_random_font": False,
-                "use_random_colors": False,
+                "randomize_fonts": False,
+                "randomize_colors": False,
                 "available_fonts": ["Montserrat", "Rubik", "Poppins", "Gabarito"],
                 "available_color_combinations": [
                     ["&H00FFFFFF", "&HFF000000"],
