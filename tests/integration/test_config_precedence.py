@@ -417,3 +417,34 @@ def test_an_override_does_not_outlive_its_load() -> None:
 
     after = manager.get_video_config(None)["description_settings"]["metadata_mode"]
     assert after == before != "optimized"
+
+
+@pytest.mark.parametrize(
+    ("block", "key"),
+    [
+        ("audio_settings", "freesound_download_chunk_size"),
+        ("media_settings", "temp_media_dir"),
+        ("video_settings", "default_max_chars_per_line"),
+    ],
+)
+def test_the_unread_video_keys_are_gone(block: str, key: str) -> None:
+    """Nothing read them, so setting them changed nothing."""
+    from src.video.config import load_video_config_modular
+
+    config = load_video_config_modular()
+
+    assert not hasattr(getattr(config, block), key)
+
+
+def test_an_old_yaml_setting_the_removed_video_key_fails_the_load() -> None:
+    from pydantic import ValidationError
+
+    from src.video.config.visual_models import VideoSettings
+
+    fields = {
+        name: field.default
+        for name, field in VideoSettings.model_fields.items()
+        if not field.is_required()
+    }
+    with pytest.raises(ValidationError, match="default_max_chars_per_line"):
+        VideoSettings.model_validate({**fields, "default_max_chars_per_line": 20})

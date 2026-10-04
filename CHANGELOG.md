@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.149.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: `video_settings.default_max_chars_per_line`, `media_settings.temp_media_dir` and `audio_settings.freesound_download_chunk_size` are gone from `config/video_production.yaml`, since nothing read them; a config that still sets `default_max_chars_per_line` fails to load, and the other two are ignored. Caption wrapping is `subtitle_settings.max_line_length`.
+
 ## [0.148.1] - 2026-10-04
 
 ### Documentation
