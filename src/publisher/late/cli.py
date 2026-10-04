@@ -41,7 +41,6 @@ from src.publisher.blob_retention import run_blob_retention
 from src.publisher.cleanup import CleanupManager
 from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
-from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.models import Platform, PublisherConfig
 from src.publisher.partial_post_sweep import (
@@ -64,7 +63,11 @@ from src.publisher.tracking import (
 )
 from src.publisher.video_selector import sole_render_for_product
 from src.utils.logging_setup import dated_log_path, log_context, setup_debug_logging
-from src.utils.outputs_paths import get_project_root
+from src.utils.outputs_paths import (
+    durable_state_path,
+    get_project_root,
+    resolve_outputs_dir,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +487,7 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
     """
     with log_context(product_id=args.product_id):
         product_id = args.product_id
-        outputs_dir = DEFAULT_OUTPUTS_DIR.resolve()
+        outputs_dir = args.outputs_dir
         product_dir = outputs_dir / product_id
 
         if not product_dir.exists():
@@ -564,7 +567,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             schedule_mgr: ScheduleManager | None = None
             if not schedule_time and not args.immediate:
                 logger.info("Auto-discovering next available schedule slot...")
-                schedule_mgr = ScheduleManager(config=config.schedule_config)
+                schedule_mgr = ScheduleManager(
+                    schedule_path=_schedule_path(args), config=config.schedule_config
+                )
                 slots = config.schedule_config.slots
                 if not slots:
                     logger.error("No recurring slots configured for auto-discovery")
@@ -656,7 +661,10 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             # sees it. An explicit --schedule reaches here with no manager yet.
             if schedule_time:
                 if schedule_mgr is None:
-                    schedule_mgr = ScheduleManager(config=config.schedule_config)
+                    schedule_mgr = ScheduleManager(
+                        schedule_path=_schedule_path(args),
+                        config=config.schedule_config,
+                    )
                 record_scheduled_posts(
                     product_id,
                     publish_results,
@@ -745,7 +753,7 @@ async def cmd_calendar(
     logger.info("Listing scheduled posts...")
 
     # Create schedule manager
-    schedule_mgr = ScheduleManager()
+    schedule_mgr = ScheduleManager(schedule_path=_schedule_path(args))
 
     # The local file is only as current as the paths that write it. Show
     # the provider's own count beside it so a gap is visible rather than
@@ -885,7 +893,9 @@ async def cmd_schedule_auto(
         if not unpublished_videos:
             return
 
-        schedule_mgr = ScheduleManager(config=config.schedule_config)
+        schedule_mgr = ScheduleManager(
+            schedule_path=_schedule_path(args), config=config.schedule_config
+        )
         # `--no-cleanup` says "do not clean up", which is not the same as
         # "no config supplied". `auto_schedule` reads `None` as the latter and
         # substitutes a default `CleanupConfig()` whose `enabled` is True, so
@@ -1482,8 +1492,11 @@ Examples:
     schedule_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to scan for videos (default: the repo outputs/)",
+        default=None,
+        help=(
+            "Directory to scan for videos "
+            "(default: OUTPUTS_DIR, else the repo outputs/)"
+        ),
     )
     schedule_parser.add_argument(
         "--immediate",
@@ -1563,8 +1576,11 @@ Examples:
     cleanup_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to scan for products (default: the repo outputs/)",
+        default=None,
+        help=(
+            "Directory to scan for products "
+            "(default: OUTPUTS_DIR, else the repo outputs/)"
+        ),
     )
     cleanup_parser.add_argument(
         "--dry-run",
@@ -1615,8 +1631,11 @@ Examples:
     registry_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
-        help="Directory to save registry files (default: the repo outputs/)",
+        default=None,
+        help=(
+            "Directory to save registry files "
+            "(default: OUTPUTS_DIR, else the repo outputs/)"
+        ),
     )
     registry_parser.add_argument(
         "--scan-dir",
@@ -1651,10 +1670,10 @@ Examples:
     analytics_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
+        default=None,
         help=(
             "Outputs root; post_metrics.json lives under its state/ "
-            "subdirectory (default: the repo outputs/)"
+            "subdirectory (default: OUTPUTS_DIR, else the repo outputs/)"
         ),
     )
     analytics_parser.add_argument(
@@ -1676,7 +1695,7 @@ Examples:
     verify_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
+        default=None,
         help="Directory holding publish_history.json for product names",
     )
     verify_parser.add_argument(
@@ -1698,7 +1717,7 @@ Examples:
     verify_delivery_parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=DEFAULT_OUTPUTS_DIR,
+        default=None,
         help="Directory holding publish_history.json for product names",
     )
     verify_delivery_parser.add_argument(
@@ -1708,6 +1727,11 @@ Examples:
     )
 
     return parser
+
+
+def _schedule_path(args: argparse.Namespace) -> Path:
+    """The local schedule under the run's outputs root, not the repo's."""
+    return durable_state_path(args.outputs_dir, "schedule.json")
 
 
 async def main():
@@ -1750,6 +1774,9 @@ async def main():
     # Load .env
     project_root = get_project_root()
     load_dotenv(project_root / ".env")
+    # After .env, which may set OUTPUTS_DIR. Every command, flag or not:
+    # `single` and `calendar` read the same root as the rest.
+    args.outputs_dir = resolve_outputs_dir(getattr(args, "outputs_dir", None))
 
     # Setup logging
     setup_debug_logging(

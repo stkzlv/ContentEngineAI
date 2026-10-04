@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.147.1] - 2026-10-04
+
+### Fixed
+
+- The publisher's commands and the global batch take their outputs directory from `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT` when `--outputs-dir` is not passed, as the producer does, instead of the repository's `outputs/`; the publisher's local schedule file follows the same directory.
+
 ## [0.147.0] - 2026-10-04
 
 ### Changed

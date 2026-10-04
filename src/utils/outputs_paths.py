@@ -108,6 +108,26 @@ def get_project_root() -> Path:
     return project_root.resolve()
 
 
+# Machine settings that move the outputs root (decision 0003). The config
+# manager applies OUTPUTS_DIR after CONTENT_ENGINE_OUTPUT, so it wins here too.
+OUTPUTS_ENV_VARS: tuple[str, ...] = ("OUTPUTS_DIR", "CONTENT_ENGINE_OUTPUT")
+
+
+def resolve_outputs_dir(
+    cli_value: str | Path | None, configured: str | Path | None = None
+) -> Path:
+    """The outputs root: the CLI, then the machine environment, then config.
+
+    A relative path is taken from the repository root, as the producer does.
+    """
+    env_value = next(
+        (os.environ[n] for n in OUTPUTS_ENV_VARS if os.environ.get(n)), None
+    )
+    raw = cli_value or env_value or configured or "outputs"
+    path = Path(raw).expanduser()
+    return path if path.is_absolute() else get_project_root() / path
+
+
 def get_outputs_root(custom_dir: str | None = None) -> Path:
     """Get the root outputs directory for the project.
 
