@@ -7,8 +7,9 @@ The flags are read from the parser source with the same parse the docs check
 uses, so no CLI module is imported.
 
 Config keys are checked one way only: every key in `config/*.yaml` is named
-somewhere in `docs/reference/`. The keys not yet documented are listed in
-`UNDOCUMENTED_KEYS`; the list may only shrink.
+somewhere in `docs/reference/` as a whole name, so `llm_model` is not covered
+by `llm_model_fetch_timeout_sec`. There is no exception list: an undocumented
+key fails the test.
 """
 
 from __future__ import annotations
@@ -100,28 +101,14 @@ def undocumented_keys() -> set[str]:
             continue
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         for dotted, key in yaml_keys(data):
-            if key not in docs:
+            if not re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", docs):
                 missing.add(f"{path.name}:{dotted}")
     return missing
 
 
-UNDOCUMENTED_KEYS_FILE = Path(__file__).with_name("undocumented_config_keys.txt")
-
-
-def listed_gaps() -> set[str]:
-    lines = UNDOCUMENTED_KEYS_FILE.read_text(encoding="utf-8").splitlines()
-    return {line for line in lines if line and not line.startswith("#")}
-
-
-def test_a_new_config_key_is_documented() -> None:
-    new = sorted(undocumented_keys() - listed_gaps())
-    assert not new, (
-        f"config keys with no mention in docs/reference/: {new}. Document them "
-        "in the reference page for their file."
+def test_every_config_key_is_documented() -> None:
+    missing = sorted(undocumented_keys())
+    assert not missing, (
+        f"config keys with no mention in docs/reference/: {missing}. Document "
+        "them in the reference page for their file."
     )
-
-
-def test_the_gap_list_only_shrinks() -> None:
-    """A key documented since, or removed, comes off the list."""
-    stale = sorted(listed_gaps() - undocumented_keys())
-    assert not stale, f"remove from {UNDOCUMENTED_KEYS_FILE.name}: {stale}"

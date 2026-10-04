@@ -209,7 +209,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
             "temp_subtitle_filename": "captions.srt",
             "save_srt_with_video": True,
             "subtitle_format": "srt",
-            "script_paths": ["info/script.txt"],
             "max_subtitle_duration": 4.5,
             "max_line_length": 38,
             "max_words_per_line": 3,

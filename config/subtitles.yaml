@@ -361,9 +361,6 @@ subtitle_settings:
   font_directory: "static/fonts"
   font_size_percent: 0.075              # ~144px at 1920 frame height (~7.5%)
 
-  # Script fallback paths
-  script_paths: ["info/script.txt"]
-
   # Quality thresholds
   subtitle_similarity_threshold: 0.70
 
@@ -656,15 +653,6 @@ subtitle_effects:
   # Minimum timing between character reveals (milliseconds)
   # Prevents reveal from being too fast to read
   typewriter_min_timing_ms: 50
-
-  # ---- GLOW EFFECT PARAMETERS ----
-  # Controls color transition glow animation
-
-  # Starting color for glow effect (ASS format: &HAABBGGRR)
-  glow_start_color: "&H00FFFF00"  # Yellow - initial glow color
-
-  # Ending color for glow effect (ASS format: &HAABBGGRR)
-  glow_end_color: "&H00000000"    # Black - final glow color
 
 # ============================================================================
 # TEXT RENDERING SETTINGS

@@ -993,7 +993,6 @@ class VideoConfig(BaseModel):
             "temp_subtitle_filename": ss.get("temp_subtitle_filename", "captions.srt"),
             "save_srt_with_video": ss.get("save_srt_with_video", True),
             "subtitle_format": ss.get("subtitle_format", "srt"),
-            "script_paths": ss.get("script_paths", []),
             # The smoother's kwargs. This builder enumerates keys explicitly,
             # so a block absent from it never reaches the merged settings
             # however completely the YAML defines it: the model's
