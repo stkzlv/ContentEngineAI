@@ -946,7 +946,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                     metadata,
                     metadata_file,
                     disclose=carries_affiliate_content(ctx.product),
-                    disclosure=ctx.config.video_settings.disclosure_overlay.text,
+                    disclosure=ctx.config.disclosure_text(),
                 )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
                 saved_count += 1
@@ -1053,7 +1053,7 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
         # either choice made consistently.
         "carries_affiliate_content": disclose,
         # The caption token, from the same setting as the on-frame text.
-        "disclosure": ctx.config.video_settings.disclosure_overlay.text,
+        "disclosure": ctx.config.disclosure_text(),
     }
 
     metadata_file = product_root / "metadata.json"

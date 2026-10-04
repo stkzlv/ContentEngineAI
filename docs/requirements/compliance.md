@@ -20,6 +20,9 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 - **REQ-CMP-011** `shipped` If the caption's hashtags include the disclosure token, the published caption shows the disclosure once, on the leading line.
 - **REQ-CMP-012** `shipped` If a render has no material connection, the publisher removes `#ad` and the configured disclosure token from its description and hashtags.
 - **REQ-CMP-013** `shipped` The disclosure text is configurable per render, so language-matched variants need no code change.
+- **REQ-CMP-022** `shipped` The overlay and the caption disclosure are in the script's language, taken from the TTS `language_code`: `#ad` for English, `#publi` for Spanish, from `video_settings.disclosure_overlay.variants`.
+- **REQ-CMP-023** `shipped` If `disclosure_overlay.language` differs from the script's language, or the script's language has no variant, the config load logs a warning naming both; the render falls back to `disclosure_overlay.text` for a language with no variant.
+- **REQ-CMP-024** `shipped` At config load, every disclosure variant and the fallback text are checked for glyphs the overlay font can draw.
 
 ## Platform disclosure settings
 

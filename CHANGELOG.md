@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.146.0] - 2026-10-04
+
+### Added
+
+- The on-frame disclosure and the caption's disclosure line follow the script's language, taken from the TTS `language_code`: `video_settings.disclosure_overlay.variants` gives `#ad` for English and `#publi` for Spanish, `text` covers a language with no variant, and the config load warns when a forced `language` differs from the script's or the language has no variant. English renders are unchanged.
+
+### Fixed
+
+- The config check that the disclosure text can be drawn by the overlay font runs again, over every variant; it read an `enabled` key that no longer exists, so it had been skipped.
+
 ## [0.145.4] - 2026-10-04
 
 ### Changed

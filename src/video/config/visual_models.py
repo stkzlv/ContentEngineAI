@@ -103,7 +103,26 @@ class DisclosureSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field("#ad", description="Disclosure text. Override per language.")
+    text: str = Field(
+        "#ad",
+        description="Disclosure text for a language with no entry in `variants`.",
+    )
+    variants: dict[str, str] = Field(
+        default_factory=lambda: {"en": "#ad", "es": "#publi"},
+        description=(
+            "Disclosure text per language code. The FTC wants the disclosure "
+            "in the language of the endorsement, and Spain's Royal Decree "
+            "444/2024 asks for #publi."
+        ),
+    )
+    language: str | None = Field(
+        None,
+        description=(
+            "Language of the disclosure. Unset, it follows the script "
+            "language (the TTS `language_code`); set to a different language, "
+            "the config load warns."
+        ),
+    )
     position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(
         "top-right", description="Corner placement within the safe zone"
     )
