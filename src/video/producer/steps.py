@@ -860,9 +860,6 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
 
     """
     try:
-        logger.info(
-            "Platform metadata generation enabled, using PlatformMetadataFactory"
-        )
 
         from src.ai.platform_metadata import (
             PlatformMetadataFactory,
@@ -880,6 +877,9 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         if not pm_config.enabled:
             logger.info("platform_metadata.enabled is false, using unified mode")
             return False
+        logger.info(
+            "Platform metadata generation enabled, using PlatformMetadataFactory"
+        )
 
         platform_settings: dict[str, dict] = {
             name: block.model_dump()
