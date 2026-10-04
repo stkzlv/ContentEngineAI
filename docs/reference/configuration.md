@@ -2177,7 +2177,7 @@ optimization_settings:
   connection_pool_host_limit: 20
   download_manager_max_concurrent: 5
   download_chunk_size_bytes: 8192
-  async_ffmpeg_max_concurrent: 4             # FFmpeg processes one render runs at once
+  async_ffmpeg_max_concurrent: 4             # concurrent final-assembly and caption-burn encodes
   cache_media_metadata_ttl_sec: 86400
   cache_api_response_ttl_sec: 3600
 ```

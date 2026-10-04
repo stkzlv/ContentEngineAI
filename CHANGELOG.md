@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `optimization_settings.async_ffmpeg_max_concurrent` sets how many FFmpeg processes a render runs at once, for the producer and the global batch; its default is 4, the limit the code always used.
+- `optimization_settings.async_ffmpeg_max_concurrent` is read: it limits the concurrent final-assembly and caption-burn FFmpeg encodes, for the producer and the global batch, and its default is 4, the limit the code always used.
 
 ### Removed
 
