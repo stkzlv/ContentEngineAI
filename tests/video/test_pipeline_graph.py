@@ -148,6 +148,7 @@ class TestPipelineGraph:
         assert result.error == test_error
         assert graph.steps["test_step"].status == StepStatus.FAILED
 
+    @pytest.mark.req("REQ-VID-137")
     @pytest.mark.asyncio
     async def test_execute_step_skip_completed(self):
         """Test step execution skipping already completed steps."""

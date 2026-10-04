@@ -74,7 +74,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-076** `shipped` When `--debug` is passed, a successful render writes `performance.json` with its step metrics to the product's `temp/` directory.
 - **REQ-OPS-077** `shipped` The final assembly writes the FFmpeg command it ran to an `*_ffmpeg_command.log` file in the product's `temp/` directory.
 - **REQ-OPS-078** `shipped` The producer records each render's step progress in `pipeline_state.json` in the product's `temp/` directory.
-  - Why: a re-run resumes from this file, so switching it off makes every re-run start from the first step.
+  - Why: a re-run resumes from this file; without it every re-run starts from the first step.
 
 ## Resource limits
 
