@@ -108,7 +108,7 @@ poetry run python -m src.video.producer \
 ```
 
 This command:
-- Enables debug mode (overrides `debug_mode: false` in YAML)
+- Enables debug logging
 - Sets subtitle positioning (overrides any env var or YAML value)
 - Uses content-aware positioning
 - Applies modern style preset with custom font scaling
@@ -164,7 +164,6 @@ Global settings and output structure:
 ```yaml
 # Base output directory and structure
 global_output_directory: "outputs"
-debug_mode: false
 pipeline_timeout_sec: 2700
 
 # System-wide timeouts for command execution and media analysis
@@ -211,6 +210,9 @@ video_profiles:
     description: "Image slideshow optimized for product focus"
     use_scraped_images: true
     use_stock_images: false
+
+batch:
+  profile_pool: []  # what --random-profile draws from; empty means every eligible profile
 ```
 
 ### 3. **AI Services Configuration** (`config/ai_services.yaml`)
@@ -397,21 +399,12 @@ shortening as enabled.
 ```yaml
 # Pipeline execution timeout (seconds)
 pipeline_timeout_sec: 2700
-
-# Logging configuration
-logging_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-debug_mode: false
-
-# Inter-product processing delay
-inter_product_delay_range: [30, 60]  # Random delay in seconds
+outro_duration_sec: 1.0
 ```
 
 **Options:**
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
-- `logging_level`: Controls verbosity of logging output
-- `debug_mode`: Enables detailed tracing and intermediate file retention
 - `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word.
-- `inter_product_delay_range`: Random delay between processing multiple products
 
 </details>
 
@@ -455,10 +448,6 @@ output_structure:
     reports: "reports"                  # Performance reports
     temp: "temp"                        # Global temp files
 
-# Path building configuration (model defaults; core.yaml does not set it)
-path_config:
-  cleanup:
-    remove_temp_on_success: true        # Auto-cleanup temp files
 ```
 
 ### Directory Structure Example
@@ -2594,8 +2583,8 @@ for f in Path('config').glob('*.yaml'):
 # Check how a value is being interpreted
 CONTENT_ENGINE_DEBUG=true poetry run python -c "
 from src.config_manager import UnifiedConfigManager
-mgr = UnifiedConfigManager()
-print('debug_mode:', mgr.debug_mode, type(mgr.debug_mode))
+v = UnifiedConfigManager().get_scraper_config()['global_settings']['debug_mode']
+print('debug_mode:', v, type(v))
 "
 ```
 

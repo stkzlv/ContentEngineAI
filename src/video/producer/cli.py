@@ -294,7 +294,7 @@ def _profiles_this_run_may_use(args, config) -> list[str]:
         try:
             return load_profile_pool(
                 getattr(args, "profile_pool", None),
-                getattr(config, "profile_pool", None),
+                config.batch.profile_pool,
                 config,
             )
         except ValueError:
@@ -861,13 +861,10 @@ async def main():
     profile_pool = None
     if args.batch and args.random_profile:
         # Load profile pool with CLI > YAML > all profiles precedence
-        yaml_profile_pool = (
-            config.batch.get("profile_pool") if hasattr(config, "batch") else None
-        )
         try:
             profile_pool = load_profile_pool(
                 cli_pool=args.profile_pool,
-                yaml_pool=yaml_profile_pool,
+                yaml_pool=config.batch.profile_pool,
                 config=config,
             )
             logger.info(

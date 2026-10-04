@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.video.config.core_models import BatchSettings
 from src.video.config_validator import check_stock_media_key
 from src.video.producer.utils import profile_needs_stock_media
 
@@ -208,7 +209,7 @@ class TestCandidateProfiles:
 
     def _config_with(self, *names):
         return SimpleNamespace(
-            video_profiles=dict.fromkeys(names, SCRAPED), profile_pool=None
+            video_profiles=dict.fromkeys(names, SCRAPED), batch=BatchSettings()
         )
 
     def test_a_named_profile(self):

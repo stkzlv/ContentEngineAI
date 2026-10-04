@@ -172,8 +172,8 @@ class UnifiedConfigManager:
         # Common environment variable patterns
         env_mappings = {
             # Debug mode override
-            "DEBUG_MODE": ["debug_mode", "global_settings.debug_mode"],
-            "CONTENT_ENGINE_DEBUG": ["debug_mode", "global_settings.debug_mode"],
+            "DEBUG_MODE": ["global_settings.debug_mode"],
+            "CONTENT_ENGINE_DEBUG": ["global_settings.debug_mode"],
             # Output directory override
             "CONTENT_ENGINE_OUTPUT": ["global_output_directory"],
             "OUTPUTS_DIR": [
@@ -218,14 +218,13 @@ class UnifiedConfigManager:
         """Apply CLI argument overrides to config."""
         # Common CLI override patterns (legacy short names)
         cli_mappings = {
-            "debug": ["debug_mode", "global_settings.debug_mode"],
+            "debug": ["global_settings.debug_mode"],
             "output_dir": [
                 "global_output_directory",
                 "scraper_output_config.base_directory",
             ],
             "timeout": ["pipeline_timeout_sec"],
             "headless": ["global_settings.browser_config.headless"],
-            "clean": ["cleanup.remove_temp_on_success"],
         }
 
         for cli_key, config_paths in cli_mappings.items():

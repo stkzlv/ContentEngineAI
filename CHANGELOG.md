@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.144.0] - 2026-10-04
+
+### Fixed
+
+- The producer's `--random-profile` batch draws from `batch.profile_pool` in `config/video_production.yaml` when `--profile-pool` is not passed, and refuses to start when that pool names a missing profile; the setting was never read, and the bundled pool is now empty, so a batch still draws from every eligible profile.
+
+### Removed
+
+- **Breaking**: the top-level `cleanup`, `global_dirs` and `debug_mode` blocks in `config/core.yaml`, the `file_naming` and `timing` blocks in `config/video_production.yaml`, and `path_config.cleanup.remove_temp_on_success`, which nothing read; `output_structure.global_dirs` and the `--debug` flags are unchanged.
+
 ## [0.143.1] - 2026-10-04
 
 ### Fixed
