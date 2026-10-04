@@ -505,12 +505,6 @@ class OptimizationSettings(BaseModel):
     download_manager_max_concurrent: int = Field(5)
     download_chunk_size_bytes: int = Field(8192)
 
-    # Memory-Mapped I/O Configuration
-    mmap_file_size_threshold_bytes: int = Field(1048576)  # 1MB
-    mmap_chunk_size_bytes: int = Field(67108864)  # 64MB
-    mmap_memory_usage_threshold: float = Field(0.8)
-    mmap_fallback_memory_limit_bytes: int = Field(1073741824)  # 1GB
-
     # Async I/O Configuration
     async_ffmpeg_max_concurrent: int = Field(2)
     async_io_max_concurrent: int = Field(8)

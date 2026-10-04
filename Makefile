@@ -15,7 +15,7 @@ NC := \033[0m # No Color
 
 .PHONY: help install install-dev lint lint-fix lint-verbose lint-no-parallel lint-tool lint-list lint-report format type-check security test test-cov clean \
 	validate-env dev-setup quick-check full-check ruff ruff-fix bandit vulture safety \
-	docs release-prep release-check check-docs test-docs update-deps clean-all clean-outputs docker-build docker-run perf-trends perf-detailed perf-compare \
+	release-prep release-check check-docs test-docs update-deps clean-all clean-outputs perf-trends perf-detailed perf-compare \
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
@@ -49,9 +49,6 @@ help:
 	@echo "  test-cov      - Run tests with coverage report"
 	@echo "  test-parallel - Run tests in parallel (PYTEST_WORKERS=N to bound)"
 	@echo "  test-lowpri   - Run tests under a memory cap and low priority"
-	@echo ""
-	@echo "$(GREEN)Build and Package:$(NC)"
-	@echo "  docs          - Generate documentation"
 	@echo ""
 	@echo "$(GREEN)Development Workflow:$(NC)"
 	@echo "  quick-check   - Run essential checks (ruff + type-check)"
@@ -209,11 +206,6 @@ test-parallel:
 	poetry run pytest -n $(PYTEST_WORKERS)
 	@echo "$(GREEN)Parallel tests completed!$(NC)"
 
-docs:
-	@echo "$(BLUE)Generating documentation...$(NC)"
-	@echo "$(YELLOW)Documentation generation not yet implemented$(NC)"
-	@echo "$(GREEN)Documentation placeholder completed!$(NC)"
-
 # Utilities
 clean:
 	@echo "$(BLUE)Cleaning up cache and temporary files...$(NC)"
@@ -348,15 +340,6 @@ DOC_TESTS = tests/docs tests/tools tests/video/test_no_doc_names_a_refused_key.p
 
 test-docs:
 	poetry run pytest $(DOC_TESTS) -q
-
-# Docker support (if needed)
-docker-build:
-	@echo "$(BLUE)Building Docker image...$(NC)"
-	@echo "$(YELLOW)Docker build not yet implemented$(NC)"
-
-docker-run:
-	@echo "$(BLUE)Running Docker container...$(NC)"
-	@echo "$(YELLOW)Docker run not yet implemented$(NC)"
 
 # Parallel execution helpers
 lint-parallel:

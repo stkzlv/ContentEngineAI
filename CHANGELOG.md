@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.138.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: the memory-mapped file helpers nothing called are gone, with the `optimization_settings.mmap_*` keys; a config that still sets one loads and ignores it.
+- The `make docs`, `make docker-build` and `make docker-run` targets, which only printed that they were not implemented.
+
+### Documentation
+
+- The configuration reference says `validate_required_secrets()` is a check you call, not one that runs at startup.
+
 ## [0.137.0] - 2026-10-04
 
 ### Changed

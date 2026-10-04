@@ -376,18 +376,6 @@ async def download_with_limit(urls, max_concurrent=3):
     return await asyncio.gather(*tasks)
 ```
 
-### Memory Management
-
-```python
-# Use memory-mapped I/O for large files
-from src.utils.memory_mapped_io import is_file_suitable_for_mmap, copy_file_mmap
-
-if is_file_suitable_for_mmap(file_path, min_size=1024*1024):
-    copy_file_mmap(source, destination)
-else:
-    shutil.copy(source, destination)
-```
-
 ### Connection Pooling
 
 ```python
