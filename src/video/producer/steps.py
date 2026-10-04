@@ -877,14 +877,19 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         if pm_config is None:
             logger.warning("Platform metadata is None, using unified mode")
             return False
+        if not pm_config.enabled:
+            logger.info("platform_metadata.enabled is false, using unified mode")
+            return False
 
-        platform_settings: dict[str, dict] = {}
-        if pm_config.youtube is not None:
-            platform_settings["youtube"] = pm_config.youtube.model_dump()
-        if pm_config.tiktok is not None:
-            platform_settings["tiktok"] = pm_config.tiktok.model_dump()
-        if pm_config.instagram is not None:
-            platform_settings["instagram"] = pm_config.instagram.model_dump()
+        platform_settings: dict[str, dict] = {
+            name: block.model_dump()
+            for name, block in (
+                ("youtube", pm_config.youtube),
+                ("tiktok", pm_config.tiktok),
+                ("instagram", pm_config.instagram),
+            )
+            if block is not None and block.enabled
+        }
 
         if not platform_settings:
             logger.warning(

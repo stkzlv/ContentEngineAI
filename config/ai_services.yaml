@@ -404,7 +404,8 @@ description_settings:
 
   # Platform-specific metadata settings
   # If null, uses legacy unified description mode for backward compatibility
-  # Set enabled: true to use platform-optimized titles, captions, and hashtags
+  # enabled: false falls back to unified mode; each platform block has its own
+  # enabled switch for metadata_mode: optimized
   platform_metadata:
     enabled: true
     # Metadata caching

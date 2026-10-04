@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.143.0] - 2026-10-04
+
+### Fixed
+
+- Optimized metadata mode honours `description_settings.platform_metadata.enabled` and each platform's `enabled` key: a disabled platform gets no `metadata_<platform>.json`, and a disabled block falls back to unified metadata; the bundled config enables everything, so renders do not change.
+
 ## [0.142.0] - 2026-10-04
 
 ### Fixed
