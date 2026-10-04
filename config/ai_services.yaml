@@ -405,16 +405,15 @@ description_settings:
   # Platform-specific metadata settings
   # If null, uses legacy unified description mode for backward compatibility
   # Set enabled: true to use platform-optimized titles, captions, and hashtags
-  # Full platform-specific settings defined in platform_metadata_config section below
   platform_metadata:
     enabled: true
-    # Metadata caching (see platform_metadata_config.cache for full settings)
+    # Metadata caching
     cache:
       enabled: true
       ttl_hours: 24
       cache_dir: ".cache/platform_metadata"
       max_entries: 1000
-    # Trend-aware hashtags (see platform_metadata_config.trends for documentation)
+    # Trend-aware hashtags
     trends:
       enabled: false
       provider: "static"
@@ -431,327 +430,18 @@ description_settings:
       hashtag_count_min: 3
       hashtag_count_max: 5
       include_shorts_tag: true
-      seo_keywords: true
     tiktok:
       enabled: true
       caption_length_optimal: 150
       caption_length_max: 2200
       hashtag_count_min: 3
       hashtag_count_max: 5
-      avoid_generic_viral_tags: true
-      prioritize_search_keywords: true
     instagram:
       enabled: true
       caption_style: "seo"
-      caption_length_short_max: 30
-      caption_length_seo_max: 240
       hashtag_count_min: 15
       hashtag_count_max: 30
-      hashtags_in_caption: true
       emoji_enabled: true
-
-# ============================================================================
-# PLATFORM METADATA SETTINGS (Reference Documentation)
-# ============================================================================
-# IMPORTANT: This section provides DETAILED DOCUMENTATION and default values.
-# The ACTIVE configuration is in description_settings.platform_metadata above.
-# These two sections should be kept in sync when modifying platform settings.
-#
-# Platform-specific metadata optimization for YouTube, TikTok, and Instagram
-# Based on 2025 algorithm best practices and SEO research
-#
-# Pipeline Impact:
-# - Enables platform-specific title/description/hashtag generation
-# - Overrides unified description mode when enabled
-# - Generates separate metadata files per platform (metadata_youtube.json, etc.)
-# - Maintains backward compatibility when disabled (platform_metadata: null)
-#
-# Usage:
-# - Set description_settings.platform_metadata.enabled to true to enable
-# - Adjust per-platform settings to match your content strategy
-platform_metadata_config:
-  # Global enable/disable for platform-specific metadata generation
-  # When false, falls back to legacy unified description mode
-  enabled: true
-
-  # ---- Caching Settings ----
-  # File-based cache for generated platform metadata
-  # Avoids regenerating metadata for unchanged products
-  # Cache is keyed by (product_id, platform) with TTL expiration
-  cache:
-    # Enable/disable metadata caching globally
-    # When enabled, repeated requests for same product use cached metadata
-    # Recommended: true for batch processing, false for debugging
-    enabled: true
-
-    # Time-to-live for cache entries in hours (1-720)
-    # After TTL expires, metadata will be regenerated on next request
-    # 24h is good for active development, 168h (7 days) for production
-    ttl_hours: 24
-
-    # Cache storage directory (relative to project root)
-    # JSON files stored as {product_id}_{platform}.json
-    # Directory is auto-created if it doesn't exist
-    cache_dir: ".cache/platform_metadata"
-
-    # Maximum number of cache entries (0 = unlimited)
-    # When exceeded, oldest entries are removed (LRU eviction)
-    # 1000 entries ≈ 3000 cached metadata files (3 platforms per product)
-    max_entries: 1000
-
-  # ---- A/B Testing Settings ----
-  # Enable A/B testing of prompt templates for metadata quality comparison
-  # Selection is deterministic based on product_id hash for reproducibility
-  # Track variants in metadata.prompt_variant field for analysis
-  ab_testing:
-    # Global enable/disable for A/B testing
-    # When disabled, uses default control templates
-    enabled: false
-
-    # YouTube prompt variants
-    youtube:
-      enabled: true
-      variants:
-        - name: "control"
-          template_path: "src/ai/prompts/youtube_metadata.md"
-          weight: 50
-          description: "Original YouTube metadata prompt"
-        # Add more variants for testing:
-        # - name: "variant_a"
-        #   template_path: "src/ai/prompts/youtube_metadata_v2.md"
-        #   weight: 50
-        #   description: "New YouTube prompt with shorter titles"
-
-    # TikTok prompt variants
-    tiktok:
-      enabled: true
-      variants:
-        - name: "control"
-          template_path: "src/ai/prompts/tiktok_caption.md"
-          weight: 50
-          description: "Original TikTok caption prompt"
-
-    # Instagram prompt variants
-    instagram:
-      enabled: true
-      variants:
-        - name: "control"
-          template_path: "src/ai/prompts/instagram_caption.md"
-          weight: 50
-          description: "Original Instagram caption prompt"
-
-  # ---- Batch Generation Settings ----
-  # Concurrent processing of multiple products for efficient batch workflows
-  # Respects rate limits via semaphore-based concurrency control
-  # Progress tracked with [N/total] format for monitoring
-  batch:
-    # Enable/disable batch metadata generation
-    # When enabled, allows processing multiple products concurrently
-    enabled: true
-
-    # Maximum concurrent product generations (1-20)
-    # Higher values = faster batch completion but more API load
-    # 3 is conservative for rate-limited APIs, 10 for high-throughput
-    # Recommendation: Start with 3, increase if no rate limit errors
-    max_concurrent: 3
-
-    # Enable progress logging with [N/total] format
-    # Logs: "[1/10] B0TESTASIN: starting" -> "[1/10] B0TESTASIN: success"
-    # Useful for monitoring batch progress in production
-    log_progress: true
-
-  # ---- Export Settings ----
-  # Control metadata export formats, encoding, and platform-specific options
-  # Supports JSON, CSV, YouTube CSV, TikTok, and Instagram formats
-  export:
-    # Enable/disable metadata export functionality
-    enabled: true
-
-    # Default export format when not specified
-    # Options: json, csv, youtube_csv, tiktok, instagram
-    default_format: "json"
-
-    # Default YouTube category ID for YouTube CSV exports
-    # Common IDs: 22=People & Blogs, 28=Science & Tech, 10=Music
-    # Full list: https://developers.google.com/youtube/v3/docs/videoCategories
-    youtube_category: "22"
-
-    # Default privacy setting for YouTube exports
-    # Options: private, public, unlisted
-    # Recommendation: "private" for review before publishing
-    youtube_privacy: "private"
-
-    # CSV file encoding for spreadsheet compatibility
-    # utf-8-sig = UTF-8 with BOM (recommended for Excel)
-    # utf-8 = standard UTF-8 (for other tools)
-    csv_encoding: "utf-8-sig"
-
-    # JSON indentation for pretty-printing (0-8 spaces)
-    # 2 = readable, 0 = compact (smaller file size)
-    json_indent: 2
-
-    # Max title length when using description as title fallback
-    # Used in YouTube CSV when title field is empty
-    youtube_title_fallback_length: 60
-
-  # ---- Trend Settings ----
-  # Integrate with trend providers to suggest current hashtags
-  # Improving discoverability with platform-specific trending tags
-  trends:
-    # Enable/disable trend-aware hashtags globally
-    # When enabled, merges trending tags with generated hashtags
-    enabled: false
-
-    # Trend provider to use
-    # Options: static (high-perf fallback), mock (testing)
-    # Future: tiktok_api, google_trends
-    provider: "static"
-
-    # Time-to-live for cached trends in hours (1-24)
-    # Trending tags don't change every minute, 4-12h is recommended
-    cache_ttl_hours: 4
-
-    # Maximum number of trending tags to add per platform (1-5)
-    # Respects platform hashtag limits during merging
-    max_trending_tags: 2
-
-    # Fallback trending tags per platform when external APIs unavailable
-    # Used by static provider or as baseline when API calls fail
-    # Customize per niche: tech, beauty, fitness, etc.
-    fallback_tags:
-      youtube:
-        - "#Shorts"
-        - "#Trending"
-        - "#Tech"
-        - "#Gadgets"
-        - "#Review"
-      tiktok:
-        - "#ForYou"
-        - "#Viral"
-        - "#LifeHack"
-        - "#Shopping"
-        - "#TechTok"
-      instagram:
-        - "#Reels"
-        - "#InstaGood"
-        - "#Innovation"
-        - "#Gadget"
-        - "#TechLife"
-
-  # ---- YouTube Settings ----
-  # Optimized for YouTube Shorts discovery and search ranking
-  # Key factors: Front-loaded keywords, #Shorts tag, 3-5 targeted hashtags
-  youtube:
-    enabled: true
-
-    # Maximum title length (characters)
-    # YouTube allows 100 chars, but 50-60 is optimal for mobile display
-    # SEO best practice: Place primary keywords in first 50 characters
-    # Recommendation: Keep titles punchy and keyword-rich for Shorts
-    title_length_max: 60
-
-    # Maximum description length (characters)
-    # YouTube allows 5000 chars, but first 150 are shown without "Show more"
-    # SEO best practice: Front-load important info and keywords in first 150 chars
-    # Include call-to-action, product links, and detailed info after
-    description_length_max: 5000
-
-    # Hashtag count range (min-max)
-    # YouTube recommends 3-5 hashtags maximum for best performance
-    # Too many hashtags (>15) can result in all hashtags being ignored
-    # Focus on niche-specific tags rather than generic viral tags
-    hashtag_count_min: 3
-    hashtag_count_max: 5
-
-    # Automatically include #Shorts hashtag for vertical videos <60 seconds
-    # Critical for YouTube Shorts discovery and recommendation algorithm
-    # Set to false if manually managing hashtags or creating long-form content
-    include_shorts_tag: true
-
-    # Enable SEO keyword optimization in title and description
-    # Places high-value search terms at beginning of title
-    # Incorporates exact search phrases in first 150 chars of description
-    # Recommended: true for maximum discoverability
-    seo_keywords: true
-
-  # ---- TikTok Settings ----
-  # Optimized for TikTok's search-engine model (2024+ algorithm shift)
-  # Key factors: Exact search phrases, niche hashtags, avoid generic viral tags
-  tiktok:
-    enabled: true
-
-    # Optimal caption length for engagement (characters)
-    # TikTok allows 2200 chars, but 100-300 is optimal for readability
-    # Algorithm favors concise, searchable captions over creative hooks
-    # Use exact search phrases (e.g., "morning skincare routine") vs creative text
-    caption_length_optimal: 150
-
-    # Maximum caption length (characters)
-    # Hard limit imposed by TikTok platform
-    # Exceeding this will cause caption truncation
-    caption_length_max: 2200
-
-    # Hashtag count range (min-max)
-    # TikTok performs best with 3-5 targeted, niche-specific hashtags
-    # Avoid overusing hashtags - quality over quantity
-    # Mix of trending niche tags + evergreen category tags works best
-    hashtag_count_min: 3
-    hashtag_count_max: 5
-
-    # Enable SEO-focused caption style
-    # true = Use exact search phrases and keywords
-    # false = Allow more creative, hook-based captions
-    # 2025 best practice: true (TikTok is now a search engine)
-    seo_focused: true
-
-    # Generic hashtags to avoid
-    # These tags are overused and provide no discovery value
-    # Algorithm may even penalize content using only generic viral tags
-    # Focus on niche community hashtags instead (e.g., #TechReview vs #FYP)
-    avoid_generic_tags:
-      - "foryoupage"
-      - "fyp"
-      - "viral"
-      - "foryou"
-
-  # ---- Instagram Settings ----
-  # Optimized for Instagram Reels discovery and engagement
-  # Key factors: 15-30 hashtags in caption (not comments), dual caption styles
-  instagram:
-    enabled: true
-
-    # Caption style for Instagram Reels
-    # Options: "short" (3-5 words, ultra-concise) or "seo" (100-200 chars, keyword-rich)
-    # "short" = Trend-following, minimal text (e.g., "This changed everything ✨")
-    # "seo" = Search-optimized, descriptive (e.g., "Best wireless earbuds under $50 for workouts")
-    # Recommendation: "seo" for product content, "short" for viral trends
-    caption_style: "seo"
-
-    # Caption length for "short" style (characters)
-    # Ultra-brief captions that hook viewers immediately
-    # Typically 3-5 words or 10-15 characters
-    # Works well with emoji and strong visual content
-    caption_length_short: 15
-
-    # Caption length for "seo" style (characters)
-    # Descriptive captions with keywords for search discovery + closing-line mirror
-    # 100-240 characters provides context plus the engagement-bait line from the script
-    # while staying well under Instagram's 2200-char hard cap
-    caption_length_seo: 240
-
-    # Hashtag count range (min-max)
-    # Instagram allows 30 hashtags and actively encourages using 15-30
-    # CRITICAL: Place hashtags IN CAPTION, not in comments (algorithm change)
-    # Mix trending, niche, and evergreen hashtags for maximum reach
-    # Formula: 5-10 high-volume + 10-15 niche + 5-10 branded/specific
-    hashtag_count_min: 15
-    hashtag_count_max: 30
-
-    # Enable emoji usage in captions and hashtags
-    # Emojis increase engagement and visual appeal on Instagram
-    # Use strategically to break up text and add personality
-    # Recommended: true for lifestyle/consumer products
-    emoji_enabled: true
 
 # ============================================================================
 # WHISPER SETTINGS (Speech-to-Text)
@@ -854,12 +544,6 @@ audio_processing:
 
   # Audio encoding for Google TTS output
   google_tts_audio_encoding: "LINEAR16"
-
-  # Minimum valid audio file size in bytes
-  min_audio_file_size_bytes: 100
-
-  # Timeout for audio validation operations
-  audio_validation_timeout_sec: 30
 
   # ---- Silence Removal Settings ----
   # These settings control automatic silence trimming from TTS-generated voiceovers

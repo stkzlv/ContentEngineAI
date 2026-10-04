@@ -146,9 +146,6 @@ class YouTubePlatformSettings(BaseModel):
     include_shorts_tag: bool = Field(
         True, description="Automatically include #Shorts hashtag for vertical videos"
     )
-    seo_keywords: bool = Field(
-        True, description="Enable SEO keyword optimization in title and description"
-    )
 
 
 class TikTokPlatformSettings(BaseModel):

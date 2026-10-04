@@ -80,7 +80,7 @@ A topic video is a search product, not a feed product, and the prompts are writt
   - Instagram caps a post at five since December 2025 [A, [Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/)], below the bundled 15-30.
   - YouTube ignores every hashtag on a video that carries more than 60 [A].
   - Planned: each platform's count stays within that platform's own limit (REQ-PUB-108, #567).
-- **Caption length.** The Instagram SEO caption is capped at 240 characters (the `caption_length_seo` default; the `caption_length_seo_max` key in the YAML has no effect, #577). Instagram posts under 30 words had higher engagement across 9.1 million posts [B, [Socialinsider](https://www.socialinsider.io/blog/instagram-caption-length/)].
+- **Caption length.** The Instagram SEO caption is capped at 240 characters (the `caption_length_seo` default). Instagram posts under 30 words had higher engagement across 9.1 million posts [B, [Socialinsider](https://www.socialinsider.io/blog/instagram-caption-length/)].
 
 YouTube restructured its search filters on 2026-01-08, adding a Type filter that selects Shorts only, long-form only, or a mix ([Tubefilter](https://www.tubefilter.com/2026/01/09/youtube-search-filters-shorts-vs-long-form/)). Most coverage framed it as letting users exclude Shorts. It cuts both ways: Shorts became an explicitly selectable result type and an explicitly excludable one, and no data on the split is published. The safe reading is that Shorts search behaviour changed recently enough to invalidate older guidance, not that it improved.
 

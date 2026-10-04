@@ -178,7 +178,6 @@ class TestYouTubePlatformSettings:
             hashtag_count_min=3,
             hashtag_count_max=5,
             include_shorts_tag=True,
-            seo_keywords=True,
         )
 
         assert settings.enabled is True
@@ -187,7 +186,6 @@ class TestYouTubePlatformSettings:
         assert settings.hashtag_count_min == 3
         assert settings.hashtag_count_max == 5
         assert settings.include_shorts_tag is True
-        assert settings.seo_keywords is True
 
     def test_youtube_settings_defaults(self):
         """Test YouTube settings with default values."""
@@ -199,7 +197,6 @@ class TestYouTubePlatformSettings:
         assert settings.hashtag_count_min == 3
         assert settings.hashtag_count_max == 5
         assert settings.include_shorts_tag is True
-        assert settings.seo_keywords is True
 
     def test_youtube_settings_invalid_title_length_max_too_high(self):
         """Test YouTube settings with title length exceeding maximum."""

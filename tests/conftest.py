@@ -341,8 +341,6 @@ def mock_config(temp_dir: Path) -> VideoConfig:
         "audio_processing": {
             "coqui_gpu_enabled": False,
             "google_tts_audio_encoding": "LINEAR16",
-            "min_audio_file_size_bytes": 100,
-            "audio_validation_timeout_sec": 30,
         },
         "video_processing": {
             "ffmpeg_probe_streams": "v:0",
