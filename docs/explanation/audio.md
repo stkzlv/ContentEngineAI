@@ -41,7 +41,7 @@ The levels are per-track gain offsets applied before the `amix` stage, in `audio
 | `voiceover_volume_db` | `3.0` | The voiceover track gets +3 dB |
 | `music_volume_db` | `-24.0` | The music track gets -24 dB, 27 dB under the voice |
 | `music_fade_in_duration` | `2.0` | Seconds of music fade-in |
-| `music_fade_out_duration` | `3.0` | Seconds of music fade-out |
+| `music_fade_out_duration` | `3.0` | Seconds of music fade-out; a `peak` or `loop` ending fades within `peak_margin_sec` instead |
 
 Why: audio-for-video guidance converges on these targets for the finished mix ([Gumlet](https://www.gumlet.com/learn/audio-levels-for-video/)):
 
