@@ -10,7 +10,7 @@ same. It only measures; nothing here changes what a render chooses.
 
 Usage:
   python -m src.video.render_choices [--last N] [--dominance 0.6]
-      [--similarity 0.9] [--outputs-dir PATH]
+      [--similarity 0.5] [--outputs-dir PATH]
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ DIMENSIONS = (
     "pillar",
     "cta",
     "voice_profile",
+    "voice_name",
     "caption_engine",
     "caption_template",
     "music",
@@ -118,12 +119,19 @@ def record_render_choices(outputs_dir: Path, row: dict[str, Any]) -> None:
 
 
 def load_recent(outputs_dir: Path, last: int) -> list[dict[str, Any]]:
-    """The newest `last` rows, skipping lines that are not valid JSON."""
+    """The newest `last` rows, skipping lines that are not valid JSON.
+
+    Never raises: a write cut off mid-character (an out-of-memory kill, a full
+    disk) leaves bytes that are not UTF-8, and the script step reads this file,
+    so a broken store must not fail a render.
+    """
     path = choices_path(outputs_dir)
-    if not path.exists():
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
         return []
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         try:
             row = json.loads(line)
         except ValueError:
@@ -131,6 +139,17 @@ def load_recent(outputs_dir: Path, last: int) -> list[dict[str, Any]]:
         if isinstance(row, dict):
             rows.append(row)
     return rows[-last:] if last > 0 else rows
+
+
+def latest_per_product(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each product's newest row, in order. A resume of a finished product
+    appends a second row for the same render, which would count twice.
+    """
+    newest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        newest.pop(str(row.get("product_id")), None)
+        newest[str(row.get("product_id"))] = row
+    return list(newest.values())
 
 
 def distribution(rows: Sequence[dict[str, Any]]) -> dict[str, Counter]:
@@ -186,6 +205,8 @@ def similar_scripts(
     pairs = []
     for i, (id_a, text_a) in enumerate(scripts):
         for id_b, text_b in scripts[i + 1 :]:
+            if id_a == id_b:
+                continue
             ratio = script_similarity(text_a, text_b)
             if ratio >= threshold:
                 pairs.append((id_a, id_b, ratio))
@@ -222,7 +243,8 @@ def warn_if_similar(
 def report(
     rows: Sequence[dict[str, Any]], dominance: float, similarity: float
 ) -> list[str]:
-    lines = [f"Render variety over the last {len(rows)} render(s)"]
+    rows = latest_per_product(rows)
+    lines = [f"Render variety over the last {len(rows)} product(s)"]
     for dim, counts in distribution(rows).items():
         if not counts:
             continue

@@ -257,3 +257,75 @@ async def test_the_script_step_warns_on_a_near_repeat(
         await steps.step_generate_script(ctx)
 
     assert "B0EARLIER" in caplog.text
+
+
+def test_a_write_cut_mid_character_does_not_break_reading(tmp_path: Path) -> None:
+    """An out-of-memory kill can stop a write inside a multi-byte character."""
+    record_render_choices(tmp_path, _row(product_id="B01"))
+    with choices_path(tmp_path).open("ab") as fh:
+        fh.write('{"product_id": "B02", "script": "a –'.encode()[:-2] + b"\n")
+    record_render_choices(tmp_path, _row(product_id="B03"))
+
+    assert [r["product_id"] for r in load_recent(tmp_path, 10)] == ["B01", "B03"]
+    assert warn_if_similar(tmp_path, "B04", "anything") == []
+
+
+def test_a_rerun_of_one_product_is_not_a_near_duplicate_or_counted_twice() -> None:
+    rows = [_row(product_id="B01", script_template="x") for _ in range(2)]
+    rows += [
+        _row(product_id=f"B0{i}", script=f"distinct script {i}") for i in range(2, 6)
+    ]
+
+    text = "\n".join(report(rows, 0.6, 0.5))
+
+    assert "B01 and B01" not in text
+    assert "last 5 product(s)" in text
+    assert "script_template: before_after 4, x 1" in text
+
+
+@pytest.mark.req("REQ-PUB-083")
+@pytest.mark.asyncio
+async def test_a_step_run_records_nothing(tmp_path: Path) -> None:
+    import warnings
+
+    from src.scraper.amazon.models import ProductData
+    from src.video.producer import orchestration
+
+    async def fake_load(ctx):
+        ctx.state = {}
+
+    async def fake_runner(ctx):
+        return None
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from src.video.config import load_video_config_modular
+
+        config = load_video_config_modular()
+    config.global_output_root_path = tmp_path
+    product = ProductData(
+        title="A product",
+        price="$10",
+        url="https://www.amazon.com/dp/B0STEP0001",
+        platform=None,
+        asin="B0STEP0001",
+    )
+    runners = {name: fake_runner for name in orchestration.step_runners()}
+
+    with (
+        patch.object(orchestration, "_load_pipeline_state", fake_load),
+        patch.object(orchestration, "step_runners", lambda: runners),
+        patch.object(orchestration, "_load_artifacts_from_state", lambda *a: True),
+    ):
+        await orchestration.create_video_for_product(
+            config,
+            product,
+            "slideshow_images1",
+            {},
+            None,
+            False,
+            False,
+            "generate_script",
+        )
+
+    assert load_recent(tmp_path, 10) == []

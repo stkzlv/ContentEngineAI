@@ -346,5 +346,5 @@ python -m src.video.render_choices [--last N] [--dominance SHARE] [--similarity 
 | `--similarity RATIO` | 0.5 | Alert for each pair of scripts whose character 5-grams overlap at least this much (Jaccard similarity, case and spacing ignored); the generation-time warning uses the same measure and threshold. |
 | `--outputs-dir PATH` | the outputs root (`OUTPUTS_DIR`, else `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`) | Where `state/render_choices.jsonl` is read from. |
 
-The report prints each dimension's distribution and the alerts. It measures only; nothing in it changes what a render picks.
+The report keeps each product's newest row, since a rerun of a finished product appends another, and prints each dimension's distribution and the alerts. The hook headline and script are recorded but not counted: each is written for its product. It measures only; nothing in it changes what a render picks.
 
