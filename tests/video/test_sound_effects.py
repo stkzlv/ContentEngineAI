@@ -248,3 +248,43 @@ def test_the_render_path_feeds_the_mix() -> None:
     assert "spoken_words=_spoken_words(ctx)" in inspect.getsource(
         steps.step_assemble_video
     )
+
+
+@pytest.mark.req("REQ-VID-012")
+def test_an_empty_pool_does_not_take_the_caps_places(tmp_path: Path) -> None:
+    from src.video.assembler.core import VideoAssembler
+
+    cfg = config.model_copy(deep=True)
+    effects = cfg.audio_settings.sound_effects
+    effects.enabled = True
+    effects.transition = _pool(tmp_path, "transition")
+    effects.cta = [tmp_path / "missing.wav"]  # listed, but not on disk
+    assembler = VideoAssembler(cfg)
+    timed = [(Path(f"{i}.png"), 4.0, False) for i in range(3)]
+
+    placed = assembler._sound_effects(timed, 12.0, WORDS)
+
+    assert sorted(start for _, start in placed) == [3.75, 7.25]
+
+
+def test_the_step_reads_word_timings_from_the_transcript(tmp_path: Path) -> None:
+    import json
+
+    from src.video.producer import steps
+
+    transcript = tmp_path / "whisper_transcript.json"
+    transcript.write_text(
+        json.dumps(
+            {"segments": [{"words": [{"word": " Hi.", "start": 0.2, "end": 0.5}]}]}
+        )
+    )
+    cfg = config.model_copy(deep=True)
+    ctx = SimpleNamespace(config=cfg, run_paths={"whisper_transcript_file": transcript})
+
+    assert steps._spoken_words(ctx) is None
+    cfg.audio_settings.sound_effects.enabled = True
+    assert steps._spoken_words(ctx) == [
+        {"word": "Hi.", "start_time": 0.2, "end_time": 0.5}
+    ]
+    transcript.write_text("{not json")
+    assert steps._spoken_words(ctx) is None

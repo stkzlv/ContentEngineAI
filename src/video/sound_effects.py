@@ -72,15 +72,25 @@ def plan_events(
     words: list[dict[str, Any]],
     duration: float,
     max_per_10_sec: int,
+    playable: set[str] | None = None,
 ) -> list[SoundEvent]:
-    """The events to play, in time order, capped per 10 seconds."""
+    """The events to play, in time order, capped per 10 seconds.
+
+    Only kinds in `playable` (those with a file on disk) count, so an empty
+    pool cannot take the cap's places from one that can sound. None means
+    every kind.
+    """
     events = [SoundEvent("transition", t) for t in transitions]
     starts = sentence_starts(words)
     if len(starts) >= 2:
         events.append(SoundEvent("reveal", starts[1]))
     if len(starts) >= 3:
         events.append(SoundEvent("cta", starts[-1]))
-    events = [SoundEvent(e.kind, _clear_of_onsets(e.time, words)) for e in events]
+    events = [
+        SoundEvent(e.kind, _clear_of_onsets(e.time, words))
+        for e in events
+        if playable is None or e.kind in playable
+    ]
     kept: list[SoundEvent] = []
     for event in sorted(events, key=lambda e: (PRIORITY[e.kind], e.time)):
         if not 0 <= event.time < duration:
@@ -112,6 +122,15 @@ def choose_file(
         f"{product_id}:sfx:{kind}:{index}".encode(), usedforsecurity=False
     ).hexdigest()
     return present[int(digest[:8], 16) % len(present)]
+
+
+def playable_kinds(settings: Any) -> set[str]:
+    """The event kinds whose pool has at least one file on disk."""
+    return {
+        kind
+        for kind in PRIORITY
+        if any(Path(p).is_file() for p in getattr(settings, kind))
+    }
 
 
 def resolve_effects(

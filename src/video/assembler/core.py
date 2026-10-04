@@ -630,6 +630,7 @@ class VideoAssembler:
             return []
         from src.video.sound_effects import (
             plan_events,
+            playable_kinds,
             resolve_effects,
             transition_times,
         )
@@ -646,7 +647,11 @@ class VideoAssembler:
         if spoken_words is None:
             logger.info("Sound effects: no word timings, transitions only")
         events = plan_events(
-            transitions, spoken_words or [], total_duration, settings.max_per_10_sec
+            transitions,
+            spoken_words or [],
+            total_duration,
+            settings.max_per_10_sec,
+            playable_kinds(settings),
         )
         effects = resolve_effects(settings, events, self.product_id or "")
         logger.info(

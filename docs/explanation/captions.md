@@ -67,7 +67,7 @@ Caption templates add no sound while `pycaps.mute_template_sound_effects` is on,
 
 Why: no retention study supports sound effects on captions, and editors agree an effect on every cut is worse than none [C]. Engagement follows an inverted U with total stimulation, and caption motion counts toward it [B] ([arXiv 2604.19995](https://arxiv.org/abs/2604.19995), a 2026 preprint).
 
-Planned: sparse event sound effects on the hook, the reveal and the CTA, behind a switch ([design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`).
+Built and held off: sparse sound effects at each crossfade, the reveal and the call to action ([design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`; see [Audio](audio.md)).
 
 ## Layout and positioning
 
