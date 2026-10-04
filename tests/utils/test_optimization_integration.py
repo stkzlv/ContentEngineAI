@@ -11,7 +11,6 @@ import pytest
 from src.utils.async_io import async_run_ffmpeg, ffmpeg_semaphore
 from src.utils.caching import cache_media_metadata, get_cached_media_metadata
 from src.utils.connection_pool import get_http_session, http_get
-from src.utils.memory_mapped_io import MemoryMappedFile, copy_file_mmap
 from src.video.pipeline_graph import PipelineGraph, StepStatus
 
 
@@ -155,40 +154,6 @@ class TestOptimizationIntegration:
             # Verify session was reused
             mock_get.assert_called_once()
 
-    def test_memory_mapped_io_integration(self):
-        """Test that memory-mapped I/O operations work correctly."""
-        # Create test files
-        with tempfile.NamedTemporaryFile(delete=False) as src_file:
-            src_path = Path(src_file.name)
-            test_content = b"A" * (2 * 1024 * 1024)  # 2MB file
-            src_file.write(test_content)
-
-        with tempfile.NamedTemporaryFile(delete=False) as dst_file:
-            dst_path = Path(dst_file.name)
-
-        try:
-            # Test memory-mapped file copying
-            success = copy_file_mmap(src_path, dst_path)
-            assert success is True
-            assert dst_path.exists()
-            assert dst_path.stat().st_size == src_path.stat().st_size
-
-            # Test memory-mapped file reading
-            with MemoryMappedFile(src_path, "r") as mmap_obj:
-                # Read first 1KB
-                chunk = mmap_obj[:1024]
-                assert len(chunk) == 1024
-                assert chunk == b"A" * 1024
-
-                # Read last 1KB
-                chunk = mmap_obj[-1024:]
-                assert len(chunk) == 1024
-                assert chunk == b"A" * 1024
-
-        finally:
-            src_path.unlink(missing_ok=True)
-            dst_path.unlink(missing_ok=True)
-
     @pytest.mark.asyncio
     async def test_producer_integration_status(self):
         """Test that optimization utilities are properly integrated in their modules."""
@@ -203,17 +168,6 @@ class TestOptimizationIntegration:
 
         assert get_http_session is not None
         assert http_get is not None
-
-        # Verify memory-mapped I/O utilities are available
-        from src.utils.memory_mapped_io import (
-            MemoryMappedFile,
-            copy_file_mmap,
-            is_file_suitable_for_mmap,
-        )
-
-        assert copy_file_mmap is not None
-        assert is_file_suitable_for_mmap is not None
-        assert MemoryMappedFile is not None
 
         # Verify producer orchestration uses PipelineGraph internally
         import inspect
@@ -351,27 +305,6 @@ class TestOptimizationRequirements:
             loop.run_until_complete(test_timeout())
         finally:
             loop.close()
-
-    def test_memory_mapped_io_size_heuristics(self):
-        """Test that memory-mapped I/O uses appropriate size heuristics."""
-        from src.utils.memory_mapped_io import is_file_suitable_for_mmap
-
-        # Small file - should not use mmap
-        with tempfile.NamedTemporaryFile() as small_file:
-            small_file.write(b"small content")
-            small_file.flush()
-            small_path = Path(small_file.name)
-
-            assert not is_file_suitable_for_mmap(small_path, min_size=1024)
-
-        # Large file - should use mmap
-        with tempfile.NamedTemporaryFile() as large_file:
-            large_content = b"X" * (2 * 1024 * 1024)  # 2MB
-            large_file.write(large_content)
-            large_file.flush()
-            large_path = Path(large_file.name)
-
-            assert is_file_suitable_for_mmap(large_path, min_size=1024)
 
     def test_connection_pool_configuration(self):
         """Test that connection pool is configured with optimal settings."""

@@ -11,8 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.utils.memory_mapped_io import copy_file_mmap, is_file_suitable_for_mmap
-
 
 class TestLocalFallbackIntegration:
     """Test local fallback behavior in producer.py step_download_music()."""
@@ -33,11 +31,6 @@ class TestLocalFallbackIntegration:
         assets_dir = tmp_path / "assets"
         assets_dir.mkdir()
         dest_path = assets_dir / small_music_file.name
-
-        # Verify file is not suitable for mmap
-        assert not is_file_suitable_for_mmap(
-            small_music_file, min_size=1024 * 1024
-        ), "Small file should not use mmap"
 
         # Simulate fallback logic from producer.py (lines 1436-1476)
         # Use standard copy for small files
@@ -78,102 +71,6 @@ class TestLocalFallbackIntegration:
         assert music_info["type"] == "Music"
         assert music_info["author"] == "Unknown"
         assert music_info["license"] == "Local File"
-
-    @pytest.mark.asyncio
-    async def test_local_fallback_with_large_file_mmap(self, tmp_path):
-        """Test local fallback with large file (>1MB) uses memory-mapped I/O.
-
-        Validates R5 criteria 3 and 4.
-        """
-        # Create a large test music file (> 1MB)
-        local_music_dir = tmp_path / "music"
-        local_music_dir.mkdir()
-        large_music_file = local_music_dir / "test-music-large.mp3"
-
-        # Create a file larger than 1MB
-        chunk_size = 64 * 1024  # 64KB chunks
-        total_size = 2 * 1024 * 1024  # 2MB
-        with open(large_music_file, "wb") as f:
-            for _ in range(total_size // chunk_size):
-                f.write(b"a" * chunk_size)
-
-        # Verify file size
-        file_size = large_music_file.stat().st_size
-        assert file_size > 1024 * 1024, "Test file should be larger than 1MB"
-
-        # Destination directory
-        assets_dir = tmp_path / "assets"
-        assets_dir.mkdir()
-        dest_path = assets_dir / large_music_file.name
-
-        # Verify file is suitable for mmap (R5 criterion 3)
-        assert is_file_suitable_for_mmap(
-            large_music_file, min_size=1024 * 1024
-        ), "Large file should use mmap"
-
-        # Use memory-mapped copy (matching producer.py lines 1449-1455)
-        copy_success = copy_file_mmap(large_music_file, dest_path)
-
-        # Validate copy succeeded (R5 criterion 3)
-        assert copy_success, "Memory-mapped copy should succeed"
-        assert dest_path.exists(), "File should be copied to destination"
-        assert dest_path.stat().st_size == file_size, "File sizes should match"
-
-        # Generate attribution metadata (R6 criterion 5)
-        music_info = {
-            "source": "Local",
-            "type": "Music",
-            "path": str(dest_path),
-            "name": large_music_file.stem,
-            "author": "Unknown",
-            "license": "Local File",
-            "url": "",
-            "id": "",
-        }
-
-        # Validate attribution
-        assert music_info["source"] == "Local"
-        assert music_info["path"] == str(dest_path)
-
-    @pytest.mark.asyncio
-    async def test_local_fallback_mmap_failure_uses_standard_copy(self, tmp_path):
-        """Test that if memory-mapped copy fails, standard copy is used as fallback.
-
-        Validates R5 criterion 4.
-        """
-        # Create a large test music file (>1MB to trigger mmap)
-        local_music_dir = tmp_path / "music"
-        local_music_dir.mkdir()
-        music_file = local_music_dir / "test-music-large.mp3"
-
-        # Create a file larger than 1MB
-        chunk_size = 64 * 1024  # 64KB chunks
-        total_size = 2 * 1024 * 1024  # 2MB
-        with open(music_file, "wb") as f:
-            for _ in range(total_size // chunk_size):
-                f.write(b"a" * chunk_size)
-
-        assets_dir = tmp_path / "assets"
-        assets_dir.mkdir()
-        dest_path = assets_dir / music_file.name
-
-        # Simulate mmap failure by patching (R5 criterion 4)
-        with patch("src.utils.memory_mapped_io.MemoryMappedFile") as mock_mmap:
-            mock_mmap.side_effect = Exception("Simulated mmap failure")
-
-            # Attempt memory-mapped copy
-            copy_success = copy_file_mmap(music_file, dest_path)
-
-            # Should fail gracefully
-            assert not copy_success, "Memory-mapped copy should fail"
-
-            # Fallback to standard copy (matching producer.py lines 1456-1460)
-            if not copy_success:
-                shutil.copy(music_file, dest_path)
-
-            # Verify file was copied using fallback
-            assert dest_path.exists(), "File should be copied using fallback"
-            assert dest_path.stat().st_size == music_file.stat().st_size
 
     @pytest.mark.asyncio
     async def test_local_fallback_random_selection(self, tmp_path):

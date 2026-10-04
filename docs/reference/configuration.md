@@ -2119,7 +2119,7 @@ These enhance functionality but are not required for basic operation.
 
 ### Environment Variable Validation
 
-At startup, `validate_required_secrets()` checks all required API keys:
+Nothing runs this check at startup; each command reads the keys it needs. `validate_required_secrets()` reports which are set when you call it:
 
 ```python
 from src.config_manager import get_unified_config_manager
@@ -2178,7 +2178,6 @@ optimization_settings:
   connection_pool_host_limit: 20
   download_manager_max_concurrent: 5
   download_chunk_size_bytes: 8192
-  mmap_file_size_threshold_bytes: 1048576   # files above this use mmap I/O
   async_ffmpeg_max_concurrent: 2
   async_io_max_concurrent: 8
   cache_media_metadata_ttl_sec: 86400
