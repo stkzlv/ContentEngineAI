@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `schedule` auto-scheduling posts a platform with no metadata file of its own from another platform's metadata, as `single` and the batches do, instead of from the scraped listing.
+- `schedule` auto-scheduling posts a platform with no metadata file of its own from another platform's metadata, as `single` and the batches do in platform-specific mode, instead of from the scraped listing, and keeps the listing title when the borrowed file has none.
 
 ## [0.143.0] - 2026-10-04
 

@@ -47,6 +47,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _listing_title(product_dir: Path) -> str:
+    """The scraped listing title from `data.json`, or "" when there is none."""
+    data_path = product_dir / "data.json"
+    if not data_path.exists():
+        return ""
+    record = json.loads(data_path.read_text())
+    if isinstance(record, list) and record:
+        record = record[0]
+    return str(record.get("title") or "") if isinstance(record, dict) else ""
+
+
 def metadata_from_file(
     meta: dict,
     product_id: str | None,
@@ -901,9 +912,11 @@ class ScheduleManager:
 
         for p in platforms:
             meta = unified_meta
+            borrowed = False
             if not meta:
-                # The platform's own file first, then another platform's, as
-                # `publish_product` does, before the raw scraped listing.
+                # The platform's own file first, then another platform's (as
+                # platform-specific `publish_product` does), before the raw
+                # scraped listing.
                 order = [p.value] + [
                     other for other in METADATA_PLATFORM_ORDER if other != p.value
                 ]
@@ -911,6 +924,7 @@ class ScheduleManager:
                     platform_meta = video.parent / f"metadata_{name}.json"
                     if platform_meta.exists():
                         meta = json.loads(platform_meta.read_text())
+                        borrowed = name != p.value
                         break
 
             if meta:
@@ -918,7 +932,12 @@ class ScheduleManager:
                     meta.get("carries_affiliate_content", True)
                 )
                 platform_metas[p.value] = metadata_from_file(meta, product_id, p)
-                titles[p.value] = _trim_on_word_boundary(meta.get("title") or "", 100)
+                title = meta.get("title") or ""
+                if borrowed and not title:
+                    # TikTok and Instagram files carry no title; a post that
+                    # borrows one keeps the listing title rather than none.
+                    title = _listing_title(video.parent)
+                titles[p.value] = _trim_on_word_boundary(title, 100)
                 continue
 
             fallback_path = video.parent / "data.json"
