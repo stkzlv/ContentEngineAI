@@ -4,11 +4,9 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 ## Configuration
 
-- **REQ-OPS-001** `partial` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
-  - Gap: environment overrides are applied when the YAML loads and the profile merges afterwards, so for a key a profile also sets, the profile wins over the environment (#583).
-- **REQ-OPS-002** `partial` A CLI flag overrides a lower tier only when the user passes it.
-  - Gap: `--outputs-dir` defaults to `outputs`, so it shadows `global_output_directory` from the YAML even when it isn't passed (#583).
-- **REQ-OPS-003** `planned #583` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
+- **REQ-OPS-001** `shipped` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
+- **REQ-OPS-002** `shipped` A CLI flag overrides a lower tier only when the user passes it.
+- **REQ-OPS-003** `shipped` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
 - **REQ-OPS-004** `shipped` The YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
 - **REQ-OPS-005** `shipped` A CLI flag can override a nested setting, such as `--pycaps-template` overriding `subtitle_settings.pycaps.template_name`.
 - **REQ-OPS-006** `shipped` If the config is invalid, the pipeline stops at startup with an error that names the setting and the problem.
@@ -17,7 +15,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 - **REQ-OPS-007** `shipped` The pipeline reads API keys and other secrets from the `.env` file or the environment, and git ignores `.env`.
 - **REQ-OPS-008** `shipped` The repository ships `.env.example`, listing the environment variables the pipeline reads.
-- **REQ-OPS-009** `planned #583` `.env.example` lists only secrets and machine-specific settings.
+- **REQ-OPS-009** `shipped` `.env.example` lists only secrets, machine-specific settings, and the operator's account values (affiliate tag, link-in-bio address, topics file) that the public YAML can't carry.
 - **REQ-OPS-010** `shipped` Log output masks API keys, tokens and other secret-shaped values before they reach the console or a log file.
 
 ## Test isolation

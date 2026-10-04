@@ -242,7 +242,7 @@ flowchart TB
 
 ### Configuration tiers
 
-[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The code resolves CLI, then profile, then environment, then YAML, because environment overrides are applied when the YAML loads (section 11, `REQ-OPS-001`). `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
+[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The environment holds only secrets and three machine settings (`CONTENT_ENGINE_OUTPUT`, `OUTPUTS_DIR`, `FFMPEG_THREADS`), none of which a profile can set, so applying them when the YAML loads keeps them above the profile. `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
 
 ### Logging, run ids and product ids
 
@@ -308,8 +308,8 @@ The full list, with statuses, is in [the requirements](requirements/README.md).
 ## 11. Risks and technical debt
 
 - **Batch and module drift.** The batch phases re-implement parts of the standalone CLIs (scheduling, cleanup, filters, profile pools), and a fix in one path silently misses the other. [batch-alignment.md](notes/batch-alignment.md) lists where they drifted; the rule is to check the other path on every change.
-- **Environment tier placement.** The environment overrides are applied to the YAML layer before the profile merges, so a key that a profile also sets resolves profile-first, the reverse of the order decision 0003 names. Moving behaviour settings out of the environment (`REQ-OPS-003`, `REQ-OPS-009`) makes the overlap disappear.
-- **Partial requirements.** Requirements marked `partial` name their gaps: among them `REQ-OPS-002` (`--outputs-dir` shadows the YAML), `REQ-OPS-038` (only the final-assembly and caption-burn encodes take a concurrency limit), `REQ-OPS-023` (wall-clock durations), `REQ-CMP-001` (the overlay can be turned off with a warning), and `REQ-BAT-040` (random profile choice isn't stable across runs). The requirements files list every one with its `Gap:` line.
+- **Environment tier placement.** The environment is applied to the YAML layer before the profile merges, so its place above the profile rests on no machine setting being one a profile can set. A test checks that; a new machine setting a profile also carries would need a second merge.
+- **Partial requirements.** Requirements marked `partial` name their gaps: among them `REQ-OPS-038` (only the final-assembly and caption-burn encodes take a concurrency limit), `REQ-OPS-023` (wall-clock durations), `REQ-CMP-001` (the overlay can be turned off with a warning), and `REQ-BAT-040` (random profile choice isn't stable across runs). The requirements files list every one with its `Gap:` line.
 - **Dead or speculative structure.** `ScraperFactory`, `MultiPlatformScraper` and the non-Amazon `Platform` values have no caller.
 - **Link-in-bio window.** The provider's list endpoint returns one page, so the duplicate check sees only recent links ([decision 0005](decisions/0005-duplicates-are-tolerated.md)).
 - **Module notes.** Each file in [the module notes](notes/) records defects that a likely change would bring back. Read the module's file before changing it.

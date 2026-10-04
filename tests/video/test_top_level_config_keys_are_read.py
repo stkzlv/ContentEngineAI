@@ -30,7 +30,7 @@ READ_ELSEWHERE = {
 def test_every_top_level_block_is_a_field_or_read_elsewhere(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The YAML files only: an exported DEBUG_MODE or OUTPUTS_DIR writes
+    # The YAML files only: an exported OUTPUTS_DIR writes
     # scraper paths into this dict, which is not a YAML block.
     monkeypatch.setattr(
         UnifiedConfigManager, "_apply_env_overrides", lambda self, config: None

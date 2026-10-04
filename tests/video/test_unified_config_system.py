@@ -95,16 +95,6 @@ class TestUnifiedConfigManager:
 class TestEnvironmentVariableOverrides:
     """Test environment variable override functionality."""
 
-    def test_env_override_debug_mode(self):
-        """Test DEBUG_MODE environment variable override."""
-        manager = UnifiedConfigManager()
-        config = {"debug_mode": False}
-
-        with patch.dict(os.environ, {"DEBUG_MODE": "true"}):
-            manager._apply_env_overrides(config)
-            # Should update debug_mode if path exists
-            assert isinstance(config, dict)
-
     def test_env_override_api_keys(self):
         """Test API key environment variables."""
         manager = UnifiedConfigManager()

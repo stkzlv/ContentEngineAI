@@ -416,8 +416,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--outputs-dir",
         type=Path,
-        default=Path("outputs"),
-        help="Directory to scan for products (default: the repo outputs/).",
+        default=None,
+        help=(
+            "Directory to scan for products (default: global_output_directory "
+            "in config/core.yaml)."
+        ),
     )
     parser.add_argument(
         "--fail-fast",
@@ -757,10 +760,13 @@ async def main():
             # Batch mode: discover products from outputs directory
             # Resolve outputs_dir relative to project root to handle working
             # directory changes
-            if args.outputs_dir.is_absolute():
-                outputs_path = args.outputs_dir
+            # Without the flag, the configured output directory: a flag
+            # default would shadow it even when the flag is not passed.
+            outputs_dir = args.outputs_dir or Path(config.global_output_directory)
+            if outputs_dir.is_absolute():
+                outputs_path = outputs_dir
             else:
-                outputs_path = project_root / args.outputs_dir
+                outputs_path = project_root / outputs_dir
             discovered_products = discover_products_for_batch(outputs_path)
             if not discovered_products:
                 logger.error("No valid products found in %s", outputs_path)

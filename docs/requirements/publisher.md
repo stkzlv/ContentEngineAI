@@ -27,7 +27,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-013** `shipped` If one recurring slot in the config is invalid, the publisher skips that slot with a warning and keeps the others.
 - **REQ-PUB-014** `shipped` If the `cleanup` section is invalid, the publisher keeps that section's `enabled` and `archive_before_delete` values.
 - **REQ-PUB-116** `shipped` The repeatable `--platform` option on `single` and `schedule` selects the target platforms for that run.
-- **REQ-PUB-117** `shipped` When no `--platform` is given, every publish path targets the platforms in `default_platforms` (or `PUBLISHER_DEFAULT_PLATFORMS`), which default to YouTube, TikTok and Instagram.
+- **REQ-PUB-117** `shipped` When no `--platform` is given, every publish path targets the platforms in `default_platforms`, which default to YouTube, TikTok and Instagram.
 - **REQ-PUB-118** `shipped` If a target platform has no connected account, the publisher skips that platform with a warning and publishes to the others.
 
 ## Per-platform profile routing

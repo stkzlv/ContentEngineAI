@@ -616,14 +616,12 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
 def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     """Apply environment variable overrides to configuration.
 
-    Environment variables (medium precedence):
+    Only the secrets come from the environment (decision 0003):
     - LATE_API_KEY / PUBLISHER_API_KEY
     - BLOB_READ_WRITE_TOKEN / LATE_VERCEL_TOKEN / PUBLISHER_VERCEL_TOKEN
-    - PUBLISHER_PROVIDER
-    - PUBLISHER_IMMEDIATE
-    - PUBLISHER_MAX_RETRIES
-    - PUBLISHER_TIMEOUT
-    - PUBLISHER_DEFAULT_PLATFORMS (comma-separated: youtube,tiktok,instagram)
+
+    The provider, immediate mode, retries, timeout and default platforms are
+    behaviour settings and live in `config/publisher.yaml`.
 
     Args:
     ----
@@ -654,41 +652,6 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
     )
     if vercel_token:
         result["vercel_token"] = vercel_token
-
-    # Provider
-    provider = os.environ.get("PUBLISHER_PROVIDER") or config.get("provider")
-    if provider:
-        result["provider"] = provider
-
-    # Immediate publish
-    immediate = os.environ.get("PUBLISHER_IMMEDIATE")
-    if immediate is not None:
-        result["immediate_publish"] = immediate.lower() in ("true", "1", "yes")
-
-    # Max retries
-    max_retries = os.environ.get("PUBLISHER_MAX_RETRIES")
-    if max_retries is not None:
-        try:
-            result["max_retries"] = int(max_retries)
-        except ValueError:
-            logger.warning("Invalid PUBLISHER_MAX_RETRIES: %s", max_retries)
-
-    # Timeout
-    timeout = os.environ.get("PUBLISHER_TIMEOUT")
-    if timeout is not None:
-        try:
-            result["timeout"] = float(timeout)
-        except ValueError:
-            logger.warning("Invalid PUBLISHER_TIMEOUT: %s", timeout)
-
-    # Default platforms (comma-separated)
-    platforms_str = os.environ.get("PUBLISHER_DEFAULT_PLATFORMS")
-    if platforms_str:
-        try:
-            platform_list = [p.strip() for p in platforms_str.split(",")]
-            result["default_platforms"] = [Platform(p.lower()) for p in platform_list]
-        except ValueError as e:
-            logger.warning("Invalid PUBLISHER_DEFAULT_PLATFORMS: %s", e)
 
     logger.debug("Applied environment variable overrides")
     return result
@@ -837,7 +800,7 @@ def _validate_required_fields(config: dict[str, Any]) -> None:
     if "provider" not in config or not config["provider"]:
         raise ValueError(
             "Missing required field: 'provider'. "
-            "Set via YAML (provider: late), env var (PUBLISHER_PROVIDER=late), "
+            "Set it in config/publisher.yaml (provider: late) "
             "or CLI argument (--provider late)"
         )
 

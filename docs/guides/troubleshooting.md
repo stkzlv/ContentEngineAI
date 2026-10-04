@@ -1207,9 +1207,9 @@ poetry run python -m src.publisher.late single B0ABC \
    ```bash
    ping zernio.com
    ```
-2. Raise the request timeout:
-   ```bash
-   export PUBLISHER_TIMEOUT=180.0
+2. Raise the request timeout in `config/publisher.yaml`:
+   ```yaml
+   timeout: 180.0
    ```
 3. Check the file's codec (H.264) and size (under 100 MB recommended, 500 MB at most):
    ```bash
