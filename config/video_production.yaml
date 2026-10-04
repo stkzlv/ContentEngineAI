@@ -47,7 +47,7 @@ file_naming:
 # Pipeline Impact:
 # - resolution: Affects subtitle positioning, image scaling, text readability
 # - frame_rate: Higher = smoother motion but larger files (30 fps recommended)
-# - codec/preset/crf: Balance between encoding speed and file size/quality
+# - output_codec/output_preset: Balance between encoding speed and file size
 # - Media validation thresholds determine minimum content needed for production
 video_settings:
   # Video resolution [width, height]
@@ -67,41 +67,11 @@ video_settings:
   # Used by: the assembler FFmpeg encoding
   frame_rate: 30
 
-  # Video codec settings
-  # libx264: H.264 codec, most compatible across platforms
-  # preset: Encoding speed vs compression efficiency tradeoff
-  #   ultrafast/faster = quick encoding, larger files
-  #   medium = balanced (recommended for production)
-  #   slow/slower = better compression, takes longer
-  # crf: Constant Rate Factor for quality (0-51 scale)
-  #   18 = visually lossless (very large files)
-  #   23 = high quality, good compression (recommended)
-  #   28 = acceptable quality, smaller files
-  codec: "libx264"
-  preset: "medium"
-  crf: 23
-
-  # Image display duration in seconds (for slideshow profiles)
-  # How long each product image is shown on screen
-  # Used by: the producer to calculate slideshow timing
-  # Note: Actual duration may vary if use_dynamic_image_count is enabled
-  image_duration: 3.0
-
   # Video constraints and validation
-  # Maximum allowed video duration (seconds)
-  # Prevents accidentally creating overly long videos
-  # Used by: the producer validation, may truncate or fail if exceeded
-  total_duration_limit_sec: 90
-
   # Tolerance for matching video duration to audio (seconds)
   # Allows small timing mismatches between final video and voiceover
   # Used by: Quality checks in the assembler
   video_duration_tolerance_sec: 1.0
-
-  # Minimum acceptable output video file size (MB)
-  # Validation check to ensure video actually contains content
-  # Used by: the producer post-generation validation
-  min_video_file_size_mb: 0.1
 
   # Timeout for FFmpeg probe operations (seconds)
   # Maximum time to wait when analyzing media file properties
@@ -134,19 +104,12 @@ video_settings:
   fallback_image_top_percent: 0.15   # Top edge at 15% when falling back to image-only mode
   fallback_image_width_percent: 1    # Width at 100% when falling back to image-only mode
 
-  # Aspect ratio settings for video processing
-  # Used by: visual_builder.py smart-scale mode decision making
-  # Pipeline Impact: Determines whether to blur-fill or crop videos to fit frame
-  smart_scale_tolerance: 0.10        # Tolerance threshold (10%) for aspect ratio matching
-                                     # If video aspect differs by <10%, crop-to-fit; else blur-fill
-
   # Timing and delays for batch processing
   # Random delays between product videos to avoid detection as automated content
   # Used by: Batch processing mode in the producer
   inter_product_delay_min_sec: 1.5   # Minimum pause between products
   inter_product_delay_max_sec: 4.0   # Maximum pause between products
   min_visual_segment_duration_sec: 0.1  # Minimum length for any visual clip
-  dynamic_image_count_limit: 25         # Maximum images to use in dynamic mode
 
   # Assembler-specific settings (FFmpeg subtitle rendering)
   # Used by: the assembler when generating embedded subtitles
@@ -189,7 +152,6 @@ video_settings:
   # endorsement). Sized smaller than narration captions (50-60%) so it
   # discloses without dominating the frame. See docs/explanation/compliance.md.
   disclosure_overlay:
-    enabled: true                     # Deprecated and ignored: a render with a material connection always carries the overlay
     text: "#ad"                       # Disclosure text, on the frame and leading the caption. Override for non-English renders.
     position: "top-right"             # top-left, top-right, bottom-left, bottom-right
     size_factor: 0.45                 # Font size as fraction of subtitle font size (slightly under FTC's 50-60% band; tuned for tighter corner placement)
@@ -280,17 +242,6 @@ video_settings:
     - static_title_card
     - pre_motion_only
 
-  # System resource requirements
-  # Used by: config_validator.py to verify system can handle video production
-  # Pipeline Impact: Warns users if system resources are insufficient
-  min_memory_gb: 2.0                  # Minimum RAM required for video production (GB)
-
-  # Supported file formats
-  # File extensions accepted by the pipeline for media processing
-  # Used by: Media validation, file type detection throughout pipeline
-  # Pipeline Impact: Files with other extensions are rejected
-  supported_video_extensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"]
-  supported_audio_extensions: [".wav", ".mp3", ".aac", ".flac"]
 
 # ============================================================================
 # AUDIO SETTINGS

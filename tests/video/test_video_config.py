@@ -125,15 +125,11 @@ class TestVideoSettings:
             output_pixel_format="yuv420p",
             image_width_percent=0.8,
             image_top_position_percent=0.05,
-            default_image_duration_sec=3.0,
             transition_duration_sec=0.5,
-            total_duration_limit_sec=90,
             video_duration_tolerance_sec=1.0,
-            min_video_file_size_mb=0.1,
             inter_product_delay_min_sec=1.5,
             inter_product_delay_max_sec=4.0,
             min_visual_segment_duration_sec=0.1,
-            dynamic_image_count_limit=25,
             verification_probe_timeout_sec=30,
             default_max_chars_per_line=20,
             subtitle_box_border_width=5,
@@ -176,7 +172,6 @@ class TestVideoSettings:
         """Default DisclosureSettings sit in the FTC-aligned compliance band."""
         settings = VideoSettings(resolution=(1080, 1920), frame_rate=30)
         d = settings.disclosure_overlay
-        assert d.enabled is True
         assert d.text == "#ad"
         assert d.position == "top-right"
         # 0.45 sits just under FTC's 50-60% band; tuned for tight corner placement.
@@ -396,15 +391,11 @@ class TestVideoConfig:
                 "image_width_percent": 0.8,
                 "image_top_position_percent": 0.05,
                 "image_vertical_align": "center",
-                "default_image_duration_sec": 3.0,
                 "transition_duration_sec": 0.5,
-                "total_duration_limit_sec": 90,
                 "video_duration_tolerance_sec": 1.0,
-                "min_video_file_size_mb": 0.1,
                 "inter_product_delay_min_sec": 1.5,
                 "inter_product_delay_max_sec": 4.0,
                 "min_visual_segment_duration_sec": 0.1,
-                "dynamic_image_count_limit": 25,
                 "verification_probe_timeout_sec": 30,
                 "default_max_chars_per_line": 20,
                 "subtitle_box_border_width": 5,
@@ -608,15 +599,11 @@ class TestLoadVideoConfig:
                 "image_width_percent": 0.8,
                 "image_top_position_percent": 0.05,
                 "image_vertical_align": "center",
-                "default_image_duration_sec": 3.0,
                 "transition_duration_sec": 0.5,
-                "total_duration_limit_sec": 90,
                 "video_duration_tolerance_sec": 1.0,
-                "min_video_file_size_mb": 0.1,
                 "inter_product_delay_min_sec": 1.5,
                 "inter_product_delay_max_sec": 4.0,
                 "min_visual_segment_duration_sec": 0.1,
-                "dynamic_image_count_limit": 25,
                 "verification_probe_timeout_sec": 30,
                 "default_max_chars_per_line": 20,
                 "subtitle_box_border_width": 5,

@@ -318,7 +318,7 @@ class TestHookPlusDisclosureStack:
         from src.video.config.visual_models import DisclosureSettings
 
         hook = HookOverlaySettings(enabled=True)
-        disclosure = DisclosureSettings(enabled=True)
+        disclosure = DisclosureSettings()
         filters = ["scaled;padded[v_sub];", "[v_sub]copy[v_out]"]
 
         hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)
@@ -351,9 +351,7 @@ class TestHookPlusDisclosureStack:
         hooked = apply_hook_overlay(
             filters, HookOverlaySettings(enabled=True), "first line", 60, 1080, tmp_path
         )
-        final = apply_disclosure_overlay(
-            hooked, DisclosureSettings(enabled=True), 60, tmp_path
-        )
+        final = apply_disclosure_overlay(hooked, DisclosureSettings(), 60, tmp_path)
 
         joined = ";".join(final)
         assert joined.count("drawtext=") == 2
@@ -369,7 +367,7 @@ class TestHookPlusDisclosureStack:
         from src.video.config.visual_models import DisclosureSettings
 
         hook = HookOverlaySettings(enabled=False)
-        disclosure = DisclosureSettings(enabled=True)
+        disclosure = DisclosureSettings()
         filters = ["prefix", "[v_sub]copy[v_out]"]
 
         hooked = apply_hook_overlay(filters, hook, "first sentence", 60, 1080, tmp_path)

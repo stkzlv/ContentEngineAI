@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from src.video.assembler.overlay_builder import (
     DisclosureOverlayError,
@@ -148,14 +149,11 @@ class TestApplyDisclosureOverlay:
         assert "copy[v_out]" not in out[-1]
 
     @pytest.mark.req("REQ-CMP-001")
-    def test_disabled_is_ignored_on_a_render_that_needs_it(self, tmp_path):
-        # Only renders with a material connection reach this function, so the
-        # switch cannot remove the disclosure from one.
-        filters = ["[v_sub_1]copy[v_out]"]
-        out = apply_disclosure_overlay(
-            filters, DisclosureSettings(enabled=False), 80, tmp_path
-        )
-        assert "drawtext=" in out[-1]
+    def test_there_is_no_switch_to_turn_the_overlay_off(self):
+        # Only renders with a material connection reach this function, so a
+        # config that still tries to turn it off is refused, not obeyed.
+        with pytest.raises(ValidationError, match="enabled"):
+            DisclosureSettings(enabled=False)
 
     @pytest.mark.req("REQ-CMP-001")
     def test_terminal_not_producing_v_out_fails_the_render(self, tmp_path):

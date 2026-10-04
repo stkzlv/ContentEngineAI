@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.136.0] - 2026-10-04
+
+### Changed
+
+- **Breaking**: `video_settings` and its `disclosure_overlay` block refuse a key they don't know, with an error naming it, so a config that still sets a removed key fails to load.
+
+### Removed
+
+- **Breaking**: the `video_settings` keys nothing read are gone: `codec`, `preset`, `crf`, `image_duration`, `default_image_duration_sec`, `total_duration_limit_sec`, `min_video_file_size_mb`, `dynamic_image_count_limit`, `min_memory_gb`, `disclosure_overlay.enabled`, and the copies of `smart_scale_tolerance` and the supported file extensions that sat in this block; the encode uses `output_codec` and `output_preset`.
+
 ## [0.135.0] - 2026-10-04
 
 ### Removed

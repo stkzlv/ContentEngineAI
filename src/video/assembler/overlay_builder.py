@@ -238,16 +238,10 @@ def apply_disclosure_overlay(
     happen to end in the no-op.
 
     Called only for a render with a material connection, where the overlay
-    is required: ``settings.enabled`` is ignored with a warning, and a chain
-    the overlay cannot be added to raises ``DisclosureOverlayError`` so the
-    render fails instead of shipping without it.
+    is required: a chain the overlay cannot be added to raises
+    ``DisclosureOverlayError`` so the render fails instead of shipping
+    without it.
     """
-    if not settings.enabled:
-        logger.warning(
-            "disclosure_overlay.enabled is false, ignored: this render carries "
-            "a material connection, so it shows the disclosure"
-        )
-
     if not video_filters:
         raise DisclosureOverlayError(
             "Cannot add the disclosure overlay: the video filter chain is empty"

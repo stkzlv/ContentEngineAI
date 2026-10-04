@@ -399,9 +399,7 @@ class TestTheDrawnFilter:
             FRAME_H,
             tmp_path,
         )
-        chain = apply_disclosure_overlay(
-            chain, DisclosureSettings(enabled=True), 60, tmp_path
-        )
+        chain = apply_disclosure_overlay(chain, DisclosureSettings(), 60, tmp_path)
         joined = "\n".join(chain)
 
         assert "upper_line_text.txt" in joined

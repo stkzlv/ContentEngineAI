@@ -101,13 +101,8 @@ class DisclosureSettings(BaseModel):
     (50-60% of caption size) but readable on phone screens.
     """
 
-    enabled: bool = Field(
-        True,
-        description=(
-            "Deprecated and ignored: a render with a material connection "
-            "always carries the overlay"
-        ),
-    )
+    model_config = ConfigDict(extra="forbid")
+
     text: str = Field("#ad", description="Disclosure text. Override per language.")
     position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(
         "top-right", description="Corner placement within the safe zone"
@@ -375,6 +370,8 @@ class HookOverlaySettings(BaseModel):
 
 
 class VideoSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     resolution: tuple[int, int] = Field(
         ..., description="Video resolution as (width, height)"
     )
@@ -385,7 +382,6 @@ class VideoSettings(BaseModel):
     image_width_percent: float = Field(1.0)
     image_top_position_percent: float = Field(0.0)
     image_vertical_align: Literal["top", "center"] = Field("center")
-    default_image_duration_sec: float = Field(3.0)
     # Phase 1.2: pre-motion on the first image segment to defeat the
     # fade-in / static-still pattern that burns the 1.5-second decision
     # window. When enabled, a subtle Ken Burns (settle-zoom) is applied to
@@ -443,15 +439,10 @@ class VideoSettings(BaseModel):
         ),
     )
     transition_duration_sec: float = Field(0.5)
-    total_duration_limit_sec: int = Field(90)
     video_duration_tolerance_sec: float = Field(1.0)
-    min_video_file_size_mb: float = Field(0.1)
     inter_product_delay_min_sec: float = Field(1.5)
     inter_product_delay_max_sec: float = Field(4.0)
     min_visual_segment_duration_sec: float = Field(0.1)
-    dynamic_image_count_limit: int = Field(
-        25, description="Maximum images to use in dynamic image count mode"
-    )
     verification_probe_timeout_sec: int = Field(30)
     default_max_chars_per_line: int = Field(20)  # Configurable via YAML
     subtitle_box_border_width: int = Field(5)  # Configurable via YAML
