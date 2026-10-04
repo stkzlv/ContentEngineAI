@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.148.1] - 2026-10-04
+
+### Documentation
+
+- The configuration reference gives the type, default and effect of 27 `config/video_production.yaml` keys it did not name, among them the format-normalization targets, the image-input bound, the Freesound credential variables and the stock video durations.
+- The publishing explanation records that a YouTube Short's related video can't be set through the publisher: neither the YouTube Data API nor Zernio exposes it.
+
 ## [0.148.0] - 2026-10-04
 
 ### Added
