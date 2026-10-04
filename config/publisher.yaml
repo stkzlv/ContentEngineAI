@@ -6,13 +6,13 @@
 #
 # PIPELINE IMPACT:
 # - Controls when and how videos are published to social media platforms
-# - Manages scheduling, privacy settings, and cleanup after publication
+# - Manages scheduling and cleanup after publication
 # - Integrates with video producer output for end-to-end automation
 #
 # SETUP:
 # - Set LATE_API_KEY environment variable with your Late.co API key
 # - Optionally set LATE_VERCEL_TOKEN for Vercel deployment management
-# - Configure platforms and privacy settings for your accounts
+# - Configure platforms for your accounts
 #
 # USAGE:
 # - Immediate publish: Set immediate_publish=true for real-time posting
@@ -88,7 +88,7 @@ use_platform_specific_content: false
 # Maximum number of retry attempts for failed API calls
 # Applies to: Video upload, status checks, scheduling operations
 # Higher values = more resilient to transient failures, but longer wait times
-# Uses exponential backoff: delay = backoff_multiplier ^ attempt
+# Uses exponential backoff between attempts
 max_retries: 3
 
 # API request timeout in seconds
@@ -96,14 +96,6 @@ max_retries: 3
 # TikTok video processing can take 60-120 seconds for encoding
 # Affects: Upload reliability, time spent waiting on slow connections
 timeout: 120.0
-
-# DEPRECATED: Exponential backoff multiplier for retries
-# NOTE: This setting is currently NOT USED - the publisher uses the fixed
-# DEFAULT_EXPONENTIAL_BACKOFF_BASE in src/publisher/constants.py
-# Kept for backward compatibility; may be wired up in a future release.
-# Delay between retries = backoff_multiplier ^ attempt_number
-# Example: multiplier=2.0 → delays of 2s, 4s, 8s for attempts 1, 2, 3
-backoff_multiplier: 2.0
 
 # ============================================================================
 # BATCH PUBLISHING DELAYS
@@ -119,31 +111,6 @@ stagger_delay_min: 30
 # Upper bound for random stagger delay
 # Affects: Total batch processing time, rate limit avoidance
 stagger_delay_max: 60
-
-# ============================================================================
-# PRIVACY SETTINGS PER PLATFORM
-# ============================================================================
-# Default privacy/visibility for published videos
-# Can be overridden per-video or per-batch
-
-privacy_settings:
-  # YouTube privacy options: public, unlisted, private
-  # public = Visible to everyone, appears in search and recommendations
-  # unlisted = Only accessible via direct link
-  # private = Only visible to you
-  youtube: public
-
-  # TikTok privacy options: public, friends, private
-  # public = Visible to everyone on TikTok
-  # friends = Only visible to followers
-  # private = Only visible to you
-  tiktok: public
-
-  # Instagram privacy options: everyone, followers, close_friends
-  # everyone = Visible to all Instagram users
-  # followers = Only visible to your followers
-  # close_friends = Only visible to close friends list
-  instagram: everyone
 
 # ============================================================================
 # RECURRING SCHEDULE CONFIGURATION
@@ -258,18 +225,6 @@ cleanup:
   # >0 = Keep files for N days after publish
   # Affects: Time window for recovering deleted content
   keep_published_days: 0
-
-  # Preserve metadata JSON files during cleanup
-  # true = Keep data.json, metadata.json, etc.
-  # false = Delete all files including metadata
-  # Affects: Audit trail, re-processing capability
-  preserve_metadata: false
-
-  # Preserve log files in outputs/logs/ directory
-  # true = Keep ffmpeg_command.log, performance.json, etc.
-  # false = Delete logs during cleanup
-  # Affects: Debugging capability, disk space
-  preserve_logs: true
 
 # ============================================================================
 # LINK-IN-BIO INTEGRATION

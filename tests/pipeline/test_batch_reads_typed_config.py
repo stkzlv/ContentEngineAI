@@ -394,13 +394,12 @@ class TestDefaultPlatformsFlowFromYaml:
         monkeypatch.setenv("LATE_API_KEY", "sk_live_" + "0" * 48)
         path = self._write(
             tmp_path,
-            "default_platforms:\n  - youtube\nprivacy_settings:\n  youtube: public\n",
+            "default_platforms:\n  - youtube\n",
         )
 
         config = load_publisher_config(path)
 
         assert config.default_platforms == [Platform.YOUTUBE]
-        assert set(config.privacy_settings) == {Platform.YOUTUBE}
         assert config.to_dict()["default_platforms"] == ["youtube"]
 
     def test_an_unknown_platform_is_refused(

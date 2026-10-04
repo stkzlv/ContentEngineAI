@@ -35,7 +35,7 @@ python -m src.publisher.late single <product_id> [options]
 | Option | Default | Description |
 |---|---|---|
 | `product_id` | required | Product id, such as an ASIN. The product directory must exist under the repository's `outputs/`. |
-| `--platform NAME` | `youtube`, `tiktok`, `instagram` | Target platform. Repeat for several. One of `youtube`, `tiktok`, `instagram`, `facebook`, `twitter`, `linkedin`. The `default_platforms` key does not change this default. |
+| `--platform NAME` | `default_platforms` | Target platform. Repeat for several. One of `youtube`, `tiktok`, `instagram`, `facebook`, `twitter`, `linkedin`. |
 | `--schedule DATETIME` | none | Publish at this time. Accepts `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM` and `YYYY-MM-DDTHH:MM`, read as UTC. Takes precedence over `--immediate`. |
 | `--immediate` | off | Publish at once. |
 | `--force` / `--no-force` | `--no-force` | Republish a product that is already published to every requested platform. Without it, the command skips platforms already published. |
@@ -60,7 +60,7 @@ python -m src.publisher.late schedule [auto] [options]
 
 | Option | Default | Applies to | Description |
 |---|---|---|---|
-| `--platform NAME` | `youtube`, `tiktok`, `instagram` | both modes | Target platform. Repeat for several. Same choices as `single`. |
+| `--platform NAME` | `default_platforms` | both modes | Target platform. Repeat for several. Same choices as `single`. |
 | `--outputs-dir PATH` | the repository's `outputs/` | both modes | Directory to scan for product directories. |
 | `--immediate` | off | | Publish at once instead of scheduling into slots. |
 | `--dry-run` | off | both modes | Publish nothing. Scheduled mode shows the slot each product would take; immediate mode lists the products it would publish and contacts no provider. |
@@ -197,7 +197,6 @@ Settings resolve in this order, highest first: command-line options, environment
 | `PUBLISHER_MAX_RETRIES` | `max_retries` | Integer. |
 | `PUBLISHER_TIMEOUT` | `timeout` | Seconds, float. |
 | `PUBLISHER_DEFAULT_PLATFORMS` | `default_platforms` | Comma-separated, such as `youtube,tiktok`. |
-| `PUBLISHER_PRIVACY_YOUTUBE`, `PUBLISHER_PRIVACY_TIKTOK`, `PUBLISHER_PRIVACY_INSTAGRAM` | `privacy_settings` | Loaded, but no publish path reads `privacy_settings`. |
 
 The link-in-bio provider reads `LNKBIO_CLIENT_ID` and `LNKBIO_CLIENT_SECRET`; both are required while `link_in_bio.enabled` is on.
 
@@ -217,16 +216,14 @@ In the tables, "Default" is the value used when the key is absent, and "Bundled"
 | `api_key` | string | none | | Single-account key. Prefer `LATE_API_KEY`. |
 | `vercel_token` | string | none | | Single-account Blob token. Prefer `LATE_VERCEL_TOKEN`. |
 | `immediate_publish` | bool | `true` | `false` | Publish at once instead of scheduling. Read by the global batch only; the publisher CLI publishes at once only with `--immediate`. |
-| `default_platforms` | list | `youtube`, `tiktok`, `instagram` | | Platforms the global batch and `cleanup` use when none are given. `single` and `schedule` default to the same three platforms regardless. |
+| `default_platforms` | list | `youtube`, `tiktok`, `instagram` | | Platforms every command uses when none are given. |
 | `use_platform_specific_content` | bool | `false` | | One post per platform with that platform's metadata, instead of one post for all. |
 | `profiles` | map | `{}` | commented out | Platform name to video profile. See [`profiles`](#profiles). |
 | `schedule_time` | string | none | | Fixed ISO 8601 publish time the global batch uses when it is given none. |
 | `max_retries` | int | `3` | | Attempts per API call, including the first. Must be 0 or more. |
 | `timeout` | float | `120.0` | | Seconds per API request. Must be above 0. |
-| `backoff_multiplier` | float | | `2.0` | Deprecated. Stripped by the loader; the retry delay is not configurable. |
 | `stagger_delay_min` | int | `30` | | Minimum seconds between posts in an immediate batch. Must be 0 or more. |
 | `stagger_delay_max` | int | `60` | | Maximum seconds between posts. Must be at least `stagger_delay_min`. |
-| `privacy_settings` | map | `{}` | `youtube: public`, `tiktok: public`, `instagram: everyone` | Loaded, but no publish path reads it. TikTok privacy is set by `tiktok_settings.privacy_level`. |
 | `synthetic_media_disclosure` | bool | `false` | | Sends YouTube's altered-or-synthetic-content flag (`containsSyntheticMedia`) on every YouTube post. See [Compliance](../explanation/compliance.md). |
 
 ### `accounts`
@@ -238,7 +235,6 @@ Named provider accounts (`REQ-PUB-009`). With an `accounts` section, the chosen 
 | `accounts.<name>.api_key` | string | Required. An account without it is skipped with a warning. |
 | `accounts.<name>.vercel_token` | string | Optional Blob token. |
 | `accounts.<name>.description` | string | Free text. |
-| `accounts.<name>.default_platforms` | list | Loaded, but no command reads it. |
 | `default_account` | string | Account used without `--account`. Defaults to the first account listed. |
 
 ```yaml
@@ -250,7 +246,6 @@ accounts:
   staging:
     api_key: sk_live_staging_key_123
     description: Staging/test account
-    default_platforms: [youtube]
 default_account: production
 ```
 
@@ -285,8 +280,6 @@ The number of alternatives suggested on a conflict is fixed at 5 and is not read
 | `keep_published_days` | int | `0` | Days after publication before a product is removed. 0 removes it at once. |
 | `archive_before_delete` | bool | `false` | Write a ZIP of the product directory before removing it. |
 | `archive_dir` | path | `outputs/archive` | Where archives go, as `<product_id>_<timestamp>.zip`. |
-| `preserve_metadata` | bool | `false` | Loaded, but cleanup does not read it. |
-| `preserve_logs` | bool | `true` | Loaded, but cleanup does not read it. |
 
 If the section is invalid, the loader falls back to the defaults but keeps `enabled` and `archive_before_delete` (`REQ-PUB-014`).
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.134.0] - 2026-10-04
+
+### Fixed
+
+- `single` and `schedule` without `--platform` publish to the platforms in `default_platforms`, as the global batch and `cleanup` already did, instead of always to YouTube, TikTok and Instagram.
+
+### Removed
+
+- **Breaking**: the publisher settings nothing read are gone: `privacy_settings` and its `PUBLISHER_PRIVACY_*` variables, `backoff_multiplier`, `cleanup.preserve_metadata`, `cleanup.preserve_logs` and `accounts.<name>.default_platforms`; a config still carrying one loads and ignores it.
+
 ## [0.133.0] - 2026-10-04
 
 ### Removed

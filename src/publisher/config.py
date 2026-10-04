@@ -139,7 +139,7 @@ def load_publisher_config(
     # Validate required fields
     _validate_required_fields(config_dict)
 
-    # Strip keys not accepted by PublisherConfig (e.g. deprecated backoff_multiplier)
+    # Strip keys not accepted by PublisherConfig (keys since removed)
     _known = {f.name for f in dataclasses.fields(PublisherConfig)}
     config_dict = {k: v for k, v in config_dict.items() if k in _known}
 
@@ -331,8 +331,6 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
         "require_all_platforms",
         "archive_before_delete",
         "keep_published_days",
-        "preserve_metadata",
-        "preserve_logs",
         "settle_timeout_sec",
         "settle_initial_delay_sec",
     ]:
@@ -556,29 +554,12 @@ def _parse_accounts(config: dict[str, Any]) -> dict[str, Any]:
             # Get description
             description = account_data.get("description", "")
 
-            # Parse default platforms for this account
-            platforms_data = account_data.get("default_platforms", [])
-            default_platforms = []
-            if platforms_data:
-                try:
-                    default_platforms = [
-                        Platform(p.lower()) if isinstance(p, str) else p
-                        for p in platforms_data
-                    ]
-                except ValueError as e:
-                    logger.warning(
-                        "Invalid platform in account '%s': %s, " "using empty list",
-                        name,
-                        e,
-                    )
-
             try:
                 accounts_dict[name] = AccountConfig(
                     name=name,
                     api_key=api_key,
                     vercel_token=vercel_token,
                     description=description,
-                    default_platforms=default_platforms,
                 )
                 logger.debug("Parsed account: %s", name)
             except ValueError as e:
@@ -709,15 +690,6 @@ def _apply_env_overrides(config: dict[str, Any]) -> dict[str, Any]:
         except ValueError as e:
             logger.warning("Invalid PUBLISHER_DEFAULT_PLATFORMS: %s", e)
 
-    # Privacy settings (e.g., PUBLISHER_PRIVACY_YOUTUBE=public)
-    for platform in ["youtube", "tiktok", "instagram"]:
-        env_var = f"PUBLISHER_PRIVACY_{platform.upper()}"
-        privacy_value = os.environ.get(env_var)
-        if privacy_value:
-            if "privacy_settings" not in result:
-                result["privacy_settings"] = {}
-            result["privacy_settings"][Platform(platform)] = privacy_value
-
     logger.debug("Applied environment variable overrides")
     return result
 
@@ -806,7 +778,6 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
     - stagger_delay_min: 30
     - stagger_delay_max: 60
     - default_platforms: [youtube, tiktok, instagram]
-    - privacy_settings: {}
     - accounts: {} (empty dict if no accounts configured)
     - active_account: None
     - schedule_config: ScheduleConfig() with defaults
@@ -829,7 +800,6 @@ def _apply_defaults(config: dict[str, Any]) -> dict[str, Any]:
         "stagger_delay_min": 30,
         "stagger_delay_max": 60,
         "default_platforms": list(DEFAULT_PLATFORMS),
-        "privacy_settings": {},
         "accounts": {},
         "active_account": None,
         "schedule_config": ScheduleConfig(),
@@ -956,12 +926,6 @@ timeout: 120.0
 # Batch publishing delays (seconds)
 stagger_delay_min: 30
 stagger_delay_max: 60
-
-# Privacy settings per platform
-privacy_settings:
-  youtube: public
-  tiktok: public
-  instagram: everyone
 """
     output_path.write_text(template, encoding="utf-8")
 

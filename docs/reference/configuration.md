@@ -2140,9 +2140,6 @@ These enhance functionality but are not required for basic operation.
 | `PUBLISHER_MAX_RETRIES` | int | 3 | Maximum retry attempts for failed publishes |
 | `PUBLISHER_TIMEOUT` | int | 120 | Request timeout in seconds |
 | `PUBLISHER_PROVIDER` | string | late | Publishing service provider |
-| `PUBLISHER_PRIVACY_YOUTUBE` | string | None | YouTube privacy: public, private, unlisted |
-| `PUBLISHER_PRIVACY_TIKTOK` | string | None | TikTok privacy setting |
-| `PUBLISHER_PRIVACY_INSTAGRAM` | string | None | Instagram privacy setting |
 
 ### Advanced Configuration
 

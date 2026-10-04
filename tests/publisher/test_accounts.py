@@ -33,19 +33,6 @@ class TestAccountConfig:
         assert account.api_key == "sk_live_test123456"
         assert account.vercel_token == "vercel_token_123"  # noqa: S105
         assert account.description == "Main production account"
-        assert account.default_platforms == []
-
-    def test_account_with_platforms(self):
-        """Test account with default platforms configured."""
-        account = AccountConfig(
-            name="youtube_only",
-            api_key="sk_live_test123456",
-            default_platforms=[Platform.YOUTUBE, Platform.TIKTOK],
-        )
-
-        assert len(account.default_platforms) == 2
-        assert Platform.YOUTUBE in account.default_platforms
-        assert Platform.TIKTOK in account.default_platforms
 
     def test_account_empty_name_raises(self):
         """Test that empty name raises ValueError."""
@@ -153,8 +140,8 @@ class TestParseAccounts:
         assert result["active_account"] == "default"
         assert result["accounts"]["default"].api_key == "sk_live_legacy_key_123"
 
-    def test_parse_account_with_platforms(self):
-        """Test parsing account with default platforms."""
+    def test_a_removed_per_account_platforms_key_is_ignored(self):
+        """An account still carrying `default_platforms` loads without it."""
         config = {
             "provider": "late",
             "accounts": {
@@ -168,8 +155,8 @@ class TestParseAccounts:
         result = _parse_accounts(config)
 
         account = result["accounts"]["youtube_focus"]
-        assert len(account.default_platforms) == 2
-        assert Platform.YOUTUBE in account.default_platforms
+        assert account.api_key == "sk_live_youtube_key_123"
+        assert not hasattr(account, "default_platforms")
 
     def test_parse_skips_invalid_accounts(self):
         """Test that invalid accounts are skipped with warning."""
@@ -428,7 +415,6 @@ max_retries: 5
         staging = config.get_account("staging")
         assert staging is not None
         assert staging.api_key == "sk_live_staging_key_12"
-        assert Platform.YOUTUBE in staging.default_platforms
 
     @patch.dict("os.environ", {}, clear=True)
     def test_load_with_cli_account_override(self, tmp_path):
