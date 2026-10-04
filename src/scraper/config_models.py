@@ -69,8 +69,6 @@ class VideoConfig(BaseModel):
     min_dimension: int = Field(default=640, gt=0)
     min_duration: float = Field(default=1.0, gt=0)
     max_videos_per_product: int = Field(default=10, gt=0)
-    mute_video_tabs: bool = Field(default=True)
-    enable_metadata_extraction: bool = Field(default=True)
     enable_m3u8_monitoring: bool = Field(default=False)
     m3u8_download_timeout: int = Field(default=120, gt=0)
     network_capture_timeout: int = Field(default=20, gt=0)
@@ -83,7 +81,6 @@ class DownloadConfig(BaseModel):
 
     download_timeout: int = Field(default=30, gt=0)
     video_download_timeout: int = Field(default=300, gt=0)
-    retry_video_downloads: int = Field(default=2, ge=0)
     download_chunk_size: int = Field(default=8192, gt=0)
     # None resolves to `system_timeouts.head_request_timeout` at the site,
     # which is what the dict-walk did when the key was absent.
@@ -296,9 +293,6 @@ class SearchParameters(BaseModel):
     free_shipping: bool = Field(default=False)
     brands: list[str] = Field(default=[])
     sort_order: str = Field(default="relevanceblender")
-    category: str | None = Field(default=None)
-    include_sponsored: bool = Field(default=False)
-    skip_unavailable: bool = Field(default=True)
 
 
 class FilterParameters(BaseModel):

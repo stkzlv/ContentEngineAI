@@ -42,7 +42,6 @@ The filters apply to keyword searches. Each one overrides the matching field of 
 | `--free-shipping` | switch | Items with free shipping only. |
 | `--brands` | one or more `BRAND` | Brand names to filter by. |
 | `--sort` | `relevance`, `price-low`, `price-high`, `rating`, `newest` or `featured` | Sort order of the results. The default `relevance` leaves the configured `sort_order` in force. |
-| `--category` | `ID` | Amazon category id. |
 
 `--sort` values map to Amazon's sort tokens: `relevance` -> `relevanceblender`, `price-low` -> `price-asc-rank`, `price-high` -> `price-desc-rank`, `rating` -> `review-rank`, `newest` -> `date-desc-rank`, `featured` -> `featured-rank`. The config key `sort_order` takes the token, not the CLI value. Invalid combinations, such as a minimum price above the maximum, stop the run before the browser starts.
 
@@ -56,7 +55,6 @@ The filters apply to keyword searches. Each one overrides the matching field of 
 | `--save-page-source` | Saves the HTML source of the pages visited. |
 | `--analyze-images` | Analyses every image found on the page. |
 | `--dump-image-urls` | Saves every discovered image URL to a file. |
-| `--pause-on-error` | Pauses when an error occurs. |
 
 The last five take effect only together with `--debug`. Setting `global_settings.debug_mode: true` turns on debug mode without the flag.
 
@@ -66,7 +64,7 @@ A run that scrapes no product exits 1, including one that stops before scraping 
 
 ### Flags the global batch does not take
 
-`python -m src.pipeline` accepts the common flags. It does not take `--free-shipping`, `--brands`, `--sort`, `--category`, `--input-file`, `--batch-size`, `--output-dir`, `--verbose`, the five debug switches (`--save-screenshots`, `--save-page-source`, `--analyze-images`, `--dump-image-urls`, `--pause-on-error`), `--no-fail-fast`, or the `--profile-uses-videos` pair, since the batch works out video use from the profile itself. Its output flag is `--outputs-dir`, and its `--fail-fast` is a plain switch with no negated form. See [batch processing](../guides/batch-processing.md).
+`python -m src.pipeline` accepts the common flags. It does not take `--free-shipping`, `--brands`, `--sort`, `--input-file`, `--batch-size`, `--output-dir`, `--verbose`, the four debug switches (`--save-screenshots`, `--save-page-source`, `--analyze-images`, `--dump-image-urls`), or the `--profile-uses-videos` pair, since the batch works out video use from the profile itself. Its output flag is `--outputs-dir`. See [batch processing](../guides/batch-processing.md).
 
 ## Product count
 
@@ -189,8 +187,6 @@ Retries of failed network operations, with a delay of `min(base_delay * backoff_
 | `min_dimension` | int | `640` | Smallest width or height of a kept video, pixels. |
 | `min_duration` | float | `1.0` | Shortest kept video, seconds. |
 | `max_videos_per_product` | int | `10` | Videos extracted per product. |
-| `mute_video_tabs` | bool | `true` | Mutes the browser during extraction. |
-| `enable_metadata_extraction` | bool | `true` | Reads duration, resolution, codecs and audio with FFprobe. |
 | `enable_m3u8_monitoring` | bool | `false` | Watches network traffic for HLS stream URLs. |
 | `m3u8_download_timeout` | int | `120` | Time limit for converting an HLS stream to MP4, seconds. |
 | `network_capture_timeout` | int | `20` | How long network traffic is watched for HLS URLs, seconds. |
@@ -201,7 +197,6 @@ Retries of failed network operations, with a delay of `min(base_delay * backoff_
 |---|---|---|---|
 | `download_timeout` | int | `30` | Download time limit, seconds. |
 | `video_download_timeout` | int | `300` | Video download time limit, seconds. |
-| `retry_video_downloads` | int | `2` | Retries of a failed video download, with the `retry_config` backoff. |
 | `download_chunk_size` | int | `8192` | Bytes read per streaming iteration. |
 | `validation_timeout` | int or null | `null` | Media validation request time limit, seconds. Not in the bundled YAML. |
 | `min_image_file_size` | int | `10000` | Smallest downloaded image, bytes. Not in the bundled YAML. |
@@ -286,9 +281,6 @@ There is no `headless` key: the scraper always runs a headful browser, on a virt
 | `free_shipping` | bool | `false` | Free shipping only. |
 | `brands` | list | `[]` | Brand names. |
 | `sort_order` | string | `relevanceblender` | Amazon sort token (see [search filters](#search-filters)). |
-| `category` | string or null | `null` | Category id. |
-| `include_sponsored` | bool | `false` | Includes sponsored results. |
-| `skip_unavailable` | bool | `true` | Skips unavailable products. |
 
 `http_headers`, each a mapping of header name to value:
 

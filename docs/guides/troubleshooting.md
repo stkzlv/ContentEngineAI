@@ -1029,12 +1029,6 @@ extraction, not architecture. The YAML keys below are children of
        video_download_timeout: 600  # Increase to 10 minutes
    ```
 2. Check network speed and stability
-3. Verify retry settings are enabled:
-   ```yaml
-   global_settings:
-     download_config:
-       retry_video_downloads: 2
-   ```
 
 **Problem**: FFprobe metadata extraction failing
 
@@ -1046,12 +1040,6 @@ extraction, not architecture. The YAML keys below are children of
 2. Check video file integrity:
    ```bash
    ffprobe -v error outputs/{ASIN}/videos/video_0.mp4
-   ```
-3. Disable metadata extraction if FFprobe unavailable:
-   ```yaml
-   global_settings:
-     video_config:
-       enable_metadata_extraction: false
    ```
 
 **Problem**: Low-quality videos being downloaded

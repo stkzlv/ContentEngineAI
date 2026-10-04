@@ -159,16 +159,6 @@ global_settings:
     # Affects: Video extraction loop limits, download time, bandwidth
     max_videos_per_product: 10
 
-    # Mute video tabs to prevent audio overlap during extraction
-    # Prevents audio from playing in browser during video scraping
-    # Affects: Browser behavior, audio output, debugging comfort
-    mute_video_tabs: true
-
-    # Enable video metadata extraction using FFprobe
-    # Extracts duration, resolution, codec, format, bitrate, and audio presence
-    # Affects: Video validation pipeline, metadata availability for producer
-    enable_metadata_extraction: true
-
     # Enable M3U8 network monitoring for video extraction
     # When true, monitors browser network traffic to capture HLS stream URLs
     # When false, relies on direct element extraction only
@@ -204,7 +194,6 @@ global_settings:
     # Videos are retried on transient failures (network errors, timeouts)
     # Uses exponential backoff defined in retry_config section
     # Affects: Video download resilience, success rate on flaky networks
-    retry_video_downloads: 2
 
     # Chunk size for streaming downloads (bytes)
     # Amount of data read per iteration during streaming download
@@ -596,11 +585,8 @@ scrapers:
       sort_order: "relevanceblender"
 
       # Category filtering (Amazon category ID, null means all categories)
-      category: null               # Category ID for filtering (advanced usage)
 
       # Search behavior settings
-      include_sponsored: false     # Include sponsored/ad results in extraction
-      skip_unavailable: true       # Skip products marked as unavailable
 
     # ---- Amazon Filter Parameters ----
     filter_parameters:
