@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.156.0] - 2026-10-04
+
+### Added
+
+- A `tts_config.tts_normalisation` block, off with empty tables, rewrites listed units (only after a number) and terms in the text sent to the voice, leaving the script, state and captions in their written form, and `tools/tts_normalisation_probe.py` measures which strings the voice misreads (none on the pinned voice).
+
 ## [0.155.0] - 2026-10-04
 
 ### Added

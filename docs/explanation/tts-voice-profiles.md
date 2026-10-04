@@ -93,6 +93,10 @@ The adjective tags (`[scared]`, `[curious]`, `[bored]`) are spoken by design. Re
 
 A `pause_plan` on a profile replaces its markup rules with context-dependent pauses: `after_hook` after the first sentence (empty by default), `before_last` before the closing line, `paragraph` at any other line break, and `sentence` elsewhere. The hook and closing-line tags win where those boundaries also end a line. `jitter` (0.3 by default) is the share of ordinary sentence boundaries that deviate, half with no pause and half with the paragraph pause, seeded by the product id so a product always renders the same pauses. Every tag must be one of the measured silent ones; anything else fails at config load. The bundled `charon_varied` profile carries a plan with `[long pause]` at paragraph breaks and before the closing line. On one script it widened the spread of gaps between sentences from 0.56-0.74 s to 0.42-0.82 s, with no tag text in the transcript. It is not selected by default; try it with `--voice-profile charon_varied`.
 
+## Numbers, units and model names
+
+Misread units and codes ("five thousand M A H") are a widely cited tell of synthetic narration [C]. `python -m tools.tts_normalisation_probe` voices each case twice in the same sentence, as written (`5000mAh`) and spelled out (`5000 milliamp hours`), and compares the two transcripts and durations. On the pinned `charon` voice (Gemini 2.5 Flash TTS) every case read as intended: `mAh`, `W`, `GHz`, `inch`, `USB-C`, `IP68`, `Wi-Fi 6E`, `GB`, `mm` and a SKU, with durations within about 5% for the units. Where the transcripts differed, Whisper had written a spoken unit back as its abbreviation or the reverse. So `tts_config.tts_normalisation` ships off with empty tables (`REQ-CNT-075`, held); an entry goes in only when a probe run shows a misreading, for instance after a voice or model change. Rewrites reach the voice only, and the captions are transcribed from the audio (`REQ-CNT-076`).
+
 ## Deterministic selection
 
 Different hash slices prevent correlation between randomized choices:
