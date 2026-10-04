@@ -3,6 +3,7 @@
 import inspect
 import json
 import logging
+import os
 import sys
 import tempfile
 from collections.abc import Generator
@@ -554,7 +555,7 @@ def no_real_env_file(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def no_production_log_files(monkeypatch):
+def no_production_log_files(monkeypatch, tmp_path):
     """A test that drives an entry point must not write to outputs/logs/.
 
     Several tests call the scraper's `main()`, which configures logging for
@@ -583,23 +584,134 @@ def no_production_log_files(monkeypatch):
         if module is not None:
             monkeypatch.setattr(module, "setup_debug_logging", _noop, raising=False)
 
+    # The entry points still resolve the log path, and resolving it creates
+    # outputs/logs/ on a fresh checkout.
+    def _tmp_logs(custom_outputs_dir=None):
+        return tmp_path
+
+    for name in ("src.scraper.amazon.cli", "src.pipeline.cli"):
+        module = sys.modules.get(name)
+        if module is not None:
+            monkeypatch.setattr(module, "get_logs_directory", _tmp_logs)
+
+
+_REAL_OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"
+
+
+_OUTPUTS_BEFORE = pytest.StashKey["dict[str, tuple[int, int]] | None"]()
+
+
+def _outputs_entries() -> set[str]:
+    try:
+        return {p.name for p in _REAL_OUTPUTS.iterdir()}
+    except FileNotFoundError:
+        return set()
+
+
+def _outputs_snapshot(
+    root: Path = _REAL_OUTPUTS,
+) -> dict[str, tuple[int, int]] | None:
+    """Every entry under outputs/, files with mtime and size; None when absent."""
+    if not root.exists():
+        return None
+    snapshot: dict[str, tuple[int, int]] = {}
+    for dirpath, dirs, files in os.walk(root):
+        for name in dirs:
+            path = Path(dirpath) / name
+            snapshot[str(path.relative_to(root)) + "/"] = (0, 0)
+        for name in files:
+            path = Path(dirpath) / name
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            snapshot[str(path.relative_to(root))] = (
+                stat.st_mtime_ns,
+                stat.st_size,
+            )
+    return snapshot
+
+
+def _snapshot_changes(
+    before: dict[str, tuple[int, int]] | None,
+    after: dict[str, tuple[int, int]] | None,
+) -> list[str]:
+    if before is None:
+        return ["outputs/ (created)"] if after is not None else []
+    if after is None:
+        return ["outputs/ (removed)"]
+    written = [path for path, stamp in after.items() if before.get(path) != stamp]
+    removed = [f"{path} (removed)" for path in before if path not in after]
+    return sorted(written + removed)
+
+
+def _is_xdist_worker(config) -> bool:
+    return hasattr(config, "workerinput")
+
 
 @pytest.fixture(autouse=True)
-def cleanup_test_outputs():
-    """Clean up test product directories after each test."""
-    yield  # Run the test
+def no_writes_to_real_outputs(request):
+    """A test may not write to or delete from the repository's `outputs/` tree.
 
-    # Cleanup after test completes
-    import shutil
+    The suite used to create `TEST*` product directories there and delete
+    them after each test, so a test that wrote real outputs passed, and one
+    that wrote under another name left it behind. A test that needs an
+    outputs tree builds one under `tmp_path`. Nothing found here is deleted:
+    a pipeline run in the same checkout writes there too.
 
-    from src.utils.outputs_paths import get_outputs_root
+    Per test, only new top-level entries and only in a serial run, which is
+    cheap and names the test; `pytest_sessionfinish` compares every file and
+    directory, removals included.
+    Under xdist a neighbour's write would be blamed on whichever test is
+    running, so there only the session check runs.
+    """
+    if _is_xdist_worker(request.config):
+        yield
+        return
+    existed = _REAL_OUTPUTS.exists()
+    before = _outputs_entries()
+    yield
+    added = sorted(_outputs_entries() - before)
+    if not existed and _REAL_OUTPUTS.exists():
+        added.insert(0, "outputs/ (created)")
+    if added:
+        pytest.fail(
+            f"{request.node.nodeid} wrote to the real outputs/ tree: {added}",
+            pytrace=False,
+        )
 
-    outputs_root = get_outputs_root()
-    if outputs_root.exists():
-        # Remove TEST product directories (TEST123, etc.)
-        for item in outputs_root.iterdir():
-            if item.is_dir() and item.name.startswith("TEST"):
-                shutil.rmtree(item, ignore_errors=True)
+
+@pytest.fixture(autouse=True)
+def schedule_defaults_stay_in_tmp(monkeypatch, tmp_path):
+    """`ScheduleManager` falls back to the real outputs tree when no path is given.
+
+    It resolves `schedule.json` and the publish history there, which read
+    the developer's history and planted `outputs/state/`. Only an already
+    imported module is patched, as with the logging sites above.
+    """
+    module = sys.modules.get("src.publisher.schedule")
+    if module is not None:
+        monkeypatch.setattr(module, "DEFAULT_OUTPUTS_DIR", tmp_path / "outputs")
+
+
+def pytest_sessionstart(session):
+    if not _is_xdist_worker(session.config):
+        session.config.stash[_OUTPUTS_BEFORE] = _outputs_snapshot()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _is_xdist_worker(session.config) or _OUTPUTS_BEFORE not in session.config.stash:
+        return
+    changed = _snapshot_changes(
+        session.config.stash[_OUTPUTS_BEFORE], _outputs_snapshot()
+    )
+    if changed:
+        sys.stderr.write(
+            f"\nThe run changed the real outputs/ tree ({len(changed)} paths, "
+            f"first: {changed[:10]}). A pipeline run in this checkout during "
+            "the suite also counts. Run with -p no:xdist to name the test.\n"
+        )
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
 @pytest.fixture

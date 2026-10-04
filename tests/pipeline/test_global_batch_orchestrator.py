@@ -26,7 +26,7 @@ from src.scraper.base.throttle import ThrottleTracker
 
 
 @pytest.fixture
-def base_config():
+def base_config(tmp_path):
     """Create base configuration for testing."""
     return GlobalBatchConfig(
         product_ids=["B0ABC123", "B0DEF456"],
@@ -38,7 +38,7 @@ def base_config():
         profile_pool=[],
         fail_fast=False,
         process_all_products=False,
-        outputs_dir=Path("outputs"),
+        outputs_dir=tmp_path / "outputs",
         debug=False,
         skip_publish=True,  # Skip publishing by default in tests
         platforms=None,

@@ -151,20 +151,6 @@ def write_download_cache_output(data: Any, result: dict[str, Any]) -> None:
         os.chdir(original_cwd)
 
 
-def configure_botasaurus_outputs() -> None:
-    """Configure Botasaurus to use our outputs directory.
-    This should be called at module initialization.
-    """
-    try:
-        # Use centralized outputs structure setup
-        ensure_outputs_structure()
-        outputs_root = get_outputs_root()
-        logger.debug("Configured outputs directory: %s", outputs_root)
-
-    except Exception:
-        logger.warning("Could not create output directories", exc_info=True)
-
-
 def get_browser_config_for_outputs() -> dict[str, Any]:
     """Browser configuration that disables Botasaurus's own output.
 
@@ -191,7 +177,3 @@ def get_task_config_for_outputs() -> dict[str, Any]:
         "output": write_download_cache_output,
         # Add any other task-specific output configurations here
     }
-
-
-# Configure outputs when module is imported
-configure_botasaurus_outputs()

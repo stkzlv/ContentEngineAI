@@ -131,10 +131,13 @@ def test_cleanup_invalid_outputs_dry_run(temp_outputs_dir):
     assert invalid_dir.exists()
 
 
-def test_centralized_path_functions():
+def test_centralized_path_functions(monkeypatch, tmp_path):
     """Test that centralized path functions work correctly."""
-    # Test basic path creation
+    # Anchored on a temporary project root: the real one is the developer's
+    # outputs tree, which the suite must not write.
+    monkeypatch.setattr("src.utils.outputs_paths.get_project_root", lambda: tmp_path)
     outputs_root = get_outputs_root()
+    assert outputs_root == tmp_path / "outputs"
     assert outputs_root.name == "outputs"
 
     # Test product directory creation
@@ -150,20 +153,18 @@ def test_centralized_path_functions():
     assert (outputs_root / "logs").exists()
 
 
-def test_structure_consistency_between_modules():
+def test_structure_consistency_between_modules(monkeypatch, tmp_path):
     """Test that both scraper and producer use the same structure."""
     from src.scraper.amazon.botasaurus_output import get_outputs_root as scraper_root
     from src.utils.outputs_paths import get_outputs_root as utils_root
 
+    monkeypatch.setattr("src.utils.outputs_paths.get_project_root", lambda: tmp_path)
+
     # Both should return the same path
-    assert scraper_root() == utils_root()
+    assert scraper_root() == utils_root() == tmp_path / "outputs"
 
-    # Both should create the same global directories
-    scraper_root()
-    utils_root()
-
-    cache_dir = utils_root() / "cache"
-    assert cache_dir.exists()
+    ensure_outputs_structure()
+    assert (utils_root() / "cache").exists()
 
 
 @pytest.mark.parametrize("product_id", ["B0TEST123", "B08EXAMPLE", "ASINTEST01"])

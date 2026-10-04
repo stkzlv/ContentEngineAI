@@ -225,6 +225,14 @@ Common fixtures available in all tests:
 - `temp_dir` - Temporary directory (auto-cleanup)
 - `sample_product_data` - Sample product data for testing
 
+A test may not write to or delete from the repository's `outputs/` tree. The run
+compares every file and directory there, and whether the tree exists, before and
+after, and fails listing what was added, changed or removed; a pipeline run in
+the same checkout during the suite trips it too. Nothing is deleted. In a serial
+run a test that adds a top-level entry also fails by name; under `-n`, run
+`-p no:xdist` to find the test. A test that needs an outputs tree builds one
+under `tmp_path`, or points `get_project_root` there.
+
 ## Advanced Testing
 
 <details>

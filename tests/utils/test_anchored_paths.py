@@ -52,10 +52,12 @@ class TestAnchoringHoldsFromAForeignCwd:
         monkeypatch.chdir(tmp_path)
 
         from src.publisher.constants import DEFAULT_OUTPUTS_DIR
-        from src.utils.outputs_paths import get_logs_directory
+        from src.utils.outputs_paths import get_project_root
 
         assert DEFAULT_OUTPUTS_DIR == REPO / "outputs"
-        assert get_logs_directory().is_relative_to(REPO)
+        # The project root, not the logs directory: resolving that creates
+        # it, and the suite may not write the real outputs tree.
+        assert get_project_root() == REPO
 
     def test_config_manager_default_root_is_the_repo_config(
         self, tmp_path, monkeypatch

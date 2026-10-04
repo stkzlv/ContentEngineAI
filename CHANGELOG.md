@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.1] - 2026-10-04
+
+### Fixed
+
+- Importing the scraper, or counting a product's media, no longer creates `outputs/` or its `cache`, `logs` and `reports` directories, so `--help`, a dry run or a test run on a fresh checkout leaves no tree behind; each writer still creates the directory it writes to.
+- The test suite fails when it writes to or deletes from the repository's `outputs/` tree, instead of deleting `TEST*` product directories after each test, and the scheduler and log-path tests no longer write there.
+
 ## [0.145.0] - 2026-10-04
 
 ### Removed

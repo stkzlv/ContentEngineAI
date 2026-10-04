@@ -75,3 +75,14 @@ async def test_a_failed_download_leaves_no_file(tmp_path: Path) -> None:
 
     assert ok is False
     assert not target.exists()
+
+
+@pytest.mark.req("REQ-OPS-013")
+def test_the_default_root_is_read_not_created(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A count is a read: with no outputs tree yet, it plants none."""
+    monkeypatch.setattr("src.utils.outputs_paths.get_project_root", lambda: tmp_path)
+
+    assert media_on_disk("B0NONE0002") == (0, 0)
+    assert list(tmp_path.iterdir()) == []
