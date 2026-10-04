@@ -87,6 +87,7 @@ class AudioFilterBuilder:
         total_video_duration: float,
         media_inspector: Any,
         music_fade_out_sec: float | None = None,
+        speech_end_sec: float | None = None,
     ) -> tuple[list[str], str]:
         """Add the audio inputs and build the whole mix, the sting included.
 
@@ -104,11 +105,16 @@ class AudioFilterBuilder:
         sting_idx = self.prepare_sting_input(input_cmd_parts, sting_path)
         delay = 0.0
         if sting_path is not None:
-            voice_end = (
-                await media_inspector.get_media_duration(voiceover_audio_path)
-                if voiceover_audio_path
-                else total_video_duration
-            ) or total_video_duration
+            # A `peak` ending measures where the speech ends; the file can run
+            # past it, and the render is cut at the speech.
+            voice_end = speech_end_sec or (
+                (
+                    await media_inspector.get_media_duration(voiceover_audio_path)
+                    if voiceover_audio_path
+                    else total_video_duration
+                )
+                or total_video_duration
+            )
             delay = self.sting_delay_sec(
                 await media_inspector.get_media_duration(sting_path), voice_end
             )

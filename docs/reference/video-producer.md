@@ -256,7 +256,7 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | `peak` | The video ends `peak_margin_sec` (default 0.25 s) after the last spoken word, found by `silencedetect` as the start of the silence that runs to the end of the voiceover. The music fades within the margin. If the measurement fails, the whole voiceover file counts as speech. |
 | `loop` | `peak`, plus a closing segment of the first image that replays its opening motion backwards (the settle-zoom where `first_frame_pre_motion` is on, else the reverse of its still motion), so the last frame matches the first apart from the captions and the hook overlay. Stills are dropped from the end of the timeline when needed to keep every segment at `min_visual_segment_duration_sec`. A render with video clips ends as `peak`, with a warning. |
 
-With `peak` or `loop`, a signature sting placed after the voiceover falls past the end of the video. Each render records its ending in `render_choices.jsonl`.
+With `peak` or `loop`, a sting at position `end` finishes at the measured end of the speech rather than of the voiceover file. Each render records its ending in `render_choices.jsonl`.
 
 ## Assembly modes
 

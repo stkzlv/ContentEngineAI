@@ -1688,19 +1688,22 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
     return ctx.run_paths.get("subtitle_upper_file")
 
 
-async def _render_duration(ctx: PipelineContext) -> tuple[float, float | None]:
-    """The render's length and its music fade, from the profile's ending.
+async def _render_duration(
+    ctx: PipelineContext,
+) -> tuple[float, float | None, float | None]:
+    """The render's length, music fade and speech end, from the ending.
 
     `outro` keeps `outro_duration_sec` after the voiceover file. `peak` and
     `loop` end `peak_margin_sec` after the last spoken word and fade the music
-    within that margin, so nothing trails the last word (design 0002).
+    within that margin, so nothing trails the last word (design 0002). The
+    speech end is None where it was not measured.
     """
     voiceover = ctx.voiceover_duration or 0.0
     settings = ctx.config.get_profile_merged_settings(
         ctx.profile_name, ctx.cli_overrides
     ).video_settings
     if settings.ending == "outro":
-        return voiceover + ctx.config.outro_duration_sec, None
+        return voiceover + ctx.config.outro_duration_sec, None, None
     ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
     speech_end = await speech_end_sec(
         ctx.run_paths["voiceover_file"], ffmpeg_path, voiceover
@@ -1713,7 +1716,7 @@ async def _render_duration(ctx: PipelineContext) -> tuple[float, float | None]:
         voiceover,
         speech_end + margin,
     )
-    return speech_end + margin, margin
+    return speech_end + margin, margin, speech_end
 
 
 async def step_assemble_video(ctx: PipelineContext):
@@ -1849,7 +1852,7 @@ async def step_assemble_video(ctx: PipelineContext):
         ctx.state["cold_open_variant"] = cold_open_variant
         logger.info("Cold-open variant for %s: %s", product_id, cold_open_variant)
 
-        total_duration, music_fade_out_sec = await _render_duration(ctx)
+        total_duration, music_fade_out_sec, speech_end = await _render_duration(ctx)
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,
@@ -1867,6 +1870,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 hook_text=hook_text,
                 hook_headline=ctx.state.get("hook_headline"),
                 music_fade_out_sec=music_fade_out_sec,
+                speech_end_sec=speech_end,
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

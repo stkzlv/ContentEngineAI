@@ -638,6 +638,7 @@ class VideoAssembler:
         hook_text: str | None = None,
         hook_headline: str | None = None,
         music_fade_out_sec: float | None = None,
+        speech_end_sec: float | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -662,6 +663,8 @@ class VideoAssembler:
                 caption line. See overlay_builder.resolve_hook_line.
             music_fade_out_sec: The music's closing fade when the ending sets
                 one; None keeps `music_fade_out_duration`.
+            speech_end_sec: Where the speech ends, when the ending measured
+                it; an end-placed sting finishes there.
 
         Returns:
         -------
@@ -792,6 +795,7 @@ class VideoAssembler:
                 total_video_duration,
                 self.media_inspector,
                 music_fade_out_sec=music_fade_out_sec,
+                speech_end_sec=speech_end_sec,
             )
 
             # FFmpeg writes here, not to the finished name. A killed encode

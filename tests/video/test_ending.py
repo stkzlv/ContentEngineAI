@@ -91,21 +91,22 @@ async def test_peak_ends_a_margin_after_the_last_word(
 ) -> None:
     cfg = _config(ending=ending, peak_margin_sec=0.3)
     with patch.object(steps, "speech_end_sec", AsyncMock(return_value=9.4)):
-        total, fade = await steps._render_duration(_ctx(cfg, tmp_path))
+        total, fade, speech = await steps._render_duration(_ctx(cfg, tmp_path))
 
     assert total == pytest.approx(9.7)
     assert fade == pytest.approx(0.3)
+    assert speech == pytest.approx(9.4)
 
 
 @pytest.mark.asyncio
 async def test_outro_keeps_the_tail_and_measures_nothing(tmp_path: Path) -> None:
     measure = AsyncMock()
     with patch.object(steps, "speech_end_sec", measure):
-        total, fade = await steps._render_duration(_ctx(_config(), tmp_path))
+        total, fade, speech = await steps._render_duration(_ctx(_config(), tmp_path))
 
     measure.assert_not_called()
     assert total == pytest.approx(10.0 + config.outro_duration_sec)
-    assert fade is None
+    assert fade is None and speech is None
 
 
 @pytest.mark.req("REQ-VID-011")
@@ -287,3 +288,33 @@ def test_each_render_records_its_ending(tmp_path: Path) -> None:
     assert choices_from_context(ctx)["ending"] == "peak"
     ctx.profile.ending = None
     assert choices_from_context(ctx)["ending"] == "outro"
+
+
+@pytest.mark.req("REQ-VID-011")
+@needs_ffmpeg
+@pytest.mark.asyncio
+async def test_an_end_sting_finishes_at_the_speech_end(tmp_path: Path) -> None:
+    from src.video.assembler.media_inspector import MediaInspector
+    from src.video.config import SignatureSting
+
+    cfg = config.model_copy(deep=True)
+    for name, spec, sec in (
+        ("voice.wav", "anullsrc=r=48000:cl=mono", 5.0),
+        ("sting.wav", "sine=f=1000:sample_rate=48000", 1.0),
+    ):
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", spec,
+                        "-t", str(sec), str(tmp_path / name)], check=True)  # fmt: skip
+    cfg.audio_settings.signature_sting = SignatureSting(
+        path=tmp_path / "sting.wav", position="end"
+    )
+    builder = AudioFilterBuilder(cfg)
+
+    measured, _ = await builder.build_mix(
+        [], tmp_path / "voice.wav", None, 3.25, MediaInspector(), 0.25, 3.0
+    )
+    unmeasured, _ = await builder.build_mix(
+        [], tmp_path / "voice.wav", None, 6.0, MediaInspector()
+    )
+
+    assert "adelay=2000:" in "\n".join(measured)
+    assert "adelay=4000:" in "\n".join(unmeasured)
