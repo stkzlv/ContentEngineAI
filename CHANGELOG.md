@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.157.0] - 2026-10-04
+
+### Added
+
+- Each render records the stock clips and images it gathered in `render_choices.jsonl`, and a `stock_media_settings.stock_reuse_guard` block, off by default, keeps those used in the last 30 renders out of the candidate pool, falling back to the least recently used when too few others remain.
+
 ## [0.156.0] - 2026-10-04
 
 ### Added

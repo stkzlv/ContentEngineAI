@@ -69,6 +69,22 @@ def _setting(profile: Any, global_settings: Any, name: str) -> Any:
     return value if value is not None else getattr(global_settings, name, None)
 
 
+def _stock_ids(gathered_visuals_file: Path | None) -> list[str]:
+    """The stock ids this render gathered, for the reuse guard (design 0013)."""
+    if gathered_visuals_file is None:
+        return []
+    try:
+        data = json.loads(Path(gathered_visuals_file).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    items = data.get("stock_media") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return []
+    return sorted(
+        {i["stock_id"] for i in items if isinstance(i, dict) and i.get("stock_id")}
+    )
+
+
 def _voice_chain_on(config: Any) -> bool | None:
     """Whether the voice chain ran; None when the config carries no chain."""
     chain = getattr(getattr(config, "audio_settings", None), "voice_chain", None)
@@ -105,6 +121,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "voice_profile": tts.get("voice_profile"),
         "voice_name": tts.get("voice_name"),
         "voice_chain": _voice_chain_on(ctx.config),
+        "stock_ids": _stock_ids(ctx.run_paths.get("gathered_visuals_file")),
         "caption_engine": state.get("subtitle_engine_resolved"),
         "caption_template": pycaps.get("template"),
         "music": _music_name(ctx.run_paths.get("music_info_file")),

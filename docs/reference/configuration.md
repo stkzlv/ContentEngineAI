@@ -1444,9 +1444,20 @@ See [the content requirements](../requirements/content.md#content-pillars) for t
 stock_media_settings:
   pexels_api_key_env_var: "PEXELS_API_KEY"   # required
   source: "pexels"
+  stock_reuse_guard:
+    enabled: false   # held until the reach-test readout
+    window: 30       # recent renders whose stock stays out
 ```
 
-Those are the only two fields. Search terms live on
+With `stock_reuse_guard.enabled`, candidates used in the last `window`
+renders are dropped before selection while enough others remain; when too few
+do, the least recently used fill the gap and the fill is logged. Every render
+records its stock ids (`<source>:<provider id>`) in
+`state/render_choices.jsonl` whether or not the guard is on, so the window is
+full when it is switched on, and the record outlives product-directory
+cleanup.
+
+Search terms live on
 `media_settings.stock_media_keywords` and the per-profile
 `stock_media_keywords` override; download concurrency is
 `api_settings.stock_media_concurrent_downloads`.

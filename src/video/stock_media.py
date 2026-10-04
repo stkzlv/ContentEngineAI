@@ -71,6 +71,8 @@ class StockMediaInfo:
     duration: float | None = None
     query: str | None = None
     relevance_score: int | None = None
+    # `<source>:<provider id>`, recorded per render for the reuse guard.
+    stock_id: str | None = None
 
 
 class StockMediaFetcher:
@@ -91,6 +93,7 @@ class StockMediaFetcher:
         media_settings: MediaSettings,
         api_settings=None,
         llm_settings: Any = None,
+        recent_stock_ids: dict[str, int] | None = None,
     ):
         """Initialize the stock media fetcher with configuration and credentials.
 
@@ -102,6 +105,8 @@ class StockMediaFetcher:
             api_settings: API configuration for timeouts and concurrency limits
             llm_settings: The LLM settings, for the relevance judge and its API
                 key name; None leaves selection as the random sample
+            recent_stock_ids: Stock ids used in recent renders, each with how
+                many renders ago; the reuse guard keeps them out of the pool
 
         """
         self.settings = settings
@@ -111,6 +116,7 @@ class StockMediaFetcher:
         # Carries `stock_relevance` and the model's API key name; None means
         # the judge is off and selection is the random sample (#341).
         self.llm_settings = llm_settings
+        self.recent_stock_ids = recent_stock_ids or {}
         self.api_key = secrets.get(settings.pexels_api_key_env_var)
         self.pexels_client = None
         # Cache for API query results
@@ -275,12 +281,54 @@ class StockMediaFetcher:
                         }
                     )
 
+        candidates = self._avoid_recent(processed_items, count, search_query)
         selected_items = await self._select(
-            processed_items, count, search_query, script, session
+            candidates, count, search_query, script, session
         )
         self._query_cache[cache_key] = selected_items  # Cache results
         logger.debug("Selected %s %s for download.", len(selected_items), item_type)
         return selected_items
+
+    def _stock_id(self, item: dict[str, Any]) -> str | None:
+        item_id = item.get("id")
+        if item_id is None:
+            return None
+        return f"{str(item.get('source') or self.settings.source).lower()}:{item_id}"
+
+    def _avoid_recent(
+        self, candidates: list[dict[str, Any]], count: int, search_query: str
+    ) -> list[dict[str, Any]]:
+        """The candidates without those used in recent renders (design 0013).
+
+        When fewer than `count` fresh ones remain, the least recently used
+        fill the gap, so a render is never short of clips because of the guard.
+        """
+        guard = getattr(self.settings, "stock_reuse_guard", None)
+        if guard is None or not guard.enabled or not self.recent_stock_ids:
+            return candidates
+        recent = self.recent_stock_ids
+        fresh = [c for c in candidates if self._stock_id(c) not in recent]
+        if len(fresh) >= count:
+            if len(fresh) < len(candidates):
+                logger.info(
+                    "Stock reuse guard: dropped %d recently used for '%s'",
+                    len(candidates) - len(fresh),
+                    search_query,
+                )
+            return fresh
+        used = sorted(
+            (c for c in candidates if self._stock_id(c) in recent),
+            key=lambda c: recent[self._stock_id(c) or ""],
+            reverse=True,
+        )
+        fill = used[: count - len(fresh)]
+        logger.info(
+            "Stock reuse guard: %d fresh for '%s'; reusing %d least recently used",
+            len(fresh),
+            search_query,
+            len(fill),
+        )
+        return fresh + fill
 
     def _relevance(self) -> tuple[Any, str] | None:
         """The judge's settings and API key when it is on and reachable."""
@@ -395,7 +443,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(img_url, save_path))
                 download_tasks.append(
                     (task, "image", img_url, author, save_path, source, None)
-                    + (item.get("score"),)
+                    + (item.get("score"), self._stock_id(item))
                 )
 
         if video_count > 0 and self.pexels_client:
@@ -426,7 +474,7 @@ class StockMediaFetcher:
                 task = asyncio.create_task(download_with_semaphore(vid_url, save_path))
                 download_tasks.append(
                     (task, "video", vid_url, author, save_path, source, duration)
-                    + (item.get("score"),)
+                    + (item.get("score"), self._stock_id(item))
                 )
 
         if not download_tasks:
@@ -442,9 +490,16 @@ class StockMediaFetcher:
 
         for i, result in enumerate(download_results):
             task_info = download_tasks[i]
-            media_type, media_url, author, save_path, source, duration, score = (
-                task_info[1:]
-            )
+            (
+                media_type,
+                media_url,
+                author,
+                save_path,
+                source,
+                duration,
+                score,
+                stock_id,
+            ) = task_info[1:]
             if isinstance(result, Exception):
                 logger.error(
                     "Stock media download failed for %s from %s: %s",
@@ -463,6 +518,7 @@ class StockMediaFetcher:
                             path=save_path,
                             duration=duration,
                             relevance_score=score,
+                            stock_id=stock_id,
                         )
                     )
                 else:

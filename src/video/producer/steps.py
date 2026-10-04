@@ -390,6 +390,7 @@ async def step_gather_visuals(ctx: PipelineContext):
                 ctx.config.media_settings,
                 ctx.config.api_settings,
                 llm_settings=ctx.config.llm_settings,
+                recent_stock_ids=_recent_stock_ids(ctx),
             )
             # The provider joins these into one query string, so every term
             # added narrows the search. A topic states its own terms; use them
@@ -1686,6 +1687,17 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
     if "subtitle_upper_file" not in entry.get("artifacts", {}):
         return None
     return ctx.run_paths.get("subtitle_upper_file")
+
+
+def _recent_stock_ids(ctx: PipelineContext) -> dict[str, int] | None:
+    """Stock ids from recent renders, when the reuse guard is on."""
+    guard = ctx.config.stock_media_settings.stock_reuse_guard
+    if not guard.enabled:
+        return None
+    from src.utils.render_choices_store import recent_stock_ids
+
+    # The outputs root, where each render's choices row is recorded.
+    return recent_stock_ids(Path(ctx.run_paths["run_root"]).parent, guard.window)
 
 
 async def _render_duration(

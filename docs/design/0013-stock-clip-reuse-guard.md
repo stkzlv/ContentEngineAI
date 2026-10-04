@@ -29,6 +29,14 @@ None recorded.
 
 **Tests.** A candidate used within the window is excluded; the fallback fills from the least recently used; the store survives a product directory's deletion; off records ids but leaves the candidate pool as today.
 
+## As built
+
+- The ids live in `state/render_choices.jsonl`, the per-render store of design 0006, as a `stock_ids` list on each row, rather than a second store. It is written when a render finishes, sits outside the product directories, and keeps one row per product, so a rerun replaces that product's ids instead of counting twice.
+- The settings are `stock_media_settings.stock_reuse_guard` with `enabled` and `window` (default 30), rather than a separate `stock_reuse_window` key.
+- An id is `<source>:<provider id>`, lowercased source.
+- The guard filters the candidate page before the relevance judge or the random sample sees it, so the judge chooses among fresh clips.
+- The batch's background prefetch builds its fetcher with no secrets, so it never reaches the provider and is left without the guard.
+
 ## Alternatives considered
 
 None recorded.
