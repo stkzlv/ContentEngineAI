@@ -3,6 +3,7 @@
 import inspect
 import json
 import logging
+import os
 import sys
 import tempfile
 from collections.abc import Generator
@@ -597,7 +598,7 @@ def no_production_log_files(monkeypatch, tmp_path):
 _REAL_OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"
 
 
-_OUTPUTS_BEFORE = pytest.StashKey[set[str]]()
+_OUTPUTS_BEFORE = pytest.StashKey["dict[str, tuple[int, int]] | None"]()
 
 
 def _outputs_entries() -> set[str]:
@@ -607,15 +608,33 @@ def _outputs_entries() -> set[str]:
         return set()
 
 
-def _remove_added(added: list[str]) -> None:
-    import shutil
+def _outputs_snapshot() -> dict[str, tuple[int, int]] | None:
+    """Every file under outputs/ with its mtime and size; None when absent."""
+    if not _REAL_OUTPUTS.exists():
+        return None
+    snapshot: dict[str, tuple[int, int]] = {}
+    for root, _dirs, files in os.walk(_REAL_OUTPUTS):
+        for name in files:
+            path = Path(root) / name
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            snapshot[str(path.relative_to(_REAL_OUTPUTS))] = (
+                stat.st_mtime_ns,
+                stat.st_size,
+            )
+    return snapshot
 
-    for name in added:
-        path = _REAL_OUTPUTS / name
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            path.unlink(missing_ok=True)
+
+def _snapshot_changes(
+    before: dict[str, tuple[int, int]] | None,
+    after: dict[str, tuple[int, int]] | None,
+) -> list[str]:
+    if before is None:
+        return ["outputs/ (created)"] if after is not None else []
+    after = after or {}
+    return sorted(path for path, stamp in after.items() if before.get(path) != stamp)
 
 
 def _is_xdist_worker(config) -> bool:
@@ -629,9 +648,13 @@ def no_writes_to_real_outputs(request):
     The suite used to create `TEST*` product directories there and delete
     them after each test, so a test that wrote real outputs passed, and one
     that wrote under another name left it behind. A test that needs an
-    outputs tree builds one under `tmp_path`. Per test only in a serial run:
-    with xdist a neighbour's write would be blamed on whichever test is
-    running, so there `pytest_sessionfinish` checks the whole run instead.
+    outputs tree builds one under `tmp_path`. Nothing found here is deleted:
+    a pipeline run in the same checkout writes there too.
+
+    Per test, only new top-level entries and only in a serial run, which is
+    cheap and names the test; `pytest_sessionfinish` compares every file.
+    Under xdist a neighbour's write would be blamed on whichever test is
+    running, so there only the session check runs.
     """
     if _is_xdist_worker(request.config):
         yield
@@ -640,7 +663,6 @@ def no_writes_to_real_outputs(request):
     yield
     added = sorted(_outputs_entries() - before)
     if added:
-        _remove_added(added)
         pytest.fail(
             f"{request.node.nodeid} wrote to the real outputs/ tree: {added}",
             pytrace=False,
@@ -662,21 +684,20 @@ def schedule_defaults_stay_in_tmp(monkeypatch, tmp_path):
 
 def pytest_sessionstart(session):
     if not _is_xdist_worker(session.config):
-        session.config.stash[_OUTPUTS_BEFORE] = _outputs_entries()
+        session.config.stash[_OUTPUTS_BEFORE] = _outputs_snapshot()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    if _is_xdist_worker(session.config):
+    if _is_xdist_worker(session.config) or _OUTPUTS_BEFORE not in session.config.stash:
         return
-    before = session.config.stash.get(_OUTPUTS_BEFORE, None)
-    if before is None:
-        return
-    added = sorted(_outputs_entries() - before)
-    if added:
-        _remove_added(added)
+    changed = _snapshot_changes(
+        session.config.stash[_OUTPUTS_BEFORE], _outputs_snapshot()
+    )
+    if changed:
         sys.stderr.write(
-            f"\nThe run wrote to the real outputs/ tree: {added}. "
-            "Run with -p no:xdist to name the test.\n"
+            f"\nThe run wrote to the real outputs/ tree ({len(changed)} paths, "
+            f"first: {changed[:10]}). A pipeline run in this checkout during "
+            "the suite also counts. Run with -p no:xdist to name the test.\n"
         )
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
