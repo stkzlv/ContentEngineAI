@@ -1,5 +1,0 @@
-# Config keys no page in docs/reference/ names yet (#598). Document a key, then
-# remove its line; the test refuses a new key that isn't documented.
-subtitles.yaml:subtitle_effects.glow_end_color
-subtitles.yaml:subtitle_effects.glow_start_color
-subtitles.yaml:subtitle_settings.script_paths

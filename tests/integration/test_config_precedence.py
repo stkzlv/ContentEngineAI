@@ -448,3 +448,18 @@ def test_an_old_yaml_setting_the_removed_video_key_fails_the_load() -> None:
 
     with pytest.raises(ValidationError, match="default_max_chars_per_line"):
         VideoSettings.model_validate({**current, "default_max_chars_per_line": 20})
+
+
+def test_an_old_yaml_setting_script_paths_fails_the_load() -> None:
+    """Nothing read it; a config still setting it is told so."""
+    from pydantic import ValidationError
+
+    from src.video.config import load_video_config_modular
+    from src.video.config.subtitle_models import SubtitleSettings
+
+    current = load_video_config_modular().subtitle_settings
+    current = current if isinstance(current, dict) else current.model_dump()
+    SubtitleSettings.model_validate(current)
+
+    with pytest.raises(ValidationError, match="script_paths"):
+        SubtitleSettings.model_validate({**current, "script_paths": ["x.txt"]})

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.150.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: `subtitle_settings.script_paths` is gone, since nothing read it; a config that still sets it fails to load and names the key.
+- `subtitle_effects.glow_start_color` and `glow_end_color` are gone from `config/subtitles.yaml`; the effects model never had them, so they were ignored, and the glow colour is fixed in code.
+
+### Changed
+
+- Every key in `config/*.yaml` is named in `docs/reference/`, and the docs test refuses one that isn't, with no list of exceptions.
+
 ## [0.149.1] - 2026-10-04
 
 ### Documentation

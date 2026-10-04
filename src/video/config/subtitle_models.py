@@ -523,7 +523,6 @@ class SubtitleSettings(BaseModel):
     temp_subtitle_dir: str = "temp"
     temp_subtitle_filename: str = "captions.srt"
     save_srt_with_video: bool = True
-    script_paths: list[str] = Field(default_factory=list)
 
     # ---- Quality ----
     subtitle_similarity_threshold: float = Field(0.70, ge=0.0, le=1.0)
@@ -608,7 +607,6 @@ class PartialSubtitleSettings(BaseModel):
     temp_subtitle_dir: str | None = None
     temp_subtitle_filename: str | None = None
     save_srt_with_video: bool | None = None
-    script_paths: list[str] | None = None
     subtitle_similarity_threshold: float | None = None
     timing_smoothing: dict[str, Any] | None = None
     pycaps: dict[str, Any] | None = None

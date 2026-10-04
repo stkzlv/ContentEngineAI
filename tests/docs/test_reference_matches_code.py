@@ -105,23 +105,9 @@ def undocumented_keys() -> set[str]:
     return missing
 
 
-UNDOCUMENTED_KEYS_FILE = Path(__file__).with_name("undocumented_config_keys.txt")
-
-
-def listed_gaps() -> set[str]:
-    lines = UNDOCUMENTED_KEYS_FILE.read_text(encoding="utf-8").splitlines()
-    return {line for line in lines if line and not line.startswith("#")}
-
-
-def test_a_new_config_key_is_documented() -> None:
-    new = sorted(undocumented_keys() - listed_gaps())
-    assert not new, (
-        f"config keys with no mention in docs/reference/: {new}. Document them "
-        "in the reference page for their file."
+def test_every_config_key_is_documented() -> None:
+    missing = sorted(undocumented_keys())
+    assert not missing, (
+        f"config keys with no mention in docs/reference/: {missing}. Document "
+        "them in the reference page for their file."
     )
-
-
-def test_the_gap_list_only_shrinks() -> None:
-    """A key documented since, or removed, comes off the list."""
-    stale = sorted(listed_gaps() - undocumented_keys())
-    assert not stale, f"remove from {UNDOCUMENTED_KEYS_FILE.name}: {stale}"
