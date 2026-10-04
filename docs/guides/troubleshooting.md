@@ -482,11 +482,13 @@ for voice in voices.voices[:5]:
 
 2. **FFmpeg Filter Issues:**
    ```yaml
-   # Zoom/pan is the profile-level `first_frame_pre_motion`. There is no
-   # ffmpeg_settings flag for it, and none for saving the command.
+   # Zoom/pan is `first_frame_pre_motion` (first image) and `still_motion`
+   # (every still). There is no ffmpeg_settings flag for either, and none
+   # for saving the command.
    video_profiles:
      slideshow_short_20s:
        first_frame_pre_motion: false
+       still_motion: {enabled: false}
    ```
 
 3. **Resolution/Format Issues:**
@@ -616,11 +618,12 @@ make perf-report
 
 2. **Disable Expensive Features:**
    ```yaml
-   # Zoom/pan is the profile-level `first_frame_pre_motion`, not an
+   # Zoom/pan is `first_frame_pre_motion` and `still_motion`, not an
    # ffmpeg_settings flag.
    video_profiles:
      slideshow_short_20s:
        first_frame_pre_motion: false
+       still_motion: {enabled: false}
 
    subtitle_settings:
      enabled: false                # Skip subtitles temporarily

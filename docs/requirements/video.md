@@ -14,7 +14,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Why: a full-resolution photo can exceed the render's memory cap in decoding alone.
 - **REQ-VID-008** `shipped` If a render exceeds its total time budget (`pipeline_timeout_sec`), the producer stops it and reports the product as timed out.
 - **REQ-VID-009** `shipped` Final assembly has its own timeout (`final_assembly_timeout_sec`), which sits inside the render's total time budget.
-- **REQ-VID-010** `planned #542` Where still motion is on, every still image carries slow, jitter-free motion whose direction varies per image and per product, so no render contains a static still.
+- **REQ-VID-010** `held` Where still motion is on, every still image carries slow, jitter-free motion whose direction varies per image and per product, so no render contains a static still.
+  - On when: `video_settings.still_motion.enabled` is set after the reach-test readout (#540), once swipe-away and completion (#551) on a batch with motion are no worse than without.
   - On when: a profile sets `still_motion.enabled` after the reach-test readout (#540), once swipe-away and completion on a batch with motion are no worse than without.
 - **REQ-VID-011** `planned #543` Where a profile's ending is `peak`, a render ends on its last spoken word with no silent or fading tail; with `loop`, its last frame also matches its first.
   - On when: a profile sets `ending` to `peak` or `loop` after the reach-test readout (#540), once average percentage viewed rises and the last spoken word stays intact.

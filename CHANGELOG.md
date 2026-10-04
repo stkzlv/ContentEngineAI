@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.153.0] - 2026-10-04
+
+### Added
+
+- A `video_settings.still_motion` block, off by default, moves every still image inside its own image box with a push in, pull out or pan drawn per product and per image, so consecutive stills differ and the caption zone stays clear.
+
 ## [0.152.0] - 2026-10-04
 
 ### Added

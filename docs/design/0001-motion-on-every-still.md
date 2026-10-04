@@ -34,6 +34,14 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 **Tests.** The filter string for a three-still render carries a motion clause per still, with at least two distinct moves; the off state produces today's filter graph byte for byte; a rendered test clip shows frame-to-frame change on every still with no single-pixel oscillation in the motion path.
 
+## As built
+
+- The block lives on `video_settings.still_motion`; a profile replaces it as a whole.
+- Each still moves inside its own image box, not the whole frame: a per-frame `scale` grows the image by an even number of pixels and a `crop` cuts the box back out. The box, the band and the caption zone are the ones the assembler already computed.
+- The crop's centring offset is computed from the zoom expression, because the crop keeps the input size it was set up with. With `exact=1` the offset never snaps to the chroma grid, so the centre holds still on odd box sizes.
+- A draw that repeats the previous still's move takes the next move in the pool.
+- The first image keeps its settle-zoom where `first_frame_pre_motion` is on, and moves like the rest where it is off.
+
 ## Alternatives considered
 
 - **`zoompan`.** Rejected: it rounds positions to whole pixels and shudders on slow moves.

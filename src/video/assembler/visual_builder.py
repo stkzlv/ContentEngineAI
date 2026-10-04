@@ -5,7 +5,9 @@ aspect ratio handling, positioning, and transitions.
 """
 
 import asyncio
+import hashlib
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,6 +115,70 @@ def _build_image_placement(
         f"[bgb_{index}][fgs_{index}]overlay=(W-w)/2:{target_y},"
         f"format={pix_fmt}{out_label}"
     )
+
+
+def pick_still_move(
+    product_id: str, index: int, pool: list[str], previous: str | None
+) -> str:
+    """The move for still `index`, the same for a product on every run.
+
+    A draw that repeats the previous still's move takes the next one in the
+    pool, so consecutive stills differ.
+    """
+    digest = hashlib.md5(
+        f"{product_id}:motion:{index}".encode(), usedforsecurity=False
+    ).hexdigest()
+    pos = int(digest[:8], 16) % len(pool)
+    if len(pool) > 1 and pool[pos] == previous:
+        pos = (pos + 1) % len(pool)
+    return pool[pos]
+
+
+def _build_still_motion_scale(
+    *,
+    box_w: int,
+    box_h: int,
+    duration_sec: float,
+    move: str,
+    min_zoom: float,
+    max_zoom: float,
+) -> str:
+    """A scale-and-crop that moves a still inside its own `box_w` x `box_h`.
+
+    It replaces the plain `scale=` of a still, so the box, and with it the
+    band and caption zone, stay where they are. The scale is re-evaluated per
+    frame and never below the box, so the crop always fits; `exact=1`
+    keeps the crop from snapping to the chroma grid. `zoompan` rounds
+    positions to whole pixels and shudders on slow moves.
+    """
+    progress = f"min(t/{max(duration_sec, 0.001):.4f},1)"
+    if move in ("push_in", "pull_out"):
+        start, end = (min_zoom, max_zoom) if move == "push_in" else (max_zoom, min_zoom)
+        zoom = f"({start:.4f}+({end - start:.4f})*{progress})"
+        # The box grows by an even number of pixels, so the centring offset
+        # is whole on odd sizes too; a half-pixel offset rounds back and forth.
+        # The crop's `iw` is the size it was set up with, not the frame's,
+        # so the offset is computed from the same zoom.
+        scaled_w = f"({box_w}+2*ceil({box_w}*({zoom}-1)/2))"
+        scaled_h = f"({box_h}+2*ceil({box_h}*({zoom}-1)/2))"
+        return (
+            f"scale=w='{scaled_w}':h='{scaled_h}':eval=frame,"
+            f"crop={box_w}:{box_h}:'({scaled_w}-{box_w})/2'"
+            f":'({scaled_h}-{box_h})/2':exact=1"
+        )
+    x = f"'(iw-{box_w})/2'"
+    y = f"'(ih-{box_h})/2'"
+    if move == "pan_left":
+        x = f"'(iw-{box_w})*(1-{progress})'"
+    elif move == "pan_right":
+        x = f"'(iw-{box_w})*{progress}'"
+    elif move == "pan_up":
+        y = f"'(ih-{box_h})*(1-{progress})'"
+    else:
+        raise ValueError(f"Unknown still move: {move}")
+    big_w = 2 * math.ceil(box_w * max_zoom / 2)
+    big_h = 2 * math.ceil(box_h * max_zoom / 2)
+    return f"scale={big_w}:{big_h},crop={box_w}:{box_h}:{x}:{y}:exact=1"
 
 
 def _build_ken_burns_filter(
@@ -247,6 +313,7 @@ class VisualFilterBuilder:
         normalize_video_callback: (Callable[[Path], Awaitable[Path]] | None) = None,
         subtitle_engine: str | None = None,
         upper_line_text: str | None = None,
+        product_id: str = "",
     ):
         """Initialize VisualFilterBuilder.
 
@@ -261,6 +328,7 @@ class VisualFilterBuilder:
             subtitle_engine: The engine that will burn this run's captions, as
                 the producer resolved it
             upper_line_text: Text the static upper line will draw, or None.
+            product_id: Seeds the per-still motion draw.
 
         """
         self.inspector = media_inspector
@@ -276,6 +344,7 @@ class VisualFilterBuilder:
         # only for a line that is actually drawn.
         self.upper_line_text = upper_line_text
         self.normalize_video_callback = normalize_video_callback
+        self.product_id = product_id
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
@@ -738,6 +807,8 @@ class VisualFilterBuilder:
             if scaled_heights:
                 uniform_height = min(scaled_heights)
 
+        still_motion = video_settings.still_motion
+        previous_move: str | None = None
         for i, (path, duration, is_video_item) in enumerate(timed_visuals):
             if is_video_item:
                 input_cmd_parts.extend(["-i", str(path)])
@@ -914,6 +985,25 @@ class VisualFilterBuilder:
                 )
 
                 pre_motion = i == 0 and video_settings.first_frame_pre_motion
+                if (
+                    still_motion.enabled
+                    and not pre_motion
+                    and scaled_w > 0
+                    and scaled_h > 0
+                ):
+                    move = pick_still_move(
+                        self.product_id, i, list(still_motion.moves), previous_move
+                    )
+                    previous_move = move
+                    vf_scale = _build_still_motion_scale(
+                        box_w=scaled_w,
+                        box_h=scaled_h,
+                        duration_sec=duration,
+                        move=move,
+                        min_zoom=still_motion.min_zoom,
+                        max_zoom=still_motion.max_zoom,
+                    )
+                    logger.debug("Image %d: still motion %s", i, move)
                 if pre_motion:
                     zoom_filter = _build_ken_burns_filter(
                         width=width,

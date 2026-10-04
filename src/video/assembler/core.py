@@ -201,6 +201,7 @@ class VideoAssembler:
             normalize_video_callback=self._normalize_video_format,
             subtitle_engine=self.subtitle_engine,
             upper_line_text=self.upper_line_text,
+            product_id=self.product_id or "",
         )
 
         # Initialize subtitle builder
