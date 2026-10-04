@@ -860,7 +860,6 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
 
     """
     try:
-
         from src.ai.platform_metadata import (
             PlatformMetadataFactory,
             save_metadata_to_file,
