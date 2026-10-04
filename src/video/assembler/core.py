@@ -606,25 +606,6 @@ class VideoAssembler:
 
         return final_cmd
 
-    def _should_create_ffmpeg_logs(self) -> bool:
-        """Determine if FFmpeg command logs should be created.
-
-        Returns
-        -------
-            True if logs should be created, False otherwise
-
-        """
-        try:
-            if hasattr(self.config, "debug_settings") and self.config.debug_settings:
-                create_logs = getattr(
-                    self.config.debug_settings, "create_ffmpeg_command_logs", True
-                )
-                return bool(create_logs)
-            return True
-        except Exception as e:
-            logger.debug("Error checking FFmpeg log setting, defaulting to True: %s", e)
-            return True
-
     async def assemble_video(
         self,
         visual_inputs: list[Path],
@@ -826,11 +807,7 @@ class VideoAssembler:
             ensure_dirs_exist(output_path)
             ensure_dirs_exist(partial_path)
 
-            command_log_path = (
-                temp_dir / f"{output_path.stem}_ffmpeg_command.log"
-                if self._should_create_ffmpeg_logs()
-                else None
-            )
+            command_log_path = temp_dir / f"{output_path.stem}_ffmpeg_command.log"
 
             try:
                 # Bounded by what remains of the render's budget, for the

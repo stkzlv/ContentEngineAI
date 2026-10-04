@@ -333,6 +333,8 @@ class LLMValidationSettings(BaseModel):
 class DebugSettings(BaseModel):
     """Configuration for debug output and development settings."""
 
+    model_config = ConfigDict(extra="forbid")
+
     operation_timing_threshold_sec: float = Field(180.0)
     # Peak memory is the whole process tree since 0.121.11, and a stock
     # render's tree passes 4 GB while Whisper and the subtitle renderer's

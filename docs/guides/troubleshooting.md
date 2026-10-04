@@ -1344,10 +1344,10 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 |------|----------|---------|---------------|
 | **Producer Log** | `outputs/logs/producer-<date>.log` | Producer execution log | `--debug` flag |
 | **Scraper Log** | `outputs/logs/scraper-<date>.log` | Scraper execution log | `--debug` or `--verbose` flag |
-| **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | `create_ffmpeg_command_logs` |
+| **FFmpeg Commands** | `outputs/{product_id}/temp/ffmpeg_command.log` | FFmpeg commands used for video assembly | always written |
 | **Media Validation** | `outputs/{product_id}/temp/{product_id}_media_validation_report.json` | Media file validation results | `create_media_validation_reports`, in `config/scraper.yaml` |
-| **Pipeline State** | `outputs/{product_id}/temp/pipeline_state.json` | Step completion and recorded artifacts | `create_pipeline_metadata` |
-| **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `create_performance_metrics` |
+| **Pipeline State** | `outputs/{product_id}/temp/pipeline_state.json` | Step completion and recorded artifacts | always written |
+| **Performance Metrics** | `outputs/{product_id}/temp/performance.json` | Operation timing and resource usage | `--debug` flag |
 | **Whisper Raw Output** | `outputs/{product_id}/temp/<audio-stem>_whisper_result_raw.json` | Raw STT transcription output | written when `--debug`/`debug_mode` is on |
 | **Whisper vs Script** | `outputs/{product_id}/temp/<audio-stem>_whisper_vs_script.txt` | Transcription vs script comparison | written when `--debug`/`debug_mode` is on |
 | **Whisper Word List** | `outputs/{product_id}/temp/<audio-stem>_whisper_word_list.json` | Word-level timing data | written when `--debug`/`debug_mode` is on |
@@ -1357,23 +1357,8 @@ ContentEngineAI generates various debug files to help diagnose issues. All debug
 
 ### Debug Settings Configuration
 
-Edit `config/performance.yaml` to control debug file generation.
-
-**These switches do not currently work.** `DebugSettings` declares none of
-the `create_*` names, and the model ignores unknown keys, so each consumer
-falls back to its `getattr(..., True)` default and the files are written
-whatever the file says. Two exceptions: `create_media_validation_reports` is
-read, from `config/scraper.yaml` rather than from here; and the Whisper debug
-files have no key at all any more (the dead `create_whisper_debug_files`
-lookup was removed) -- they are written whenever `debug_mode` is on.
-
-```yaml
-debug_settings:
-  # Debug file generation (set to false to disable specific files)
-  create_media_validation_reports: true
-  create_ffmpeg_command_logs: true
-  create_pipeline_metadata: true
-  create_performance_metrics: true
-```
-
-**Important:** CLI `--debug` flag overrides these settings and retains all debug files for troubleshooting.
+The files in the table above have no on/off key: each is written under the
+condition its last column names. The one switch is
+`create_media_validation_reports`, under `global_settings.debug_settings` in
+`config/scraper.yaml`. `debug_settings` in `config/performance.yaml` holds only
+the two warning thresholds and refuses any other key.

@@ -567,21 +567,7 @@ async def create_video_for_product(
 
             # Save performance metrics for successful runs
             if debug_mode:
-                # Check if performance metrics should be created
-                create_metrics = True
-                try:
-                    create_metrics = (
-                        getattr(
-                            config.debug_settings, "create_performance_metrics", True
-                        )
-                        if hasattr(config, "debug_settings") and config.debug_settings
-                        else True
-                    )
-                except Exception:
-                    create_metrics = True
-
-                if create_metrics:
-                    monitor.save_metrics(run_paths["performance"])
+                monitor.save_metrics(run_paths["performance"])
 
             # Mark pipeline as successful for history tracking
             monitor.finish_pipeline(success=True)
