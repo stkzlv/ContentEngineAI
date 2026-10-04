@@ -90,6 +90,17 @@ video_settings:
   # comfortable headroom over the 1920 output edge (the zoom runs after
   # placement scaling, so it never sees source resolution); 0 disables.
   max_image_input_edge: 2560
+
+  # Slow motion on every still image: each still moves inside its own image
+  # box (push in, pull out or pan), drawn per product and per image so
+  # consecutive stills differ. Off until the reach-test readout; a profile
+  # can set the whole block. The first image keeps its settle-zoom where
+  # first_frame_pre_motion is on.
+  still_motion:
+    enabled: false
+    moves: [push_in, pull_out, pan_left, pan_right, pan_up]
+    max_zoom: 1.15
+    min_zoom: 1.0
   pad_color: "black"                  # Padding color, used when fill is "color"
 
   # What fills the frame around an image that does not cover it.

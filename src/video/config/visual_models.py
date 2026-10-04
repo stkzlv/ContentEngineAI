@@ -302,6 +302,45 @@ class PartialUpperLine(BaseModel):
         return UpperLineSettings(**{**base.model_dump(), **updates})
 
 
+StillMove = Literal["push_in", "pull_out", "pan_left", "pan_right", "pan_up"]
+STILL_MOVES: tuple[StillMove, ...] = (
+    "push_in",
+    "pull_out",
+    "pan_left",
+    "pan_right",
+    "pan_up",
+)
+
+
+class StillMotionSettings(BaseModel):
+    """Slow motion on every still image (design 0001).
+
+    Each still moves inside its own image box, so the band and the caption
+    zone the assembler computed stay where they are. The move is drawn per
+    product and per image from `moves`. Ships off until the reach-test
+    readout (#540).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False, description="Move every still image.")
+    moves: list[StillMove] = Field(
+        default_factory=lambda: list(STILL_MOVES),
+        min_length=1,
+        description="The pool each still draws its move from.",
+    )
+    max_zoom: float = Field(1.15, ge=1.0, le=1.5)
+    min_zoom: float = Field(1.0, ge=1.0, le=1.5)
+
+    @model_validator(mode="after")
+    def _zoom_range(self) -> "StillMotionSettings":
+        # A repeated move would let two consecutive stills share it.
+        self.moves = list(dict.fromkeys(self.moves))
+        if self.min_zoom > self.max_zoom:
+            raise ValueError("still_motion.min_zoom must not exceed max_zoom")
+        return self
+
+
 class HookOverlaySettings(BaseModel):
     """Burned-in hook text overlay (Phase 1.2c, also closes #102).
 
@@ -423,6 +462,10 @@ class VideoSettings(BaseModel):
             "Starting zoom factor on frame 0 when first_frame_pre_motion "
             "is enabled. Settles to 1.0 over the segment duration."
         ),
+    )
+    still_motion: StillMotionSettings = Field(
+        default_factory=StillMotionSettings,  # type: ignore[arg-type]
+        description="Slow motion on every still image; off by default.",
     )
     max_image_input_edge: int = Field(
         2560,
@@ -769,6 +812,11 @@ class VideoProfile(BaseModel):
             "Override VideoSettings.pre_motion_peak_zoom (starting zoom "
             "factor on frame 0 when first_frame_pre_motion is enabled)."
         ),
+    )
+
+    still_motion: StillMotionSettings | None = Field(
+        None,
+        description="Override VideoSettings.still_motion as a whole block.",
     )
 
     # ---- PER-PROFILE SUBTITLE SETTINGS ----

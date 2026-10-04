@@ -1918,8 +1918,8 @@ ffmpeg_settings:
   verification_timeout_sec: 60        # Timeout for the post-render ffprobe
 ```
 
-Those six are the whole model. The zoom/pan effect is driven by the
-profile-level `first_frame_pre_motion`, not by an FFmpeg setting.
+Those six are the whole model. The zoom/pan effect is driven by
+`first_frame_pre_motion` and `still_motion`, not by an FFmpeg setting.
 
 </details>
 
