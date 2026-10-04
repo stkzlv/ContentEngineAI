@@ -334,6 +334,8 @@ class StillMotionSettings(BaseModel):
 
     @model_validator(mode="after")
     def _zoom_range(self) -> "StillMotionSettings":
+        # A repeated move would let two consecutive stills share it.
+        self.moves = list(dict.fromkeys(self.moves))
         if self.min_zoom > self.max_zoom:
             raise ValueError("still_motion.min_zoom must not exceed max_zoom")
         return self

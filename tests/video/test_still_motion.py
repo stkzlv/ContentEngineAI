@@ -25,10 +25,16 @@ PROFILE = "slideshow_images1"
 MOVES = ["push_in", "pull_out", "pan_left", "pan_right", "pan_up"]
 
 
-async def _chain(tmp_path: Path, motion: StillMotionSettings, product_id="B0X"):
+async def _chain(
+    tmp_path: Path,
+    motion: StillMotionSettings,
+    product_id="B0X",
+    pre_motion: bool | None = None,
+):
     """The filter graph for three stills, through the merged profile."""
     cfg = config.model_copy(deep=True)
     cfg.video_profiles[PROFILE].still_motion = motion
+    cfg.video_profiles[PROFILE].first_frame_pre_motion = pre_motion
     stills = []
     for i in range(3):
         path = tmp_path / f"still_{i}.png"
@@ -103,6 +109,20 @@ async def test_off_renders_the_plain_scale(tmp_path: Path) -> None:
 
 
 @pytest.mark.req("REQ-VID-010")
+@pytest.mark.asyncio
+async def test_the_first_image_keeps_its_settle_zoom(tmp_path: Path) -> None:
+    parts = await _chain(tmp_path, StillMotionSettings(enabled=True), pre_motion=True)
+
+    (first,) = (p for p in parts if p.startswith("[0:v]"))
+    assert "zoompan=" in first
+    assert "[fg_0]scale=817:817,setsar=1" in first
+    assert "eval=frame" not in first and "exact=1" not in first
+    for i in (1, 2):
+        (part,) = (p for p in parts if p.startswith(f"[{i}:v]"))
+        assert ":exact=1" in part
+
+
+@pytest.mark.req("REQ-VID-010")
 def test_the_draw_is_stable_differs_by_product_and_never_repeats() -> None:
     def run(pid: str) -> list[str]:
         previous = None
@@ -123,6 +143,10 @@ def test_a_zoom_range_upside_down_is_rejected() -> None:
     StillMotionSettings(min_zoom=1.0, max_zoom=1.2)
     with pytest.raises(ValidationError):
         StillMotionSettings(min_zoom=1.3, max_zoom=1.2)
+    assert StillMotionSettings(moves=["push_in", "push_in", "pan_up"]).moves == [
+        "push_in",
+        "pan_up",
+    ]
     with pytest.raises(ValidationError):
         StillMotionSettings(moves=["spin"])  # type: ignore[list-item]
     with pytest.raises(ValidationError):
