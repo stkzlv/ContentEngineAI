@@ -192,7 +192,7 @@ Every key except `description` is optional. A key left unset inherits the global
 | `upper_line` | mapping | Partial override of `video_settings.upper_line`, deep-merged. |
 | `subtitle_settings` | mapping | Partial override of the global `subtitle_settings`, deep-merged, including the nested `pycaps`, `two_part_subtitles` and `safe_zone` blocks. |
 
-Unknown keys are rejected at config load. The flat `subtitle_*` keys are refused, with the nested `subtitle_settings` field to move each one to named in the error. The per-profile overrides are shown at length in [Configuration](configuration.md#12-video-profiles-with-per-profile-settings).
+Unknown keys are rejected at config load, inside the nested `pycaps`, `safe_zone` and `two_part_subtitles` blocks too. The flat `subtitle_*` keys are refused, with the nested `subtitle_settings` field to move each one to named in the error. The per-profile overrides are shown at length in [Configuration](configuration.md#12-video-profiles-with-per-profile-settings).
 
 `subtitle_format` is settable per profile in the nested spelling only (`subtitle_settings.subtitle_format`), and per run with `--subtitle-format` on both the producer and the global batch. `--subtitle-format` wins over the profile and the global value. The subtitle file's extension follows the merged value.
 

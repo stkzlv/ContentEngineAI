@@ -62,6 +62,8 @@ class PlatformSafeZone(BaseModel):
     See docs/explanation/platform-safe-zones.md for the per-platform breakdown.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     min_x: float = Field(
         default=SAFE_ZONE_MIN_X, description="Left boundary (fraction of width)"
     )
@@ -209,6 +211,8 @@ class ColorPoolEntry(BaseModel):
 class TwoPartSubtitleUpperLine(BaseModel):
     """Upper line (static product info) of the two-part subtitle system."""
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = True
     source_field: str = Field(
         "shortened_affiliate_link",
@@ -243,6 +247,8 @@ class TwoPartSubtitleUpperLine(BaseModel):
 class TwoPartSubtitleLowerLine(BaseModel):
     """Lower line (voiceover-synced) of the two-part subtitle system."""
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = True
     anchor: str = "below_content"
     margin: float = Field(0.05, description="Gap as fraction of frame height (0.0-0.5)")
@@ -250,6 +256,8 @@ class TwoPartSubtitleLowerLine(BaseModel):
 
 class TwoPartSubtitleSettings(BaseModel):
     """Dual-line subtitle system: upper (static info) + lower (voiceover)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False
     upper_line: TwoPartSubtitleUpperLine = Field(
@@ -270,6 +278,8 @@ class PycapsSettings(BaseModel):
     See ``docs/explanation/pycaps-subtitles.md`` for field-by-field guidance and
     template screenshots.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     template_name: str = Field(
         "explosive",
@@ -604,6 +614,23 @@ class PartialSubtitleSettings(BaseModel):
     pycaps: dict[str, Any] | None = None
     two_part_subtitles: dict[str, Any] | None = None
 
+    @model_validator(mode="after")
+    def _nested_keys_are_known(self) -> "PartialSubtitleSettings":
+        """Refuse an unknown key in a nested block when the profile loads.
+
+        The nested blocks are dicts here so a profile can set one field, and
+        they only become models in ``merge_into`` at render time; without this
+        a typo would pass the config load and fail mid-batch.
+        """
+        unknown = [
+            f"{path}.{key}"
+            for path, block, model in _nested_blocks(self)
+            for key in sorted(set(block) - set(model.model_fields))
+        ]
+        if unknown:
+            raise ValueError(f"unknown subtitle_settings keys: {', '.join(unknown)}")
+        return self
+
     def merge_into(self, base: SubtitleSettings) -> SubtitleSettings:
         """Return a copy of base with non-None partial fields applied.
 
@@ -633,6 +660,31 @@ class PartialSubtitleSettings(BaseModel):
             else:
                 updates[field_name] = override
         return base.model_copy(update=updates)
+
+
+def _nested_blocks(
+    partial: PartialSubtitleSettings,
+) -> list[tuple[str, dict[str, Any], type[BaseModel]]]:
+    """The nested override dicts a profile set, each with its model."""
+    blocks: list[tuple[str, dict[str, Any], type[BaseModel]]] = []
+    nested: tuple[tuple[str, type[BaseModel]], ...] = (
+        ("pycaps", PycapsSettings),
+        ("safe_zone", PlatformSafeZone),
+        ("two_part_subtitles", TwoPartSubtitleSettings),
+    )
+    for name, model in nested:
+        block = getattr(partial, name)
+        if block is not None:
+            blocks.append((name, block, model))
+    two_part = partial.two_part_subtitles or {}
+    lines: tuple[tuple[str, type[BaseModel]], ...] = (
+        ("upper_line", TwoPartSubtitleUpperLine),
+        ("lower_line", TwoPartSubtitleLowerLine),
+    )
+    for name, model in lines:
+        if isinstance(two_part.get(name), dict):
+            blocks.append((f"two_part_subtitles.{name}", two_part[name], model))
+    return blocks
 
 
 def _deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

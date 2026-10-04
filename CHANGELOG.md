@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.137.0] - 2026-10-04
+
+### Changed
+
+- **Breaking**: the nested `pycaps`, `safe_zone` and `two_part_subtitles` caption blocks refuse a key they don't know, with an error naming it, in the global subtitle config and in a profile override, where the check runs when the profile loads rather than at render time.
+
 ## [0.136.0] - 2026-10-04
 
 ### Changed

@@ -535,7 +535,7 @@ video_settings:
   video_duration_tolerance_sec: 1.0  # Acceptable duration variance
 ```
 
-`video_settings` refuses a key it does not know, with an error naming it, and so does `disclosure_overlay`.
+`video_settings` refuses a key it does not know, with an error naming it, and so do `disclosure_overlay` and the nested `subtitle_settings` blocks `pycaps`, `safe_zone` and `two_part_subtitles`.
 
 </details>
 
