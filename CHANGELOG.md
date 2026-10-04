@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.132.1] - 2026-10-04
+
+### Documentation
+
+- The configuration reference covers the remaining `config/ai_services.yaml` keys and says which of them nothing reads.
+- The batch processing guide says which publishing options can also be set in `config/pipeline.yaml`.
+
 ## [0.132.0] - 2026-10-04
 
 ### Added

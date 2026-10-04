@@ -1,29 +1,5 @@
 # Config keys no page in docs/reference/ names yet (#598). Document a key, then
 # remove its line; the test refuses a new key that isn't documented.
-ai_services.yaml:audio_processing
-ai_services.yaml:audio_processing.audio_validation_timeout_sec
-ai_services.yaml:audio_processing.coqui_gpu_enabled
-ai_services.yaml:audio_processing.google_tts_audio_encoding
-ai_services.yaml:audio_processing.min_audio_file_size_bytes
-ai_services.yaml:audio_processing.silence_min_duration_sec
-ai_services.yaml:audio_processing.silence_removal_enabled
-ai_services.yaml:audio_processing.silence_threshold_db
-ai_services.yaml:description_settings.metadata_mode
-ai_services.yaml:description_settings.platform_metadata.instagram.caption_length_seo_max
-ai_services.yaml:description_settings.platform_metadata.instagram.caption_length_short_max
-ai_services.yaml:description_settings.platform_metadata.instagram.hashtags_in_caption
-ai_services.yaml:description_settings.platform_metadata.tiktok.avoid_generic_viral_tags
-ai_services.yaml:description_settings.platform_metadata.tiktok.prioritize_search_keywords
-ai_services.yaml:description_settings.platform_metadata.youtube.seo_keywords
-ai_services.yaml:description_settings.target_platforms
-ai_services.yaml:platform_metadata_config.ab_testing
-ai_services.yaml:platform_metadata_config.export.json_indent
-ai_services.yaml:platform_metadata_config.export.youtube_title_fallback_length
-ai_services.yaml:platform_metadata_config.instagram.caption_length_short
-ai_services.yaml:platform_metadata_config.tiktok.seo_focused
-ai_services.yaml:platform_metadata_config.youtube.seo_keywords
-ai_services.yaml:whisper_settings.model_download_root
-ai_services.yaml:whisper_settings.patience
 core.yaml:path_config.audio_extensions
 core.yaml:path_config.image_extensions
 core.yaml:path_config.video_extensions

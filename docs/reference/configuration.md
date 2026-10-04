@@ -230,6 +230,23 @@ description_settings:
   target_platform: "multi"  # youtube, tiktok, instagram, or multi
 ```
 
+The other `config/ai_services.yaml` keys the sections below don't cover, and whether anything reads them:
+
+| Key | Default | Effect |
+|---|---|---|
+| `audio_processing.coqui_gpu_enabled` | `false` | Runs Coqui TTS on the GPU. |
+| `audio_processing.google_tts_audio_encoding` | `LINEAR16` | Output encoding requested from Google TTS. |
+| `audio_processing.silence_removal_enabled` | `true` | Trims leading silence from the voiceover so Whisper's timestamps line up with the speech. |
+| `audio_processing.silence_threshold_db` | `-50` | Level below which audio counts as silence for that trim. |
+| `audio_processing.silence_min_duration_sec` | `0.1` | The trim's confirmation window; audio inside it is discarded, so a longer value cuts more. |
+| `audio_processing.min_audio_file_size_bytes`, `audio_processing.audio_validation_timeout_sec` | `100`, `30` | Read by nothing (#577). |
+| `description_settings.metadata_mode` | `unified` | `unified` writes one `metadata.json`; `optimized` writes `metadata_<platform>.json` per platform. |
+| `description_settings.target_platforms` | all three | Recorded with the description step's timing; the platforms generated come from `target_platform`. |
+| `description_settings.platform_metadata.youtube.seo_keywords`, `.tiktok.avoid_generic_viral_tags`, `.tiktok.prioritize_search_keywords`, `.instagram.caption_length_short_max`, `.instagram.caption_length_seo_max`, `.instagram.hashtags_in_caption` | see the file | Read by nothing (#577). |
+| `platform_metadata_config` (`ab_testing`, `export.json_indent`, `export.youtube_title_fallback_length`, `instagram.caption_length_short`, `tiktok.seo_focused`, `youtube.seo_keywords`, and the rest of the block) | | Documentation only: the active settings are `description_settings.platform_metadata` (see [Platform Metadata Settings](#71-platform-metadata-settings)). |
+| `whisper_settings.model_download_root` | empty | Where Whisper models are downloaded; empty uses Whisper's own cache. |
+| `whisper_settings.patience` | `null` | Beam-search patience passed to Whisper when set. |
+
 ### 4. **Subtitle Configuration** (`config/subtitles.yaml`)
 Subtitle positioning, styling, TTS settings, and two-part subtitle system:
 
