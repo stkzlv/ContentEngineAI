@@ -609,11 +609,14 @@ def _outputs_entries() -> set[str]:
 
 
 def _outputs_snapshot() -> dict[str, tuple[int, int]] | None:
-    """Every file under outputs/ with its mtime and size; None when absent."""
+    """Every entry under outputs/, files with mtime and size; None when absent."""
     if not _REAL_OUTPUTS.exists():
         return None
     snapshot: dict[str, tuple[int, int]] = {}
-    for root, _dirs, files in os.walk(_REAL_OUTPUTS):
+    for root, dirs, files in os.walk(_REAL_OUTPUTS):
+        for name in dirs:
+            path = Path(root) / name
+            snapshot[str(path.relative_to(_REAL_OUTPUTS)) + "/"] = (0, 0)
         for name in files:
             path = Path(root) / name
             try:
@@ -633,8 +636,11 @@ def _snapshot_changes(
 ) -> list[str]:
     if before is None:
         return ["outputs/ (created)"] if after is not None else []
-    after = after or {}
-    return sorted(path for path, stamp in after.items() if before.get(path) != stamp)
+    if after is None:
+        return ["outputs/ (removed)"]
+    written = [path for path, stamp in after.items() if before.get(path) != stamp]
+    removed = [f"{path} (removed)" for path in before if path not in after]
+    return sorted(written + removed)
 
 
 def _is_xdist_worker(config) -> bool:
