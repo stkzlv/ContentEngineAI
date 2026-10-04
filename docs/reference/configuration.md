@@ -797,7 +797,7 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_effects.bounce_duration_factor` | int | 300 | Length of each of the three bounce steps, segment seconds times this in ms. |
 | `subtitle_effects.bounce_rotation_max`, `bounce_rotation_min`, `bounce_rotation_rest` | int | 5, -5, 0 | Rotation in degrees of the three bounce steps. |
 | `subtitle_effects.glow_duration_factor` | int | 400 | Time the outline takes to turn yellow and back, segment seconds times this in ms each way. The glow colour is fixed in code. |
-| `subtitle_effects.typewriter_char_reveal_max_sec` | float | 0.1 | Longest time per character. The line fades in over character count times that time; it isn't a per-character reveal. |
+| `subtitle_effects.typewriter_char_reveal_max_sec` | float | 0.1 | Longest time per character. The line starts visible, fades out over character count times that time (at most the segment's length), then fades back in; it isn't a per-character reveal. |
 | `subtitle_effects.typewriter_min_timing_ms` | int | 50 | The typewriter fade is added only when the time per character exceeds this. |
 | `text_rendering` | block | present | Line-width estimates for the ASS generator and the global caption safe zone. |
 | `text_rendering.narrow_char_width_factor`, `wide_char_width_factor`, `space_char_width_factor` | float | 0.4, 1.2, 0.3 | Width of narrow characters (`iIjl|':;,.`), wide ones (`mwMWAGOQ`) and spaces relative to the average, when the FFmpeg engine wraps a script that has no word timestamps. |
@@ -812,7 +812,7 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_settings.pycaps.ai_tagging_on_error` | `skip` or `raise` | `skip` | On a Gemini error, `skip` leaves the segment untagged and carries on; `raise` hands the error to `fallback_policy`. |
 | `subtitle_settings.pycaps.max_number_of_lines` | int | 2 | Most lines per caption segment, overriding the template. |
 | `subtitle_settings.pycaps.max_width_ratio` | float (0-1) | 0.80 | Widest caption line as a fraction of frame width, overriding the template after the safe-zone clamp. |
-| `subtitle_settings.pycaps.vertical_align_offset` | float (-1 to 1) or null | -0.20 | Offset added to the template's vertical alignment; null keeps the template's position. The image band is placed against it too. |
+| `subtitle_settings.pycaps.vertical_align_offset` | float (-1 to 1) or null | -0.20 | Places the caption block at `subtitle_settings.pycaps.vertical_align` (bundled `bottom`) with this offset, replacing the template's own alignment; null keeps the template's position. The image band is placed against it too. |
 | `subtitle_settings.pycaps.caption_block_height` | float (0-0.5) | 0.12 | Estimated caption block height as a fraction of the frame; the assembler keeps the product image above it. pycaps doesn't read it. |
 | `subtitle_settings.pycaps.mute_template_sound_effects` | bool | true | Drops the template's sound effects, such as the ding on each highlighted word. |
 | `subtitle_settings.timing_smoothing` | block | on | Adjusts Whisper word timings before either engine sees them; timings from the Google STT fallback are left alone. |
@@ -925,14 +925,14 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 |---|---|---|---|
 | `tts_config.voice_profiles_enabled` | bool | true | When false, no profile is used: the plain `google_cloud` voice criteria, rate and pitch apply, with no markup. |
 | `tts_config.default_voice_profile` | string | `charon` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
-| `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product; unknown names are ignored. |
+| `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product. Unknown names are dropped, and if none remain no profile is used; `default_voice_profile` is not consulted. |
 | `tts_config.google_cloud.api_max_retries` | int | 2 | Retries after the first synthesis attempt, for Google Cloud and Gemini TTS; a credentials error stops at once. |
 | `tts_config.google_cloud.api_retry_delay_sec` | int | 5 | Seconds between those retries. |
 | `tts_config.google_cloud.last_word_buffer_sec` | float | 0.5 | Silence appended to Google Cloud speech so the last word isn't cut; Gemini ignores it. |
 | `voice_profiles.<name>.gemini_model_name` | string | `gemini-2.5-flash-tts` | Gemini TTS model. |
 | `voice_profiles.<name>.voice_criteria` | list | per profile | Voice filter (`language_code`, `name_contains`, `ssml_gender`); a gemini profile picks its Gemini voice with it. |
 | `voice_profiles.<name>.style_prompt` | string | per profile | Logged only. It isn't sent, because Gemini TTS reads a prompt aloud; the voice choice sets the character. |
-| `voice_profiles.<name>.markup_rules` | list | short pause after each sentence | Regex rules that insert tags such as `[short pause]` into the script before synthesis. |
+| `voice_profiles.<name>.markup_rules` | list | none; most bundled profiles add `[short pause]` after sentence punctuation | Regex rules that insert tags such as `[short pause]` into the script before synthesis. |
 | `voice_profiles.<name>.pause_plan` | block | `charon_varied` only | Replaces `markup_rules` with pauses chosen by position: `sentence`, `paragraph` (a line break), `after_hook` (the first sentence boundary), `before_last` (before the closing sentence), and `jitter`, the share of ordinary sentence pauses that change, half to no pause and half to the paragraph tag, seeded by the product id. |
 
 | Profile | Provider | Voice and style |
