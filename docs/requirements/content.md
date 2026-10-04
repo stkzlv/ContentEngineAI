@@ -120,9 +120,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-071** `shipped` When a Gemini voice fails, the producer strips the inline markup tags before it sends the text to a fallback provider, so no tag is spoken.
 - **REQ-CNT-072** `shipped` Google Cloud voice choice falls back through ranked voice families (by default Chirp3, then Chirp, then Neural2, then any en-US voice).
 - **REQ-CNT-131** `shipped` Where the Coqui TTS package is installed and `coqui` is listed in `tts_config.provider_order`, the producer can synthesise speech locally with Coqui TTS; the bundled order leaves it out.
-- **REQ-CNT-073** `planned #545` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
-  - On when: a voice-by-chain comparison after the reach-test readout shows no loss.
-- **REQ-CNT-074** `planned #545` The producer records per render whether the voice chain was on, beside the voice name.
+- **REQ-CNT-073** `held` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
+  - On when: `audio_settings.voice_chain.enabled` is set after the reach-test readout (#540), once a voice-by-chain comparison over at least 20 posts per cell shows no loss.
+- **REQ-CNT-074** `shipped` The producer records per render whether the voice chain was on, beside the voice name.
 - **REQ-CNT-075** `planned #556` Where TTS normalisation is enabled, numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only.
   - On when: `tts_normalisation.enabled` is set after the reach-test readout, once a probe has measured which strings the voice misreads.
 - **REQ-CNT-076** `planned #556` Where TTS normalisation is enabled, the script file and state keep the written form, and the captions show what the voice said.

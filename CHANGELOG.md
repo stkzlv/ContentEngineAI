@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.155.0] - 2026-10-04
+
+### Added
+
+- An `audio_settings.voice_chain` block, off by default, treats the voiceover before the mix with a high-pass, a cut at the harsh 2-4 kHz peak, gentle compression, de-essing, an air shelf and a -1 dBFS limiter, and each render records whether it was on in `render_choices.jsonl`.
+
 ## [0.154.0] - 2026-10-04
 
 ### Added

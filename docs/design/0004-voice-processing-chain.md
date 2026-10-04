@@ -30,6 +30,14 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 **Tests.** The filter clause matches the configured parameters; integrated loudness of a mixed test clip with the chain on stays within 0.5 LU of the same clip with the chain off (the mix already lands about 1 LU under the target, so compare the two, not either with the target); off produces today's command.
 
+## As built
+
+- The parameters are flat keys on `audio_settings.voice_chain` (`compressor_threshold_db` and the rest) rather than a nested `compressor` block.
+- `deesser` does nothing at its own default intensity of 0, so de-essing is `deess_intensity` (default 0.4; 0 turns it off). `air_shelf_db` 0 and `limiter: false` drop their stages too.
+- The limiter runs at -1 dBFS with `level=0`: `alimiter` otherwise scales its output by 1/limit, a fixed +1 dB. On speech-like test audio the compressor holds steady peaks, so the limiter acts on transients shorter than its 5 ms attack.
+- The harsh cut is a peaking `equalizer` one octave wide (`t=o:w=1`) at `harsh_cut_hz`; a Q of 1 measured about 1.4 octaves.
+- Loudness: on a bundled voiceover with music, the mastered mix measured -14.2 LUFS with the chain and -14.8 without, against the -14 target. The test compares each with the target rather than with each other: the chain may move the mix towards the target, not past it.
+
 ## Alternatives considered
 
 None recorded.

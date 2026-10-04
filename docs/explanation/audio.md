@@ -8,6 +8,8 @@ A render's audio is the TTS voiceover and one background music track; the source
 
 Why: the audio track reaches most TikTok viewers. 93% of US users spend time with sound on, in TikTok Marketing Science's 2020 data [B] ([TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)); muted viewing is more common on other platforms, which is why captions carry the same words.
 
+Built and held off: a voice processing chain on the voiceover before the mix (`audio_settings.voice_chain`, `REQ-CNT-073`): high-pass, a small cut at the harsh 2-4 kHz peak, gentle compression, de-essing, an air shelf and a -1 dBFS limiter. On a bundled voiceover with music, the mastered mix measured -14.2 LUFS with it and -14.8 without, against the -14 target: the limited voice peaks let `loudnorm` stay nearer linear. Each render records whether it was on, beside the voice name (`REQ-CNT-074`).
+
 Planned: a signature sting at the start or end (`audio_settings.signature_sting`, `null` by default, `REQ-VID-027`, held), and sparse event sound effects ([design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`).
 
 ## Original audio over trending sound
