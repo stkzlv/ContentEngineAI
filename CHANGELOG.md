@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.135.0] - 2026-10-04
+
+### Removed
+
+- **Breaking**: the producer flags `--ass-karaoke`, `--ass-fade` and `--target-platform` are gone, with the `description_settings.target_platform` and `description_settings.platform_metadata.target_platform` keys they fed; nothing read them, and a config still carrying either key loads and ignores it.
+
+### Documentation
+
+- The configuration reference says optimized metadata mode always generates all three platforms.
+
 ## [0.134.0] - 2026-10-04
 
 ### Fixed

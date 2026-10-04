@@ -154,8 +154,6 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
     # Subtitle and other args (all default to None or False)
     for attr in [
         "subtitle_format",
-        "ass_karaoke",
-        "ass_fade",
         "preset",
         "subtitle_anchor",
         "subtitle_margin",
@@ -173,7 +171,6 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
         "image_width_percent",
         "image_top_position_percent",
         "image_vertical_align",
-        "target_platform",
         "metadata_mode",
     ]:
         setattr(
@@ -191,8 +188,6 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
         )
 
     # Fix specific defaults
-    mock_args.ass_karaoke = False
-    mock_args.ass_fade = False
     mock_args.subtitle_content_aware = None
     mock_args.subtitle_randomize_fonts = None
     mock_args.subtitle_randomize_colors = None

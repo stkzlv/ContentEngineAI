@@ -124,14 +124,6 @@ class DescriptionSettings(BaseModel):
         ),
     )
 
-    # Platform-specific metadata generation (optional, new feature)
-    target_platform: str = Field(
-        "multi",
-        description=(
-            "Target platform for metadata generation: 'youtube', 'tiktok', "
-            "'instagram', or 'multi' for all platforms"
-        ),
-    )
     platform_metadata: PlatformMetadataSettings | None = Field(
         None,
         description=(

@@ -51,8 +51,6 @@ async def test_main_exits_one_for_an_index_out_of_range(tmp_path: Path, mock_con
         "debug",
         "clean",
         "fail_fast",
-        "ass_karaoke",
-        "ass_fade",
     ):
         setattr(args, name, False)
     for name in (

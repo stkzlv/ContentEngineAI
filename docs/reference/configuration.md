@@ -104,8 +104,7 @@ poetry run python -m src.video.producer \
   --content-aware \
   --preset modern \
   --font-size-scale 1.1 \
-  --max-line-length 35 \
-  --target-platform multi
+  --max-line-length 35
 ```
 
 This command:
@@ -227,7 +226,7 @@ llm_settings:
 
 description_settings:
   enabled: true
-  target_platform: "multi"  # youtube, tiktok, instagram, or multi
+  metadata_mode: "unified"  # unified or optimized
 ```
 
 The other `config/ai_services.yaml` keys the sections below don't cover, and whether anything reads them:
@@ -241,7 +240,7 @@ The other `config/ai_services.yaml` keys the sections below don't cover, and whe
 | `audio_processing.silence_min_duration_sec` | `0.1` | The trim's confirmation window; audio inside it is discarded, so a longer value cuts more. |
 | `audio_processing.min_audio_file_size_bytes`, `audio_processing.audio_validation_timeout_sec` | `100`, `30` | Read by nothing (#577). |
 | `description_settings.metadata_mode` | `unified` | `unified` writes one `metadata.json`; `optimized` writes `metadata_<platform>.json` per platform. |
-| `description_settings.target_platforms` | all three | Recorded with the description step's timing; the platforms generated come from `target_platform`. |
+| `description_settings.target_platforms` | all three | Recorded with the description step's timing. `optimized` mode always generates all three platforms. |
 | `description_settings.platform_metadata.youtube.seo_keywords`, `.tiktok.avoid_generic_viral_tags`, `.tiktok.prioritize_search_keywords`, `.instagram.caption_length_short_max`, `.instagram.caption_length_seo_max`, `.instagram.hashtags_in_caption` | see the file | Read by nothing (#577). |
 | `platform_metadata_config` (`ab_testing`, `export.json_indent`, `export.youtube_title_fallback_length`, `instagram.caption_length_short`, `tiktok.seo_focused`, `youtube.seo_keywords`, and the rest of the block) | | Documentation only: the active settings are `description_settings.platform_metadata` (see [Platform Metadata Settings](#71-platform-metadata-settings)). |
 | `whisper_settings.model_download_root` | empty | Where Whisper models are downloaded; empty uses Whisper's own cache. |
@@ -973,7 +972,6 @@ Platform metadata generation creates platform-specific titles, descriptions/capt
 ```yaml
 platform_metadata:
   enabled: true
-  target_platform: "multi"  # Options: "youtube", "tiktok", "instagram", "multi"
 
   # YouTube Shorts Configuration
   youtube:
@@ -1001,35 +999,9 @@ platform_metadata:
     emoji_enabled: true                   # Allow emojis in captions
 ```
 
-**Platform Targeting Modes:**
+**Which platforms:**
 
-1. **Single Platform Mode** (`target_platform: "youtube"`, `"tiktok"`, or `"instagram"`):
-   - Generates metadata for one platform only
-   - Optimized for single-platform distribution
-   - Faster generation (single API call)
-
-2. **Multi-Platform Mode** (`target_platform: "multi"`):
-   - Generates metadata for all three platforms in parallel
-   - Saves separate files: `metadata_youtube.json`, `metadata_tiktok.json`, `metadata_instagram.json`
-   - Ideal for cross-platform content distribution
-
-**CLI Override:**
-
-You can override the target platform at runtime using the `--target-platform` argument:
-
-```bash
-# Generate YouTube-only metadata
-poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform youtube
-
-# Generate TikTok-only metadata
-poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform tiktok
-
-# Generate Instagram-only metadata
-poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform instagram
-
-# Generate for all platforms (default)
-poetry run python -m src.video.producer outputs/B0ASIN123/data.json slideshow_images1 --target-platform multi
-```
+With `metadata_mode: optimized`, the producer generates metadata for YouTube, TikTok and Instagram in parallel and saves `metadata_youtube.json`, `metadata_tiktok.json` and `metadata_instagram.json`. Nothing narrows that set: a platform block's `enabled` key is not read.
 
 **Best Practices by Platform:**
 

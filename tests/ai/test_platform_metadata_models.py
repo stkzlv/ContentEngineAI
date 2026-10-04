@@ -502,14 +502,12 @@ class TestPlatformMetadataSettings:
         """Test valid platform metadata settings creation."""
         settings = models.PlatformMetadataSettings(
             enabled=True,
-            target_platform="multi",
             youtube=models.YouTubePlatformSettings(),
             tiktok=models.TikTokPlatformSettings(),
             instagram=models.InstagramPlatformSettings(),
         )
 
         assert settings.enabled is True
-        assert settings.target_platform == "multi"
         assert isinstance(settings.youtube, models.YouTubePlatformSettings)
         assert isinstance(settings.tiktok, models.TikTokPlatformSettings)
         assert isinstance(settings.instagram, models.InstagramPlatformSettings)
@@ -519,38 +517,12 @@ class TestPlatformMetadataSettings:
         settings = models.PlatformMetadataSettings()
 
         assert settings.enabled is True
-        assert settings.target_platform == "multi"
         assert isinstance(settings.youtube, models.YouTubePlatformSettings)
         assert isinstance(settings.tiktok, models.TikTokPlatformSettings)
         assert isinstance(settings.instagram, models.InstagramPlatformSettings)
         assert settings.youtube.enabled is True
         assert settings.tiktok.enabled is True
         assert settings.instagram.enabled is True
-
-    def test_platform_metadata_settings_target_platform_youtube(self):
-        """Test platform metadata settings with YouTube target."""
-        settings = models.PlatformMetadataSettings(target_platform="youtube")
-
-        assert settings.target_platform == "youtube"
-
-    def test_platform_metadata_settings_target_platform_tiktok(self):
-        """Test platform metadata settings with TikTok target."""
-        settings = models.PlatformMetadataSettings(target_platform="tiktok")
-
-        assert settings.target_platform == "tiktok"
-
-    def test_platform_metadata_settings_target_platform_instagram(self):
-        """Test platform metadata settings with Instagram target."""
-        settings = models.PlatformMetadataSettings(target_platform="instagram")
-
-        assert settings.target_platform == "instagram"
-
-    def test_platform_metadata_settings_invalid_target_platform(self):
-        """Test platform metadata settings with invalid target platform."""
-        with pytest.raises(ValidationError) as exc_info:
-            models.PlatformMetadataSettings(target_platform="facebook")
-
-        assert "target_platform" in str(exc_info.value)
 
     def test_platform_metadata_settings_nested_youtube_custom(self):
         """Test platform metadata settings with custom YouTube settings."""

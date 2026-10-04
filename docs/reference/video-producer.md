@@ -91,8 +91,6 @@ Read only by the FFmpeg engine.
 |---|---|---|
 | `--preset` | Style preset: `minimal`, `modern`, `bold`, `animated`, `random`. See [Style presets](#style-presets). | `--preset bold` |
 | `--font-size-scale` | Font size multiplier (0.5-2.0). | `--font-size-scale 1.2` |
-| `--ass-karaoke` | Accepted, but no code reads the override it sets. The effect comes from the preset. | `--ass-karaoke` |
-| `--ass-fade` | Accepted, but no code reads the override it sets. The effect comes from the preset. | `--ass-fade` |
 
 ### Caption position
 
@@ -133,7 +131,6 @@ Read only by the FFmpeg engine.
 
 | Argument | Description | Example |
 |---|---|---|
-| `--target-platform` | `youtube` (Shorts), `tiktok`, `instagram` (Reels) or `multi` (all platforms). | `--target-platform youtube` |
 | `--metadata-mode` | `unified` (one title, description and hashtag set for all platforms, the default) or `optimized` (platform-specific SEO). | `--metadata-mode optimized` |
 
 ### Argument rules
