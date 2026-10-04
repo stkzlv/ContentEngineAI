@@ -300,7 +300,7 @@ There is no `headless` key: the scraper always runs a headful browser, on a virt
 
 ## Affiliate URLs
 
-The scraper writes each product's affiliate URL into `data.json` as `affiliate_link`, and the page URL as visited into `url` (`REQ-SCR-053`). `build_affiliate_url` in `src/scraper/amazon/utils.py` canonicalises every URL to `<host>/dp/<ASIN>?tag=<tag>`, taking the ASIN from a `/dp/`, `/gp/product/` or `/gp/aw/d/` path, or from the product when the URL carries none; the host is the URL's own Amazon marketplace, `www.amazon.com` otherwise (`REQ-SCR-051`).
+The scraper writes each product's affiliate URL into `data.json` as `affiliate_link`, and the page URL as visited into `url` (`REQ-SCR-053`). `build_affiliate_url` in `src/scraper/amazon/utils.py` canonicalises every URL to `<host>/dp/<ASIN>?tag=<tag>`, taking the ASIN from a `/dp/`, `/gp/product/`, `/gp/aw/d/` or `/product/` path, or from the product when the URL carries none; the host is the URL's own Amazon marketplace, `www.amazon.com` otherwise (`REQ-SCR-051`).
 
 | Source | Precedence |
 |---|---|

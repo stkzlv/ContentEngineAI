@@ -44,3 +44,106 @@ def test_the_global_batch_takes_the_flag(tmp_path: Path) -> None:
 
     assert off.link_in_bio is False
     assert unset.link_in_bio is None
+
+
+def _schedule_config(**overrides):
+    from src.publisher.models import CleanupConfig
+
+    return SimpleNamespace(
+        link_in_bio_config=LinkInBioConfig(enabled=True),
+        cleanup_config=CleanupConfig(enabled=False),
+        affiliate_disclosure_config=SimpleNamespace(enabled=False, phrase=None),
+        profiles=None,
+        stagger_delay_min=0,
+        stagger_delay_max=0,
+        schedule_config=SimpleNamespace(),
+        delivery_sweep_config=None,
+        blob_retention_config=None,
+        **overrides,
+    )
+
+
+@pytest.mark.req("REQ-PUB-066")
+@pytest.mark.asyncio
+async def test_schedule_immediate_hands_the_flag_to_the_batch(tmp_path: Path) -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from src.publisher.late import cli as late_cli
+
+    args = build_argument_parser().parse_args(
+        ["schedule", "--immediate", "--no-link-in-bio", "--outputs-dir", str(tmp_path)]
+    )
+    batch = MagicMock()
+    batch.publish_batch = AsyncMock(
+        return_value=SimpleNamespace(successful=0, failed=0)
+    )
+    with (
+        patch.object(late_cli, "BatchPublisher", return_value=batch) as built,
+        patch.object(late_cli, "run_delivery_sweep", new_callable=AsyncMock),
+        patch.object(late_cli, "run_blob_retention", new_callable=AsyncMock),
+    ):
+        await late_cli._run_immediate_batch(args, _schedule_config(), AsyncMock())
+
+    assert built.call_args.kwargs["link_in_bio_config"].enabled is False
+
+
+@pytest.mark.req("REQ-PUB-066")
+@pytest.mark.asyncio
+async def test_schedule_hands_the_flag_to_auto_schedule(tmp_path: Path) -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from src.publisher.late import cli as late_cli
+
+    args = build_argument_parser().parse_args(
+        ["schedule", "--no-link-in-bio", "--outputs-dir", str(tmp_path)]
+    )
+    args.platforms = []
+    publisher = AsyncMock()
+    publisher.authenticate.return_value = True
+    manager = MagicMock()
+    manager.auto_schedule = AsyncMock(
+        return_value={"scheduled": 0, "failed": 0, "skipped": 0}
+    )
+    with (
+        patch.object(late_cli, "_create_publisher_from_config", return_value=publisher),
+        patch.object(
+            late_cli, "_scan_and_filter_videos", return_value=[tmp_path / "v"]
+        ),
+        patch.object(late_cli, "ScheduleManager", return_value=manager),
+        patch.object(late_cli, "run_delivery_sweep", new_callable=AsyncMock),
+        patch.object(late_cli, "run_blob_retention", new_callable=AsyncMock),
+    ):
+        await late_cli.cmd_schedule_auto(args, _schedule_config(), session=None)
+
+    kwargs = manager.auto_schedule.call_args.kwargs
+    assert kwargs["link_in_bio_config"].enabled is False
+
+
+@pytest.mark.req("REQ-PUB-066")
+def test_the_batch_phase_applies_the_flag() -> None:
+    from src.pipeline.phases.publishing import link_in_bio_for_run
+
+    published = SimpleNamespace(link_in_bio_config=LinkInBioConfig(enabled=True))
+    off = link_in_bio_for_run(SimpleNamespace(link_in_bio=False), published)
+    unset = link_in_bio_for_run(SimpleNamespace(link_in_bio=None), published)
+    assert off.enabled is False
+    assert unset is published.link_in_bio_config
+
+
+def test_the_batch_phase_calls_through_the_helper() -> None:
+    import ast
+
+    source = Path(__file__).resolve().parents[2] / "src/pipeline/phases/publishing.py"
+    calls = [
+        node
+        for node in ast.walk(ast.parse(source.read_text()))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "update_link_in_bio_safe"
+    ]
+    assert calls
+    for call in calls:
+        bio = call.args[2]
+        assert isinstance(bio, ast.Call) and getattr(bio.func, "id", "") == (
+            "link_in_bio_for_run"
+        )
