@@ -1450,8 +1450,12 @@ stock_media_settings:
 ```
 
 With `stock_reuse_guard.enabled`, candidates used in the last `window`
-renders are dropped before selection while enough others remain; when too few
-do, the least recently used fill the gap and the fill is logged. Every render
+renders lose to fresh ones. With the relevance judge on, the judge still
+scores the whole page: above `min_score`, fresh clips come before reused ones
+(least recently used first), so a fresh clip below the floor never displaces
+a relevant reused one. Without the judge, recently used candidates are dropped
+before the random sample while enough others remain. Either way a fill from
+reused clips is logged. Every render
 records its stock ids (`<source>:<provider id>`) in
 `state/render_choices.jsonl` whether or not the guard is on, so the window is
 full when it is switched on, and the record outlives product-directory

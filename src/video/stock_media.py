@@ -281,9 +281,8 @@ class StockMediaFetcher:
                         }
                     )
 
-        candidates = self._avoid_recent(processed_items, count, search_query)
         selected_items = await self._select(
-            candidates, count, search_query, script, session
+            processed_items, count, search_query, script, session
         )
         self._query_cache[cache_key] = selected_items  # Cache results
         logger.debug("Selected %s %s for download.", len(selected_items), item_type)
@@ -295,6 +294,53 @@ class StockMediaFetcher:
             return None
         return f"{str(item.get('source') or self.settings.source).lower()}:{item_id}"
 
+    def _guarding(self) -> bool:
+        guard = getattr(self.settings, "stock_reuse_guard", None)
+        return bool(guard is not None and guard.enabled and self.recent_stock_ids)
+
+    def _select_judged_fresh_first(
+        self,
+        candidates: list[dict[str, Any]],
+        scores: list[int | None],
+        count: int,
+        min_score: int,
+    ) -> list[dict[str, Any]] | None:
+        """The judge's pick with the reuse guard as a tie-break.
+
+        The judge scores the whole page, so a fresh clip below `min_score`
+        never displaces a reused one above it. Above the floor fresh clips
+        come first, best score first, then reused ones least recently used
+        first; below the floor only fills a shortfall, in the same order.
+        None when nothing was scored, like `select_by_relevance`.
+        """
+        from src.video.stock_relevance import UNKNOWN
+
+        if not any(s is not None for s in scores):
+            return None
+        recent = self.recent_stock_ids
+
+        def rank(pair: tuple[dict[str, Any], int | None]) -> tuple:
+            candidate, score = pair
+            known = score if score is not None else UNKNOWN
+            age = recent.get(self._stock_id(candidate) or "")
+            fresh = age is None
+            return (
+                known < min_score,
+                not fresh,
+                -known if fresh else -(age or 0),
+                random.random(),  # noqa: S311
+            )
+
+        ranked = sorted(zip(candidates, scores, strict=True), key=rank)[:count]
+        reused = sum(1 for c, _ in ranked if self._stock_id(c) in recent)
+        if reused:
+            logger.info(
+                "Stock reuse guard: reusing %d least recently used of %d judged",
+                reused,
+                len(candidates),
+            )
+        return [{**c, "score": s} for c, s in ranked]
+
     def _avoid_recent(
         self, candidates: list[dict[str, Any]], count: int, search_query: str
     ) -> list[dict[str, Any]]:
@@ -303,8 +349,7 @@ class StockMediaFetcher:
         When fewer than `count` fresh ones remain, the least recently used
         fill the gap, so a render is never short of clips because of the guard.
         """
-        guard = getattr(self.settings, "stock_reuse_guard", None)
-        if guard is None or not guard.enabled or not self.recent_stock_ids:
+        if not self._guarding():
             return candidates
         recent = self.recent_stock_ids
         fresh = [c for c in candidates if self._stock_id(c) not in recent]
@@ -372,7 +417,13 @@ class StockMediaFetcher:
                 settings=cfg,
                 session=session,
             )
-            chosen = select_by_relevance(candidates, scores, count, cfg.min_score)
+            chosen = (
+                self._select_judged_fresh_first(
+                    candidates, scores, count, cfg.min_score
+                )
+                if self._guarding()
+                else select_by_relevance(candidates, scores, count, cfg.min_score)
+            )
             if chosen is not None:
                 logger.info(
                     "Stock relevance for '%s': %d candidates judged, chose scores %s",
@@ -385,6 +436,7 @@ class StockMediaFetcher:
                 "Stock relevance judge returned no scores for '%s'; random sample",
                 search_query,
             )
+        candidates = self._avoid_recent(candidates, count, search_query)
         return random.sample(candidates, min(count, len(candidates)))  # noqa: S311
 
     @pexels_circuit_breaker

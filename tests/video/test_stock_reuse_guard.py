@@ -84,17 +84,22 @@ def test_recent_ids_carry_their_age_and_respect_the_window(tmp_path: Path) -> No
     record_render_choices(tmp_path, _row("A", ["pexels:1", "pexels:2"]))
     record_render_choices(tmp_path, _row("B", ["pexels:2"]))
     record_render_choices(tmp_path, _row("C", None))
-    record_render_choices(tmp_path, _row("D", ["pexels:3"]))
+    # pexels:1 again, newer than A: its age is the newer use.
+    record_render_choices(tmp_path, _row("D", ["pexels:3", "pexels:1"]))
     # A rerun of B moves it to the newest render and replaces its ids.
     record_render_choices(tmp_path, _row("B", ["pexels:4"]))
 
     assert recent_stock_ids(tmp_path, 10) == {
         "pexels:4": 0,
         "pexels:3": 1,
-        "pexels:1": 3,
+        "pexels:1": 1,
         "pexels:2": 3,
     }
-    assert recent_stock_ids(tmp_path, 2) == {"pexels:4": 0, "pexels:3": 1}
+    assert recent_stock_ids(tmp_path, 2) == {
+        "pexels:4": 0,
+        "pexels:3": 1,
+        "pexels:1": 1,
+    }
 
 
 @pytest.mark.req("REQ-VID-110")
@@ -191,3 +196,34 @@ async def test_downloaded_items_carry_their_stock_id(tmp_path: Path, monkeypatch
 
     assert {item.stock_id for item in items} <= {f"pexels:{n}" for n in range(1, 7)}
     assert len(items) == 2 and all(item.stock_id for item in items)
+
+
+@pytest.mark.req("REQ-VID-110")
+@pytest.mark.asyncio
+async def test_with_the_judge_a_fresh_weak_clip_never_beats_a_relevant_one(
+    monkeypatch,
+) -> None:
+    """The judge scores the whole page; the guard only breaks ties (REQ-VID-108)."""
+    from src.video import stock_relevance
+
+    llm = config.llm_settings.model_copy(deep=True)
+    llm.stock_relevance.enabled = True
+    llm.stock_relevance.min_score = 2
+    # ids 1-6 score 3, 3, 0, 0, 3, 2; 1 and 2 were used, 1 the more recently.
+    monkeypatch.setattr(
+        stock_relevance,
+        "score_candidates",
+        AsyncMock(return_value=[3, 3, 0, 0, 3, 2]),
+    )
+    fetcher = _fetcher(True, {"pexels:1": 0, "pexels:2": 5})
+    fetcher.llm_settings = llm
+    fetcher.secrets = {llm.api_key_env_var: "key"}
+
+    items = await fetcher._search_and_select_pexels(
+        "desk lamp", "photos", 3, script="A desk lamp.", session=AsyncMock()
+    )
+
+    # Fresh above the floor (5, then 6), then the older reused one (2);
+    # never the fresh clips that scored 0.
+    assert [item["id"] for item in items] == [5, 6, 2]
+    assert [item["score"] for item in items] == [3, 2, 3]
