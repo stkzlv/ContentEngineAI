@@ -506,9 +506,7 @@ class OptimizationSettings(BaseModel):
     download_chunk_size_bytes: int = Field(8192)
 
     # Async I/O Configuration
-    async_ffmpeg_max_concurrent: int = Field(2)
-    async_io_max_concurrent: int = Field(8)
-    async_network_max_concurrent: int = Field(4)
+    async_ffmpeg_max_concurrent: int = Field(4, ge=1)
     async_default_timeout_sec: int = Field(300)
     async_ffprobe_timeout_sec: int = Field(30)
 

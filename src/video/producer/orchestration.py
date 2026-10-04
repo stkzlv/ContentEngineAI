@@ -11,6 +11,7 @@ import aiohttp
 
 from src.scraper.amazon.models import ProductData
 from src.utils import cleanup_temp_dirs, ensure_dirs_exist, sanitize_filename
+from src.utils.async_io import ffmpeg_semaphore
 from src.utils.background_processing import (
     ResourcePreloader,
     TTSWarmer,
@@ -369,6 +370,7 @@ async def create_video_for_product(
         # `model_validate({})` rather than `Model()`: the fields declare their
         # defaults positionally, which mypy's plugin reads as required.
         opt = config.optimization_settings or OptimizationSettings.model_validate({})
+        ffmpeg_semaphore.set_limit(opt.async_ffmpeg_max_concurrent)
         history_manager = PerformanceHistoryManager(
             history_dir=config.global_output_root_path / "performance_history",
             max_runs=opt.performance_history_max_runs,

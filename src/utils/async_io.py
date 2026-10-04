@@ -203,6 +203,13 @@ class AsyncSemaphore:
 
     def __init__(self, max_concurrent: int = 4):
         self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.limit = max_concurrent
+
+    def set_limit(self, max_concurrent: int) -> None:
+        """Replace the limit. Call between runs, while nothing holds it."""
+        if max_concurrent != self.limit:
+            self.semaphore = asyncio.Semaphore(max_concurrent)
+            self.limit = max_concurrent
 
     async def run_with_limit(self, coro):
         """Run coroutine with concurrency limit."""
@@ -210,8 +217,6 @@ class AsyncSemaphore:
             return await coro
 
 
-# Global semaphore instances for different operation types
-# Performance: Increased from 2→4 to reduce bottleneck (v0.12.0)
-ffmpeg_semaphore = AsyncSemaphore(max_concurrent=4)  # FFmpeg is CPU intensive
-io_semaphore = AsyncSemaphore(max_concurrent=8)  # I/O operations
-network_semaphore = AsyncSemaphore(max_concurrent=4)  # Network operations
+# Shared FFmpeg limit; each render sets it from
+# `optimization_settings.async_ffmpeg_max_concurrent`.
+ffmpeg_semaphore = AsyncSemaphore(max_concurrent=4)
