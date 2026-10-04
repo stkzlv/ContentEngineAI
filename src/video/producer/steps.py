@@ -1773,6 +1773,22 @@ def _recent_stock_ids(ctx: PipelineContext) -> dict[str, int] | None:
     return recent_stock_ids(Path(ctx.run_paths["run_root"]).parent, guard.window)
 
 
+def _spoken_words(ctx: PipelineContext) -> list[dict[str, Any]] | None:
+    """Whisper's word timings for this run, when sound effects need them."""
+    if not ctx.config.audio_settings.sound_effects.enabled:
+        return None
+    path = ctx.run_paths.get("whisper_transcript_file")
+    if path is None or not Path(path).exists():
+        return None
+    try:
+        from src.video.stt_functions import _extract_word_timings
+
+        return _extract_word_timings(json.loads(Path(path).read_text("utf-8")))
+    except (OSError, ValueError) as exc:
+        logger.warning("Sound effects: unreadable transcript %s: %s", path, exc)
+        return None
+
+
 async def _render_duration(
     ctx: PipelineContext,
 ) -> tuple[float, float | None, float | None]:
@@ -1956,6 +1972,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 hook_headline=ctx.state.get("hook_headline"),
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end,
+                spoken_words=_spoken_words(ctx),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

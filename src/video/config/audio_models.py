@@ -71,6 +71,23 @@ class SignatureSting(BaseModel):
     volume_db: float = Field(-6.0, le=6.0)
 
 
+class SoundEffectsSettings(BaseModel):
+    """Sparse effects on a few beats (design 0003), off by default.
+
+    One pool of local files per event; nothing is bundled. Mixed through the
+    same `amix` and `loudnorm` as the music, `level_db` relative to the voice.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    enabled: bool = Field(False)
+    level_db: float = Field(-15.0, ge=-40.0, le=0.0)
+    max_per_10_sec: int = Field(2, ge=1, le=10)
+    transition: list[Path] = Field(default_factory=list)
+    reveal: list[Path] = Field(default_factory=list)
+    cta: list[Path] = Field(default_factory=list)
+
+
 class AudioSettings(BaseModel):
     music_volume_db: float
     voiceover_volume_db: float
@@ -106,6 +123,9 @@ class AudioSettings(BaseModel):
     music_fade_out_duration: float = Field(3.0)
     # Recurring audio identity mark. None (the default) mixes nothing.
     signature_sting: SignatureSting | None = Field(None)
+    sound_effects: SoundEffectsSettings = Field(
+        default_factory=SoundEffectsSettings  # type: ignore[arg-type]
+    )
     voice_chain: VoiceChainSettings = Field(
         default_factory=VoiceChainSettings  # type: ignore[arg-type]
     )

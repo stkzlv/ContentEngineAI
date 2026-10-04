@@ -33,6 +33,14 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 **Tests.** With three events configured, the filter graph carries three delayed inputs at the configured level; the cap drops transition effects first; two products draw different variants; off adds nothing to the command.
 
+## As built
+
+- Transition effects sit at the middle of each crossfade, from the timeline's segment durations. The reveal and the call to action come from the raw Whisper transcript, which the pycaps engine writes; with the FFmpeg caption engine there is none, so only transitions play.
+- An effect that would start in a word's first 100 ms moves to 100 ms after that word's start; the reveal and the call to action, placed at a sentence's first word, always do.
+- The cap keeps the call to action, then the reveal, then transitions in time order, and drops any event that would put more than `max_per_10_sec` in a 10-second window.
+- Each file is drawn with the seed `<product_id>:sfx:<event>:<n>`, the `n`th event of its kind, so two transitions in one render can differ.
+- The effect level is the voice's `voiceover_volume_db` plus `level_db`.
+
 ## Alternatives considered
 
 None recorded.

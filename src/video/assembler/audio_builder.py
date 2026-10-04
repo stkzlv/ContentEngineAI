@@ -114,6 +114,7 @@ class AudioFilterBuilder:
         media_inspector: Any,
         music_fade_out_sec: float | None = None,
         speech_end_sec: float | None = None,
+        sound_effects: list[tuple[Path, float]] | None = None,
     ) -> tuple[list[str], str]:
         """Add the audio inputs and build the whole mix, the sting included.
 
@@ -129,6 +130,10 @@ class AudioFilterBuilder:
         )
         sting_path = self.sting_path()
         sting_idx = self.prepare_sting_input(input_cmd_parts, sting_path)
+        effect_inputs = []
+        for path, start in sound_effects or []:
+            effect_inputs.append((input_cmd_parts.count("-i"), start))
+            input_cmd_parts.extend(["-i", str(path)])
         delay = 0.0
         if sting_path is not None:
             # A `peak` ending measures where the speech ends; the file can run
@@ -151,6 +156,7 @@ class AudioFilterBuilder:
             sting_input_idx=sting_idx,
             sting_delay_sec=delay,
             music_fade_out_sec=music_fade_out_sec,
+            effect_inputs=effect_inputs,
         )
 
     def prepare_audio_inputs(
@@ -196,6 +202,7 @@ class AudioFilterBuilder:
         sting_input_idx: int | None = None,
         sting_delay_sec: float = 0.0,
         music_fade_out_sec: float | None = None,
+        effect_inputs: list[tuple[int, float]] | None = None,
     ) -> tuple[list[str], str]:
         """Build audio processing filters for FFmpeg.
 
@@ -209,6 +216,8 @@ class AudioFilterBuilder:
             music_fade_out_sec: The music's closing fade, when the ending sets
                 one (a `peak` ending fades within its margin); None uses
                 `music_fade_out_duration`
+            effect_inputs: (input index, start second) of each sound effect,
+                mixed at the voice level plus `sound_effects.level_db`
 
         Returns:
         -------
@@ -274,6 +283,18 @@ class AudioFilterBuilder:
                 f"adelay={delay_ms}:all=1[a_sting]"
             )
             audio_to_mix.append("[a_sting]")
+
+        # Sound effects join the mix like the sting: after the duck, before
+        # `loudnorm`, at a level relative to the voice (design 0003).
+        effect_level = (
+            audio_settings.voiceover_volume_db + audio_settings.sound_effects.level_db
+        )
+        for n, (index, start) in enumerate(effect_inputs or []):
+            audio_filters.append(
+                f"[{index}:a]volume={effect_level:g}dB,"
+                f"adelay={int(round(start * 1000))}:all=1[a_sfx_{n}]"
+            )
+            audio_to_mix.append(f"[a_sfx_{n}]")
 
         if not audio_to_mix:
             return audio_filters, ""
