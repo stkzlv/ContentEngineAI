@@ -226,3 +226,177 @@ def test_the_scraper_sort_follows_the_yaml_unless_passed(
 
     assert result is not None
     assert result[0].sort_order == expected
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.parametrize(
+    ("cli", "env", "configured", "expected"),
+    [
+        ("/srv/cli", {"OUTPUTS_DIR": "/srv/env"}, "yaml", "/srv/cli"),
+        (None, {"OUTPUTS_DIR": "/srv/env"}, "yaml", "/srv/env"),
+        (None, {"CONTENT_ENGINE_OUTPUT": "/srv/alt"}, "yaml", "/srv/alt"),
+        (
+            None,
+            {"OUTPUTS_DIR": "/srv/env", "CONTENT_ENGINE_OUTPUT": "/srv/alt"},
+            None,
+            "/srv/env",
+        ),
+        (None, {}, "/srv/yaml", "/srv/yaml"),
+        (None, {}, None, str(REPO / "outputs")),
+        (None, {"OUTPUTS_DIR": "renders"}, None, str(REPO / "renders")),
+    ],
+)
+def test_the_outputs_root_resolves_cli_then_machine_then_config(
+    monkeypatch: pytest.MonkeyPatch,
+    cli: str | None,
+    env: dict[str, str],
+    configured: str | None,
+    expected: str,
+) -> None:
+    from src.utils.outputs_paths import resolve_outputs_dir
+
+    for name in ("OUTPUTS_DIR", "CONTENT_ENGINE_OUTPUT"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    assert resolve_outputs_dir(cli, configured) == Path(expected)
+
+
+@pytest.mark.req("REQ-OPS-001")
+def test_the_batch_takes_outputs_dir_from_the_machine_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.pipeline.cli import create_argument_parser
+    from src.pipeline.config import load_global_batch_config
+
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(
+        yaml.dump(
+            {"global_batch": {"product_ids": ["B0CONFIG01"], "outputs_dir": "custom"}}
+        )
+    )
+    monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "machine"))
+    parser = create_argument_parser()
+
+    from_env = load_global_batch_config(parser.parse_args([]), config_path=path)
+    from_cli = load_global_batch_config(
+        parser.parse_args(["--outputs-dir", str(tmp_path / "cli")]), config_path=path
+    )
+
+    assert from_env.outputs_dir == tmp_path / "machine"
+    assert from_cli.outputs_dir == tmp_path / "cli"
+
+
+def _publisher_main(
+    argv: list[str], dotenv_sets: dict[str, str], monkeypatch: pytest.MonkeyPatch
+):
+    """Run the publisher's main up to its command, with `.env` setting vars."""
+    from src.publisher.late import cli as publisher_cli
+
+    def fake_dotenv(*_args, **_kwargs):
+        # Through monkeypatch, so the variable does not outlive the test.
+        for name, value in dotenv_sets.items():
+            monkeypatch.setenv(name, value)
+
+    return (
+        publisher_cli,
+        [
+            patch.object(sys, "argv", ["publisher", *argv]),
+            patch.object(publisher_cli, "load_dotenv", side_effect=fake_dotenv),
+            patch.object(publisher_cli, "setup_debug_logging"),
+            patch.object(publisher_cli, "load_publisher_config"),
+        ],
+    )
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.asyncio
+async def test_the_publisher_reads_outputs_dir_set_in_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OUTPUTS_DIR", raising=False)
+    monkeypatch.delenv("CONTENT_ENGINE_OUTPUT", raising=False)
+    publisher_cli, patches = _publisher_main(
+        ["schedule"], {"OUTPUTS_DIR": str(tmp_path)}, monkeypatch
+    )
+    with (
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patch.object(publisher_cli, "cmd_schedule_auto", new_callable=AsyncMock) as run,
+    ):
+        await publisher_cli.main()
+
+    assert run.call_args.args[0].outputs_dir == tmp_path
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.asyncio
+async def test_the_publisher_calendar_reads_the_schedule_under_that_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import argparse
+
+    from src.publisher.late import cli as publisher_cli
+
+    class StopError(Exception):
+        pass
+
+    seen: list[Path] = []
+
+    def manager(schedule_path=None, **_kwargs):
+        seen.append(schedule_path)
+        raise StopError
+
+    monkeypatch.setattr(publisher_cli, "ScheduleManager", manager)
+    args = argparse.Namespace(outputs_dir=tmp_path)
+
+    with pytest.raises(StopError):
+        await publisher_cli.cmd_calendar(args, None, None)
+
+    assert seen == [tmp_path / "state" / "schedule.json"]
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.asyncio
+async def test_a_single_publish_looks_for_the_product_under_that_root(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    import argparse
+
+    from src.publisher.late import cli as publisher_cli
+
+    args = argparse.Namespace(outputs_dir=tmp_path, product_id="B0MISSING1")
+
+    with pytest.raises(SystemExit):
+        await publisher_cli.cmd_single(args, None, None)
+
+    assert str(tmp_path / "B0MISSING1") in caplog.text
+
+
+@pytest.mark.req("REQ-OPS-001")
+@pytest.mark.parametrize(
+    "env",
+    [
+        {},
+        {"OUTPUTS_DIR": "/srv/env"},
+        {"OUTPUTS_DIR": "renders"},
+        {"OUTPUTS_DIR": "~/renders"},
+        {"OUTPUTS_DIR": "", "CONTENT_ENGINE_OUTPUT": "/srv/alt"},
+        {"OUTPUTS_DIR": "/srv/env", "CONTENT_ENGINE_OUTPUT": "/srv/alt"},
+    ],
+)
+def test_the_publisher_and_batch_root_matches_the_producers(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str]
+) -> None:
+    from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
+
+    for name in ("OUTPUTS_DIR", "CONTENT_ENGINE_OUTPUT"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    producer = get_project_root() / video_config({})["global_output_directory"]
+
+    assert resolve_outputs_dir(None) == producer

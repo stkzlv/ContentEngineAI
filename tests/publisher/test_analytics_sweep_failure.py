@@ -40,15 +40,17 @@ def _publisher(posts):
     return pub
 
 
-async def _run(tmp_path, posts, timeline_side_effect):
+async def _run(tmp_path, posts, timeline_side_effect, failures_log=None):
     resource = MagicMock()
     resource.get_post_timeline.side_effect = timeline_side_effect
+    log = failures_log or tmp_path / "logs" / "analytics-failures.log"
     with (
         patch(
             "src.publisher.late.cli._create_publisher_from_config",
             return_value=_publisher(posts),
         ),
         patch("src.publisher.late.cli.timeline_resource", return_value=resource),
+        patch("src.publisher.late.cli.ANALYTICS_FAILURES_LOG", log),
     ):
         await cmd_analytics(_args(tmp_path), _config(), MagicMock())
 
@@ -168,6 +170,28 @@ class TestTheRegressionReachesTheOperatorSurface:
         recorded = (tmp_path / "logs" / "analytics-failures.log").read_text()
         assert "b" in recorded
         assert "1 of 2" in recorded
+
+    @pytest.mark.req("REQ-PUB-136")
+    @pytest.mark.asyncio
+    async def test_the_note_stays_in_the_repo_logs_when_the_outputs_root_moves(
+        self, tmp_path
+    ):
+        """The status target and the failure handler know only the repo path."""
+        outputs = tmp_path / "renders"
+        save_metrics(
+            [
+                PostMetrics(
+                    post_id="b", published_at="2026-07-01T08:00:00Z", views_total=400
+                )
+            ],
+            outputs,
+        )
+        repo_log = tmp_path / "repo" / "outputs" / "logs" / "analytics-failures.log"
+
+        await _run(outputs, [MEASURABLE_POST], [{"timeline": []}], repo_log)
+
+        assert "b" in repo_log.read_text()
+        assert not (outputs / "logs" / "analytics-failures.log").exists()
 
     @pytest.mark.asyncio
     async def test_a_healthy_sweep_writes_no_file(self, tmp_path):

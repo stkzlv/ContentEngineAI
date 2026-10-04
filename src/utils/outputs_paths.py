@@ -108,6 +108,27 @@ def get_project_root() -> Path:
     return project_root.resolve()
 
 
+# Machine settings that move the outputs root (decision 0003). The config
+# manager applies OUTPUTS_DIR after CONTENT_ENGINE_OUTPUT, so it wins here too.
+OUTPUTS_ENV_VARS: tuple[str, ...] = ("OUTPUTS_DIR", "CONTENT_ENGINE_OUTPUT")
+
+
+def resolve_outputs_dir(
+    cli_value: str | Path | None, configured: str | Path | None = None
+) -> Path:
+    """The outputs root: the CLI, then the machine environment, then config.
+
+    The producer's rule, so the two agree: an empty variable is unset, a
+    relative path is taken from the repository root, and `~` is not expanded.
+    """
+    env_value = next(
+        (os.environ[n] for n in OUTPUTS_ENV_VARS if os.environ.get(n)), None
+    )
+    raw = cli_value or env_value or configured or "outputs"
+    path = Path(raw)
+    return path if path.is_absolute() else get_project_root() / path
+
+
 def get_outputs_root(custom_dir: str | None = None) -> Path:
     """Get the root outputs directory for the project.
 
@@ -516,3 +537,19 @@ def cleanup_invalid_outputs(
         cleanup_results["errors"].append(f"Cleanup error: {e}")
 
     return cleanup_results
+
+
+def main() -> None:
+    """Print the outputs root the publisher resolves when given no flag.
+
+    For the shell tools that check the analytics timer: they cannot read
+    `.env` the way the Python side does.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(get_project_root() / ".env")
+    print(resolve_outputs_dir(None))
+
+
+if __name__ == "__main__":
+    main()

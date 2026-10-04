@@ -38,7 +38,7 @@ import yaml
 
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pillars
-from src.utils.outputs_paths import get_project_root
+from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
 from src.video.config import VideoConfig
 from src.video.producer.topic_input import (
     TopicSpec,
@@ -1274,17 +1274,14 @@ def load_global_batch_config(
         cli_args, "process_all_products", yaml_config, "process_all_products"
     )
 
-    outputs_dir_str = getattr(cli_args, "outputs_dir", None) or yaml_config.get(
-        "outputs_dir", "outputs"
-    )
-    outputs_dir = Path(outputs_dir_str)
     # A relative outputs dir is repo-relative, not cwd-relative: a foreign-cwd
     # batch run otherwise writes its whole tree (state, renders, registry)
     # beside wherever the command ran, while the anchored log points at the
     # repo -- the log and the data disagreeing about where the run happened.
     # An absolute path from the operator is taken as given.
-    if not outputs_dir.is_absolute():
-        outputs_dir = get_project_root() / outputs_dir
+    outputs_dir = resolve_outputs_dir(
+        getattr(cli_args, "outputs_dir", None), yaml_config.get("outputs_dir")
+    )
 
     debug = _flag(cli_args, "debug", yaml_config, "debug")
 

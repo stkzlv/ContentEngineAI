@@ -26,7 +26,7 @@ python -m src.publisher.late list-accounts [--debug]
 
 ### `single`
 
-Publishes one product. The video is found in `outputs/<product_id>/`.
+Publishes one product. The video is found in `<outputs root>/<product_id>/`; every command takes the outputs root (`OUTPUTS_DIR`, else `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`) when `--outputs-dir` is not passed.
 
 ```bash
 python -m src.publisher.late single <product_id> [options]
@@ -34,7 +34,7 @@ python -m src.publisher.late single <product_id> [options]
 
 | Option | Default | Description |
 |---|---|---|
-| `product_id` | required | Product id, such as an ASIN. The product directory must exist under the repository's `outputs/`. |
+| `product_id` | required | Product id, such as an ASIN. The product directory must exist under the outputs root. |
 | `--platform NAME` | `default_platforms` | Target platform. Repeat for several. One of `youtube`, `tiktok`, `instagram`, `facebook`, `twitter`, `linkedin`. |
 | `--schedule DATETIME` | none | Publish at this time. Accepts `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM` and `YYYY-MM-DDTHH:MM`, read as UTC. Takes precedence over `--immediate`. |
 | `--immediate` | off | Publish at once. |
@@ -61,7 +61,7 @@ python -m src.publisher.late schedule [auto] [options]
 | Option | Default | Applies to | Description |
 |---|---|---|---|
 | `--platform NAME` | `default_platforms` | both modes | Target platform. Repeat for several. Same choices as `single`. |
-| `--outputs-dir PATH` | the repository's `outputs/` | both modes | Directory to scan for product directories. |
+| `--outputs-dir PATH` | the outputs root | both modes | Directory to scan for product directories. |
 | `--immediate` | off | | Publish at once instead of scheduling into slots. |
 | `--dry-run` | off | both modes | Publish nothing. Scheduled mode shows the slot each product would take; immediate mode lists the products it would publish and contacts no provider. |
 | `--no-cleanup` | off | both modes | Skip post-publication cleanup for this run. |
@@ -107,7 +107,7 @@ python -m src.publisher.late cleanup (--product-id ID | --all) [options]
 | `--product-id ID` | Clean up one product. Exactly one of `--product-id` and `--all` is required. |
 | `--all` | Clean up every published product. Requires `--confirm` unless `--dry-run` is passed. |
 | `--platform NAME` | Platform whose publication cleanup checks. Repeat for several. Defaults to `default_platforms`. |
-| `--outputs-dir PATH` | Directory to scan. Defaults to the repository's `outputs/`. |
+| `--outputs-dir PATH` | Directory to scan. Defaults to the outputs root. |
 | `--dry-run` | Show what would be removed and remove nothing. |
 | `--confirm` | Confirm an `--all` run. |
 
@@ -137,7 +137,7 @@ python -m src.publisher.late registry (--rebuild | --summary) [options]
 |---|---|
 | `--rebuild` | Rebuild the registry from every `<product_id>/data.json` under the scan directory, merging into the existing registry. Wins when both actions are given. |
 | `--summary` | Count published products per content-format arm. Rows written before the arm existed count as `unlabelled`. |
-| `--outputs-dir PATH` | Outputs root whose `state/` directory holds the registry files. Defaults to the repository's `outputs/`. |
+| `--outputs-dir PATH` | Outputs root whose `state/` directory holds the registry files. Defaults to the outputs root. |
 | `--scan-dir PATH` | Directory to scan for product data. Defaults to `--outputs-dir`. |
 
 One of `--rebuild` and `--summary` is required.
@@ -154,7 +154,7 @@ python -m src.publisher.late analytics [options]
 |---|---|---|
 | `--limit N` | `analytics.limit` (50) | How many recent published posts to measure. |
 | `--rank-only` | off | Rank stored figures without contacting the provider. Publisher config still loads first, so an API key must be configured. |
-| `--outputs-dir PATH` | the repository's `outputs/` | Outputs root; `post_metrics.json` lives under its `state/` directory. |
+| `--outputs-dir PATH` | the outputs root | Outputs root; `post_metrics.json` lives under its `state/` directory. |
 
 `make analytics` runs the same command with no `--limit`. A sweep that measured posts and captured none of them exits with status 1.
 
@@ -169,7 +169,7 @@ python -m src.publisher.late verify-comments [--limit N] [--outputs-dir PATH]
 | Option | Default | Description |
 |---|---|---|
 | `--limit N` | 25 | Number of recent published posts to check. |
-| `--outputs-dir PATH` | the repository's `outputs/` | Directory holding `publish_history.json`, used to name products in the output. |
+| `--outputs-dir PATH` | the outputs root | Directory holding `publish_history.json`, used to name products in the output. |
 
 ### `verify-delivery`
 
@@ -182,7 +182,7 @@ python -m src.publisher.late verify-delivery [--limit N] [--outputs-dir PATH]
 | Option | Default | Description |
 |---|---|---|
 | `--limit N` | 25 | Number of recent posts to check. |
-| `--outputs-dir PATH` | the repository's `outputs/` | Directory holding `publish_history.json`, used to name products in the output. |
+| `--outputs-dir PATH` | the outputs root | Directory holding `publish_history.json`, used to name products in the output. |
 
 ## Environment variables
 
@@ -679,7 +679,7 @@ print(f"Cleared {cleared} items")
 
 | Constant | Value | Use |
 |---|---|---|
-| `DEFAULT_OUTPUTS_DIR` | the repository's `outputs/` | Default outputs directory |
+| `DEFAULT_OUTPUTS_DIR` | the repository's `outputs/` | Default outputs directory for library calls given none; the CLI resolves the outputs root instead |
 | `SDK_LIST_PAGE_SIZE` | `100` | Page size for SDK list calls |
 | `MAX_CONCURRENT_CLEANUPS` | `3` | Concurrent cleanup operations |
 | `LATE_DIRECT_UPLOAD_MAX_BYTES` | 4 MB | Largest direct upload; larger files go through Vercel Blob |

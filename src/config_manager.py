@@ -190,7 +190,9 @@ class UnifiedConfigManager:
 
         for env_var, config_paths in env_mappings.items():
             env_value = os.environ.get(env_var)
-            if env_value is not None:
+            # Empty is unset, so `OUTPUTS_DIR=` in .env doesn't make the
+            # repository root the outputs root.
+            if env_value:
                 # Apply the environment value to all specified config paths
                 for path in config_paths:
                     self._set_nested_value(config, path, env_value)

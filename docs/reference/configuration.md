@@ -2039,12 +2039,12 @@ These enhance functionality but are not required for basic operation.
 
 ### Machine settings
 
-The only non-secret settings the config reads from the environment. Behaviour settings live in the YAML files or a profile.
+The machine settings the config reads from the environment. Behaviour settings live in the YAML files or a profile.
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory |
-| `OUTPUTS_DIR` | string | outputs | Base output directory, also used as the scraper's output base |
+| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory for the producer, the publisher and the global batch |
+| `OUTPUTS_DIR` | string | outputs | Base output directory, as above, and the scraper's output base; wins over `CONTENT_ENGINE_OUTPUT` |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 
 Debug mode is `global_settings.debug_mode` in `config/scraper.yaml` or `--debug`; the pipeline timeout is `pipeline_timeout_sec`.

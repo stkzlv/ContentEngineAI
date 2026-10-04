@@ -144,14 +144,14 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-082** `shipped` The `make install-analytics-timer` target installs a daily analytics sweep that runs a missed sweep after downtime and can notify the operator on failure.
 - **REQ-PUB-134** `shipped` When `--limit N` is passed, the `analytics` command measures the N most recent published posts instead of `analytics.limit`.
 - **REQ-PUB-135** `shipped` If posts were listed and every timeline call failed, the `analytics` command writes nothing and exits non-zero.
-- **REQ-PUB-136** `shipped` When every measured post that had a stored view count returns none, the sweep appends a note to `outputs/logs/analytics-failures.log`.
+- **REQ-PUB-136** `shipped` When every measured post that had a stored view count returns none, the sweep appends a note to the repository's `outputs/logs/analytics-failures.log`, wherever the outputs root is.
 - **REQ-PUB-137** `shipped` The scheduled sweep's timing and failure reporting are set in `deploy/schedule.env` by `ON_CALENDAR` (default `daily`), `RANDOMIZED_DELAY_SEC` (default 900), `TIMEOUT_START_SEC` (default `30min`) and `NOTIFY_ON_FAILURE` (default 1).
 - **REQ-PUB-138** `shipped` A sweep setting exported in the environment overrides `deploy/schedule.env`, which overrides the built-in default.
 - **REQ-PUB-139** `shipped` If a scheduled sweep runs past `TIMEOUT_START_SEC`, it is marked failed and later sweeps still run.
   - Why: without a start timeout a hung sweep blocks every later firing and never reports a failure.
 - **REQ-PUB-140** `shipped` Where `NOTIFY_ON_FAILURE` is on, a failed sweep is written to the journal, appended to `outputs/logs/analytics-failures.log` and shown as a desktop notification when a desktop session is available.
 - **REQ-PUB-141** `shipped` The scheduled sweep runs at reduced CPU and I/O priority.
-- **REQ-PUB-142** `shipped` The `make install-analytics-timer` target runs one sweep after installing and fails if `outputs/state/post_metrics.json` was not updated.
+- **REQ-PUB-142** `shipped` The `make install-analytics-timer` target runs one sweep after installing and fails if `state/post_metrics.json` under the outputs root was not updated.
 - **REQ-PUB-143** `shipped` The `make uninstall-analytics-timer` target removes the timer and its units, and keeps the captured figures and `deploy/schedule.env`.
 - **REQ-PUB-144** `shipped` The `make analytics-timer-status` target shows the last and next sweep, the recorded failures and when the figures were last written.
 - **REQ-PUB-083** `planned #547` The choices that shape each render (template, hook archetype, voice, caption template, music, motion, transitions, effects) are recorded, and a report shows their distribution over recent renders, with an alert when one value dominates or two scripts are near-identical.

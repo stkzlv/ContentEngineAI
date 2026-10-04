@@ -43,7 +43,7 @@ class TestNoHandCountedRootChains:
         source = (REPO / "src/publisher/late/cli.py").read_text(encoding="utf-8")
         assert 'Path("outputs")' not in source, (
             "a cwd-relative outputs default came back; route it through "
-            "DEFAULT_OUTPUTS_DIR"
+            "DEFAULT_OUTPUTS_DIR or resolve_outputs_dir"
         )
 
 
