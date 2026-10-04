@@ -365,6 +365,8 @@ class VisualFilterBuilder:
         self.upper_line_text = upper_line_text
         self.normalize_video_callback = normalize_video_callback
         self.product_id = product_id
+        # The music's beats, set by the assembler when beat snapping is on.
+        self.beat_times: list[float] | None = None
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
@@ -806,6 +808,30 @@ class VisualFilterBuilder:
             raise ValueError("No visual media could be prepared for the timeline.")
         if loop_closer is not None and loop_closer >= len(timed_visuals):
             loop_closer = None
+        if video_settings.beat_snap.enabled and self.beat_times:
+            from src.video.beats import snap_durations
+
+            snapped = snap_durations(
+                [duration for _, duration, _ in timed_visuals],
+                [is_video for _, _, is_video in timed_visuals],
+                video_settings.transition_duration_sec,
+                self.beat_times,
+                video_settings.beat_snap.window_ms / 1000,
+                video_settings.min_visual_segment_duration_sec,
+                total_video_duration,
+            )
+            moved = sum(
+                1
+                for (_, old, _), new in zip(timed_visuals, snapped, strict=True)
+                if abs(old - new) > 1e-9
+            )
+            timed_visuals = [
+                (path, duration, is_video)
+                for (path, _, is_video), duration in zip(
+                    timed_visuals, snapped, strict=True
+                )
+            ]
+            logger.info("Beat snap: %d segment(s) adjusted", moved)
 
         if self.debug_mode and mode_info:
             logger.debug("Visual assembly mode: %s", mode_info)

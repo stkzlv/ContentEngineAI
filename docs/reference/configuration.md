@@ -508,6 +508,7 @@ Keys the sections below don't cover. Defaults are the bundled values.
 | `video_settings.fallback_image_width_percent` | float | 1 | Image width used in that same case. |
 | `video_settings.image_loop` | int | 1 | FFmpeg `-loop` value for each still image input. |
 | `video_settings.max_image_input_edge` | int | 2560 | Longest edge, in pixels, an image or video input may enter assembly with; larger inputs are scaled down first, which bounds memory. 0 turns the bound off. |
+| `video_settings.beat_snap` | mapping | off | Move each visual cut to the nearest music beat within `window_ms` (150), keeping every segment at `min_visual_segment_duration_sec` and lengthening only stills. Needs librosa, which the project does not install; without it this warns and does nothing. See [Beat snapping](video-producer.md#beat-snapping). |
 | `video_settings.image_curation` | mapping | off | Judge each scraped image for seller-added text and drop text-heavy ones while enough clean images remain: `enabled`, `max_text_share` (0.15), `min_clean_images` (3), `model` (`gemini-2.5-flash`). See [Image curation](video-producer.md#image-curation). |
 | `video_settings.pad_color` | string | `black` | Colour of the padding around a visual that doesn't fill the frame. |
 | `video_settings.subtitle_box_border_width` | int | 5 | Border width, in pixels, of the box behind FFmpeg-drawn captions. |

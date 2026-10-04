@@ -20,7 +20,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - On when: a profile sets `ending` to `peak` or `loop` after the reach-test readout (#540), once average percentage viewed rises and the last spoken word stays intact.
 - **REQ-VID-012** `held` Where sound effects are on, sparse effects mark a few beats (a transition, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
   - On when: `audio_settings.sound_effects.enabled` is set after the reach-test readout (#540), once completion on an A/B batch is no worse with effects.
-- **REQ-VID-013** `planned #546` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
+- **REQ-VID-013** `held` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
   - On when: `video_settings.beat_snap.enabled` is set once a blind listening comparison prefers it or completion improves.
 - **REQ-VID-014** `planned #552` Every render produces a cover image (the hero visual plus the hook headline inside the centred 3:4 area), set on each platform that accepts one.
   - Why: it ships without a switch, since it doesn't change the feed video, once the publish payload change is verified on one post.
