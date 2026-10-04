@@ -250,6 +250,21 @@ poetry run pytest -n 4
 make test-lowpri ARGS="-n 4 -m 'not slow'"
 ```
 
+While iterating, run the tests for the module you are changing, plus the last
+failures, and skip the slow ones:
+
+```bash
+make test-lowpri ARGS="-n 4 tests/<module> -m 'not slow'"
+make test-lowpri ARGS="-n 4 --lf"        # rerun what failed last time
+```
+
+Run the full suite once before each push (`make test-lowpri ARGS="-n 4"`).
+Many tests read the whole tree (the docs, logging and import checks, the
+config drift tests), so a change can break a test in a module it never
+touched, and selecting tests by path or by Python coverage misses those. CI
+runs the full suite on every pull request push; after the merge it skips the
+suite when the merged tree is the one the pull request already passed.
+
 A test of a retry or backoff path takes the `instant_sleep` fixture from
 `tests/conftest.py`, so it does not sit through the real waits.
 
