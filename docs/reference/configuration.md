@@ -479,6 +479,39 @@ outputs/
 - `{timestamp}`: Current timestamp
 - `{ext}`: File extension
 
+#### Further `video_production.yaml` keys
+
+Keys the sections below don't cover. Defaults are the bundled values.
+
+| Key | Type | Default | Effect |
+|---|---|---|---|
+| `aspect_ratio.smart_scale_tolerance` | float | 0.1 | In `smart-scale` aspect mode, the aspect difference within which a visual is cropped to fit rather than blur-filled. |
+| `audio_settings.audio_providers` | list | Jamendo, then Freesound | Music providers tried in order, each with `name`, `enabled` and optional `settings`; Jamendo's `settings` carry `client_id_env_var`, `api_timeout_sec`, `download_timeout_sec`, `search_mode` and `search_queries`. An empty list falls back to Freesound alone. |
+| `audio_settings.freesound_client_id_env_var` | string | `FREESOUND_CLIENT_ID` | Environment variable holding the Freesound OAuth2 client id. |
+| `audio_settings.freesound_client_secret_env_var` | string | `FREESOUND_CLIENT_SECRET` | Environment variable holding the Freesound OAuth2 client secret. |
+| `audio_settings.freesound_refresh_token_env_var` | string | `FREESOUND_REFRESH_TOKEN` | Environment variable holding the Freesound OAuth2 refresh token. |
+| `audio_settings.freesound_max_search_duration_sec` | int | 9999 | Longest track a Freesound search returns, in seconds. |
+| `audio_settings.output_audio_codec` | string | `aac` | Audio codec of the final video. |
+| `audio_settings.output_audio_bitrate` | string | `192k` | Audio bitrate of the final video. |
+| `cta_detection.default_cta_duration` | float | 5.0 | Seconds at the end of the voiceover treated as the call to action when no usable CTA window is detected. |
+| `format_normalization.target_codec` | string | `h264` | A video clip in another codec is transcoded before assembly. |
+| `format_normalization.target_fps` | float | 30.0 | A clip whose frame rate differs by more than `fps_tolerance` is transcoded to this rate. |
+| `format_normalization.fps_tolerance` | float | 0.1 | Frame-rate difference a clip may have without a transcode. |
+| `format_normalization.target_pixel_format` | string | `yuv420p` | A clip in another pixel format is transcoded. |
+| `format_normalization.default_fps_string` | string | `30/1` | Frame rate assumed when the probe reports none. |
+| `media_settings.product_title_keyword_min_length` | int | 3 | Shortest word of the product title added to the stock search keywords. |
+| `media_settings.stock_video_min_duration_sec` | int | 5 | Shortest stock video requested from Pexels, in seconds. |
+| `media_settings.stock_video_max_duration_sec` | int | 20 | Longest stock video requested from Pexels, in seconds. |
+| `video_settings.base_font_height_percent` | float | 0.05 | Caption line height as a fraction of frame height, before `font_size_scale`; also sizes the space the visual band leaves for captions. |
+| `video_settings.fallback_image_top_percent` | float | 0.15 | Image top position used when a profile tuned for video positioning renders images only. |
+| `video_settings.fallback_image_width_percent` | float | 1 | Image width used in that same case. |
+| `video_settings.image_loop` | int | 1 | FFmpeg `-loop` value for each still image input. |
+| `video_settings.max_image_input_edge` | int | 2560 | Longest edge, in pixels, an image or video input may enter assembly with; larger inputs are scaled down first, which bounds memory. 0 turns the bound off. |
+| `video_settings.pad_color` | string | `black` | Colour of the padding around a visual that doesn't fill the frame. |
+| `video_settings.subtitle_box_border_width` | int | 5 | Border width, in pixels, of the box behind FFmpeg-drawn captions. |
+| `video_settings.verification_probe_timeout_sec` | int | 30 | Timeout of the `ffprobe` calls that inspect inputs and verify the output. |
+| `video_settings.inter_product_delay_min_sec`, `video_settings.inter_product_delay_max_sec` | float | 1.5, 4.0 | Range of the random pause between products in the producer's `--batch` mode. |
+
 </details>
 
 <details>

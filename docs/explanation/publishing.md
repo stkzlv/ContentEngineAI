@@ -10,6 +10,8 @@ The publisher posts through [Zernio](https://zernio.com), a multi-platform sched
 
 The publisher uploads each video, creates a post that targets several platforms, and reads each post's status back (`REQ-PUB-003`). Videos over 4 MB are staged in a Vercel Blob store first, and Zernio fetches them from there when the post goes live.
 
+A Short can't be given a related video. Shorts have no end screens, and the related-video link that carries a viewer to another video is set only in YouTube Studio or the YouTube app: the YouTube Data API's `videos` resource has no field for it, and so neither has Zernio's YouTube options (`title`, `visibility`, `madeForKids`, `firstComment`, `containsSyntheticMedia`, `categoryId`, `playlistId`). Set it by hand in Studio where it matters.
+
 ## Unified and platform-specific posts
 
 In unified mode, the default, the publisher creates one post per product for all target platforms, with one metadata set (`REQ-PUB-099`). Each platform still gets its own `platformSpecificData` block (the YouTube title, the TikTok disclosure settings, the first comment), so per-platform behaviour works in both modes.
