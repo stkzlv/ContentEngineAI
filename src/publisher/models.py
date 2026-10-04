@@ -604,7 +604,6 @@ class AccountConfig:
         api_key: API key for this account
         vercel_token: Vercel token for large file uploads (optional)
         description: Human-readable description of the account
-        default_platforms: Platform-specific defaults for this account
 
     """
 
@@ -612,7 +611,6 @@ class AccountConfig:
     api_key: str
     vercel_token: str | None = None
     description: str = ""
-    default_platforms: list[Platform] = field(default_factory=list)
 
     def __post_init__(self):
         """Post-initialization validation."""
@@ -646,7 +644,6 @@ class AccountConfig:
                 f"{self.vercel_token[:4]}..." if self.vercel_token else None
             ),
             "description": self.description,
-            "default_platforms": [p.value for p in self.default_platforms],
         }
 
 
@@ -689,7 +686,6 @@ class PublisherConfig:
         active_account: Name of the currently active account
         default_platforms: Default platforms to publish to if not specified
         immediate_publish: Publish immediately vs scheduled
-        privacy_settings: Platform-specific privacy levels
         max_retries: Maximum retry attempts for failed operations
         timeout: Request timeout in seconds
         stagger_delay_min: Minimum delay between batch posts (seconds)
@@ -712,7 +708,6 @@ class PublisherConfig:
     # trusts, and `default_platforms` has already shown what a type that lies
     # costs.
     schedule_time: str | None = None
-    privacy_settings: dict[Platform, str] = field(default_factory=dict)
     max_retries: int = 3
     timeout: float = 120.0
     stagger_delay_min: int = 30
@@ -789,9 +784,6 @@ class PublisherConfig:
         # Coerce here rather than in the loader, so a config built directly in
         # Python is the same shape as one read from disk.
         self.default_platforms = [_as_platform(p) for p in self.default_platforms]
-        self.privacy_settings = {
-            _as_platform(p): v for p, v in self.privacy_settings.items()
-        }
         # Read through `object` so the checker does not prove the branch
         # unreachable from the annotation. The annotation is the thing being
         # enforced here, not the thing being trusted: the loader hands YAML
@@ -849,7 +841,6 @@ class PublisherConfig:
             "active_account": self.active_account,
             "default_platforms": [p.value for p in self.default_platforms],
             "immediate_publish": self.immediate_publish,
-            "privacy_settings": {p.value: v for p, v in self.privacy_settings.items()},
             "max_retries": self.max_retries,
             "timeout": self.timeout,
             "stagger_delay_min": self.stagger_delay_min,
@@ -1324,8 +1315,6 @@ class CleanupConfig:
         archive_before_delete: Create ZIP archive before deletion
         archive_dir: Directory to store archives
         keep_published_days: Days to wait before cleanup (0 = immediate)
-        preserve_metadata: Keep metadata JSON files when cleaning
-        preserve_logs: Keep log files when cleaning
         settle_timeout_sec: Seconds to wait for a platform still publishing to
             reach a final status. 0 or less checks once and gives up, which is
             what an immediate publish always used to do.
@@ -1342,8 +1331,6 @@ class CleanupConfig:
     archive_before_delete: bool = False
     archive_dir: Path = field(default_factory=lambda: Path("outputs/archive"))
     keep_published_days: int = 0
-    preserve_metadata: bool = False
-    preserve_logs: bool = True
     settle_timeout_sec: float = 300.0
     settle_initial_delay_sec: float = 30.0
 
@@ -1383,8 +1370,6 @@ class CleanupConfig:
             "archive_before_delete": self.archive_before_delete,
             "archive_dir": str(self.archive_dir),
             "keep_published_days": self.keep_published_days,
-            "preserve_metadata": self.preserve_metadata,
-            "preserve_logs": self.preserve_logs,
             "settle_timeout_sec": self.settle_timeout_sec,
             "settle_initial_delay_sec": self.settle_initial_delay_sec,
         }

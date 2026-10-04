@@ -65,11 +65,6 @@ timeout: 30.0
 
 stagger_delay_min: 5
 stagger_delay_max: 10
-
-privacy_settings:
-  youtube: public
-  tiktok: public
-  instagram: everyone
 """
 
     config_file.write_text(config_content)

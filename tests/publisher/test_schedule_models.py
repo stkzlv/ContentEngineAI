@@ -350,8 +350,6 @@ class TestCleanupConfig:
         assert config.require_all_platforms is True
         assert config.archive_before_delete is False
         assert config.keep_published_days == 0
-        assert config.preserve_metadata is False
-        assert config.preserve_logs is True
 
     def test_to_dict(self):
         """Test to_dict serialization."""

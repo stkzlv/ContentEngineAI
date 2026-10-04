@@ -43,7 +43,7 @@ from src.publisher.comment_verify import verify_post_first_comments
 from src.publisher.config import load_publisher_config
 from src.publisher.constants import DEFAULT_OUTPUTS_DIR
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
-from src.publisher.models import DEFAULT_PLATFORMS, Platform, PublisherConfig
+from src.publisher.models import Platform, PublisherConfig
 from src.publisher.partial_post_sweep import (
     run_delivery_sweep,
     sweep_partial_posts,
@@ -491,10 +491,8 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             logger.error("Product directory not found: %s", product_dir)
             sys.exit(1)
 
-        # Default to all 3 platforms if none specified
         if not args.platforms:
-            args.platforms = list(DEFAULT_PLATFORMS)
-            logger.info("Using default platforms: youtube, tiktok, instagram")
+            args.platforms = list(config.default_platforms)
 
         # Link-in-bio enablement (CLI flags override config)
         link_in_bio_enabled = config.link_in_bio_config.enabled
@@ -1723,11 +1721,10 @@ async def main():
         pass
 
     elif args.command == "schedule":
-        # Convert platform strings to Platform enums, default to all 3
+        # Convert platform strings to Platform enums. Without --platform the
+        # run takes `default_platforms` once the config is loaded.
         if args.platforms:
             args.platforms = [Platform[p.upper()] for p in args.platforms]
-        else:
-            args.platforms = list(DEFAULT_PLATFORMS)
 
     elif args.command == "cleanup":
         # Platform conversion handled in cmd_cleanup for better defaults
@@ -1744,7 +1741,7 @@ async def main():
         # Convert platform strings to Platform enums (if provided)
         if args.platforms:
             args.platforms = [Platform[p.upper()] for p in args.platforms]
-        # Else: cmd_single will default to all 3 platforms
+        # Else: cmd_single takes `default_platforms` from the config
 
         # Initialize force if not set (default off; safe duplicate guard)
         if not hasattr(args, "force"):
@@ -1795,6 +1792,11 @@ async def main():
     except Exception as e:
         logger.error("Configuration loading failed: %s", e, exc_info=args.debug)
         sys.exit(1)
+
+    # A publishing command given no --platform targets the configured
+    # `default_platforms` (REQ-PUB-117).
+    if args.command in ("single", "schedule") and not args.platforms:
+        args.platforms = list(config.default_platforms)
 
     # Create aiohttp session
     async with aiohttp.ClientSession() as session:

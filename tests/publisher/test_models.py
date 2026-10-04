@@ -473,21 +473,6 @@ class TestPublisherConfig:
         assert config.stagger_delay_min == 30
         assert config.stagger_delay_max == 60
 
-    def test_config_with_privacy_settings(self):
-        """Test PublisherConfig with privacy settings."""
-        config = PublisherConfig(
-            provider="late",
-            api_key="sk_test_123",
-            privacy_settings={
-                Platform.YOUTUBE: "public",
-                Platform.TIKTOK: "public",
-                Platform.INSTAGRAM: "everyone",
-            },
-        )
-
-        assert config.privacy_settings is not None
-        assert config.privacy_settings[Platform.YOUTUBE] == "public"
-
 
 class TestBatchPublishSummary:
     """Test BatchPublishSummary dataclass."""
