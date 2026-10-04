@@ -225,6 +225,11 @@ Common fixtures available in all tests:
 - `temp_dir` - Temporary directory (auto-cleanup)
 - `sample_product_data` - Sample product data for testing
 
+A test may not create anything in the repository's `outputs/` tree. In a serial
+run the failing test is named; under `-n` the run fails at the end and names
+what was written, and `-p no:xdist` finds the test. A test that needs an outputs
+tree builds one under `tmp_path`, or points `get_project_root` there.
+
 ## Advanced Testing
 
 <details>

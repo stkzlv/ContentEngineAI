@@ -554,7 +554,7 @@ def no_real_env_file(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def no_production_log_files(monkeypatch):
+def no_production_log_files(monkeypatch, tmp_path):
     """A test that drives an entry point must not write to outputs/logs/.
 
     Several tests call the scraper's `main()`, which configures logging for
@@ -583,23 +583,102 @@ def no_production_log_files(monkeypatch):
         if module is not None:
             monkeypatch.setattr(module, "setup_debug_logging", _noop, raising=False)
 
+    # The entry points still resolve the log path, and resolving it creates
+    # outputs/logs/ on a fresh checkout.
+    def _tmp_logs(custom_outputs_dir=None):
+        return tmp_path
 
-@pytest.fixture(autouse=True)
-def cleanup_test_outputs():
-    """Clean up test product directories after each test."""
-    yield  # Run the test
+    for name in ("src.scraper.amazon.cli", "src.pipeline.cli"):
+        module = sys.modules.get(name)
+        if module is not None:
+            monkeypatch.setattr(module, "get_logs_directory", _tmp_logs)
 
-    # Cleanup after test completes
+
+_REAL_OUTPUTS = Path(__file__).resolve().parent.parent / "outputs"
+
+
+_OUTPUTS_BEFORE = pytest.StashKey[set[str]]()
+
+
+def _outputs_entries() -> set[str]:
+    try:
+        return {p.name for p in _REAL_OUTPUTS.iterdir()}
+    except FileNotFoundError:
+        return set()
+
+
+def _remove_added(added: list[str]) -> None:
     import shutil
 
-    from src.utils.outputs_paths import get_outputs_root
+    for name in added:
+        path = _REAL_OUTPUTS / name
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
 
-    outputs_root = get_outputs_root()
-    if outputs_root.exists():
-        # Remove TEST product directories (TEST123, etc.)
-        for item in outputs_root.iterdir():
-            if item.is_dir() and item.name.startswith("TEST"):
-                shutil.rmtree(item, ignore_errors=True)
+
+def _is_xdist_worker(config) -> bool:
+    return hasattr(config, "workerinput")
+
+
+@pytest.fixture(autouse=True)
+def no_writes_to_real_outputs(request):
+    """A test may not add anything to the repository's `outputs/` tree.
+
+    The suite used to create `TEST*` product directories there and delete
+    them after each test, so a test that wrote real outputs passed, and one
+    that wrote under another name left it behind. A test that needs an
+    outputs tree builds one under `tmp_path`. Per test only in a serial run:
+    with xdist a neighbour's write would be blamed on whichever test is
+    running, so there `pytest_sessionfinish` checks the whole run instead.
+    """
+    if _is_xdist_worker(request.config):
+        yield
+        return
+    before = _outputs_entries()
+    yield
+    added = sorted(_outputs_entries() - before)
+    if added:
+        _remove_added(added)
+        pytest.fail(
+            f"{request.node.nodeid} wrote to the real outputs/ tree: {added}",
+            pytrace=False,
+        )
+
+
+@pytest.fixture(autouse=True)
+def schedule_defaults_stay_in_tmp(monkeypatch, tmp_path):
+    """`ScheduleManager` falls back to the real outputs tree when no path is given.
+
+    It resolves `schedule.json` and the publish history there, which read
+    the developer's history and planted `outputs/state/`. Only an already
+    imported module is patched, as with the logging sites above.
+    """
+    module = sys.modules.get("src.publisher.schedule")
+    if module is not None:
+        monkeypatch.setattr(module, "DEFAULT_OUTPUTS_DIR", tmp_path / "outputs")
+
+
+def pytest_sessionstart(session):
+    if not _is_xdist_worker(session.config):
+        session.config.stash[_OUTPUTS_BEFORE] = _outputs_entries()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _is_xdist_worker(session.config):
+        return
+    before = session.config.stash.get(_OUTPUTS_BEFORE, None)
+    if before is None:
+        return
+    added = sorted(_outputs_entries() - before)
+    if added:
+        _remove_added(added)
+        sys.stderr.write(
+            f"\nThe run wrote to the real outputs/ tree: {added}. "
+            "Run with -p no:xdist to name the test.\n"
+        )
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
 @pytest.fixture

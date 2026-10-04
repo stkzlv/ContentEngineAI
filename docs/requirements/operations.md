@@ -24,8 +24,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 - **REQ-OPS-011** `shipped` If the developer's `.env` file changes during a test run, the test suite fails.
 - **REQ-OPS-012** `shipped` A test run writes nothing to the real log files under `outputs/logs/`.
-- **REQ-OPS-013** `partial` A test run writes nothing to the real `outputs/` tree and doesn't depend on its contents.
-  - Gap: tests can create `TEST*` product directories there, which are removed after each test, and nothing fails when one is written.
+- **REQ-OPS-013** `shipped` A test run writes nothing to the real `outputs/` tree and doesn't depend on its contents.
 
 ## Error handling and resilience
 

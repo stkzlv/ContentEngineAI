@@ -23,6 +23,7 @@ from src.pipeline.global_batch import (
     apply_resume_record_kinds,
 )
 from src.pipeline.webhooks import WebhookNotifier
+from src.utils.outputs_paths import get_logs_directory
 from src.video.config_adapter import load_video_config_modular
 from src.video.producer.shared_cli import add_shared_render_args
 
@@ -350,8 +351,6 @@ async def main():
     args = parser.parse_args()
 
     # Set up logging early
-    from src.utils.outputs_paths import get_logs_directory
-
     log_file = dated_log_path(get_logs_directory() / "global_pipeline.log")
 
     setup_debug_logging(
