@@ -6,7 +6,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 - **REQ-OPS-001** `shipped` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
 - **REQ-OPS-002** `shipped` A CLI flag overrides a lower tier only when the user passes it.
-- **REQ-OPS-003** `shipped` The environment holds only secrets and machine-specific settings; behaviour settings live in the YAML files or a profile.
+- **REQ-OPS-003** `shipped` The environment holds only secrets, machine-specific settings and the operator's account values ([decision 0008](../decisions/0008-operator-account-values-in-the-environment.md)); other behaviour settings live in the YAML files or a profile.
 - **REQ-OPS-004** `shipped` The YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
 - **REQ-OPS-005** `shipped` A CLI flag can override a nested setting, such as `--pycaps-template` overriding `subtitle_settings.pycaps.template_name`.
 - **REQ-OPS-006** `shipped` If the config is invalid, the pipeline stops at startup with an error that names the setting and the problem.

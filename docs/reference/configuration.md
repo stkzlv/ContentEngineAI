@@ -13,7 +13,7 @@ ContentEngineAI resolves a setting from these tiers, highest first, as the code 
 3. **Profile settings**, for renders (see [the video-producer reference](video-producer.md#precedence))
 4. **YAML configuration** (default values)
 
-[Decision 0003](../decisions/0003-config-precedence.md) sets the order and limits the environment. The environment reads no behaviour settings, and no setting it reads is one a profile can set, so the order holds without a second merge.
+[Decision 0003](../decisions/0003-config-precedence.md) sets the order and limits the environment to secrets and machine settings; [decision 0008](../decisions/0008-operator-account-values-in-the-environment.md) adds the operator's account values (affiliate tag and program switch, link-in-bio address, topics file). No setting the environment reads is one a profile can set, so the order holds without a second merge.
 
 ### Global Settings Precedence in Detail
 
@@ -2512,7 +2512,7 @@ poetry run python -m src.video.producer \
 
 **Common precedence mistakes**:
 - Editing `subtitle_settings.anchor` in `config/subtitles.yaml` while the render's profile sets the anchor (the profile wins)
-- Setting a behaviour value such as a subtitle or publisher setting in `.env` (the environment reads only secrets and machine settings, so it has no effect)
+- Setting a behaviour value such as a subtitle or publisher setting in `.env` (the environment reads only secrets, machine settings and the operator's account values, so it has no effect)
 - Setting `OUTPUTS_DIR` in `.env` and passing `--outputs-dir` (the CLI wins)
 
 ### YAML Syntax Errors
@@ -2626,16 +2626,11 @@ else:
 
 **Enable comprehensive debugging**:
 ```bash
-# Via config: global_settings.debug_mode: true in config/scraper.yaml
-
-# Via CLI flag
+# Producer: the CLI flag only
 poetry run python -m src.video.producer outputs/B0TEST/data.json profile --debug
 
-# Check if debug is active
-poetry run python -c "
-from src.config_manager import UnifiedConfigManager
-print('Debug mode:', UnifiedConfigManager().debug_mode)
-"
+# Scraper: --debug, or global_settings.debug_mode: true in config/scraper.yaml
+# Global batch: --debug, or global_batch.debug: true in config/pipeline.yaml
 ```
 
 ### Configuration File Locations

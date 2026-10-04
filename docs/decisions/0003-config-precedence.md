@@ -1,6 +1,6 @@
 # 0003. Four configuration tiers; the environment holds machine settings and secrets
 
-- **Status:** Accepted
+- **Status:** Amended by [0008](0008-operator-account-values-in-the-environment.md)
 - **Date:** 2026-10-01
 
 ## Context and problem
