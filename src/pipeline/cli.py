@@ -306,6 +306,15 @@ Examples:
         help="Stop publishing on first failure (default: continue publishing)",
     )
     publisher_group.add_argument(
+        "--link-in-bio",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Update the link-in-bio page after each publish, or not "
+            "(default: link_in_bio.enabled in publisher.yaml)"
+        ),
+    )
+    publisher_group.add_argument(
         "--platform-specific",
         action=argparse.BooleanOptionalAction,
         default=None,

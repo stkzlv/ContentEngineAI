@@ -1353,7 +1353,9 @@ def scrape_single_product(
         "keyword": product_info.get("keyword", ""),
         "serp_rating": product_info.get("rating"),
         "serp_reviews_count": product_info.get("reviews_count"),
-        "affiliate_link": build_affiliate_url(product_info["url"]),
+        "affiliate_link": build_affiliate_url(
+            product_info["url"], asin=product_info.get("asin")
+        ),
         "downloaded_images": [],
         "downloaded_videos": [],
     }

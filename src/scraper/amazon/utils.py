@@ -317,7 +317,32 @@ def _affiliate_links_enabled() -> bool:
         return True
 
 
-def _clean_product_url(url: str) -> str:
+# The product paths an Amazon URL carries an ASIN in.
+_ASIN_IN_PATH = re.compile(
+    r"/(?:dp|gp/product|gp/aw/d|product)/([A-Z0-9]{10})(?:[/?#]|$)"
+)
+_ASIN = re.compile(r"^[A-Z0-9]{10}$")
+
+
+def _product_base(url: str, asin: str | None = None) -> str | None:
+    """``<scheme>://<host>/dp/<ASIN>`` for a product URL, or None without an ASIN.
+
+    The ASIN comes from the path in any of Amazon's product forms, or from the
+    caller when the URL carries none. A URL with no Amazon host takes
+    ``https://www.amazon.com``.
+    """
+    from urllib.parse import urlparse
+
+    match = _ASIN_IN_PATH.search(url)
+    found = match.group(1) if match else (asin if asin and _ASIN.match(asin) else None)
+    if not found:
+        return None
+    parsed = urlparse(url)
+    host = parsed.netloc if "amazon." in parsed.netloc else "www.amazon.com"
+    return f"{parsed.scheme or 'https'}://{host}/dp/{found}"
+
+
+def _clean_product_url(url: str, asin: str | None = None) -> str:
     """Strip tracking parameters down to ``<domain>/dp/<ASIN>``.
 
     Used when affiliate links are disabled: the tag goes away but the tidy
@@ -325,16 +350,12 @@ def _clean_product_url(url: str) -> str:
     search and session parameters. Returns the input unchanged when no ASIN
     is present.
     """
-    from urllib.parse import urlparse
-
-    asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
-    if not asin_match:
-        return url
-    parsed = urlparse(url)
-    return f"{parsed.scheme}://{parsed.netloc}/dp/{asin_match.group(1)}"
+    return _product_base(url, asin) or url
 
 
-def build_affiliate_url(url: str, associate_tag: str = None) -> str:
+def build_affiliate_url(
+    url: str, associate_tag: str | None = None, asin: str | None = None
+) -> str:
     """Build Amazon affiliate URL with associate tag parameter.
 
     Extracts ASIN from URL and builds clean affiliate link optimized for
@@ -345,6 +366,7 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
     ----
         url: Amazon URL (e.g., "https://www.amazon.com/dp/B0BTYCRJSS")
         associate_tag: Amazon Associates tag (loads from config if None)
+        asin: The product's ASIN, used when the URL's path carries none
 
     Returns:
     -------
@@ -389,7 +411,7 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
                 "(scrapers.amazon.affiliate_links.enabled is false). "
                 "Returning a clean product URL with no tag."
             )
-            return _clean_product_url(url)
+            return _clean_product_url(url, asin)
 
         # WARN loudly because the same silent fallback historically produced
         # affiliate links without our tag for whole scrape sessions, which is a
@@ -405,13 +427,8 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
         )
         return url
 
-    # Extract ASIN and build clean URL
-    import re
-    from urllib.parse import urlparse
-
-    # Extract ASIN from /dp/{ASIN} pattern
-    asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
-    if not asin_match:
+    base = _product_base(url, asin)
+    if base is None:
         # Fallback: add tag to original URL if ASIN not found
         if "?" in url:
             if "?tag=" in url:
@@ -424,12 +441,4 @@ def build_affiliate_url(url: str, associate_tag: str = None) -> str:
             url = f"{url}?tag={associate_tag}"
         return url
 
-    # Build clean URL with just domain, /dp/{ASIN}, and associate tag
-    asin = asin_match.group(1)
-    parsed = urlparse(url)
-    domain = f"{parsed.scheme}://{parsed.netloc}"
-
-    # Build clean affiliate URL
-    clean_url = f"{domain}/dp/{asin}?tag={associate_tag}"
-
-    return clean_url
+    return f"{base}?tag={associate_tag}"

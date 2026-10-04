@@ -18,8 +18,10 @@ import logging
 import os
 import random
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from src.pipeline.config import GlobalBatchConfig, PublishingPhaseSummary
 from src.publisher.models import Platform
@@ -27,6 +29,14 @@ from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
+
+
+def link_in_bio_for_run(batch_config: Any, published: Any) -> Any:
+    """publisher.yaml's link-in-bio settings with `--[no-]link-in-bio` applied."""
+    bio_config = published.link_in_bio_config
+    if batch_config.link_in_bio is not None:
+        bio_config = replace(bio_config, enabled=batch_config.link_in_bio)
+    return bio_config
 
 
 async def run_publishing_phase(
@@ -361,7 +371,7 @@ async def run_publishing_phase(
                     await update_link_in_bio_safe(
                         product_id,
                         batch_config.outputs_dir,
-                        published.link_in_bio_config,
+                        link_in_bio_for_run(batch_config, published),
                     )
 
                     # Cleanup through the manager, the same policy as `single`

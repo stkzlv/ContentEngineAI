@@ -67,6 +67,7 @@ python -m src.publisher.late schedule [auto] [options]
 | `--no-cleanup` | off | both modes | Skip post-publication cleanup for this run. |
 | `--auto-resolve` | off | scheduled mode | When a slot fails schedule validation, use the first free alternative. |
 | `--force` / `--no-force` | `--no-force` | both modes | Include products already published to every target platform. |
+| `--link-in-bio`, `--no-link-in-bio` | `link_in_bio.enabled` | both modes | Update, or skip, the link-in-bio page after each publish. With both, `--no-link-in-bio` wins. |
 | `--fail-fast` | off | immediate mode | Stop at the first failed product. |
 | `--retry-failed` | off | immediate mode | Publish only the products in the retry queue. |
 

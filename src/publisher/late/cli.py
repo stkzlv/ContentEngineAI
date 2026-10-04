@@ -908,7 +908,7 @@ async def cmd_schedule_auto(
             outputs_dir=args.outputs_dir,
             auto_resolve=getattr(args, "auto_resolve", False),
             force=getattr(args, "force", False),
-            link_in_bio_config=config.link_in_bio_config,
+            link_in_bio_config=_link_in_bio_config(args, config),
             disclosure_phrase=_disclosure_phrase(config),
         )
 
@@ -1034,6 +1034,17 @@ def _scan_and_filter_videos(
     return unpublished
 
 
+def _link_in_bio_config(args: argparse.Namespace, config):
+    """The configured link-in-bio settings, with this run's flag applied."""
+    cfg = config.link_in_bio_config
+    # `is True`: the flags are store_true, so anything else is "not passed".
+    if getattr(args, "no_link_in_bio", None) is True:
+        return replace(cfg, enabled=False)
+    if getattr(args, "link_in_bio", None) is True:
+        return replace(cfg, enabled=True)
+    return cfg
+
+
 def _disclosure_phrase(config) -> str | None:
     """The affiliate program phrase, or None when the setting is off."""
     disc_cfg = config.affiliate_disclosure_config
@@ -1063,7 +1074,7 @@ async def _run_immediate_batch(
         stagger_delay_max=config.stagger_delay_max,
         fail_fast=getattr(args, "fail_fast", False),
         retry_failed=getattr(args, "retry_failed", False),
-        link_in_bio_config=config.link_in_bio_config,
+        link_in_bio_config=_link_in_bio_config(args, config),
         force=getattr(args, "force", False),
         disclosure_phrase=_disclosure_phrase(config),
     )
@@ -1495,6 +1506,17 @@ Examples:
         "--auto-resolve",
         action="store_true",
         help="Automatically resolve slot conflicts by using first available",
+    )
+    schedule_parser.add_argument(
+        "--link-in-bio",
+        action="store_true",
+        default=None,
+        help="Enable link-in-bio updates after publish (overrides config)",
+    )
+    schedule_parser.add_argument(
+        "--no-link-in-bio",
+        action="store_true",
+        help="Disable link-in-bio updates after publish (overrides config)",
     )
     schedule_parser.add_argument(
         "--force",
