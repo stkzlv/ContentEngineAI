@@ -386,14 +386,12 @@ class TrendSettings(BaseModel):
 class PlatformMetadataSettings(BaseModel):
     """Top-level platform metadata configuration for multi-platform optimization.
 
-    Aggregates settings for YouTube, TikTok, and Instagram with platform targeting
-    control. Enables/disables platform-specific metadata generation globally.
+    Aggregates settings for YouTube, TikTok, and Instagram. Enables/disables
+    platform-specific metadata generation globally.
 
     Attributes
     ----------
         enabled: Global enable/disable for platform-specific metadata
-        target_platform: Target platform(s) - "youtube", "tiktok",
-            "instagram", or "multi"
         youtube: YouTube-specific settings
         tiktok: TikTok-specific settings
         instagram: Instagram-specific settings
@@ -406,13 +404,6 @@ class PlatformMetadataSettings(BaseModel):
 
     enabled: bool = Field(
         True, description="Enable platform-specific metadata generation"
-    )
-    target_platform: str = Field(
-        "multi",
-        pattern="^(youtube|tiktok|instagram|multi)$",
-        description=(
-            "Target platform: 'youtube', 'tiktok', 'instagram', or 'multi' for all"
-        ),
     )
     youtube: YouTubePlatformSettings = Field(
         default_factory=lambda: YouTubePlatformSettings(),  # type: ignore[call-arg]

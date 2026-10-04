@@ -43,8 +43,6 @@ def _make_producer_args(**kwargs) -> argparse.Namespace:
         "max_duration": None,
         "min_duration": None,
         "preset": None,
-        "ass_karaoke": False,
-        "ass_fade": False,
         "subtitle_format": None,
         "randomize_fonts": False,
         "no_randomize_fonts": False,
@@ -54,7 +52,6 @@ def _make_producer_args(**kwargs) -> argparse.Namespace:
         "no_randomize_effects": False,
         "image_width_percent": None,
         "image_top_position_percent": None,
-        "target_platform": None,
         "metadata_mode": None,
     }
     defaults.update(kwargs)

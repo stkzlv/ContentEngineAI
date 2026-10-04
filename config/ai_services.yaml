@@ -402,19 +402,12 @@ description_settings:
   # "optimized" - separate metadata_youtube.json, etc. with platform-specific AI content
   metadata_mode: "unified"
 
-  # Target platform for metadata generation
-  # Options: "youtube", "tiktok", "instagram", "multi" (all platforms)
-  # When set to specific platform, generates optimized metadata for that platform only
-  # "multi" generates metadata for all three platforms simultaneously
-  target_platform: "multi"
-
   # Platform-specific metadata settings
   # If null, uses legacy unified description mode for backward compatibility
   # Set enabled: true to use platform-optimized titles, captions, and hashtags
   # Full platform-specific settings defined in platform_metadata_config section below
   platform_metadata:
     enabled: true
-    target_platform: "multi"
     # Metadata caching (see platform_metadata_config.cache for full settings)
     cache:
       enabled: true
@@ -475,17 +468,11 @@ description_settings:
 #
 # Usage:
 # - Set description_settings.platform_metadata.enabled to true to enable
-# - Configure target_platform to control which platforms to generate for
 # - Adjust per-platform settings to match your content strategy
 platform_metadata_config:
   # Global enable/disable for platform-specific metadata generation
   # When false, falls back to legacy unified description mode
   enabled: true
-
-  # Target platform(s) for metadata generation
-  # Options: "youtube", "tiktok", "instagram", "multi"
-  # This can be overridden per video profile or via CLI arguments
-  target_platform: "multi"
 
   # ---- Caching Settings ----
   # File-based cache for generated platform metadata

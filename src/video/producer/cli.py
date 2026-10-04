@@ -181,11 +181,6 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
     """
     overrides: dict[str, Any] = {}
 
-    # Subtitle effects (legacy args)
-    if args.ass_karaoke:
-        overrides["subtitle_settings.ass_enable_karaoke"] = True
-    if args.ass_fade:
-        overrides["subtitle_settings.ass_enable_fade"] = True
     if args.preset:
         overrides["subtitle_settings.style_preset"] = args.preset
 
@@ -253,10 +248,6 @@ def _build_cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
         overrides["video_settings.image_top_position_percent"] = (
             args.image_top_position_percent
         )
-
-    # Platform targeting
-    if hasattr(args, "target_platform") and args.target_platform is not None:
-        overrides["description_settings.target_platform"] = args.target_platform
 
     # Metadata mode
     if hasattr(args, "metadata_mode") and args.metadata_mode is not None:
@@ -461,16 +452,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--ass-karaoke",
-        action="store_true",
-        help="Enable karaoke word highlighting (ASS format only).",
-    )
-    parser.add_argument(
-        "--ass-fade",
-        action="store_true",
-        help="Enable fade-in/out effects (ASS format only).",
-    )
-    parser.add_argument(
         "--preset",
         choices=["minimal", "modern", "bold", "animated", "random"],
         help="Override subtitle style preset: minimal, modern, bold, animated, random.",
@@ -597,18 +578,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--image-top-position-percent",
         type=float,
         help="Override image top position as percentage from top (0.0-1.0).",
-    )
-
-    # Platform targeting argument
-    parser.add_argument(
-        "--target-platform",
-        choices=["youtube", "tiktok", "instagram", "multi"],
-        help=(
-            "Override target platform for video metadata and captions. "
-            "Choices: youtube (YouTube Shorts), tiktok (TikTok), "
-            "instagram (Instagram Reels), multi (generate for all platforms). "
-            "Example: --target-platform youtube"
-        ),
     )
 
     # Metadata mode argument
