@@ -1747,7 +1747,6 @@ ContentEngineAI implements a **three-tier fallback system** for music selection:
 **Tier 3: Local Files** (Guaranteed Availability)
 - Uses files from `background_music_paths` config
 - Random selection from available files
-- Memory-mapped I/O for files >1MB
 
 **Fallback Triggers:**
 - OAuth2 credentials missing or invalid → Tier 2

@@ -17,11 +17,11 @@ class TestLocalFallbackIntegration:
 
     @pytest.mark.asyncio
     async def test_local_fallback_with_small_file(self, tmp_path):
-        """Test local fallback with small file (<1MB) uses standard copy.
+        """Test local fallback copies a music file and records its attribution.
 
         Validates R5 criteria 1, 2, and 5.
         """
-        # Create a small test music file (< 1MB)
+        # Create a test music file
         local_music_dir = tmp_path / "music"
         local_music_dir.mkdir()
         small_music_file = local_music_dir / "test-music-small.mp3"
@@ -33,7 +33,7 @@ class TestLocalFallbackIntegration:
         dest_path = assets_dir / small_music_file.name
 
         # Simulate fallback logic from producer.py (lines 1436-1476)
-        # Use standard copy for small files
+        # Copy the file
         shutil.copy(small_music_file, dest_path)
 
         # Generate attribution metadata (R6 criterion 5)

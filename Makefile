@@ -50,8 +50,6 @@ help:
 	@echo "  test-parallel - Run tests in parallel (PYTEST_WORKERS=N to bound)"
 	@echo "  test-lowpri   - Run tests under a memory cap and low priority"
 	@echo ""
-	@echo "$(GREEN)Build and Package:$(NC)"
-	@echo ""
 	@echo "$(GREEN)Development Workflow:$(NC)"
 	@echo "  quick-check   - Run essential checks (ruff + type-check)"
 	@echo "  full-check    - Run all checks (lint + security + test-cov)"
@@ -343,7 +341,6 @@ DOC_TESTS = tests/docs tests/tools tests/video/test_no_doc_names_a_refused_key.p
 test-docs:
 	poetry run pytest $(DOC_TESTS) -q
 
-# Docker support (if needed)
 # Parallel execution helpers
 lint-parallel:
 	@echo "$(BLUE)Running linting tools in parallel...$(NC)"
