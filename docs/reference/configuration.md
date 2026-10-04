@@ -239,7 +239,7 @@ The other `config/ai_services.yaml` keys the sections below don't cover, and whe
 | `audio_processing.silence_threshold_db` | `-50` | Level below which audio counts as silence for that trim. |
 | `audio_processing.silence_min_duration_sec` | `0.1` | The trim's confirmation window; audio inside it is discarded, so a longer value cuts more. |
 | `description_settings.metadata_mode` | `unified` | `unified` writes one `metadata.json`; `optimized` writes `metadata_<platform>.json` per platform. |
-| `description_settings.target_platforms` | all three | Recorded with the description step's timing. `optimized` mode always generates all three platforms. |
+| `description_settings.target_platforms` | all three | Recorded with the description step's timing. `optimized` mode generates the platforms whose `platform_metadata.<platform>.enabled` is true. |
 | `whisper_settings.model_download_root` | empty | Where Whisper models are downloaded; empty uses Whisper's own cache. |
 | `whisper_settings.patience` | `null` | Beam-search patience passed to Whisper when set. |
 
@@ -997,7 +997,7 @@ platform_metadata:
 
 **Which platforms:**
 
-With `metadata_mode: optimized`, the producer generates metadata for YouTube, TikTok and Instagram in parallel and saves `metadata_youtube.json`, `metadata_tiktok.json` and `metadata_instagram.json`. Nothing narrows that set: a platform block's `enabled` key is not read.
+With `metadata_mode: optimized`, the producer generates metadata in parallel for each platform whose block has `enabled: true` (all three in the bundled config) and saves `metadata_<platform>.json` for each. `platform_metadata.enabled: false` turns optimized mode off, so the render writes unified `metadata.json` instead. `single` and both batches publish a platform with no metadata file of its own from another platform's; `schedule` auto-scheduling uses the scraped listing in `data.json` instead.
 
 **Best Practices by Platform:**
 
