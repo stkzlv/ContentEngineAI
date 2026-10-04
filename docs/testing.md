@@ -244,7 +244,14 @@ poetry run pytest -n auto
 
 # Run with specific number of workers
 poetry run pytest -n 4
+
+# A quick local loop: skip the tests that run real encodes and renders.
+# CI runs everything, with -n auto.
+make test-lowpri ARGS="-n 4 -m 'not slow'"
 ```
+
+A test of a retry or backoff path takes the `instant_sleep` fixture from
+`tests/conftest.py`, so it does not sit through the real waits.
 
 </details>
 
@@ -254,7 +261,7 @@ poetry run pytest -n 4
 ```bash
 # Run tests by name pattern
 poetry run pytest -k "config"          # All tests with 'config' in name
-poetry run pytest -k "not slow"        # Exclude slow tests
+poetry run pytest -m "not slow"        # Skip the real encodes and renders
 
 # Run failed tests from last run
 poetry run pytest --lf

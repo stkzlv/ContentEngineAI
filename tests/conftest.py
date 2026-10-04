@@ -715,6 +715,27 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @pytest.fixture
+def instant_sleep(monkeypatch):
+    """Retry and backoff waits return at once, for tests of the failure paths.
+
+    Tenacity and the hand-written retry loops look `asyncio.sleep` and
+    `time.sleep` up when they wait, so a test of an error path otherwise sits
+    through the real backoff: three script-generator tests took 28 s each.
+    The coroutine still yields to the loop once, as `sleep(0)` does.
+    """
+    import asyncio
+    import time
+
+    real_async_sleep = asyncio.sleep
+
+    async def _instant(delay, result=None):
+        return await real_async_sleep(0, result)
+
+    monkeypatch.setattr(asyncio, "sleep", _instant)
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+
+
+@pytest.fixture
 def mock_env_vars(monkeypatch):
     """Set up mock environment variables for testing."""
     env_vars = {

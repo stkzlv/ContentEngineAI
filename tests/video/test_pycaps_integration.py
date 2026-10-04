@@ -66,6 +66,7 @@ def _ffprobe_stream_info(video: Path) -> dict:
     }
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_pictex_renderer_burns_captions_on_fixture(tmp_path: Path):
     """Pictex renderer path — no Chromium needed, suitable for CI when the group is installed."""
@@ -107,6 +108,7 @@ def test_pictex_renderer_burns_captions_on_fixture(tmp_path: Path):
     assert abs(info["duration"] - 30.0) < 0.5
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_pycaps_ai_tagging_with_mocked_gemini(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
