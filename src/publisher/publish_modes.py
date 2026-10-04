@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.publisher.first_comment import build_first_comment
-from src.publisher.metadata import load_platform_metadata
+from src.publisher.metadata import METADATA_PLATFORM_ORDER, load_platform_metadata
 from src.publisher.models import Platform
 
 if TYPE_CHECKING:
@@ -239,12 +239,12 @@ async def _publish_platform_specific(
 
         if not metadata:
             # Fallback: try any available platform metadata
-            for fallback in [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]:
+            for fallback in METADATA_PLATFORM_ORDER:
                 metadata = load_platform_metadata(product_id, fallback, outputs_dir)
                 if metadata:
                     logger.info(
                         "Using %s metadata as fallback for %s",
-                        fallback.value,
+                        fallback,
                         platform_name,
                     )
                     break

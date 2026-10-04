@@ -21,6 +21,7 @@ from src.publisher.constants import (
 )
 from src.publisher.first_comment import build_first_comment
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
+from src.publisher.metadata import METADATA_PLATFORM_ORDER
 from src.publisher.models import (
     CleanupConfig,
     ConflictResolution,
@@ -44,6 +45,17 @@ if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
+
+
+def _listing_title(product_dir: Path) -> str:
+    """The scraped listing title from `data.json`, or "" when there is none."""
+    try:
+        record = json.loads((product_dir / "data.json").read_text())
+    except (OSError, ValueError):
+        return ""
+    if isinstance(record, list) and record:
+        record = record[0]
+    return str(record.get("title") or "") if isinstance(record, dict) else ""
 
 
 def metadata_from_file(
@@ -900,17 +912,37 @@ class ScheduleManager:
 
         for p in platforms:
             meta = unified_meta
+            borrowed = False
             if not meta:
-                platform_meta = video.parent / f"metadata_{p.value}.json"
-                if platform_meta.exists():
-                    meta = json.loads(platform_meta.read_text())
+                # The platform's own file first, then another platform's (as
+                # platform-specific `publish_product` does), before the raw
+                # scraped listing.
+                order = [p.value] + [
+                    other for other in METADATA_PLATFORM_ORDER if other != p.value
+                ]
+                for name in order:
+                    platform_meta = video.parent / f"metadata_{name}.json"
+                    if platform_meta.exists():
+                        meta = json.loads(platform_meta.read_text())
+                        borrowed = name != p.value
+                        break
 
             if meta:
                 carries_affiliate[p.value] = bool(
                     meta.get("carries_affiliate_content", True)
                 )
                 platform_metas[p.value] = metadata_from_file(meta, product_id, p)
-                titles[p.value] = _trim_on_word_boundary(meta.get("title") or "", 100)
+                title = meta.get("title") or ""
+                if borrowed and not title:
+                    # TikTok and Instagram files carry no title; a post that
+                    # borrows one takes the listing title, else the title
+                    # `metadata_from_file` repaired, rather than none.
+                    title = (
+                        _listing_title(video.parent)
+                        or platform_metas[p.value].title
+                        or ""
+                    )
+                titles[p.value] = _trim_on_word_boundary(title, 100)
                 continue
 
             fallback_path = video.parent / "data.json"
