@@ -190,11 +190,6 @@ global_settings:
     # Affects: Video download reliability, prevents timeouts on slow connections
     video_download_timeout: 300
 
-    # Number of retry attempts for video downloads
-    # Videos are retried on transient failures (network errors, timeouts)
-    # Uses exponential backoff defined in retry_config section
-    # Affects: Video download resilience, success rate on flaky networks
-
     # Chunk size for streaming downloads (bytes)
     # Amount of data read per iteration during streaming download
     # Larger = faster downloads, more memory; Smaller = less memory, slower
@@ -583,10 +578,6 @@ scrapers:
 
       # Sort order for search results
       sort_order: "relevanceblender"
-
-      # Category filtering (Amazon category ID, null means all categories)
-
-      # Search behavior settings
 
     # ---- Amazon Filter Parameters ----
     filter_parameters:

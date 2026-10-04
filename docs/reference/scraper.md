@@ -56,7 +56,7 @@ The filters apply to keyword searches. Each one overrides the matching field of 
 | `--analyze-images` | Analyses every image found on the page. |
 | `--dump-image-urls` | Saves every discovered image URL to a file. |
 
-The last five take effect only together with `--debug`. Setting `global_settings.debug_mode: true` turns on debug mode without the flag.
+The last four take effect only together with `--debug`. Setting `global_settings.debug_mode: true` turns on debug mode without the flag.
 
 ### Exit status
 
