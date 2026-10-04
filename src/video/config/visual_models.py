@@ -302,6 +302,23 @@ class PartialUpperLine(BaseModel):
         return UpperLineSettings(**{**base.model_dump(), **updates})
 
 
+class ImageCurationSettings(BaseModel):
+    """Prefer clean product images over text-heavy infographics (design 0012)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(False)
+    max_text_share: float = Field(
+        0.15, ge=0.0, le=1.0, description="An image above this is text-heavy."
+    )
+    min_clean_images: int = Field(
+        3, ge=1, description="Keep at least this many images, clean first."
+    )
+    model: str = Field(
+        "gemini-2.5-flash", description="The multimodal model that judges each image."
+    )
+
+
 StillMove = Literal["push_in", "pull_out", "pan_left", "pan_right", "pan_up"]
 STILL_MOVES: tuple[StillMove, ...] = (
     "push_in",
@@ -466,6 +483,10 @@ class VideoSettings(BaseModel):
     still_motion: StillMotionSettings = Field(
         default_factory=StillMotionSettings,  # type: ignore[arg-type]
         description="Slow motion on every still image; off by default.",
+    )
+    image_curation: ImageCurationSettings = Field(
+        default_factory=ImageCurationSettings,  # type: ignore[arg-type]
+        description="Drop text-heavy listing images while enough clean ones remain.",
     )
     # Design 0002: `outro` keeps the tail after the voiceover; `peak` ends
     # `peak_margin_sec` after the last spoken word; `loop` also closes on the

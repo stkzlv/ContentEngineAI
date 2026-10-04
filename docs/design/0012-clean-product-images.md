@@ -34,6 +34,14 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 **Tests.** A fixture set with known scores is reordered clean first and trimmed only above the minimum; a failed judgement never removes an image; off leaves today's order.
 
+## As built
+
+- The judge has its own `model` setting (default `gemini-2.5-flash`) and borrows the stock judge's concurrency, timeout and API key. On a ten-image smartwatch listing, `gemini-2.5-flash-lite` scored every image 0.22-0.45, counting the watch's own screen as text, under two prompts and a categorical question; `gemini-2.5-flash` with a prompt that excludes on-product text scored the four plain shots 0.0 and the six marketing images 0.2-0.3. The `composite` flag separated the same set on both models and is recorded, not used.
+- Curation runs in `gather_visuals` after media validation, and never trims below the image minimum or the part of `min_total_media` the clips and stock media leave to images, so it cannot fail a render validation passed.
+- The cache sits beside each image as `<image>.text_score.json`, keyed to the file's size and modification time, because the scraper rewrites images under stable names.
+- The assembly step shuffles the visuals, so the "clean first" order matters only for which images are kept; the order is recorded but not used.
+- Preferring the product video (REQ-VID-016) is not built: profiles that take scraped video already build from the clips through their assembly mode.
+
 ## Alternatives considered
 
 None recorded.

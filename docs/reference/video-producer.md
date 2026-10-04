@@ -246,6 +246,19 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | `upper_line` | A static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Off by default; see [Configuration](configuration.md#31-overlay-settings). |
 | `cold_open_variant_pool` | Named cold-open variants (`mid_zoom_title_card`, `static_title_card`, `pre_motion_only`), one picked per product by salted MD5. The choice is stored in `pipeline_state.json::assemble_video.cold_open_variant`. An empty list turns rotation off. |
 
+## Image curation
+
+`video_settings.image_curation` (off by default) prefers clean product images over text-heavy seller infographics.
+
+| Key | Default | Effect |
+|---|---|---|
+| `enabled` | `false` | Judge and trim the scraped images after media validation. |
+| `max_text_share` | `0.15` | An image whose seller-added text and graphics cover more than this share of the frame is text-heavy. |
+| `min_clean_images` | `3` | Text-heavy images are dropped while at least this many images remain, and never below what media validation asks for: the image minimum (`min_images_if_no_video`, or `min_images_with_video` when the render has clips), and the share of `min_total_media` the clips and stock media don't cover; otherwise the least text-heavy are kept. |
+| `model` | `gemini-2.5-flash` | The multimodal model that judges each image. On a ten-image listing it scored plain product shots 0.0 and marketing images 0.2-0.3; `gemini-2.5-flash-lite` counted a watch's own screen as text and could not tell them apart. |
+
+Each image is judged once and the score is cached beside it as `<image>.text_score.json`, keyed to the file's size and modification time. A failed judgement is unknown and never removes an image. The scores and the kept and dropped images are recorded in `pipeline_state.json` under `image_curation`. The judge uses the `llm_settings.stock_relevance` concurrency and timeout and the LLM API key; without the key, curation is skipped with a warning.
+
 ## Ending
 
 `video_settings.ending` decides what follows the last spoken word; a profile can set it and `peak_margin_sec`.

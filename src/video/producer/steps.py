@@ -517,6 +517,17 @@ async def step_gather_visuals(ctx: PipelineContext):
                 f"Product '{ctx.product.asin or 'unknown'}' skipped: {reason}"
             )
 
+        # After validation, which counts every image the listing has: curation
+        # only trims, and never below the count validation asked for.
+        scraped_images = await _curate_images(
+            ctx, scraped_images, scraped_videos, len(stock_media_fetched)
+        )
+        ctx.visuals = (
+            scraped_images
+            + scraped_videos
+            + [item.path for item in stock_media_fetched]
+        )
+
         # Now that validation passed, start TTS warming
         # (won't waste resources on skipped products)
         if ctx.tts_warmer:
@@ -1687,6 +1698,68 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
     if "subtitle_upper_file" not in entry.get("artifacts", {}):
         return None
     return ctx.run_paths.get("subtitle_upper_file")
+
+
+async def _curate_images(
+    ctx: PipelineContext,
+    images: list[Path],
+    videos: list[Path],
+    other_media: int = 0,
+) -> list[Path]:
+    """The scraped images with text-heavy infographics dropped (design 0012).
+
+    Off, or with no judge available, the images come back as they were. Never
+    below `min_clean_images`, the image minimum media validation asks of a
+    render like this one, or what `min_total_media` leaves to images after the
+    clips and the `other_media` stock items, so curation cannot fail a render
+    validation passed. The scores and the choice are recorded in the state.
+    """
+    curation = ctx.config.video_settings.image_curation
+    if not curation.enabled or not images:
+        return images
+    llm = ctx.config.llm_settings
+    api_key = ctx.secrets.get(llm.api_key_env_var) if ctx.secrets else None
+    if not api_key:
+        logger.warning("Image curation skipped: no API key (%s)", llm.api_key_env_var)
+        return images
+    from src.video.image_curation import curate, score_images
+
+    judge = llm.stock_relevance
+    scores = await score_images(
+        images,
+        api_key=api_key,
+        model=curation.model,
+        concurrency=judge.concurrency,
+        timeout_seconds=judge.timeout_seconds,
+    )
+    vs = ctx.config.video_settings
+    floor = max(
+        vs.min_images_with_video if videos else vs.min_images_if_no_video,
+        # The total minimum counts every medium, so the images need only make
+        # up what the clips and stock media don't.
+        vs.min_total_media - len(videos) - other_media,
+    )
+    kept, dropped = curate(
+        images,
+        scores,
+        curation.max_text_share,
+        max(curation.min_clean_images, floor),
+    )
+    ctx.state["image_curation"] = {
+        "scores": {
+            path.name: {"text_share": s.text_share, "composite": s.composite}
+            for path, s in zip(images, scores, strict=True)
+        },
+        "kept": [path.name for path in kept],
+        "dropped": [path.name for path in dropped],
+    }
+    logger.info(
+        "Image curation: kept %d of %d images, dropped %d text-heavy",
+        len(kept),
+        len(images),
+        len(dropped),
+    )
+    return kept
 
 
 def _recent_stock_ids(ctx: PipelineContext) -> dict[str, int] | None:
