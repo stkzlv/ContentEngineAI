@@ -50,6 +50,7 @@ DIMENSIONS = (
     "assembly_mode",
     "pre_motion",
     "transition_sec",
+    "ending",
 )
 
 DEFAULT_LAST = 14
@@ -103,6 +104,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "assembly_mode": ctx.profile.video_assembly_mode,
         "pre_motion": _setting(ctx.profile, settings, "first_frame_pre_motion"),
         "transition_sec": _setting(ctx.profile, settings, "video_transition_duration"),
+        "ending": _setting(ctx.profile, settings, "ending"),
         "script": ctx.script,
     }
 

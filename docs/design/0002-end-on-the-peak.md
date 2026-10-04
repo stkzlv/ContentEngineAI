@@ -30,6 +30,14 @@ The work relates to roadmap item 1.8 in [the roadmap](../roadmap.md). Evidence (
 
 **Tests.** A `peak` render's duration equals the voiceover duration plus the margin within one frame; the last spoken word is intact in a Whisper transcript of the output; a `loop` render's last and first frames differ by less than a set mean pixel difference; `outro` produces today's command.
 
+## As built
+
+- `ending` and `peak_margin_sec` live on `video_settings`, settable per profile.
+- The bundled TTS voiceovers end on the last word, with no trailing silence long enough to detect, so `peak` keeps the whole file and adds the margin: 0.75 s shorter than `outro`.
+- The last spoken word is found with `silencedetect` (-45 dB for 0.15 s) on the voiceover: the start of the silence that runs to the end of the file. A failed measurement keeps the whole file.
+- The `loop` closer is the first image again, playing its opening motion backwards: the settle-zoom climbing back to `pre_motion_peak_zoom`, or the reverse of its still motion (`pan_down` reverses `pan_up`). With none, it holds the first image.
+- `loop` closes on the opening frame only in an image-only render; a render with video clips ends as `peak` and logs a warning. Stills are dropped from the end when needed to keep every segment at `min_visual_segment_duration_sec`, since a floored segment would run the timeline past the cut.
+
 ## Alternatives considered
 
 None recorded.
@@ -42,4 +50,4 @@ Remove the switch when: `peak` or `loop` has been the bundled `ending` for two w
 
 ## Open questions
 
-- Whether the 0.25 s default margin covers the AAC frame padding; verify on a render.
+- Whether the 0.25 s default margin covers the AAC frame padding. On a bundled TTS voiceover that ends on its last word, an AAC encode cut 0.25 s past the file kept the word whole in a Whisper transcript; a full render with `peak` on is still to be checked after the readout.

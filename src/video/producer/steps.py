@@ -65,6 +65,7 @@ from src.video.producer.utils import (
     validate_media_requirements,
 )
 from src.video.render_choices import warn_if_similar
+from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager
@@ -1687,6 +1688,34 @@ def _recorded_upper_subtitle(ctx: PipelineContext) -> Path | None:
     return ctx.run_paths.get("subtitle_upper_file")
 
 
+async def _render_duration(ctx: PipelineContext) -> tuple[float, float | None]:
+    """The render's length and its music fade, from the profile's ending.
+
+    `outro` keeps `outro_duration_sec` after the voiceover file. `peak` and
+    `loop` end `peak_margin_sec` after the last spoken word and fade the music
+    within that margin, so nothing trails the last word (design 0002).
+    """
+    voiceover = ctx.voiceover_duration or 0.0
+    settings = ctx.config.get_profile_merged_settings(
+        ctx.profile_name, ctx.cli_overrides
+    ).video_settings
+    if settings.ending == "outro":
+        return voiceover + ctx.config.outro_duration_sec, None
+    ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
+    speech_end = await speech_end_sec(
+        ctx.run_paths["voiceover_file"], ffmpeg_path, voiceover
+    )
+    margin = settings.peak_margin_sec
+    logger.info(
+        "Ending %s: last word at %.2fs of %.2fs, render %.2fs",
+        settings.ending,
+        speech_end,
+        voiceover,
+        speech_end + margin,
+    )
+    return speech_end + margin, margin
+
+
 async def step_assemble_video(ctx: PipelineContext):
     # Handle both dict and object forms of subtitle_settings for performance tracking
     subtitle_enabled_value = (
@@ -1820,6 +1849,7 @@ async def step_assemble_video(ctx: PipelineContext):
         ctx.state["cold_open_variant"] = cold_open_variant
         logger.info("Cold-open variant for %s: %s", product_id, cold_open_variant)
 
+        total_duration, music_fade_out_sec = await _render_duration(ctx)
         try:
             final_video_path = await assembler.assemble_video(
                 visual_inputs=ctx.visuals,
@@ -1827,8 +1857,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 music_track_path=music_path,
                 output_path=ctx.run_paths["final_video_output"],
                 subtitle_path=subtitle_path,
-                total_video_duration=ctx.voiceover_duration
-                + ctx.config.outro_duration_sec,  # Extra time for music fade-out
+                total_video_duration=total_duration,
                 temp_dir=ctx.run_paths["intermediate_base"],
                 debug_mode=ctx.debug_mode,
                 # Only when this run's subtitle step recorded it (#413): the
@@ -1837,6 +1866,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 subtitle_upper_path=_recorded_upper_subtitle(ctx),
                 hook_text=hook_text,
                 hook_headline=ctx.state.get("hook_headline"),
+                music_fade_out_sec=music_fade_out_sec,
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
@@ -1850,7 +1880,8 @@ async def step_assemble_video(ctx: PipelineContext):
 
         results = assembler.verify_video(
             video_path=final_video_path,
-            expected_duration=ctx.voiceover_duration,
+            # The length the render was asked for, which the ending decides.
+            expected_duration=total_duration,
             should_have_subtitles=(subtitle_path is not None),
             script=ctx.script,
             subtitle_path=subtitle_path,

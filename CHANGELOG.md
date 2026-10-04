@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.154.0] - 2026-10-04
+
+### Added
+
+- A `video_settings.ending` setting, `outro` by default, can end a render `peak_margin_sec` after its last spoken word with the music faded within that margin (`peak`), or also close an image-only render on its opening frame so a replay reads as continuous (`loop`); each render records its ending in `render_choices.jsonl`.
+
 ## [0.153.0] - 2026-10-04
 
 ### Added

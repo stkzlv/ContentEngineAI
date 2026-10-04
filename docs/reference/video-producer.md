@@ -190,6 +190,7 @@ Every key except `description` is optional. A key left unset inherits the global
 | `first_frame_pre_motion` | bool | See [Opening overlays and pre-motion](#opening-overlays-and-pre-motion). |
 | `pre_motion_peak_zoom` | float 1.0-1.5 | See [Opening overlays and pre-motion](#opening-overlays-and-pre-motion). |
 | `still_motion` | mapping | Replaces `video_settings.still_motion` as a whole block. See [Opening overlays and pre-motion](#opening-overlays-and-pre-motion). |
+| `ending`, `peak_margin_sec` | `outro`, `peak` or `loop`; float 0.05-1.0 | See [Ending](#ending). |
 | `upper_line` | mapping | Partial override of `video_settings.upper_line`, deep-merged. |
 | `subtitle_settings` | mapping | Partial override of the global `subtitle_settings`, deep-merged, including the nested `pycaps`, `two_part_subtitles` and `safe_zone` blocks. |
 
@@ -244,6 +245,18 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | `hook_overlay` | Burns a short headline as centre-upper static text on the first `duration_sec` seconds (default 1.5), with no per-word reveal. The headline is stored in `pipeline_state.json::hook_headline`. Every field, the wrapping and the fallback are in [Configuration](configuration.md#31-overlay-settings). |
 | `upper_line` | A static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Off by default; see [Configuration](configuration.md#31-overlay-settings). |
 | `cold_open_variant_pool` | Named cold-open variants (`mid_zoom_title_card`, `static_title_card`, `pre_motion_only`), one picked per product by salted MD5. The choice is stored in `pipeline_state.json::assemble_video.cold_open_variant`. An empty list turns rotation off. |
+
+## Ending
+
+`video_settings.ending` decides what follows the last spoken word; a profile can set it and `peak_margin_sec`.
+
+| Value | Effect |
+|---|---|
+| `outro` (default) | The video runs `outro_duration_sec` (`config/core.yaml`, 1.0 s) past the end of the voiceover file, and the music fades over `music_fade_out_duration`. |
+| `peak` | The video ends `peak_margin_sec` (default 0.25 s) after the last spoken word, found by `silencedetect` as the start of the silence that runs to the end of the voiceover. The music fades within the margin. If the measurement fails, the whole voiceover file counts as speech. |
+| `loop` | `peak`, plus a closing segment of the first image that replays its opening motion backwards (the settle-zoom where `first_frame_pre_motion` is on, else the reverse of its still motion), so the last frame matches the first apart from the captions and the hook overlay. Stills are dropped from the end of the timeline when needed to keep every segment at `min_visual_segment_duration_sec`. A render with video clips ends as `peak`, with a warning. |
+
+With `peak` or `loop`, a signature sting placed after the voiceover falls past the end of the video. Each render records its ending in `render_choices.jsonl`.
 
 ## Assembly modes
 
@@ -335,7 +348,7 @@ A successful run without `--debug` deletes `temp/`.
 
 ## Render choices
 
-Each finished render, not a `--step` run, appends one row to `state/render_choices.jsonl` under the outputs root: product id, profile, `script_template`, pillar, CTA, `hook_headline`, `voice_profile` and `voice_name`, the caption engine and pycaps template, the music track, `cold_open_variant`, the assembly mode, pre-motion, the transition duration, and the script. A failed write is logged and the render still succeeds. The file is durable state, so cleanup leaves it. When `generate_script` writes a new script, it logs a warning for each of the last 14 recorded scripts it closely repeats; it never blocks the script.
+Each finished render, not a `--step` run, appends one row to `state/render_choices.jsonl` under the outputs root: product id, profile, `script_template`, pillar, CTA, `hook_headline`, `voice_profile` and `voice_name`, the caption engine and pycaps template, the music track, `cold_open_variant`, the assembly mode, pre-motion, the transition duration, the ending, and the script. A failed write is logged and the render still succeeds. The file is durable state, so cleanup leaves it. When `generate_script` writes a new script, it logs a warning for each of the last 14 recorded scripts it closely repeats; it never blocks the script.
 
 ```bash
 python -m src.video.render_choices [--last N] [--dominance SHARE] [--similarity RATIO] [--outputs-dir PATH]

@@ -101,6 +101,16 @@ video_settings:
     moves: [push_in, pull_out, pan_left, pan_right, pan_up]
     max_zoom: 1.15
     min_zoom: 1.0
+
+  # How a render ends. "outro" adds outro_duration_sec (config/core.yaml)
+  # after the voiceover and fades the music over music_fade_out_duration.
+  # "peak" ends peak_margin_sec after the last spoken word and fades the
+  # music within that margin. "loop" is "peak" plus a closing segment that
+  # replays the first image's opening motion backwards, so the last frame
+  # matches the first (image-only renders). Stays "outro" until the
+  # reach-test readout; a profile can set both keys.
+  ending: outro
+  peak_margin_sec: 0.25
   pad_color: "black"                  # Padding color, used when fill is "color"
 
   # What fills the frame around an image that does not cover it.

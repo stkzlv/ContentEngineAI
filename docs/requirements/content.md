@@ -166,8 +166,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - Gap: delivered files measure about -15 LUFS and peak at about -0.8 dBFS, because the true-peak ceiling forces dynamic normalisation and the AAC encode adds about 0.2 dB after it.
 - **REQ-CNT-101** `shipped` Where `music_ducking_enabled` is true, the music level drops while narration plays and recovers in the gaps; it is off by default.
 - **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
-- **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video.
-- **REQ-CNT-134** `shipped` The video runs `outro_duration_sec` (bundled 1 s) past the end of the voiceover, so the music fade ends after the last spoken word.
+- **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video, or within `peak_margin_sec` where the ending is `peak` or `loop`.
+- **REQ-CNT-134** `shipped` Where the ending is `outro` (the default), the video runs `outro_duration_sec` (bundled 1 s) past the end of the voiceover, so the music fade ends after the last spoken word.
 
 ## Captions and metadata
 

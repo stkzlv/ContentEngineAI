@@ -117,6 +117,17 @@ def _build_image_placement(
     )
 
 
+# The move that ends where each move starts, for a `loop` closer. `pan_down`
+# is not in the configurable pool; it only reverses `pan_up`.
+REVERSE_MOVE = {
+    "push_in": "pull_out",
+    "pull_out": "push_in",
+    "pan_left": "pan_right",
+    "pan_right": "pan_left",
+    "pan_up": "pan_down",
+}
+
+
 def pick_still_move(
     product_id: str, index: int, pool: list[str], previous: str | None
 ) -> str:
@@ -174,6 +185,8 @@ def _build_still_motion_scale(
         x = f"'(iw-{box_w})*{progress}'"
     elif move == "pan_up":
         y = f"'(ih-{box_h})*(1-{progress})'"
+    elif move == "pan_down":
+        y = f"'(ih-{box_h})*{progress}'"
     else:
         raise ValueError(f"Unknown still move: {move}")
     big_w = 2 * math.ceil(box_w * max_zoom / 2)
@@ -190,6 +203,7 @@ def _build_ken_burns_filter(
     peak_zoom: float,
     in_label: str,
     out_label: str,
+    reverse: bool = False,
 ) -> str:
     """Build a settle-zoom (Ken Burns) FFmpeg zoompan filter for the first image.
 
@@ -203,9 +217,15 @@ def _build_ken_burns_filter(
     """
     total_frames = max(int(round(duration_sec * fps)), 2)
     zoom_step = (peak_zoom - 1.0) / total_frames
+    # `reverse` climbs back to the peak instead, for a `loop` closer.
+    zoom = (
+        f"if(eq(on,0),1.0,min({peak_zoom:.3f},zoom+{zoom_step:.6f}))"
+        if reverse
+        else f"if(eq(on,0),{peak_zoom:.3f},max(1.0,zoom-{zoom_step:.6f}))"
+    )
     return (
         f"{in_label}zoompan="
-        f"z='if(eq(on,0),{peak_zoom:.3f},max(1.0,zoom-{zoom_step:.6f}))':"
+        f"z='{zoom}':"
         f"d={total_frames}:"
         f"x='iw/2-(iw/zoom/2)':"
         f"y='ih/2-(ih/zoom/2)':"
@@ -601,6 +621,28 @@ class VisualFilterBuilder:
 
         return filter_string, output_label, geometry
 
+    @staticmethod
+    def _loop_timeline(
+        image_files: list[Path],
+        total_duration: float,
+        transition_sec: float,
+        min_segment_sec: float,
+    ) -> list[Path]:
+        """The stills for a `loop` ending: the first image again at the end.
+
+        Images are dropped from the end until every segment, the closer
+        included, meets `min_segment_sec`. A floored segment would run the
+        timeline past the render's end, and the cut would land before the
+        closer reaches the opening frame.
+        """
+        keep = len(image_files)
+        while (
+            keep > 1
+            and (total_duration + keep * transition_sec) / (keep + 1) < min_segment_sec
+        ):
+            keep -= 1
+        return [*image_files[:keep], image_files[0]]
+
     def _image_band(self, height: int, top_offset: int, *, centred: bool) -> VisualBand:
         """Rows an image may occupy on this run, from the caption settings."""
         settings = self._get_effective_subtitle_settings()
@@ -710,6 +752,8 @@ class VisualFilterBuilder:
         # Assemble videos using configured mode
         timed_visuals: list[tuple[Path, float, bool]] = []
         mode_info = ""
+        # The index of the segment that closes a `loop` ending, if any.
+        loop_closer: int | None = None
 
         if video_files and self.strategy_factory:
             # Call video assembly mode dispatcher
@@ -719,8 +763,21 @@ class VisualFilterBuilder:
             timed_visuals, mode_info = await strategy.assemble(
                 video_files, image_files, total_video_duration
             )
+            if video_settings.ending == "loop":
+                logger.warning(
+                    "Ending 'loop' closes on the opening frame only in an "
+                    "image-only render; this one ends as 'peak'"
+                )
         elif image_files:
             # Backward compatibility: image-only behavior
+            if video_settings.ending == "loop":
+                image_files = self._loop_timeline(
+                    image_files,
+                    total_video_duration,
+                    video_settings.transition_duration_sec,
+                    video_settings.min_visual_segment_duration_sec,
+                )
+                loop_closer = len(image_files) - 1
             num_visuals_total = len(image_files)
             if num_visuals_total > 1:
                 num_transitions = num_visuals_total - 1
@@ -747,6 +804,8 @@ class VisualFilterBuilder:
 
         if not timed_visuals:
             raise ValueError("No visual media could be prepared for the timeline.")
+        if loop_closer is not None and loop_closer >= len(timed_visuals):
+            loop_closer = None
 
         if self.debug_mode and mode_info:
             logger.debug("Visual assembly mode: %s", mode_info)
@@ -809,6 +868,7 @@ class VisualFilterBuilder:
 
         still_motion = video_settings.still_motion
         previous_move: str | None = None
+        first_move: str | None = None
         for i, (path, duration, is_video_item) in enumerate(timed_visuals):
             if is_video_item:
                 input_cmd_parts.extend(["-i", str(path)])
@@ -984,17 +1044,32 @@ class VisualFilterBuilder:
                     )
                 )
 
-                pre_motion = i == 0 and video_settings.first_frame_pre_motion
+                # A `loop` closer replays the first image's opening motion
+                # backwards, so the render ends on its frame 0 composition.
+                is_closer = i == loop_closer
+                pre_motion = (
+                    i == 0 or is_closer
+                ) and video_settings.first_frame_pre_motion
+                move: str | None = None
                 if (
                     still_motion.enabled
                     and not pre_motion
                     and scaled_w > 0
                     and scaled_h > 0
                 ):
-                    move = pick_still_move(
-                        self.product_id, i, list(still_motion.moves), previous_move
-                    )
-                    previous_move = move
+                    if is_closer:
+                        move = REVERSE_MOVE.get(first_move or "")
+                    else:
+                        move = pick_still_move(
+                            self.product_id,
+                            i,
+                            list(still_motion.moves),
+                            previous_move,
+                        )
+                        previous_move = move
+                        if i == 0:
+                            first_move = move
+                if move is not None:
                     vf_scale = _build_still_motion_scale(
                         box_w=scaled_w,
                         box_h=scaled_h,
@@ -1013,6 +1088,7 @@ class VisualFilterBuilder:
                         peak_zoom=video_settings.pre_motion_peak_zoom,
                         in_label=f"[v_temp_{i}]",
                         out_label=f"[v_motion_{i}]",
+                        reverse=is_closer,
                     )
                     placement = _build_image_placement(
                         index=i,
