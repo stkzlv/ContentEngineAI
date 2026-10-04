@@ -45,6 +45,17 @@ from src.video.config.visual_models import DisclosureSettings, MergedProfileSett
 logger = logging.getLogger(__name__)
 
 
+async def _run_transcode(cmd: list[str]) -> tuple[int | None, bytes]:
+    """Run one normalization transcode; return its exit code and stderr."""
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, err = await proc.communicate()
+    return proc.returncode, err
+
+
 class VideoAssembler:
     """Assembles final videos from various media components using FFmpeg.
 
@@ -495,14 +506,14 @@ class VideoAssembler:
                 str(partial_path),
             ]
 
-            transcode_proc = await asyncio.create_subprocess_exec(
-                *transcode_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            # The visual builder normalizes every clip at once; the shared
+            # FFmpeg limit keeps that to `async_ffmpeg_max_concurrent`
+            # encodes, each holding decoded frames at source resolution.
+            returncode, transcode_stderr = await ffmpeg_semaphore.run_with_limit(
+                _run_transcode(transcode_cmd)
             )
-            _, transcode_stderr = await transcode_proc.communicate()
 
-            if transcode_proc.returncode != 0:
+            if returncode != 0:
                 logger.error(
                     "Transcode failed for %s: %s, using original",
                     video_path.name,
