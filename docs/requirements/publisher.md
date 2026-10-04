@@ -155,7 +155,8 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-143** `shipped` The `make uninstall-analytics-timer` target removes the timer and its units, and keeps the captured figures and `deploy/schedule.env`.
 - **REQ-PUB-144** `shipped` The `make analytics-timer-status` target shows the last and next sweep, the recorded failures and when the figures were last written.
 - **REQ-PUB-083** `shipped` The choices that shape each render (script template, pillar, CTA, hook headline, voice, caption engine and template, music, cold-open variant, assembly mode, pre-motion, transition) are recorded, and a report shows their distribution over recent renders (the hook headline, unique to each product, is recorded but not counted), with an alert when one value dominates or two scripts are near-identical.
-- **REQ-PUB-084** `planned #551` The analytics sweep stores each first-seconds and quality metric a platform exposes (engaged views and viewed-vs-swiped on YouTube, watch time or completion on TikTok, sends or shares per reach on Instagram), records an unavailable metric as unknown, and segments them by format arm and render choice.
+- **REQ-PUB-084** `partial` The analytics sweep stores each first-seconds and quality metric a platform exposes (engaged views and viewed-vs-swiped on YouTube, watch time or completion on TikTok, sends or shares per reach on Instagram), records an unavailable metric as unknown, and segments them by format arm and render choice.
+  - Gap: the provider exposes none of the first-seconds metrics (YouTube engaged views and viewed-vs-swiped-away, TikTok watch time and completion), so they are stored as unknown; Instagram watch time and skip rate are stored. Reading them needs the optional YouTube Analytics reader design 0010 describes (#551).
 
 ## Published products registry
 

@@ -144,7 +144,7 @@ One of `--rebuild` and `--summary` is required.
 
 ### `analytics`
 
-Captures day-2 and day-7 views and a durability ratio for recent published posts, and ranks posts by durability.
+Captures day-2 and day-7 views and a durability ratio for recent published posts, and each post's per-platform quality metrics; reports those metrics by content format and render choice, and ranks posts by durability.
 
 ```bash
 python -m src.publisher.late analytics [options]
@@ -157,6 +157,16 @@ python -m src.publisher.late analytics [options]
 | `--outputs-dir PATH` | the outputs root | Outputs root; `post_metrics.json` lives under its `state/` directory. |
 
 `make analytics` runs the same command with no `--limit`. A sweep that measured posts and captured none of them exits with status 1.
+
+Per-platform quality metrics come from the provider's per-post analytics and are stored under `platform_metrics` in `post_metrics.json`. The provider returns 0 for a field a platform doesn't expose, so only these fields keep their value; every other is stored as `null`, unknown:
+
+| Platform | Stored | Stored as unknown |
+|---|---|---|
+| YouTube | `views`, `likes`, `comments` | `engagedViews`, `viewedVsSwipedAway`, `averageViewDuration` |
+| TikTok | `views`, `likes`, `comments`, `shares` | `averageWatchTime`, `completionRate` |
+| Instagram | `views`, `reach`, `likes`, `comments`, `shares`, `saves`, `igReelsAvgWatchTime` (ms), `igReelsVideoViewTotalTime` (ms), `reelsSkipRate` (%) | |
+
+A failed per-post analytics call keeps the post's views and stored metrics. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
 
 ### `verify-comments`
 

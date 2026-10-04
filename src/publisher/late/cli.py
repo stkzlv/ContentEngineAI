@@ -26,12 +26,15 @@ from typing import Any
 import aiohttp
 from aiohttp.client_exceptions import ClientError
 from dotenv import load_dotenv
+from late import LateError
 
 from src.publisher.analytics import (
     load_metrics,
     publish_time,
+    quality_metrics,
     rank_by_durability,
     save_metrics,
+    segment_quality,
     summarize_post,
     timeline_resource,
 )
@@ -204,6 +207,29 @@ async def cmd_list_accounts(
         sys.exit(1)
 
 
+def _log_quality_segments(outputs_dir: Path) -> None:
+    """Every stored post's quality metrics by format and render choice."""
+    from src.publisher.product_registry import load_registry
+    from src.utils.render_choices_store import latest_per_product, load_recent
+
+    labels: dict[str, dict[str, str]] = {}
+    for row in latest_per_product(load_recent(outputs_dir, 0)):
+        labels[str(row.get("product_id"))] = {
+            k: str(v) for k, v in row.items() if isinstance(v, str | int | float)
+        }
+    for entry in load_registry(outputs_dir):
+        labels.setdefault(entry.product_id, {})["content_format"] = (
+            entry.content_format or "unlabelled"
+        )
+    lines = segment_quality(
+        load_metrics(outputs_dir), _load_product_map(outputs_dir), labels
+    )
+    if lines:
+        logger.info("Quality metrics by segment (mean, unknowns left out):")
+        for line in lines:
+            logger.info("  %s", line)
+
+
 def _load_product_map(outputs_dir: Path) -> dict[str, str]:
     """Map Zernio post_id to product_id from publish_history.json (best effort)."""
     from src.publisher.tracking import get_tracking_path
@@ -343,7 +369,22 @@ async def cmd_analytics(
                 # sweep; a partial reading is still usable.
                 logger.warning("No timeline for %s: %s", post_id, exc)
                 continue
-            metrics.append(summarize_post(post_id, publish_time(post), rows))
+            measured = summarize_post(post_id, publish_time(post), rows)
+            # The per-platform figures come from a second call. Its failure
+            # keeps the views: an empty dict merges as "nothing new".
+            try:
+                detail = resource.get_analytics(post_id=post_id)
+                platforms = (
+                    detail.get("platformAnalytics")
+                    if isinstance(detail, dict)
+                    else None
+                )
+                measured = replace(
+                    measured, platform_metrics=quality_metrics(platforms)
+                )
+            except LateError as exc:
+                logger.warning("No per-platform analytics for %s: %s", post_id, exc)
+            metrics.append(measured)
         # Every post failing is a broken sweep, not a quiet one, and the whole
         # scheduled setup detects trouble only through a failed unit: exiting 0
         # here would satisfy the installer's proof-of-life, keep the timer
@@ -373,6 +414,8 @@ async def cmd_analytics(
         if regressed:
             _record_regression(regressed, len(metrics))
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
+
+    _log_quality_segments(outputs_dir)
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")
     for m in rank_by_durability(metrics):

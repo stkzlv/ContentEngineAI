@@ -25,11 +25,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from src.utils.outputs_paths import durable_state_path, resolve_outputs_dir
+from src.utils.outputs_paths import resolve_outputs_dir
+from src.utils.render_choices_store import (
+    choices_path,
+    latest_per_product,
+    load_recent,
+)
 
 logger = logging.getLogger(__name__)
 
-CHOICES_FILENAME = "render_choices.jsonl"
 
 # The dimensions the report counts. `script` is compared, not counted.
 DIMENSIONS = (
@@ -55,10 +59,6 @@ DEFAULT_SIMILARITY = 0.5
 SHINGLE = 5
 # Below this many renders a share means little: two of two is 100%.
 MIN_RENDERS_FOR_DOMINANCE = 5
-
-
-def choices_path(outputs_dir: Path) -> Path:
-    return durable_state_path(outputs_dir, CHOICES_FILENAME)
 
 
 def _setting(profile: Any, global_settings: Any, name: str) -> Any:
@@ -124,42 +124,6 @@ def record_render_choices(outputs_dir: Path, row: dict[str, Any]) -> None:
             fh.write(lead + json.dumps(row, ensure_ascii=False) + "\n")
     except OSError as exc:
         logger.warning("Could not record render choices in %s: %s", path, exc)
-
-
-def load_recent(outputs_dir: Path, last: int) -> list[dict[str, Any]]:
-    """The newest `last` rows, skipping lines that are not valid JSON.
-
-    Never raises: a write cut off mid-character (an out-of-memory kill, a full
-    disk) leaves bytes that are not UTF-8, and the script step reads this file,
-    so a broken store must not fail a render.
-    """
-    path = choices_path(outputs_dir)
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return []
-    rows = []
-    for line in text.splitlines():
-        try:
-            row = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(row, dict):
-            rows.append(row)
-    return rows[-last:] if last > 0 else rows
-
-
-def latest_per_product(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Each product's newest row, in order. A resume of a finished product
-    appends a second row for the same render, which would count twice.
-    """
-    newest: dict[str, dict[str, Any]] = {}
-    for i, row in enumerate(rows):
-        # A row with no id is its own product, not one shared "None".
-        key = str(row["product_id"]) if row.get("product_id") else f"#{i}"
-        newest.pop(key, None)
-        newest[key] = row
-    return list(newest.values())
 
 
 def distribution(rows: Sequence[dict[str, Any]]) -> dict[str, Counter]:
