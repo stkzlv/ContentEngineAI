@@ -290,6 +290,10 @@ api_settings:
   stock_media_concurrent_downloads: 5
   stock_media_search_multiplier: 2
   stock_media_max_per_page: 80
+  download_timeout_sec: 30
+  download_retry_attempts: 3
+  download_retry_min_wait_sec: 1
+  download_retry_max_wait_sec: 10
 ```
 
 `api_settings` is flat and refuses a key it does not know, so a nested
@@ -2000,7 +2004,7 @@ ffmpeg_settings:
   rw_timeout_microseconds: 30000000  # I/O timeout (30 seconds)
 ```
 
-**API Timeouts** (`config/performance.yaml`): `api_settings.llm_model_fetch_timeout_sec` and the `llm_retry_*` keys; see section 5.
+**API Timeouts** (`config/performance.yaml`): `api_settings.llm_model_fetch_timeout_sec`, the `llm_retry_*` keys and the `download_*` keys; see [Performance Configuration](#5-performance-configuration-configperformanceyaml).
 
 **Whisper STT** (`config/ai_services.yaml`):
 ```yaml

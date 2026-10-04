@@ -52,6 +52,12 @@ api_settings:
   stock_media_search_multiplier: 2     # results requested per item needed
   stock_media_max_per_page: 80
 
+  # Stock media file downloads
+  download_timeout_sec: 30
+  download_retry_attempts: 3
+  download_retry_min_wait_sec: 1
+  download_retry_max_wait_sec: 10
+
 # ============================================================================
 # CIRCUIT BREAKER SETTINGS
 # ============================================================================

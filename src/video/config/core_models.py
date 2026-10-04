@@ -212,6 +212,10 @@ class ApiSettings(BaseModel):
     stock_media_concurrent_downloads: int = Field(5)
     stock_media_search_multiplier: int = Field(2)
     stock_media_max_per_page: int = Field(80)
+    download_timeout_sec: int = Field(30)
+    download_retry_attempts: int = Field(3)
+    download_retry_min_wait_sec: int = Field(1)
+    download_retry_max_wait_sec: int = Field(10)
 
 
 class TextProcessingSettings(BaseModel):

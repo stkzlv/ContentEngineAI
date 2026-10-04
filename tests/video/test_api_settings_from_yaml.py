@@ -45,3 +45,38 @@ def test_a_yaml_value_reaches_the_model() -> None:
 def test_a_nested_block_fails_the_load_naming_it() -> None:
     with pytest.raises(ValidationError, match="llm"):
         load_with(lambda a: a.update(llm={"model_fetch_timeout_sec": 15}))
+
+
+@pytest.mark.asyncio
+async def test_stock_downloads_use_the_configured_retry(tmp_path) -> None:
+    """The fetcher read these through `getattr` with its own fallbacks, so a
+    removed or renamed field changed the wait without any error.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from src.video.stock_media import StockMediaFetcher
+
+    config = load_with(lambda a: a.update(download_retry_min_wait_sec=5))
+    fetcher = StockMediaFetcher(
+        settings=config.stock_media_settings,
+        secrets={"PEXELS_API_KEY": "test_key"},
+        media_settings=config.media_settings,
+        api_settings=config.api_settings,
+    )
+    found = [{"url": "https://images.example/a.jpg", "id": 1}]
+    with (
+        patch.object(fetcher, "_search_and_select_pexels", return_value=found),
+        patch(
+            "src.video.stock_media.download_file", new_callable=AsyncMock
+        ) as download,
+    ):
+        download.return_value = False
+        await fetcher.fetch_and_download_stock(
+            keywords=["lamp"],
+            image_count=1,
+            video_count=0,
+            download_dir=tmp_path,
+            session=MagicMock(),
+        )
+
+    assert download.call_args.kwargs["retry_min_wait_sec"] == 5
