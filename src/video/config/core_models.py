@@ -766,7 +766,11 @@ class VideoConfig(BaseModel):
             )
         language = self.disclosure_language()
         resolved = self.disclosure_text()
-        if "text" in overlay.model_fields_set and overlay.text != resolved:
+        # Against the default rather than `model_fields_set`: the bundled YAML
+        # spells out `text: "#ad"`, which would otherwise warn on every
+        # Spanish voice though nothing was customised.
+        default_text = type(overlay).model_fields["text"].default
+        if overlay.text != default_text and overlay.text != resolved:
             logger.warning(
                 "disclosure_overlay.text is %r but the %s variant %r is used; "
                 "text applies only to a language with no variant",

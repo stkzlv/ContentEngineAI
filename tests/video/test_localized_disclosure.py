@@ -200,13 +200,40 @@ def test_a_stale_record_gets_the_current_text(tmp_path: Path) -> None:
     assert written["disclosure"] == "#publi"
 
 
+@pytest.mark.parametrize("language_code", ["en-US", "es-ES"])
 def test_the_bundled_config_loads_without_a_warning(
-    caplog: pytest.LogCaptureFixture,
+    caplog: pytest.LogCaptureFixture, language_code: str
 ) -> None:
+    """Switching only the voice is enough; nothing was customised to warn about."""
+    config = load_video_config_modular()
+    data = config.model_dump(exclude_unset=True)
     with caplog.at_level(logging.WARNING):
-        load_video_config_modular()
+        tts = config.tts_config.model_copy(deep=True)
+        assert tts.google_cloud is not None
+        tts.google_cloud.language_code = language_code
+        VideoConfig.model_validate(
+            {**data, "tts_config": tts.model_dump(exclude_unset=True)}
+        )
 
     assert "disclosure_overlay" not in caplog.text
+
+
+@pytest.mark.req("REQ-CMP-022")
+def test_a_stale_platform_record_gets_the_current_text(tmp_path: Path) -> None:
+    """Optimized mode writes only these; the publisher falls back to them."""
+    from src.video.producer.steps import _check_existing_metadata
+
+    (tmp_path / "metadata_youtube.json").write_text(
+        json.dumps({"title": "t", "disclosure": "#ad"}), encoding="utf-8"
+    )
+    ctx = MagicMock()
+    ctx.config = config_in("es-ES")
+    ctx.state = {}
+    ctx.run_paths = {"run_root": tmp_path, "description_file": tmp_path / "d.txt"}
+
+    assert _check_existing_metadata(ctx) is True
+    written = json.loads((tmp_path / "metadata_youtube.json").read_text("utf-8"))
+    assert written["disclosure"] == "#publi"
 
 
 @pytest.mark.req("REQ-CMP-024")

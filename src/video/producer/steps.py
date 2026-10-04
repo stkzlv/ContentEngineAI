@@ -842,6 +842,25 @@ def _check_existing_metadata(ctx: PipelineContext) -> bool:
     # Fallback to platform-specific metadata or description.txt
     if platform_metadata_exists or description_file.exists():
         logger.info("Loading existing description/metadata from previous run")
+        # The publisher falls back to these files when `metadata.json` is
+        # absent, so their recorded token is refreshed the same way.
+        disclosure = ctx.config.disclosure_text()
+        for platform in SUPPORTED_PLATFORMS:
+            path = product_root / f"metadata_{platform}.json"
+            if not path.exists():
+                continue
+            record = json.loads(path.read_text(encoding="utf-8"))
+            if record.get("disclosure") != disclosure:
+                record["disclosure"] = disclosure
+                path.write_text(
+                    json.dumps(record, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                logger.info(
+                    "Refreshed the recorded disclosure token in %s: %s",
+                    path.name,
+                    disclosure,
+                )
         if description_file.exists():
             ctx.description = description_file.read_text(encoding="utf-8")
             logger.info(
