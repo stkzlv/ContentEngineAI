@@ -82,9 +82,16 @@ jobs:
 
   # A required check, so it always runs and reports. For a change that touches
   # only documentation (tools/check_docs.py decides) it runs just the tests
-  # that read the docs, `make test-docs`, and skips the full suite.
+  # that read the docs, `make test-docs`, and skips the full suite. On a push
+  # to main it runs nothing when the merged tree is the one its pull request's
+  # test job already passed (tools/merge_was_tested.py decides).
   test:
     runs-on: ubuntu-latest
+    # Reading the merged pull request and its check runs.
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     strategy:
       matrix:
         python-version: ["3.12"]
@@ -99,28 +106,40 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    # full: the suite; docs: only the tests that read the docs; skip: a
+    # merge to main whose exact tree already passed on its pull request.
     - name: Decide what to test
       id: scope
       env:
         BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        GH_TOKEN: ${{ github.token }}
       run: |
+        tested=false
+        if [ "${{ github.event_name }}" = "push" ]; then
+          tested=$(python -m tools.merge_was_tested --repo "${{ github.repository }}" --sha "${{ github.sha }}") || tested=false
+        fi
         docs_only=$(python -m tools.check_docs --base "$BASE" --docs-only) || docs_only=false
-        echo "docs_only=$docs_only"
-        echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+        if [ "$tested" = "true" ]; then mode=skip
+        elif [ "$docs_only" = "true" ]; then mode=docs
+        else mode=full; fi
+        echo "mode=$mode"
+        echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
     - name: Install system dependencies
-      if: steps.scope.outputs.docs_only != 'true'
+      if: steps.scope.outputs.mode == 'full'
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg
 
     - name: Install Poetry
+      if: steps.scope.outputs.mode != 'skip'
       uses: snok/install-poetry@v1
       with:
         virtualenvs-create: true
         virtualenvs-in-project: true
 
     - name: Load cached venv
+      if: steps.scope.outputs.mode != 'skip'
       id: cached-poetry-dependencies
       uses: actions/cache@v4
       with:
@@ -128,41 +147,41 @@ jobs:
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}-pycaps
 
     - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      if: steps.scope.outputs.mode != 'skip' && steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Install project
-      if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
+      if: steps.scope.outputs.mode != 'skip' && steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
         poetry run pip install "setuptools<81" wheel
         poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Install pictex system libraries
-      if: steps.scope.outputs.docs_only != 'true'
+      if: steps.scope.outputs.mode == 'full'
       # skia-python (pycaps' pictex renderer) links libEGL and libGL, which
       # ubuntu-latest does not ship; without them the two pictex render
       # tests fail on import.
       run: sudo apt-get update -q && sudo apt-get install -y -q libegl1 libgl1
 
     - name: Install Playwright browsers
-      if: steps.scope.outputs.docs_only != 'true'
+      if: steps.scope.outputs.mode == 'full'
       run: poetry run playwright install
 
     - name: Run tests
-      if: steps.scope.outputs.docs_only != 'true'
+      if: steps.scope.outputs.mode == 'full'
       # -n auto: the suite ran on one core while the runner has four.
       run: poetry run pytest -n auto --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Run the tests that read the docs
-      if: steps.scope.outputs.docs_only == 'true'
+      if: steps.scope.outputs.mode == 'docs'
       run: make test-docs
 
     - name: Upload coverage to Codecov
-      if: steps.scope.outputs.docs_only != 'true'
+      if: steps.scope.outputs.mode == 'full'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml

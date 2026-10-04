@@ -139,7 +139,8 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-087** `shipped` When a push to `main` passes the release, lint and test jobs and its version has no GitHub release, CI tags it `v<version>` and creates the release with that version's CHANGELOG section as its notes.
 - **REQ-OPS-088** `shipped` If the version's tag already exists, the release job reuses it, so a re-run after a failed release step still creates the release.
 - **REQ-OPS-089** `shipped` When a `v*` tag is pushed by hand, CI runs the tests and lint and creates a GitHub release from that version's CHANGELOG section, marked prerelease where the tag contains `alpha`, `beta` or `rc`.
-- **REQ-OPS-090** `shipped` On every push and pull request to `main`, CI runs `ruff check`, `ruff format --check`, mypy and the test suite with coverage.
+- **REQ-OPS-090** `shipped` On every push and pull request to `main`, CI runs `ruff check`, `ruff format --check`, mypy and the test suite with coverage, except as REQ-OPS-103 allows.
+- **REQ-OPS-103** `shipped` On a push to `main`, CI skips the test suite only when the merge commit came from a pull request whose head has the identical tree and whose test jobs all passed; anything else, including a failure to find out, runs the suite.
 - **REQ-OPS-091** `shipped` The security workflow runs Bandit, Safety and Vulture on every push and pull request to `main` and weekly, and uploads the Bandit and Safety reports.
 - **REQ-OPS-092** `shipped` The security workflow never fails the build, whatever its scans find.
 

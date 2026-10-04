@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.4] - 2026-10-04
+
+### Changed
+
+- CI skips the test suite on a push to `main` when the merged tree is the one its pull request's test job already passed, which saves a full run on every release; any other merge still runs it. `docs/testing.md` describes a targeted local loop and when to run the full suite.
+
 ## [0.145.3] - 2026-10-04
 
 ### Dependencies
