@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.3] - 2026-10-04
+
+### Dependencies
+
+- pytest-asyncio 0.24.0 to 1.4.0 (development only): test collection takes about half as long, since 0.24 ran a hook over every collected test in auto mode; no test needed a change.
+
 ## [0.145.2] - 2026-10-04
 
 ### Changed
