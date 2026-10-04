@@ -172,3 +172,18 @@ def test_a_cut_may_shorten_a_clip_but_never_lengthen_one() -> None:
     # With the clip second, the first cut would lengthen it and stays; the
     # second shortens it and moves.
     assert clip_second == pytest.approx([3.0, 2.87, 3.13])
+
+
+def test_a_cut_moving_forward_never_lengthens_a_clip_before_it() -> None:
+    # Beats at 0.38 + 0.5n sit 0.13 s after the cuts at 2.75 and 5.25 s.
+    later = [0.38 + 0.5 * n for n in range(60)]
+    durations = [3.0, 3.0, 3.0]
+
+    stills = snap_durations(durations, [False] * 3, TD, later, 0.15, 1.5, 9.0)
+    clip_first = snap_durations(
+        durations, [True, False, False], TD, later, 0.15, 1.5, 9.0
+    )
+
+    assert stills == pytest.approx([3.13, 3.0, 2.87])
+    # The first cut would lengthen the clip and stays; the second moves.
+    assert clip_first == pytest.approx([3.0, 3.13, 2.87])
