@@ -5,8 +5,9 @@ updates. Prose alone did not hold that rule for releases, so the parts a
 script can see are checked here:
 
 - A design doc's status agrees with its requirements: `Implemented` means
-  every requirement it names is `shipped` (or `deprecated`), and `Accepted`
-  means at least one is not yet.
+  every requirement it names is `shipped` (or `deprecated`), `Held` means
+  each is built (`held`, `shipped` or `deprecated`) and at least one is
+  `held`, and `Accepted` means at least one is not built yet.
 - Every requirement id a pull request cites, in its description or its
   commits, exists.
 - A pull request that adds, changes or removes a CLI flag or a config key also
@@ -44,6 +45,8 @@ REQ_RANGE = re.compile(r"\b(REQ-([A-Z]{3})-(\d{3})) to REQ-\2-(\d{3})\b")
 OPT_OUT = re.compile(r"^\s*Docs:\s*none\b", re.IGNORECASE | re.MULTILINE)
 
 DONE_STATUSES = ("shipped", "deprecated")
+# Built, though a `held` one is still switched off.
+BUILT_STATUSES = (*DONE_STATUSES, "held")
 
 # Paths whose change can't alter what the code does. `*.md` under src/ is a
 # prompt template, so it is code.
@@ -117,21 +120,31 @@ def design_findings(
     problems = []
     for doc in docs:
         name = doc.path.name
-        if doc.status in ("Accepted", "Implemented") and not doc.req_ids:
+        if doc.status in ("Accepted", "Held", "Implemented") and not doc.req_ids:
             problems.append(f"{name}: an {doc.status} design names no requirement")
         missing = [i for i in doc.req_ids if i not in statuses]
         if missing:
             problems.append(f"{name}: names requirements that don't exist: {missing}")
         known = [i for i in doc.req_ids if i in statuses]
         open_ids = [i for i in known if statuses[i] not in DONE_STATUSES]
+        unbuilt = [i for i in known if statuses[i] not in BUILT_STATUSES]
         if doc.status == "Implemented" and open_ids:
             problems.append(
                 f"{name}: Implemented, but {open_ids} are not shipped; ship them "
-                "or set the design back to Accepted"
+                "or set the design back to Held or Accepted"
             )
-        if doc.status == "Accepted" and known and not open_ids:
+        if doc.status == "Held" and unbuilt:
+            problems.append(
+                f"{name}: Held, but {unbuilt} are not built; set it to Accepted"
+            )
+        if doc.status in ("Accepted", "Held") and known and not open_ids:
             problems.append(
                 f"{name}: every requirement is shipped; set the design to Implemented"
+            )
+        if doc.status == "Accepted" and known and open_ids and not unbuilt:
+            problems.append(
+                f"{name}: every requirement is built, {open_ids} held off; set the "
+                "design to Held"
             )
     return problems
 

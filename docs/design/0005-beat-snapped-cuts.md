@@ -1,6 +1,6 @@
 # 0005. Snap visual cuts to music beats
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #546
 - **Requirements:** REQ-VID-013
 

@@ -141,6 +141,7 @@ A pull request is done when the code, its tests and the docs it changes land tog
 | A CLI flag added or changed | `docs/reference/<module>.md` and the requirement |
 | A config key added, changed or removed | `docs/reference/configuration.md` and the requirement; a removed key is a breaking change (minor release, `**Breaking**:` entry) |
 | Behaviour changed | The requirement's statement or status in `docs/requirements/<area>.md` |
+| A planned feature is built behind an off switch | Its design doc to `Held` with an `As built` section, its requirements to `held` |
 | A planned or held feature ships | Its design doc to `Implemented`, its requirements to `shipped` |
 | A defect fixed | An entry in `docs/notes/<module>.md` (what broke, why it was invisible, what catches it) and a test citing the requirement |
 | A choice between real alternatives | A decision record in `docs/decisions/` |

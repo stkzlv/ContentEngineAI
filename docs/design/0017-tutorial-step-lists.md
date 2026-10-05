@@ -1,8 +1,8 @@
 # 0017. Sourced step list
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #559
-- **Requirements:** REQ-VID-121, REQ-VID-122
+- **Requirements:** REQ-VID-121, REQ-VID-122, REQ-VID-151, REQ-CNT-146
 
 ## Context
 
@@ -25,7 +25,7 @@ None recorded.
 - The topic script step first returns a structured list (action, exact UI path, expected result, source URL per step), validated like the other LLM outputs.
 - The script is written from it and its length follows the step count.
 - A step with no source is refused and a topic that cannot be sourced is dropped.
-- Behind `topic_scripts.step_list.enabled` (default false).
+- Behind `llm_settings.topic_scripts.step_list.enabled` (default false).
 
 ## As built
 
@@ -44,9 +44,9 @@ None recorded.
 
 ## Rollout
 
-Ships off: `topic_scripts.step_list.enabled` defaults to false. Set it after the reach-test readout (#540). The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
+Ships off: `llm_settings.topic_scripts.step_list.enabled` defaults to false. Set it after the reach-test readout (#540). The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
 
-Remove the switch when: `topic_scripts.step_list.enabled` has been on in the bundled config for two weekly batches with topic-render completion (#551) no worse than without it; the key, its holdout check and the free-form script path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
+Remove the switch when: `llm_settings.topic_scripts.step_list.enabled` has been on in the bundled config for two weekly batches with topic-render completion (#551) no worse than without it; the key, its holdout check and the free-form script path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
 
 ## Open questions
 

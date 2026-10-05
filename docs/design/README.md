@@ -21,11 +21,12 @@ Rollout names what ships off, the setting that turns it on and the condition for
 | Status | Meaning |
 |---|---|
 | `Draft` | The design itself is undecided, for example an evaluation. |
-| `Accepted` | Specified and agreed, not built. |
+| `Accepted` | Specified and agreed, not built (or only part of it built). |
+| `Held` | Built behind a switch that stays off; its requirements are `held` ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)). |
 | `Implemented` | The feature has shipped. |
 | `Superseded by NNNN` | A later design doc replaces this one. |
 
-A design doc is frozen once its feature ships. The pull request that ships the feature sets the doc to `Implemented` and its requirements to `shipped`, and a later change to the feature gets a design doc of its own that supersedes it.
+The pull request that builds a feature behind an off switch sets its design doc to `Held` and appends an `As built` section: what the code does where it differs from the design, and the measurements taken. The pull request that turns the switch on, or ships a feature with no switch, sets the doc to `Implemented` and its requirements to `shipped`. The doc is frozen from then on, and a later change to the feature gets a design doc of its own that supersedes it. `tools/check_docs.py` checks each status against the requirements the doc names.
 
 ## Rules that apply to every design
 
@@ -58,11 +59,11 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 
 | Number | Title | Issue | Status |
 |---|---|---|---|
-| [0001](0001-motion-on-every-still.md) | Motion on every still | #542 | Accepted |
-| [0002](0002-end-on-the-peak.md) | End on the peak, with an optional seamless loop | #543 | Accepted |
-| [0003](0003-sparse-sound-effects.md) | Sparse event sound effects | #544 | Accepted |
-| [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Accepted |
-| [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Accepted |
+| [0001](0001-motion-on-every-still.md) | Motion on every still | #542 | Held |
+| [0002](0002-end-on-the-peak.md) | End on the peak, with an optional seamless loop | #543 | Held |
+| [0003](0003-sparse-sound-effects.md) | Sparse event sound effects | #544 | Held |
+| [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Held |
+| [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Held |
 | [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Implemented |
 | [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Accepted |
 | [0008](0008-bait-free-closing-lines.md) | Remove engagement-bait lines from the CTA pools | #549 | Accepted |
@@ -70,11 +71,11 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0010](0010-first-seconds-metrics.md) | First-seconds metrics in the analytics sweep | #551 | Accepted |
 | [0011](0011-cover-frames.md) | Cover frames, including YouTube Shorts thumbnails | #552 | Accepted |
 | [0012](0012-clean-product-images.md) | Prefer clean product images over seller infographics | #554 | Accepted |
-| [0013](0013-stock-clip-reuse-guard.md) | Do not reuse stock clips across recent renders | #555 | Accepted |
-| [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Accepted |
+| [0013](0013-stock-clip-reuse-guard.md) | Do not reuse stock clips across recent renders | #555 | Held |
+| [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Held |
 | [0015](0015-narrator-voice-evaluation.md) | Evaluate a distinctive or owned narrator voice | #557 | Draft |
 | [0016](0016-tiktok-ai-label.md) | Revisit the TikTok AI label | #558 | Accepted |
-| [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Accepted |
+| [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Held |
 | [0018](0018-tutorial-step-visuals.md) | A visual per step | #560 | Accepted |
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |

@@ -54,7 +54,7 @@ Why: audio-for-video guidance converges on these targets for the finished mix ([
 | Voiceover | -3 to -6 dB peak, the foreground |
 | Music under voice | -25 to -30 dB, 18-24 dB below the voiceover |
 | Music in voice-free beats | -6 to -10 dB (intro, outro) |
-| Sound effects | about -18 dB relative to the voice, sparse |
+| Sound effects | about -18 dB relative to the voice, sparse (the held effects default to -15 dB, [design 0003](../design/0003-sparse-sound-effects.md)) |
 
 The pipeline's two numbers are not the same measure as these targets. A +3 dB offset and a -3 to -6 dB peak target do not conflict: the offset sets the voice above the music inside the mix, the source voiceover level plus that offset is what lands near the peak target, and the loudness pass below sets the master level. The -24 dB music gain sits just above the "music under voice" band. The pipeline holds the music at one level for the whole clip, so it does not raise the music in voice-free beats.
 
@@ -105,7 +105,7 @@ Why:
 - Fast music (108 BPM and up) raised arousal and purchase intent in short ad studies, while an EEG study found tempo did not change attention: tempo shifts mood, not attention [A] ([Frontiers in Psychology](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1236006/full)).
 - Cuts on accented downbeats feel better [A] ([design 0005](../design/0005-beat-snapped-cuts.md) has the source).
 
-Planned: an optional voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`), visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`), and an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
+Built and held off: an optional voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`) and visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
 
 ## Trimming is not a level
 

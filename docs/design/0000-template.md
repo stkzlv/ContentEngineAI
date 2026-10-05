@@ -25,3 +25,5 @@ What ships off, the setting that turns it on, and the condition for turning it o
 Remove the switch when: the condition for deleting the switch and the off path, or why the switch is a lasting option.
 
 ## Open questions
+
+<!-- When the feature is built, append an "As built" section: what differs from the design, and the measurements taken. -->

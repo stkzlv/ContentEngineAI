@@ -100,7 +100,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-051** `shipped` The FFmpeg engine clamps caption position to the safe zone, keeping a caption's lowest pixel above the bottom boundary, and honours per-profile safe-zone overrides.
 - **REQ-VID-052** `shipped` The pycaps engine limits caption width so centred text stays clear of the right-side boundary; it doesn't enforce the vertical boundaries.
 - **REQ-VID-053** `shipped` The pycaps engine places the caption block as a lower third by default, its bottom at 75% of the frame height, below the safe-zone bottom of 65%.
-  - Why: the centred source video on the product-video profiles ends near 66% of the frame.
+  - Why: the centred source video on the product-video profiles ends near 66% of the frame ([decision 0010](../decisions/0010-pycaps-captions-sit-low.md)).
 - **REQ-VID-054** `shipped` The pycaps engine keeps the template's own alignment unless the profile overrides it.
 
 ## Caption text
@@ -224,15 +224,15 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-119** `shipped` A topic renders only with profiles whose visuals come entirely from stock; a profile that draws product imagery is refused before the run starts.
 - **REQ-VID-120** `shipped` On a run with both products and topics, each draws from its own profile pool, and a fixed profile that draws no stock media is refused.
 - **REQ-VID-121** `held` Where step lists are on, a topic script is written from a sourced step list (action, exact UI path, expected result and source per step), its length set by the step count, and a topic that forks by device or needs more steps than a short video holds is set aside for a series rather than rendered.
-  - On when: `topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
+  - On when: `llm_settings.topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-122** `held` Where step lists are on, a step with no source is refused, and a topic that can't be sourced is dropped.
-  - On when: `topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
+  - On when: `llm_settings.topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
 - **REQ-VID-123** `planned #560` Where step visuals are on, each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-124** `planned #561` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
   - On when: `video_settings.graphics.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-151** `held` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
-  - On when: `topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
+  - On when: `llm_settings.topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-153** `planned #561` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.

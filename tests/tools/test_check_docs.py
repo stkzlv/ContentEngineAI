@@ -50,9 +50,16 @@ def test_an_implemented_design_with_open_requirements_is_refused() -> None:
 
 
 def test_agreeing_designs_pass() -> None:
-    statuses = {"REQ-A": "shipped", "REQ-B": "planned #1", "REQ-C": "deprecated"}
+    statuses = {
+        "REQ-A": "shipped",
+        "REQ-B": "planned #1",
+        "REQ-C": "deprecated",
+        "REQ-D": "held",
+    }
     docs = [
         design("Accepted", "REQ-A", "REQ-B"),
+        design("Accepted", "REQ-D", "REQ-B"),
+        design("Held", "REQ-A", "REQ-D"),
         design("Implemented", "REQ-A", "REQ-C"),
         design("Draft"),
     ]
@@ -190,3 +197,22 @@ def test_the_base_side_of_a_flag_is_read_at_the_fork_point(monkeypatch) -> None:
     monkeypatch.setattr(check_docs, "file_at", fake_file_at)
     assert check_docs.pr_findings("origin/main", "") == []
     assert read == ["forksha", "HEAD"]
+
+
+def test_an_accepted_design_whose_requirements_are_all_built_is_held() -> None:
+    found = design_findings(
+        [design("Accepted", "REQ-A", "REQ-B")], {"REQ-A": "held", "REQ-B": "shipped"}
+    )
+    assert found and "set the design to Held" in found[0]
+
+
+def test_a_held_design_with_unbuilt_requirements_is_refused() -> None:
+    found = design_findings(
+        [design("Held", "REQ-A", "REQ-B")], {"REQ-A": "held", "REQ-B": "partial"}
+    )
+    assert found and "REQ-B" in found[0] and "Accepted" in found[0]
+
+
+def test_a_held_design_whose_requirements_all_shipped_is_implemented() -> None:
+    found = design_findings([design("Held", "REQ-A")], {"REQ-A": "shipped"})
+    assert found and "set the design to Implemented" in found[0]

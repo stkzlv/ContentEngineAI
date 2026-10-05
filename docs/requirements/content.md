@@ -52,7 +52,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-032** `shipped` A topic script carries one honest limit, placed among the steps rather than after them.
   - Why: a limit read last becomes the final spoken line before the call to action and leaves the viewer unsure the fix worked.
 - **REQ-CNT-146** `held` Where step lists are on, a topic script names the app or settings screen where the steps start, before the first step.
-  - On when: `topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
+  - On when: `llm_settings.topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
 - **REQ-CNT-147** `partial` A topic script names the most common mistake at the step where it happens.
   - Gap: only with step lists on (held) is the mistake named at its step; the free-form topic templates leave it out, or name it in the opening line as `topic_mistake_fix` does (#559).
 
@@ -165,7 +165,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 ## Final mix
 
 - **REQ-CNT-100** `partial` The producer masters the final mix to a loudness target (default -14 LUFS, true peak -1 dBFS).
-  - Gap: delivered files measure about -15 LUFS and peak at about -0.8 dBFS, because the true-peak ceiling forces dynamic normalisation and the AAC encode adds about 0.2 dB after it.
+  - Gap: delivered files measure about -15 LUFS and peak at about -0.8 dBFS, because the true-peak ceiling forces dynamic normalisation and the AAC encode adds about 0.2 dB after it (#658).
 - **REQ-CNT-101** `shipped` Where `music_ducking_enabled` is true, the music level drops while narration plays and recovers in the gaps; it is off by default.
 - **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
 - **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video, or within `peak_margin_sec` where the ending is `peak` or `loop`.
