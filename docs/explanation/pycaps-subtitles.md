@@ -404,9 +404,9 @@ Common failure modes:
 - **`PycapsUnavailableError`** — the optional group is not installed.
   Install with `poetry install --with pycaps`.
 - **Missing Chromium** — you're using `renderer: css` but never ran
-  `playwright install chromium`. Install Chromium. Do not switch to
-  `pictex` as a workaround for published output: it renders words with no
-  spacing between them (issue #174).
+  `playwright install chromium`. Install Chromium. Switching to
+  `pictex` avoids the browser, but it renders glows and soft shadows
+  differently; check a frame before publishing.
 - **Template not found** — a value in `template_pool` doesn't match any
   built-in or project-local template name.
 

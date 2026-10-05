@@ -110,9 +110,9 @@ def add_shared_render_args(target: _AddsArguments) -> None:
         choices=["css", "pictex"],
         help=(
             "Pycaps renderer backend. 'css' = Playwright+Chromium "
-            "(default, the only production-safe option). 'pictex' = "
-            "browserless Skia path; PREVIEW ONLY, it renders words with "
-            "no gaps between them."
+            "(default, the production renderer). 'pictex' = browserless "
+            "Skia path; matches css on word-focus, renders glows and soft "
+            "shadows differently."
         ),
     )
 

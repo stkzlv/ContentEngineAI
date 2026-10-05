@@ -84,8 +84,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-039** `shipped` If a pycaps burn fails under the `raise` fallback policy, the render aborts.
 - **REQ-VID-040** `shipped` If a pycaps burn fails under the `warn_and_skip` policy, the render keeps the video without captions; no other policy produces a caption-less video.
 - **REQ-VID-041** `shipped` If a pycaps burn fails under `fallback_ffmpeg` with a transcript and a video on disk, the render burns the captions with the FFmpeg engine; a missing transcript or video still aborts.
-- **REQ-VID-042** `shipped` The pycaps engine renders with the CSS renderer; the pictex renderer is for previews only.
-  - Why: pictex drops the gaps between words.
+- **REQ-VID-042** `shipped` The pycaps engine renders with the CSS renderer by default; the pictex renderer is selectable for runs without a browser.
+  - Why: pictex renders glows and soft shadows differently, so the bundled templates look as designed only on the CSS renderer ([decision 0011](../decisions/0011-pictex-renders-word-gaps.md)).
 - **REQ-VID-043** `shipped` The pycaps engine picks one template per product, the same on every run, from a configurable pool (bundled: `explosive`, `word-focus`).
 - **REQ-VID-044** `shipped` Where `force_sentence_case` is on (the bundled default), pycaps captions keep the transcript's casing whatever the template sets.
 - **REQ-VID-045** `shipped` Where `mute_template_sound_effects` is on (the bundled default), caption templates add no sound to the render.
