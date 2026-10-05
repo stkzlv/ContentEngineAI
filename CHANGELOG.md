@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.171.0] - 2026-10-05
+
+### Changed
+
+- With the script lint on, the script prompt states its sentence cap and, outside a tutorial, its word cap, so drafts stop failing the lint on limits the model was never told.
+
 ## [0.170.0] - 2026-10-05
 
 ### Added

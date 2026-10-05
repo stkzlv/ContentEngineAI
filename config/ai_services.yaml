@@ -71,10 +71,10 @@ llm_settings:
     min_chars: 200
     min_words: 50
     # Machine-writing tells, a sentence cap and a word cap from the target
-    # duration (design 0007). A failing script is retried, and kept as a
-    # last resort. It changes scripts, so it stays off until the reach-test
-    # readout. banned_phrases is a list of regular expressions; leave it out
-    # to use the bundled list.
+    # duration (design 0007), both stated in the script prompt when on. A
+    # failing script is retried, and kept as a last resort. It changes
+    # scripts, so it stays off until the reach-test readout. banned_phrases
+    # is a list of regular expressions; leave it out to use the bundled list.
     lint:
       enabled: false
       max_sentence_words: 16

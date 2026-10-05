@@ -92,7 +92,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-051** `shipped` If the fact check or the revision fails for any reason, the producer ships the original script.
 - **REQ-CNT-151** `shipped` When every flagged claim's fix asks for its removal, the producer deletes those sentences without a rewrite, provided they are exactly the claims and no following sentence leans on them; otherwise the reviser repairs them, and a rewrite that repeats a removed claim's subject words is refused.
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
-- **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries.
+- **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
   - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
 - **REQ-CNT-054** `held` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
   - On when: `script_templates.hook_rules.enabled` is set after the reach-test readout (#540).

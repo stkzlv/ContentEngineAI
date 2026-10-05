@@ -162,3 +162,41 @@ async def test_a_tutorial_is_not_held_to_the_duration_cap() -> None:
     script, calls = await _generate([long_ok], lint_on=True, step_list=sl)
 
     assert script == long_ok and calls == 1
+
+
+async def _prompt(lint_on: bool, step_list=None) -> str:
+    from src.ai import script_generator
+
+    settings = config.llm_settings.model_copy(deep=True)
+    settings.script_validation.lint = ScriptLintConfig(enabled=lint_on)
+    call = AsyncMock(return_value=_script("The fix is one setting."))
+    with patch.object(script_generator, "_call_llm_api_with_retry", call):
+        await script_generator.generate_script(
+            _product(),
+            settings,
+            {settings.api_key_env_var: "k"},
+            AsyncMock(),
+            {},
+            False,
+            step_list=step_list,
+        )
+    return str(call.call_args_list[0].args[0])
+
+
+@pytest.mark.req("REQ-CNT-053")
+@pytest.mark.asyncio
+async def test_the_prompt_states_the_lint_limits_only_when_on() -> None:
+    from src.ai.step_list import Step, StepList
+
+    off, on = await _prompt(False), await _prompt(True)
+    steps = [Step(f"Do {i}", "A > B", "done", "https://x/") for i in range(5)]
+    tutorial = await _prompt(
+        True, StepList("Settings", "iOS", False, steps, topic_failures=[])
+    )
+
+    assert "words or fewer" not in off
+    assert "Keep every sentence to 16 words or fewer" in on
+    assert "Keep the whole script to 112 words or fewer" in on
+    # A tutorial is told the sentence cap but not the duration cap it skips.
+    assert "Keep every sentence to 16 words or fewer" in tutorial
+    assert "whole script" not in tutorial
