@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.169.0] - 2026-10-05
+
+### Added
+
+- An optional `beats` dependency group installs librosa for beat snapping (`poetry install --with beats`), and the warning shown without it names that command.
+
 ## [0.168.4] - 2026-10-05
 
 ### Fixed

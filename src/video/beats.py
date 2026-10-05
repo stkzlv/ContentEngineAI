@@ -56,7 +56,7 @@ def detect_beats(track: Path) -> list[float] | None:
             LibrosaError,
         )
     except ImportError:
-        logger.warning("Beat snapping needs librosa, which is not installed")
+        logger.warning("Beat snapping needs librosa: poetry install --with beats")
         return None
     try:
         samples, rate = librosa.load(str(track), sr=None, mono=True)

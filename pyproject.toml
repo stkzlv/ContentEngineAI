@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.168.4"
+version = "0.169.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -79,6 +79,14 @@ optional = true
 [tool.poetry.group.pycaps.dependencies]
 pycaps = { git = "https://github.com/francozanardi/pycaps.git", rev = "e2d36edfa08e3307d65b15bb20f17399dc2c9b40" }
 html2pic = "^0.2.2"
+
+# Optional: beat snapping (`video_settings.beat_snap`). Enable with
+# `poetry install --with beats`; without it beat snapping warns and does nothing.
+[tool.poetry.group.beats]
+optional = true
+
+[tool.poetry.group.beats.dependencies]
+librosa = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

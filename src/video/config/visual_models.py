@@ -495,7 +495,7 @@ class VideoSettings(BaseModel):
     )
     beat_snap: BeatSnapSettings = Field(
         default_factory=BeatSnapSettings,  # type: ignore[arg-type]
-        description="Move visual cuts to music beats; needs librosa.",
+        description="Move visual cuts to music beats; needs librosa (the beats group).",
     )
     image_curation: ImageCurationSettings = Field(
         default_factory=ImageCurationSettings,  # type: ignore[arg-type]

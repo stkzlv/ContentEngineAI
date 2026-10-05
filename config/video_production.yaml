@@ -105,8 +105,9 @@ video_settings:
   # Move each visual cut (the middle of a crossfade) to the nearest music
   # beat within window_ms, when the move keeps every segment at
   # min_visual_segment_duration_sec and lengthens only a still. Beats come
-  # from librosa (optional: without it this warns and does nothing), cached
-  # beside the track. Captions keep their timing. Off by default.
+  # from librosa (`poetry install --with beats`; without it this warns and
+  # does nothing), cached beside the track. Captions keep their timing.
+  # Off by default.
   beat_snap:
     enabled: false
     window_ms: 150
