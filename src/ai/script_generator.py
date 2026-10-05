@@ -980,11 +980,13 @@ async def generate_script(
     near_miss: dict[str, str] = {}
 
     if step_list is not None:
-        # A one-step tutorial is shorter than the general floor allows; its
-        # own band sets the floor instead.
-        from src.ai.step_list import word_range
+        # A one-step tutorial is shorter than the general floor allows. Lower
+        # the floor to the band's retry threshold, so a draft between the two
+        # is judged by the length rule (retried, kept as a last resort)
+        # rather than refused outright.
+        from src.ai.step_list import LENGTH_TOLERANCE, word_range
 
-        band_floor = word_range(len(step_list.steps))[0]
+        band_floor = int(word_range(len(step_list.steps))[0] * LENGTH_TOLERANCE)
         sv_min_words = min(sv_min_words, band_floor)
         sv_min_chars = min(sv_min_chars, band_floor * 4)
 

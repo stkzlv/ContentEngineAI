@@ -323,3 +323,28 @@ async def test_a_one_step_script_may_be_shorter_than_the_general_floor() -> None
 
     assert call.await_count == 1
     assert script is not None and script.startswith("Press and hold")
+
+
+@pytest.mark.req("REQ-VID-121")
+@pytest.mark.asyncio
+async def test_a_one_step_draft_under_its_band_is_retried_then_kept() -> None:
+    from src.ai import script_generator
+
+    cta = config.llm_settings.script_templates.cta_options_for(True)[0]
+    # Between the retry threshold (32) and the band's floor (40).
+    reply = ("Press and hold both buttons. " * 6) + cta
+    assert 32 <= len(reply.split()) < 40
+    call = AsyncMock(return_value=reply)
+
+    with patch.object(script_generator, "_call_llm_api_with_retry", call):
+        script, _, _ = await script_generator.generate_script(
+            _product(),
+            config.llm_settings,
+            {config.llm_settings.api_key_env_var: "k"},
+            AsyncMock(),
+            {},
+            False,
+            step_list=_sl(1),
+        )
+
+    assert script is not None and script.startswith("Press and hold")
