@@ -19,17 +19,23 @@ from src.video.config import config
 SCRIPTS = Path(__file__).parents[2] / "src" / "ai" / "prompts" / "scripts"
 
 _I = re.IGNORECASE
+# Bait is an imperative, so each pattern matches the start of a sentence:
+# "Share this", "Comment YES", "Vote A or B". A question or a description
+# that only uses the word ("gets your vote", "both share a flaw") passes.
 BAIT = [
-    # A request to pass the video on, not "share your setup".
+    # Pass the video on; "share your setup" asks for an experience.
+    re.compile(r"^(share|send)\b(?! your)", _I),
+    re.compile(r"^tag\b", _I),
+    re.compile(r"^vote\b|\byour vote (below|in the comments)", _I),
+    # A set word: "Comment YES for the link", "type 1 below".
     re.compile(
-        r"\b(share|send) (this|it|with (someone|a friend|whoever|anyone))\b", _I
+        r"^(comment|type|reply)( with)? [\"']?(?!(below|here|now|if)\b)\w{1,8}[\"']?"
+        r"( (if|below|for|and)\b|[.!]?$)",
+        _I,
     ),
-    re.compile(r"\btag (a|your|someone|a friend)\b", _I),
-    re.compile(r"\bvote (for|in|below|with)\b", _I),
-    # "Comment YES if...", "reply 1 below": a set word, not an opinion.
-    re.compile(r"\b(comment|reply)( with)? [\"']?\w{1,8}[\"']? (if|below)\b", _I),
-    re.compile(r"\b(drop|leave|comment)( an?)? (emoji|[^\w\s])", _I),
-    re.compile(r"\bfollow (for|to (see|get|unlock)) (part|the rest|the answer)", _I),
+    # An emoji, not ASCII punctuation such as a dash.
+    re.compile(r"^(drop|leave|comment)( an?)? (emoji|[^\w\s\x00-\x7f])", _I),
+    re.compile(r"^follow (for|to (see|get|unlock)) (part|the rest|the answer)", _I),
 ]
 
 # Removed by the pool edit after the readout (#549).
@@ -40,7 +46,8 @@ KNOWN_EXCEPTIONS = {
 
 
 def is_bait(line: str) -> bool:
-    return any(p.search(line) for p in BAIT)
+    sentences = re.split(r"(?<=[.!?])\s+", line.strip())
+    return any(p.search(sentence) for sentence in sentences for p in BAIT)
 
 
 def closing_examples() -> list[str]:
@@ -64,6 +71,12 @@ def closing_examples() -> list[str]:
         "Drop a \U0001f525 if this helped.",
         "comment yes if you agree",
         "Send this to someone who needs it.",
+        "Comment YES for the link.",
+        "Type YES if you agree.",
+        "Type 1 below.",
+        "Vote A or B in the comments.",
+        "Cast your vote below.",
+        "Love it? Share with your friends.",
         "Follow for part 2.",
     ],
 )
@@ -83,6 +96,12 @@ def test_bait_is_recognised(line: str) -> None:
         "Reply A or B.",
         "Share your setup in the comments.",
         "Type C beats micro-USB for every cable.",
+        "Drop a comment below if this helped.",
+        "Comment below if you've tried it.",
+        "Reply here if this worked.",
+        "Which one gets your vote for bedside use?",
+        "Both mounts share this weakness.",
+        "Comment - which one would you pick?",
     ],
 )
 def test_a_genuine_line_passes(line: str) -> None:
