@@ -42,8 +42,8 @@ def test_the_build_appends_the_outline_only_when_set(monkeypatch, tmp_path) -> N
     assert not any("text-stroke" in css for css in _added_css(off))
 
 
-def test_the_outline_lands_after_sentence_case(monkeypatch, tmp_path) -> None:
-    """Both rules set `.word`; the outline's `text-shadow: none` must win."""
+def test_the_outline_and_sentence_case_are_both_appended(monkeypatch, tmp_path) -> None:
+    """Each is its own rule after the template's CSS, so neither drops the other."""
     monkeypatch.setattr(renderer, "_frame_height", lambda video: 1920)
 
     css = _added_css(
