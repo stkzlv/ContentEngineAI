@@ -38,6 +38,17 @@ def normalise(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9\s]+", "", text.lower()).split())
 
 
+def signature_in_script(line: str, script: str) -> bool:
+    """Whether a signature line is spoken in the script, on words only.
+
+    The model often folds an opener into its first sentence ("Quick find for
+    you, if your..."), so the configured line's closing punctuation and case
+    are ignored; the words must still appear whole and in order.
+    """
+    target = normalise(line)
+    return bool(target) and f" {target} " in f" {normalise(script)} "
+
+
 def drop_signoff(script: str, signoff: str | None) -> str:
     """The script without its last sentence that matches the sign-off.
 

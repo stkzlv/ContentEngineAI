@@ -24,6 +24,7 @@ from src.audio.registry import create_audio_provider
 from src.scraper.base.models import carries_affiliate_content
 from src.utils import ensure_dirs_exist
 from src.utils.script_sanitizer import sanitize_script
+from src.utils.script_signoff import signature_in_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.producer.artifact_registry import register_artifact_loader
@@ -672,7 +673,7 @@ async def step_generate_script(ctx: PipelineContext):
                         "Signature %s %r %s in the script",
                         element,
                         value,
-                        "is" if value.lower() in ctx.script.lower() else "is NOT",
+                        "is" if signature_in_script(value, ctx.script) else "is NOT",
                     )
             logger.info(
                 "Script generated (template=%s) and saved to %s",
