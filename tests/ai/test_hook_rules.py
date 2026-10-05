@@ -35,7 +35,9 @@ def test_the_search_phrase_rule_names_the_keyword_or_title() -> None:
 
     assert search_phrase_rule(product, _settings(False)) == ""
     assert '"smart watch"' in search_phrase_rule(product, _settings(True))
-    assert '"Why your wifi drops"' in search_phrase_rule(topic, _settings(True))
+    # A topic names its title's key words, which a short headline can hold.
+    rule = search_phrase_rule(topic, _settings(True))
+    assert "Search words: wifi, drops." in rule and "Why" not in rule
     assert search_phrase_rule(SimpleNamespace(keyword=""), _settings(True)) == ""
 
 

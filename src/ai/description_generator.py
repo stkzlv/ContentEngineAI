@@ -89,11 +89,21 @@ def search_phrase_rule(product: Any, settings: Any) -> str:
     templates = getattr(settings, "script_templates", None)
     if not getattr(getattr(templates, "hook_rules", None), "enabled", False):
         return ""
-    from src.video.search_phrase import search_phrase
+    from src.video.search_phrase import key_words, search_phrase
 
     phrase = search_phrase(product)
     if not phrase:
         return ""
+    if getattr(product, "topic", None):
+        # A topic's title runs longer than a headline holds; its key words,
+        # the ones the placement report looks for, fit.
+        words = ", ".join(key_words(phrase, question=True))
+        if not words:
+            return ""
+        return (
+            f"\n\nSearch words: {words}. Open with them: put these words in "
+            "the first words of what you write."
+        )
     return (
         f'\n\nSearch phrase: "{phrase}". Open with it: put the phrase, or all '
         "of its words, in the first words of what you write."
