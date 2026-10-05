@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.167.0] - 2026-10-05
+
+### Added
+
+- A `script_templates.hook_rules` setting, off by default, asks the script for a concrete hook and sentences linked by cause or complication, and the hook headline, description and every platform caption to lead with the search phrase.
+
 ## [0.166.0] - 2026-10-05
 
 ### Added

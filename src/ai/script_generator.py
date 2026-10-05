@@ -333,19 +333,37 @@ def render_signature_rules(choice: SignatureChoice) -> str:
     return "\n".join(rules)
 
 
+HOOK_RULES = (
+    "- **Make the opening line concrete.** Name the product or the situation "
+    "and one specific detail, and hold back only the answer. Never tease with "
+    '"you won\'t believe" or a line that names nothing.\n'
+    "- **Link each sentence to the one before by cause or complication** "
+    '("but", "so", "which means"), never by "and then".'
+)
+
+
+def render_hook_rules(enabled: bool) -> str:
+    """The concrete-hook and causal-chain rules (design 0007), or ""."""
+    return HOOK_RULES if enabled else ""
+
+
 def render_ending_rules(
     cta_line: str,
     is_topic: bool,
     naturalism: int,
     signature: SignatureChoice | None = None,
+    hook_rules: bool = False,
 ) -> str:
-    """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature."""
+    """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature,
+    and the hook rules.
+    """
     return "\n".join(
         rule
         for rule in (
             render_cta_rule(cta_line, is_topic=is_topic),
             render_naturalism_rule(naturalism),
             render_signature_rules(signature or SignatureChoice()),
+            render_hook_rules(hook_rules),
         )
         if rule
     )
@@ -963,6 +981,7 @@ async def generate_script(
                 is_topic,
                 settings.script_templates.naturalism.intensity,
                 select_signature(settings.script_templates.signature, product_id),
+                hook_rules=settings.script_templates.hook_rules.enabled,
             ),
         )
         if step_list is not None:
@@ -1390,6 +1409,7 @@ async def generate_hook_headline(
             # rather than hardcoding a number that would drift from
             # hook_overlay.max_words. Sanitizing still enforces the cap.
             extra_placeholders={"MAX_WORDS": str(max_words)},
+            lead_with_search_phrase=True,
         )
     except (RuntimeError, ValueError, OSError, aiohttp.ClientError) as e:
         logger.warning("Hook headline generation failed: %s", e)

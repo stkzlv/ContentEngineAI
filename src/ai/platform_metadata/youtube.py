@@ -133,6 +133,7 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
                 narrator_profile=narrator_profile,
                 pillar=pillar,
                 pillar_preambles=pillar_preambles,
+                lead_with_search_phrase=True,
             )
 
             if not response:

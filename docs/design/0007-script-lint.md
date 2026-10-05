@@ -1,6 +1,6 @@
 # 0007. Script lint and search-phrase placement
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #548
 - **Requirements:** REQ-CNT-053, REQ-CNT-054, REQ-CNT-055
 
@@ -46,7 +46,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - The bundled list adds "in today's video" and "you won't believe" to the design's phrases, from the Context's filler evidence. "It's not X, but Y" is an ordinary concession and passes; only "it's not X, it's Y" fails, and "elevate" fails only as "elevate your/the". Curly apostrophes are read as straight ones, and a match that also occurs in the product's own title or keyword is no tell, so a product named "Seamless" can be called by its name.
 - A script failing only the lint is kept as a last resort ahead of a script missing its call to action, since it is the more complete of the two.
 - The search-phrase report (`REQ-CNT-055`) shipped: each render's row in `state/render_choices.jsonl` records where the phrase appears (captions read the way the publisher reads them, unified file first, and measured before it puts the disclosure in front), and the variety report prints the share per place. The phrase is the product keyword, or a topic's title rather than its stock keywords, since the title is phrased as searched. A place counts when every word of three or more letters, in a topic's title question and filler words aside (a spoken answer to "Why your laptop fan runs" drops "why"; a product keyword such as "can opener" keeps every word), appears there, or the phrase appears with its spaces closed up, since the product keyword "smart watch" was written "smartwatch" in a real script and headline.
-- The hook and placement rules (`REQ-CNT-054`) are not built yet.
+- The hook and placement rules (`REQ-CNT-054`) are built and held off behind `script_templates.hook_rules.enabled`. The script rules render into `{CTA_RULE}` after the signature rules. The search-phrase rule is appended after the formatted prompt, so no template changes and every prompt is unchanged when off; it goes to the hook headline, the unified description, and the YouTube, TikTok and Instagram caption prompts, and not to the fact check or the stock search phrases, which share the same LLM helper.
 
 ## Alternatives considered
 

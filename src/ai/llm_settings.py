@@ -69,6 +69,18 @@ class NaturalismConfig(BaseModel):
     intensity: int = Field(default=0, ge=0, le=2)
 
 
+class HookRulesConfig(BaseModel):
+    """Hook and search-phrase prompt rules (design 0007), off by default.
+
+    On, the script prompt asks for a concrete hook and sentences linked by
+    cause or complication, and the hook headline, the description and every
+    platform caption prompt ask to lead with the search phrase. Off, every
+    prompt is exactly as it was.
+    """
+
+    enabled: bool = False
+
+
 class ScriptTemplateConfig(BaseModel):
     """Config for multi-template script generation."""
 
@@ -118,6 +130,8 @@ class ScriptTemplateConfig(BaseModel):
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
     # Recurring opener, transition and sign-off. Empty pools = off.
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
+    # Concrete hook, "but/therefore" chain and search-phrase lead. Off.
+    hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)
 
     @field_validator("cta_options", "cta_options_topic")
     @classmethod

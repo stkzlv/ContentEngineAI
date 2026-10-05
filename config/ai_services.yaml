@@ -322,6 +322,12 @@ llm_settings:
       openers: []
       transitions: []
       signoffs: []
+    # A concrete hook and sentences linked by cause or complication in the
+    # script, and the search phrase leading the hook headline, the
+    # description and every platform caption (design 0007). Off leaves every
+    # prompt unchanged; held off while the reach test runs.
+    hook_rules:
+      enabled: false
 
     # Templates used when the record came from a topic rather than a scraped
     # product. These replace the pool rather than narrowing it: every other
