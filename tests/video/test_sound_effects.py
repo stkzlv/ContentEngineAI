@@ -153,7 +153,7 @@ def test_off_adds_nothing_to_the_command(tmp_path: Path) -> None:
 
 
 @pytest.mark.req("REQ-VID-012")
-def test_the_assembler_places_effects_from_the_timeline(tmp_path: Path) -> None:
+def test_the_assembler_places_the_three_effects(tmp_path: Path) -> None:
     from src.video.assembler.core import VideoAssembler
 
     cfg = config.model_copy(deep=True)

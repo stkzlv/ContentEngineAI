@@ -711,7 +711,7 @@ class VideoAssembler:
             speech_end_sec: Where the speech ends, when the ending measured
                 it; an end-placed sting finishes there.
             spoken_words: Whisper's word timings, which place the reveal and
-                call-to-action sound effects; None places transitions only.
+                call-to-action sound effects; None places the hook effect only.
 
         Returns:
         -------
