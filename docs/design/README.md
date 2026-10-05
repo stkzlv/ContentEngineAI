@@ -79,3 +79,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0018](0018-tutorial-step-visuals.md) | A visual per step | #560 | Accepted |
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |
+| [0021](0021-caption-outline.md) | A black outline round pycaps captions | #591 | Held |

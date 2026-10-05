@@ -330,6 +330,16 @@ class PycapsSettings(BaseModel):
             "programmatic build renders the template as shipped."
         ),
     )
+    outline_px: float = Field(
+        0.0,
+        ge=0.0,
+        le=20.0,
+        description=(
+            "Width in frame pixels of an opaque black outline drawn round "
+            "each caption word, in place of the template's text shadow. 0 "
+            "renders the template as shipped. Only the css renderer draws it."
+        ),
+    )
     max_width_ratio: float = Field(
         0.80,
         ge=0.0,

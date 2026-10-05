@@ -57,6 +57,7 @@ subtitle_settings:
     template_pool: ["explosive", "word-focus"]
     renderer: "css"
     force_sentence_case: true           # override a template's text-transform: uppercase
+    outline_px: 0                       # black outline in frame px; 0 = template as shipped, 6 after the readout
     fallback_policy: "fallback_ffmpeg"  # forks without --with pycaps land here
 ```
 
