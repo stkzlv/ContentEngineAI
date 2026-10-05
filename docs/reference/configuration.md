@@ -1615,9 +1615,10 @@ search round trip inside it.
 
 With `step_list.enabled`, a topic's script starts with one grounded call for
 its steps: each step's action, exact UI path, expected result and the URL of
-the page that states it. A step whose source is not a web URL is refused; a
-topic left with no sourced step is dropped, and one whose steps fork by device
-or exceed `max_steps` is set aside for a series, both as a skipped product. The
+the page that states it. A step whose source is not a web URL is refused, and
+the topic with it, since a tutorial with a step missing cannot be followed; a
+topic whose steps fork by device or exceed `max_steps` is set aside for a
+series. Both count as a skipped product. The
 script is then written from the steps with a length set by their count (50-75
 words for one or two steps, 100-185 for more), naming the screen where the
 steps start and the source's common mistake at its step. The list is kept in

@@ -4,10 +4,11 @@ One grounded call asks for the task's steps, each with its action, exact UI
 path, expected result and the URL of the page that states it. The script is
 then written from the list, and its length follows the step count.
 
-A step with no source is refused. A topic left with no sourced step is
-dropped rather than rendered, and a topic whose steps fork by device, or need
-more steps than a short video holds, is set aside for a series. Nothing here
-raises: a failed call returns None, which the caller treats as unsourced.
+A step with no source is refused, and the topic with it: a tutorial with a
+step missing cannot be followed. A topic is also dropped when nothing could
+be sourced, and one whose steps fork by device, or need more steps than a
+short video holds, is set aside for a series. Nothing here raises: a failed
+call returns None, which the caller treats as unsourced.
 """
 
 from __future__ import annotations
@@ -77,7 +78,9 @@ def parse_step_list(answer: str | None) -> StepList | None:
         return None
     kept: list[Step] = []
     refused: list[Step] = []
-    for raw in data["steps"]:
+    # The model numbers steps in its own list; map to positions in `kept`.
+    position: dict[int, int] = {}
+    for number, raw in enumerate(data["steps"], start=1):
         if not isinstance(raw, dict):
             continue
         step = Step(
@@ -88,17 +91,23 @@ def parse_step_list(answer: str | None) -> StepList | None:
         )
         if not step.action:
             continue
-        (kept if _sourced(step.source) else refused).append(step)
+        if _sourced(step.source):
+            kept.append(step)
+            position[number] = len(kept)
+        else:
+            refused.append(step)
     mistake = data.get("common_mistake")
-    mistake_step = mistake.get("step") if isinstance(mistake, dict) else None
+    raw_step = mistake.get("step") if isinstance(mistake, dict) else None
+    # A mistake whose own step was refused, or that names no step, is dropped.
+    mistake_step = position.get(raw_step) if isinstance(raw_step, int) else None
     mistake_text = _text(mistake.get("mistake")) if isinstance(mistake, dict) else ""
     return StepList(
         start_screen=_text(data.get("start_screen")),
         platform=_text(data.get("platform")),
         forks=data.get("forks") is True,
         steps=kept,
-        mistake_step=mistake_step if isinstance(mistake_step, int) else None,
-        mistake=mistake_text or None,
+        mistake_step=mistake_step,
+        mistake=(mistake_text or None) if mistake_step else None,
         refused=refused,
     )
 
@@ -109,6 +118,9 @@ def drop_reason(step_list: StepList | None, max_steps: int) -> str | None:
         return "no step list came back"
     if not step_list.steps:
         return "no step could be sourced"
+    if step_list.refused:
+        # A refused step leaves a gap the viewer cannot get past.
+        return "a step could not be sourced"
     if step_list.forks or len(step_list.steps) > max_steps:
         return "its steps fork by device or exceed the limit; set aside for a series"
     return None
@@ -135,11 +147,14 @@ def render_steps(step_list: StepList) -> dict[str, str]:
         expected = f" (Viewer then sees: {step.expected}.)" if step.expected else ""
         lines.append(f"{n}. {step.action}{path}.{expected}")
     count = len(step_list.steps)
-    if step_list.mistake and step_list.mistake_step and step_list.mistake_step >= 1:
-        at = min(step_list.mistake_step, count)
+    if (
+        step_list.mistake
+        and step_list.mistake_step
+        and 1 <= (step_list.mistake_step) <= count
+    ):
         mistake = (
-            f"At step {at}, name this common mistake in one sentence: "
-            f"{step_list.mistake}"
+            f"At step {step_list.mistake_step}, name this common mistake in one "
+            f"sentence: {step_list.mistake}"
         )
     else:
         mistake = "Name no mistake the steps do not state."

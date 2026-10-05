@@ -30,9 +30,9 @@ None recorded.
 ## As built
 
 - The setting is `llm_settings.topic_scripts.step_list` (`enabled`, `model`, `max_steps`, `timeout_seconds`) in `config/ai_services.yaml`.
-- One grounded call (`prompts/topic_step_list.md`) returns the list as JSON in text: the start screen, the platform, whether the steps fork, the steps, and the source's common mistake. A step whose `source` is not an `http(s)` URL is refused.
-- The topic is dropped, as a skipped product, when the call fails, no step is sourced, or the steps fork or exceed `max_steps`; this release sets such a topic aside rather than splitting it into a series.
-- The script is written from the steps with `prompts/topic_from_steps.md`, a new prompt beside the existing templates, which stay untouched. Its length is 50-75 words for one or two steps and 100-185 for more; a draft under 80% of the floor is retried, and kept only when no attempt reaches it.
+- One grounded call (`prompts/topic_step_list.md`) returns the list as JSON in text: the start screen, the platform, whether the steps fork, the steps, and the source's common mistake. A step whose `source` is not an `http(s)` URL is refused, and its topic dropped: a tutorial with a step missing cannot be followed. The common mistake keeps its step through the renumbering, and is dropped with it when that step is refused.
+- The topic is dropped, as a skipped product, when the call fails, any step is unsourced, or the steps fork or exceed `max_steps`; this release sets such a topic aside rather than splitting it into a series.
+- The script is written from the steps with `prompts/topic_from_steps.md`, a new prompt beside the existing templates, which stay untouched. Its length is 50-75 words for one or two steps and 100-185 for more; a draft under 80% of the floor is retried, and kept only when no attempt reaches it; a short draft that also misses its closing line is never the CTA fallback.
 - The list is written to `temp/step_list.json`, and the state carries a one-line `step_list` summary.
 - On a live run (Background App Refresh on iPhone) the call returned three steps sourced to Apple's support page, and the script named the start screen and each step's result.
 - The topic pool filter (REQ-VID-151) is not part of this release.

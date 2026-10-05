@@ -41,6 +41,7 @@ from src.ai.model_pool import (
     model_reject_reason,
 )
 from src.ai.step_list import StepList
+from src.ai.step_list import too_short as _too_short
 from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
@@ -982,13 +983,18 @@ async def generate_script(
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
         )
-        if ok and step_list is not None:
-            from src.ai.step_list import too_short
-
-            if too_short(script, len(step_list.steps)):
-                near_miss.setdefault("short", script)
-                return False, "Script is short for the number of steps"
-        if not ok and reason == NO_CTA_REASON and "script" not in near_miss:
+        # A draft short of the step count's length is no near miss: the
+        # CTA fallback would ship it with a closing line bolted on.
+        short = step_list is not None and _too_short(script, len(step_list.steps))
+        if ok and short:
+            near_miss.setdefault("short", script)
+            return False, "Script is short for the number of steps"
+        if (
+            not ok
+            and reason == NO_CTA_REASON
+            and not short
+            and "script" not in near_miss
+        ):
             near_miss["script"] = script
         return ok, reason
 

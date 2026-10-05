@@ -860,7 +860,7 @@ FFmpeg, Google Cloud credentials and TTS failures are covered above under [FFmpe
 
 ### Product skipped for insufficient media
 
-**Error:** `Product skipped due to insufficient media`
+**Error:** `Product skipped: ...`, naming the shortfall (the same line reports a topic whose steps could not be sourced)
 
 **Cause:** the product has fewer images or videos than the profile requires. The run reports it as skipped, not failed.
 

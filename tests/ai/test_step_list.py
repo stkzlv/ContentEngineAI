@@ -70,8 +70,28 @@ def test_a_step_without_a_web_source_is_refused() -> None:
         "Tap Background App Refresh",
         "Choose Off",
     ]
-    assert parsed.mistake_step == 3
+    # The mistake's own step (3) was refused, so the mistake goes with it.
+    assert parsed.mistake_step is None and parsed.mistake is None
     assert parsed.start_screen == "the Settings app"
+    assert drop_reason(parsed, 6) == "a step could not be sourced"
+
+
+@pytest.mark.req("REQ-CNT-147")
+def test_the_mistake_follows_its_step_through_renumbering() -> None:
+    answer = dict(ANSWER)
+    answer["steps"] = [
+        {"action": "Open Settings", "source": ""},
+        {"action": "Tap Wi-Fi", "source": "https://a/"},
+        {"action": "Tap the network", "source": "https://a/"},
+    ]
+    answer["common_mistake"] = {"step": 2, "mistake": "tapping the toggle"}
+
+    parsed = parse_step_list(json.dumps(answer))
+
+    assert parsed is not None
+    assert [s.action for s in parsed.steps] == ["Tap Wi-Fi", "Tap the network"]
+    assert parsed.mistake_step == 1
+    assert render_steps(parsed)["MISTAKE_RULE"].startswith("At step 1,")
 
 
 @pytest.mark.parametrize(
@@ -88,6 +108,9 @@ def test_drop_reasons() -> None:
     assert "series" in (drop_reason(_sl(3, forks=True), 6) or "")
     assert "series" in (drop_reason(_sl(7), 6) or "")
     assert drop_reason(_sl(6), 6) is None
+    gap = _sl(3)
+    gap.refused = [Step("Skipped", "", "", "")]
+    assert drop_reason(gap, 6) == "a step could not be sourced"
 
 
 @pytest.mark.req("REQ-VID-121")
@@ -234,3 +257,26 @@ def test_the_script_step_builds_the_list_and_passes_it_on() -> None:
     assert source.index("await _topic_step_list(ctx)") < source.index(
         "step_list=step_list"
     )
+
+
+@pytest.mark.asyncio
+async def test_a_short_draft_without_its_cta_is_not_the_cta_fallback() -> None:
+    from src.ai import script_generator
+
+    cta = config.llm_settings.script_templates.cta_options_for(True)[0]
+    short_with_cta = ("Tap the option and look closely. " * 10) + cta
+    shorter_no_cta = "Tap it and look. " * 14
+    call = AsyncMock(side_effect=[short_with_cta, shorter_no_cta] * 20)
+
+    with patch.object(script_generator, "_call_llm_api_with_retry", call):
+        script, _, _ = await script_generator.generate_script(
+            _product(),
+            config.llm_settings,
+            {config.llm_settings.api_key_env_var: "k"},
+            AsyncMock(),
+            {},
+            False,
+            step_list=_sl(4),
+        )
+
+    assert script is not None and script.startswith("Tap the option")
