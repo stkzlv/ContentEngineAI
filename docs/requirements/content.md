@@ -77,7 +77,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
 - **REQ-CNT-044** `held` Where naturalism is on, filler never lands in the first sentence, inside a number, name or claim, or in or after the call to action, and uses words the captions carry rather than sounds speech recognition drops.
   - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
-- **REQ-CNT-045** `held` Where an author signature is configured, a script carries an opener that starts the first sentence, one transition where the script turns, and a sign-off right before the call to action.
+- **REQ-CNT-045** `held` Where an author signature is configured, a script carries an opener that starts the first sentence, one transition where the script turns, and a sign-off right before the call to action; a tutorial written from a step list has no transition, and its sign-off follows the recap of the path.
   - On when: the `script_templates.signature` pools (`openers`, `transitions`, `signoffs`) are filled after the reach-test readout, in stages (#540); empty pools mean off.
 - **REQ-CNT-046** `held` Each signature element is drawn per product, reproducibly, below `script_templates.signature.use_rate`, so the signature recurs without appearing in every render.
   - On when: the `script_templates.signature` pools are filled after the reach-test readout, in stages (#540).

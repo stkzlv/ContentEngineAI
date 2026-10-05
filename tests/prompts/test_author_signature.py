@@ -107,6 +107,17 @@ class TestTheRules:
         rule = render_signature_rules(SignatureChoice(opener="Quick one"))
         assert "continue that same sentence" in rule
 
+    def test_an_opener_ending_in_a_full_stop_gets_one_comma(self) -> None:
+        rule = render_signature_rules(SignatureChoice(opener="Quick find for you."))
+        assert '"Quick find for you,"' in rule
+
+    def test_a_tutorial_signoff_follows_the_recap(self) -> None:
+        choice = SignatureChoice(signoff="That's the find for today.")
+        assert "closing beat" in render_signature_rules(choice)
+        tutorial = render_signature_rules(choice, tutorial=True)
+        assert "recap of the whole path" in tutorial
+        assert "closing beat" not in tutorial
+
     def test_a_signed_off_script_still_validates(self) -> None:
         ok, reason = validate_script_completeness(
             SCRIPT, min_chars=200, min_words=50, cta_options=[CTA]
@@ -182,3 +193,44 @@ class TestTheFirstCommentSkipsTheSignoff:
             enabled=True, platforms={"youtube": "{closing_line}"}
         )
         assert build_first_comment(config, "youtube", "B0X", tmp_path) == CLOSING
+
+
+@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tutorial", [False, True])
+async def test_a_tutorial_prompt_has_no_transition(
+    monkeypatch: pytest.MonkeyPatch, tutorial: bool
+) -> None:
+    from src.ai.step_list import Step, StepList
+    from src.video.producer.topic_input import TopicSpec, build_topic_product
+
+    settings = load_video_config_modular().llm_settings
+    settings.script_templates.signature = SignatureConfig(use_rate=1.0, **POOLS)
+    seen: list[str] = []
+
+    async def capture(prompt, *a, **k):
+        seen.append(prompt)
+        return SCRIPT
+
+    monkeypatch.setattr(script_generator, "_call_llm_api_with_retry", capture)
+    monkeypatch.setattr(
+        script_generator, "fetch_and_select_model", AsyncMock(return_value=[])
+    )
+    steps = [Step(f"Do {i}", "A > B", "done", "https://x/") for i in range(3)]
+    await script_generator.generate_script(
+        build_topic_product(TopicSpec(title="How to fix it", description="x")),
+        settings,
+        {settings.api_key_env_var: "k"},
+        None,
+        {},
+        False,
+        product_id="topic-fix",
+        step_list=(
+            StepList("Settings", "iOS", False, steps, topic_failures=[])
+            if tutorial
+            else None
+        ),
+    )
+    assert seen
+    assert ('"here\'s the thing"' in seen[0]) is not tutorial
+    assert ("recap of the whole path" in seen[0]) is tutorial

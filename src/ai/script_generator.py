@@ -20,7 +20,7 @@ import logging
 import random
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import aiohttp
@@ -307,19 +307,36 @@ def select_signature(
     )
 
 
-def render_signature_rules(choice: SignatureChoice) -> str:
+def signature_for(
+    signature: SignatureConfig, product_id: str | None, tutorial: bool = False
+) -> SignatureChoice:
+    """The drawn signature, without the transition for a step-list tutorial.
+
+    A tutorial has no turn from the problem to what helps for the transition
+    to mark; placed anyway, it lands before the first step. The prompt and
+    the script step's record both read this, so they agree.
+    """
+    choice = select_signature(signature, product_id)
+    return replace(choice, transition="") if tutorial else choice
+
+
+def render_signature_rules(choice: SignatureChoice, tutorial: bool = False) -> str:
     """One rule per drawn element; nothing for an empty choice.
 
     Each rule names its own position. The opener joins the first sentence
     rather than standing alone, so that sentence still carries the spoken
     search phrase. The sign-off is a whole sentence between the closing beat
     and the call to action, so the CTA stays the verbatim last sentence and
-    the first-comment extractor, told the sign-off, can strip it.
+    the first-comment extractor, told the sign-off, can strip it. In a
+    tutorial the closing beat is the recap of the path, which a sign-off
+    rule that only said "closing beat" pushed out.
     """
     rules = []
     if choice.opener:
+        # A pool line may end in a full stop; the rule appends the comma.
+        opener = choice.opener.rstrip(" .!?,;:")
         rules.append(
-            f'- **Start the first sentence with the words "{choice.opener},"** '
+            f'- **Start the first sentence with the words "{opener},"** '
             "and continue that same sentence with the hook the template asks "
             "for."
         )
@@ -332,9 +349,14 @@ def render_signature_rules(choice: SignatureChoice) -> str:
     if choice.signoff:
         rules.append(
             "- **The sentence directly before the call to action is this "
-            f'sign-off, word for word:** "{choice.signoff}" It comes after the '
-            "closing beat, and nothing else sits between it and the call to "
-            "action."
+            f'sign-off, word for word:** "{choice.signoff}" It comes after '
+            + (
+                "the one-sentence recap of the whole path, which the script "
+                "still ends its steps with"
+                if tutorial
+                else "the closing beat"
+            )
+            + ", and nothing else sits between it and the call to action."
         )
     return "\n".join(rules)
 
@@ -379,7 +401,7 @@ def render_ending_rules(
     signature: SignatureChoice | None = None,
     hook_rules: bool = False,
     lint: ScriptLintConfig | None = None,
-    word_cap: bool = True,
+    tutorial: bool = False,
 ) -> str:
     """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature,
     the hook rules and the lint's limits.
@@ -389,9 +411,9 @@ def render_ending_rules(
         for rule in (
             render_cta_rule(cta_line, is_topic=is_topic),
             render_naturalism_rule(naturalism),
-            render_signature_rules(signature or SignatureChoice()),
+            render_signature_rules(signature or SignatureChoice(), tutorial),
             render_hook_rules(hook_rules),
-            render_lint_rule(lint, word_cap),
+            render_lint_rule(lint, word_cap=not tutorial),
         )
         if rule
     )
@@ -1008,10 +1030,14 @@ async def generate_script(
                 cta_line,
                 is_topic,
                 settings.script_templates.naturalism.intensity,
-                select_signature(settings.script_templates.signature, product_id),
+                signature_for(
+                    settings.script_templates.signature,
+                    product_id,
+                    tutorial=step_list is not None,
+                ),
                 hook_rules=settings.script_templates.hook_rules.enabled,
                 lint=settings.script_validation.lint,
-                word_cap=step_list is None,
+                tutorial=step_list is not None,
             ),
         )
         if step_list is not None:
