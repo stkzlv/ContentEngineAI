@@ -22,6 +22,10 @@ def test_contains_needs_every_significant_word() -> None:
     assert contains("Level up with this Smart Watch!", "smart watch")
     assert contains("watch, but smart", "smart watch")
     assert contains("Before this smartwatch, I", "smart watch")
+    # A spoken answer drops the question words of a topic title.
+    assert contains(
+        "Your laptop fan runs when idle because", "Why your laptop fan runs when idle"
+    )
     assert not contains("A smart ring", "smart watch")
     assert not contains(None, "smart watch")
     assert not contains("anything", "a")
@@ -35,16 +39,16 @@ def test_the_phrase_is_the_keyword_or_the_topic_title() -> None:
     assert search_phrase(None) is None
 
 
-def test_captions_use_each_platform_file_then_the_unified_one(tmp_path) -> None:
-    (tmp_path / "metadata.json").write_text(json.dumps({"description": "unified"}))
+def test_captions_are_read_the_way_the_publisher_reads_them(tmp_path) -> None:
     (tmp_path / "metadata_tiktok.json").write_text(json.dumps({"description": "tt"}))
     (tmp_path / "metadata_instagram.json").write_text("{broken")
 
-    assert captions(tmp_path) == {
-        "youtube": "unified",
-        "tiktok": "tt",
-        "instagram": "unified",
-    }
+    assert captions(tmp_path) == {"tiktok": "tt"}
+    # A unified file wins over a platform's own, as at publish time.
+    (tmp_path / "metadata.json").write_text(json.dumps({"description": "unified"}))
+    assert captions(tmp_path) == dict.fromkeys(
+        ("youtube", "tiktok", "instagram"), "unified"
+    )
     assert captions(tmp_path / "missing") == {}
 
 

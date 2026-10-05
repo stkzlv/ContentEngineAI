@@ -1005,7 +1005,12 @@ async def generate_script(
             from src.ai.script_lint import lint_script
 
             # A tutorial's length comes from its steps, not the duration cap.
-            failure = lint_script(script, lint, word_cap=step_list is None)
+            failure = lint_script(
+                script,
+                lint,
+                word_cap=step_list is None,
+                exempt=f"{product.title or ''} {getattr(product, 'keyword', '') or ''}",
+            )
             if failure:
                 near_miss.setdefault("lint", script)
                 return False, f"Script lint: {failure}"

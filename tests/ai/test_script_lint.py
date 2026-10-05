@@ -39,6 +39,30 @@ def test_each_tell_fails_and_the_clean_script_passes(tell: str) -> None:
 
 
 @pytest.mark.req("REQ-CNT-053")
+def test_curly_apostrophes_are_caught_too() -> None:
+    assert lint_script(f"{CLEAN} It\u2019s not a toy, it\u2019s a tool.", LINT)
+    assert lint_script(f"{CLEAN} Whether you\u2019re at home or not.", LINT)
+
+
+@pytest.mark.parametrize(
+    "ordinary",
+    [
+        "It's not cheap, but it lasts for years.",
+        "The elevated stand lifts your screen.",
+    ],
+)
+def test_ordinary_lines_pass(ordinary: str) -> None:
+    assert lint_script(f"{CLEAN} {ordinary}", LINT) is None
+
+
+def test_the_products_own_name_is_no_tell() -> None:
+    script = f"{CLEAN} Seamless leggings stay put."
+
+    assert lint_script(script, LINT) is not None
+    assert lint_script(script, LINT, exempt="Seamless Leggings, high waist") is None
+
+
+@pytest.mark.req("REQ-CNT-053")
 def test_a_long_sentence_fails() -> None:
     long = "This lamp " + "really " * 14 + "clips on."
 
@@ -65,7 +89,7 @@ def _product():
     return build_topic_product(TopicSpec(title="How to fix it", description="x"))
 
 
-async def _generate(replies: list[str], lint_on: bool):
+async def _generate(replies: list[str], lint_on: bool, step_list=None):
     from src.ai import script_generator
 
     settings = config.llm_settings.model_copy(deep=True)
@@ -79,6 +103,7 @@ async def _generate(replies: list[str], lint_on: bool):
             AsyncMock(),
             {},
             False,
+            step_list=step_list,
         )
     return script, call.await_count
 
@@ -110,3 +135,30 @@ async def test_a_script_failing_only_the_lint_ships_as_a_last_resort() -> None:
     script, calls = await _generate([tell], lint_on=True)
 
     assert script == tell and calls > 1
+
+
+@pytest.mark.req("REQ-CNT-053")
+@pytest.mark.asyncio
+async def test_the_lint_last_resort_beats_a_script_missing_its_cta() -> None:
+    no_cta = "Open the settings and turn the switch off. " * 9
+    tell = _script("It's not a bug, it's a setting.")
+
+    script, _ = await _generate([no_cta, tell], lint_on=True)
+
+    # Complete and closing on its CTA, only the lint objected: kept as is.
+    assert script == tell
+
+
+@pytest.mark.req("REQ-CNT-053")
+@pytest.mark.asyncio
+async def test_a_tutorial_is_not_held_to_the_duration_cap() -> None:
+    from src.ai.step_list import Step, StepList
+
+    steps = [Step(f"Do {i}", "A > B", "done", "https://x/") for i in range(5)]
+    sl = StepList("Settings", "iOS", False, steps, topic_failures=[])
+    long_ok = _script("Open the settings and turn the switch off. " * 14)
+    assert lint_script(long_ok, LINT) is not None  # over 112 words
+
+    script, calls = await _generate([long_ok], lint_on=True, step_list=sl)
+
+    assert script == long_ok and calls == 1

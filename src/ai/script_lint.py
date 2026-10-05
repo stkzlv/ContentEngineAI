@@ -18,17 +18,24 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[\w'’-]+", text)
 
 
-def lint_script(script: str, settings: Any, *, word_cap: bool = True) -> str | None:
+def lint_script(
+    script: str, settings: Any, *, word_cap: bool = True, exempt: str = ""
+) -> str | None:
     """Why the script fails the lint, or None when it passes.
 
     `word_cap` is off for a script whose length another rule sets, such as
-    a tutorial sized by its step count.
+    a tutorial sized by its step count. A match that also occurs in `exempt`
+    (the product's own title and keyword) is no tell: a product named
+    "Seamless" has to be called by its name.
     """
+    # The model types curly apostrophes as often as straight ones.
+    text = script.replace("\u2019", "'")
+    exempt_text = exempt.replace("\u2019", "'").lower()
     for pattern in settings.banned_phrases:
-        match = re.search(pattern, script, re.IGNORECASE)
-        if match:
-            return f"uses the phrase {match.group(0)!r}"
-    for sentence in split_sentences(script):
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            if match.group(0).lower() not in exempt_text:
+                return f"uses the phrase {match.group(0)!r}"
+    for sentence in split_sentences(text):
         count = len(_words(sentence))
         if count > settings.max_sentence_words:
             return (
@@ -36,7 +43,7 @@ def lint_script(script: str, settings: Any, *, word_cap: bool = True) -> str | N
             )
     if word_cap:
         cap = int(settings.max_words_per_sec * settings.target_duration_sec)
-        count = len(_words(script))
+        count = len(_words(text))
         if count > cap:
             return f"{count} words, over {cap} for {settings.target_duration_sec:g} s"
     return None

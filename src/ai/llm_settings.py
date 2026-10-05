@@ -188,10 +188,10 @@ class ScriptTemplateConfig(BaseModel):
 # Machine-writing tells (design 0007): "it's not X, it's Y" and the stock
 # words and openers that mark a script as generated.
 DEFAULT_BANNED_PHRASES = [
-    r"\bit'?s not (?:just )?(?:\w+\s){0,3}\w+[,;]? (?:it'?s|but)\b",
+    r"\bit'?s not (?:just )?(?:\w+\s){0,3}\w+[,;]? it'?s\b",
     r"\bgame[- ]changer\b",
     r"\bsay goodbye to\b",
-    r"\belevate[sd]?\b",
+    r"\belevates? (?:your|the)\b",
     r"\bseamless(?:ly)?\b",
     r"\bdelve[sd]?\b",
     r"\bwhether you'?re\b",

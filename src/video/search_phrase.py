@@ -7,8 +7,10 @@ nothing here changes a script, a headline or a caption.
 
 The phrase is the product's search keyword, or a topic's title, which is
 already phrased the way people type it. A place counts when every word of the
-phrase of three or more letters appears there, in any case and order, or the
-phrase appears with its spaces closed up ("smart watch" in "smartwatch").
+phrase of three or more letters, question and filler words aside, appears
+there in any case and order, or the phrase appears with its spaces closed up
+("smart watch" in "smartwatch"). Captions are measured before the publisher
+puts its disclosure in front of them.
 """
 
 from __future__ import annotations
@@ -25,10 +27,21 @@ logger = logging.getLogger(__name__)
 
 CAPTION_PREFIX_CHARS = 60
 PLATFORMS = ("youtube", "tiktok", "instagram")
+# Question and filler words a spoken answer drops: "Why your laptop fan
+# runs" is answered by "Your laptop fan runs when idle because...".
+STOP_WORDS = frozenset(
+    "why how what when where which who whose does did can could should would "
+    "will your you yours the and for with this that these those its are was "
+    "were has have not".split()
+)
 
 
 def _terms(phrase: str) -> set[str]:
-    return {w for w in re.findall(r"[\w']+", phrase.lower()) if len(w) >= 3}
+    return {
+        w
+        for w in re.findall(r"[\w']+", phrase.lower())
+        if len(w) >= 3 and w not in STOP_WORDS
+    }
 
 
 def contains(text: str | None, phrase: str) -> bool:
@@ -50,12 +63,21 @@ def search_phrase(product: Any) -> str | None:
 
 
 def captions(run_root: Path) -> dict[str, str]:
-    """Each platform's caption: its own file, else the unified one."""
+    """Each platform's caption text, read the way the publisher reads it:
+    the unified file first, else the platform's own.
+
+    This is the generated caption, before the publisher puts a disclosure
+    and the affiliate line in front of it, so the measure is where the
+    phrase sits in the text the pipeline wrote.
+    """
     found: dict[str, str] = {}
     unified = _description(run_root / "metadata.json")
     for platform in PLATFORMS:
-        own = _description(run_root / f"metadata_{platform}.json")
-        text = own if own is not None else unified
+        text = (
+            unified
+            if unified is not None
+            else _description(run_root / f"metadata_{platform}.json")
+        )
         if text is not None:
             found[platform] = text
     return found
