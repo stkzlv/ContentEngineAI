@@ -38,6 +38,8 @@ def test_the_search_phrase_rule_names_the_keyword_or_title() -> None:
     # A topic names its title's key words, which a short headline can hold.
     rule = search_phrase_rule(topic, _settings(True))
     assert "Search words: wifi, drops." in rule and "Why" not in rule
+    no_words = SimpleNamespace(topic="t", title="Why does it?", keyword="")
+    assert search_phrase_rule(no_words, _settings(True)) == ""
     assert search_phrase_rule(SimpleNamespace(keyword=""), _settings(True)) == ""
 
 

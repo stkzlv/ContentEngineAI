@@ -33,6 +33,16 @@ def test_contains_needs_every_significant_word() -> None:
     assert not contains("anything", "a")
 
 
+def test_key_words_keep_the_order_and_drop_repeats() -> None:
+    from src.video.search_phrase import key_words
+
+    assert key_words("Why wifi drops and wifi lags", question=True) == [
+        "wifi",
+        "drops",
+        "lags",
+    ]
+
+
 def test_the_phrase_is_the_keyword_or_the_topic_title() -> None:
     assert search_phrase(SimpleNamespace(keyword=" smart watch ")) == "smart watch"
     topic = SimpleNamespace(topic="t", title="Why wifi drops", keyword="router")
