@@ -155,9 +155,15 @@ _REMOVAL_VERBS = frozenset({"remove", "delete", "drop", "omit", "cut"})
 # "Delete the cached files in Settings" is an instruction, not a removal.
 _REMOVAL_POINTERS = frozenset(
     "reference references mention mentions claim claims sentence statement "
-    "line phrase".split()
+    "line phrase detail details figure figures part".split()
 )
 _BARE_POINTERS = frozenset({"this", "that", "it"})
+_BARE_TAILS = frozenset({"entirely", "completely", "altogether"})
+# Words that are never a claim's subject, even when the claim uses them.
+_FILLER_WORDS = frozenset(
+    "that this these those with from about entire entirely part into than "
+    "they them their there".split()
+)
 # Sentence openers that lean on the sentence before them.
 _ANAPHORA = frozenset("that this these those it its they so which then also".split())
 
@@ -171,7 +177,11 @@ def is_removal(fix: str) -> bool:
     words = _words(fix)
     if not words or words[0] not in _REMOVAL_VERBS:
         return False
-    if len(words) == 2 and words[1] in _BARE_POINTERS:
+    if (
+        len(words) >= 2
+        and words[1] in _BARE_POINTERS
+        and all(w in _BARE_TAILS for w in words[2:])
+    ):
         return True
     return any(w in _REMOVAL_POINTERS for w in words[1:6])
 
@@ -187,7 +197,11 @@ def removal_terms(claim: FactCheckClaim) -> set[str] | None:
     if not is_removal(claim.fix):
         return None
     claim_words = {w for w in _words(claim.claim) if len(w) >= 4}
-    return {w for w in _words(claim.fix) if w in claim_words} - _REMOVAL_POINTERS
+    return (
+        {w for w in _words(claim.fix) if w in claim_words}
+        - _REMOVAL_POINTERS
+        - _FILLER_WORDS
+    )
 
 
 def remove_flagged(original: str, flagged: list[FactCheckClaim]) -> str | None:

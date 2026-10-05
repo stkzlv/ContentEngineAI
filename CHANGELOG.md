@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A claim the fact check says to remove is now deleted rather than rewritten, and a rewrite that restates a removed claim's subject is refused, so a flagged invented detail can no longer come back as a new one.
+- A claim the fact check says to remove is now deleted rather than rewritten when nothing after it depends on it, and a rewrite that restates a removed claim's subject is refused, so a flagged invented detail can no longer come back as a new one.
 
 ## [0.168.1] - 2026-10-05
 

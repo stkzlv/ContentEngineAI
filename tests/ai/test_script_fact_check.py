@@ -1201,7 +1201,14 @@ class TestARemovalIsCarriedOut:
         assert not is_removal(fix)
 
     @pytest.mark.parametrize(
-        "fix", [REMOVE_FIX, "Remove this.", "Delete the battery runtime claim."]
+        "fix",
+        [
+            REMOVE_FIX,
+            "Remove this.",
+            "Remove it entirely.",
+            "Delete the battery runtime claim.",
+            "Omit the battery detail.",
+        ],
     )
     def test_a_fix_pointing_at_the_claim_is_a_removal(self, fix: str) -> None:
         from src.ai.script_fact_check import is_removal
@@ -1326,3 +1333,53 @@ class TestARemovalIsCarriedOut:
 
         reviser.assert_called_once()
         assert out.script == short
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-151")
+class TestRemovalEdges:
+    def test_filler_words_are_not_the_removed_subject(self) -> None:
+        script = (
+            "This watch works with every phone. It charges in two hours. "
+            f"It folds flat. {CTA}"
+        )
+        flags = [
+            FactCheckClaim(
+                claim="This watch works with every phone.",
+                reason="r",
+                fix="Remove the claim that it works with every phone.",
+            ),
+            FactCheckClaim(
+                claim="It charges in two hours.",
+                reason="r",
+                fix="A full charge takes four hours.",
+            ),
+        ]
+        revised = (
+            "It charges fully in four hours from the included cable, with no "
+            f"adapter. It folds flat. {CTA}"
+        )
+
+        accepted, reason = accept_revision(script, revised, flags, **GUARDS)
+
+        assert accepted == revised, reason
+
+    def test_a_claim_the_splitter_cut_in_two_goes_whole(self) -> None:
+        from src.ai.script_fact_check import remove_flagged
+
+        script = (
+            "The lamp lasts all evening. Check the 5 p.m. reading on the dial. "
+            f"Great for camping trips with friends. {CTA}"
+        )
+        flag = [
+            FactCheckClaim(
+                claim="Check the 5 p.m. reading on the dial.",
+                reason="r",
+                fix="Remove the reading claim.",
+            )
+        ]
+        assert len(sentences(script)) > 4  # the splitter cut the claim
+
+        assert remove_flagged(script, flag) == (
+            f"The lamp lasts all evening. Great for camping trips with friends. {CTA}"
+        )
