@@ -111,6 +111,8 @@ class VideoAssembler:
 
         # Builders requiring profile settings (lazy init)
         self.visual_builder: VisualFilterBuilder | None = None
+        # The effects the last render placed, as "kind:file" (design 0006).
+        self.sound_effects_placed: list[str] = []
         self.subtitle_builder: SubtitleGraphBuilder | None = None
         self.strategy_factory: VideoStrategyFactory | None = None
 
@@ -655,12 +657,29 @@ class VideoAssembler:
             playable_kinds(settings),
         )
         effects = resolve_effects(settings, events, self.product_id or "")
+        kinds = {event.time: event.kind for event in events}
+        self.sound_effects_placed = [
+            f"{kinds.get(start, '?')}:{path.name}" for path, start in effects
+        ]
         logger.info(
             "Sound effects: %d placed (%s)",
             len(effects),
             ", ".join(f"{e.kind}@{e.time:.1f}s" for e in events),
         )
         return effects
+
+    def assembly_choices(self) -> dict[str, Any]:
+        """What the last render drew, for its record; an unused feature is None.
+
+        The still-motion move per still, the cuts beat snapping moved, and
+        each sound effect as "kind:file" (designs 0001, 0005, 0003).
+        """
+        builder = self.visual_builder
+        return {
+            "still_moves": (list(builder.still_moves) or None) if builder else None,
+            "beat_snap_moved": builder.beat_snap_moved if builder else None,
+            "sound_effects": list(self.sound_effects_placed) or None,
+        }
 
     def _disclosure_settings(self) -> DisclosureSettings:
         """The overlay settings with the text for this render's language."""

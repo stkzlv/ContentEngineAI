@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.165.0] - 2026-10-05
+
+### Added
+
+- Each render's record in `state/render_choices.jsonl` names the still-motion move on each still, the cuts beat snapping moved and each sound-effect file, and the variety report counts each one, so renders with those held features on can be told apart.
+
 ## [0.164.0] - 2026-10-05
 
 ### Added

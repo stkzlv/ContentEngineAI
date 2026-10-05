@@ -52,6 +52,10 @@ DIMENSIONS = (
     "pre_motion",
     "transition_sec",
     "ending",
+    "beat_snap_moved",
+    # Lists, where each element counts on its own.
+    "still_moves",
+    "sound_effects",
 )
 
 DEFAULT_LAST = 14
@@ -106,6 +110,12 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
     """The row for one finished render, read off its pipeline context."""
     state = ctx.state
     tts = state.get("tts_metadata") or {}
+    # Top-level after a fresh assembly, the step entry after a resume.
+    assembly = (
+        state.get("assembly_choices")
+        or (state.get("assemble_video") or {}).get("assembly_choices")
+        or {}
+    )
     pycaps = state.get("pycaps_metadata") or {}
     settings = ctx.config.video_settings
     return {
@@ -130,6 +140,9 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "pre_motion": _setting(ctx.profile, settings, "first_frame_pre_motion"),
         "transition_sec": _setting(ctx.profile, settings, "video_transition_duration"),
         "ending": _setting(ctx.profile, settings, "ending"),
+        "still_moves": assembly.get("still_moves"),
+        "beat_snap_moved": assembly.get("beat_snap_moved"),
+        "sound_effects": assembly.get("sound_effects"),
         "script": ctx.script,
     }
 
@@ -153,9 +166,18 @@ def record_render_choices(outputs_dir: Path, row: dict[str, Any]) -> None:
         logger.warning("Could not record render choices in %s: %s", path, exc)
 
 
+def _values(value: Any) -> list[str]:
+    """A row's value for a dimension as counted: each element of a list."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    return [str(value)]
+
+
 def distribution(rows: Sequence[dict[str, Any]]) -> dict[str, Counter]:
     return {
-        dim: Counter(str(row.get(dim)) for row in rows if row.get(dim) is not None)
+        dim: Counter(v for row in rows for v in _values(row.get(dim)))
         for dim in DIMENSIONS
     }
 

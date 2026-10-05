@@ -367,6 +367,11 @@ class VisualFilterBuilder:
         self.product_id = product_id
         # The music's beats, set by the assembler when beat snapping is on.
         self.beat_times: list[float] | None = None
+        # What the last chain drew, for the render's record (design 0006):
+        # the move on each still with motion, and how many cuts beat
+        # snapping moved (None when it did not run).
+        self.still_moves: list[str] = []
+        self.beat_snap_moved: int | None = None
 
     def _get_effective_subtitle_settings(self) -> dict[str, Any]:
         """Get effective subtitle settings with profile overrides applied."""
@@ -808,6 +813,7 @@ class VisualFilterBuilder:
             raise ValueError("No visual media could be prepared for the timeline.")
         if loop_closer is not None and loop_closer >= len(timed_visuals):
             loop_closer = None
+        self.beat_snap_moved = None
         if video_settings.beat_snap.enabled and self.beat_times:
             from src.video.beats import snap_durations
 
@@ -831,6 +837,7 @@ class VisualFilterBuilder:
                     timed_visuals, snapped, strict=True
                 )
             ]
+            self.beat_snap_moved = moved
             logger.info("Beat snap: %d segment(s) adjusted", moved)
 
         if self.debug_mode and mode_info:
@@ -895,6 +902,7 @@ class VisualFilterBuilder:
         still_motion = video_settings.still_motion
         previous_move: str | None = None
         first_move: str | None = None
+        self.still_moves = []
         for i, (path, duration, is_video_item) in enumerate(timed_visuals):
             if is_video_item:
                 input_cmd_parts.extend(["-i", str(path)])
@@ -1096,6 +1104,7 @@ class VisualFilterBuilder:
                         if i == 0:
                             first_move = move
                 if move is not None:
+                    self.still_moves.append(move)
                     vf_scale = _build_still_motion_scale(
                         box_w=scaled_w,
                         box_h=scaled_h,

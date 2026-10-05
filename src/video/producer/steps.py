@@ -2015,6 +2015,7 @@ async def step_assemble_video(ctx: PipelineContext):
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
+            ctx.state["assembly_choices"] = assembler.assembly_choices()
         except PipelineError:
             raise
         except (RuntimeError, OSError, subprocess.CalledProcessError) as e:

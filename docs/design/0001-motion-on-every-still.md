@@ -41,6 +41,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - The crop's centring offset is computed from the zoom expression, because the crop keeps the input size it was set up with. With `exact=1` the offset never snaps to the chroma grid, so the centre holds still on odd box sizes.
 - A draw that repeats the previous still's move takes the next move in the pool.
 - The first image keeps its settle-zoom where `first_frame_pre_motion` is on, and moves like the rest where it is off.
+- Each render records the move drawn for each still in `state/render_choices.jsonl` (`still_moves`), and the variety report counts each move (#659).
 
 ## Alternatives considered
 
