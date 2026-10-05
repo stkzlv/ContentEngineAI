@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.165.2] - 2026-10-05
+
+### Changed
+
+- pycaps is pinned to v0.3.0, which keeps a template's CSS when the pictex renderer replaces the default one, so pictex no longer runs caption words together; the `css` renderer's output is unchanged.
+
 ## [0.165.1] - 2026-10-05
 
 ### Fixed

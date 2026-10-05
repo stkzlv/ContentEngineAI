@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.165.1"
+version = "0.165.2"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -77,7 +77,7 @@ playwright = "^1.55.0"
 optional = true
 
 [tool.poetry.group.pycaps.dependencies]
-pycaps = { git = "https://github.com/francozanardi/pycaps.git", rev = "3a47171e1470246a5d7748d98d7d40f40fd45b04" }
+pycaps = { git = "https://github.com/francozanardi/pycaps.git", rev = "e2d36edfa08e3307d65b15bb20f17399dc2c9b40" }
 html2pic = "^0.2.2"
 
 [build-system]

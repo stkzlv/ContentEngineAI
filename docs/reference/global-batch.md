@@ -48,7 +48,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--subtitle-engine` | `ffmpeg` or `pycaps` | The caption engine. `ffmpeg` burns SRT or ASS through libass; `pycaps` renders animated captions after assembly and needs the optional `pycaps` dependency group. |
 | `--pycaps-template` | `NAME` | Forces one pycaps template for every product by clearing the template pool. |
 | `--pycaps-template-pool` | one or more `NAME` | The pycaps templates picked per product, deterministically. |
-| `--pycaps-renderer` | `css` or `pictex` | The pycaps renderer. `css` (Playwright and Chromium) is the production renderer; `pictex` is a preview only and renders words without gaps. |
+| `--pycaps-renderer` | `css` or `pictex` | The pycaps renderer. `css` (Playwright and Chromium) is the production renderer; `pictex` is browserless and renders glows and soft shadows differently. |
 | `--preset`, `--subtitle-anchor`, `--subtitle-margin`, `--content-aware` / `--no-content-aware`, `--font-size-scale`, `--max-subtitle-width-fraction`, `--subtitle-alignment`, `--max-line-length`, `--max-words-per-line`, `--max-duration`, `--min-duration`, `--randomize-fonts` / `--no-randomize-fonts`, `--randomize-colors` / `--no-randomize-colors`, `--randomize-effects` / `--no-randomize-effects`, `--image-width-percent`, `--image-top-position-percent`, `--metadata-mode` | as in the producer | The producer's caption style, position, segmentation, randomization, image layout and metadata overrides, with the same values and effects; see [the video-producer reference](video-producer.md#ffmpeg-caption-style). They apply only when passed and have no `pipeline.yaml` key. |
 
 ### Run control

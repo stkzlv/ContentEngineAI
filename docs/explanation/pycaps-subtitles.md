@@ -109,7 +109,7 @@ comments in that file for the active values shipped to users.
 |---|---|---|---|
 | `template_name` | str | `explosive` | Fixed template name. Used when `template_pool` is empty, which is what `--pycaps-template NAME` produces (the flag clears the pool). A one-entry pool returns that entry instead. |
 | `template_pool` | list[str] | `[word-focus, hype, minimalist, vibrant]` | Pool for deterministic per-product selection (md5 hash of product_id). Bundled YAML ships a 2-entry recipe-fit override. |
-| `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path, **preview only**: it drops the gaps between words (issue #174). |
+| `renderer` | `css` \| `pictex` | `css` | `css` = Playwright + Chromium, the only production-safe option. `pictex` = browserless Skia path; matches `css` on `word-focus` since pycaps 0.3.0, but renders glows and soft shadows differently. |
 | `force_sentence_case` | bool | `false` | Append `.word { text-transform: none; }` after the template's CSS so captions keep the transcript's casing. `word-focus` and `line-focus` ship `text-transform: uppercase`, which [captions, "Casing"](captions.md#casing) rejects. Bundled YAML ships `true`. |
 | `max_width_ratio` | float | 0.80 | Max caption width as a fraction of frame width. |
 | `max_number_of_lines` | int | 2 | Max lines per caption segment. |
@@ -222,43 +222,25 @@ per-word keyframe animations, `@font-face` loading.
   display reachable, 37s at the same peak under Xvfb). When first recorded
   the per-word screenshots hung without an X display (`Page.screenshot`
   timeout); `xvfb-run -a` is the fix if that comes back.
-  `pictex` never needed a display, but see the warning under `pictex` before
-  reaching for it: it is not a usable substitute for published work.
+  `pictex` never needed a display; see `pictex` below for how its output
+  differs.
 
-### `pictex` (preview only, not production-safe)
+### `pictex` (browserless; `css` stays the production renderer)
 
-> **Do not use for published output.** pictex renders multi-word captions
-> with no gaps between words, so `like my phone went from` comes out as
-> `Likemyphonewentfrom`. Reproduced on the bundled `word-focus` and
-> `explosive` templates. The output is unreadable but renders without any
-> error, so nothing warns you. Use `css` for anything you intend to publish.
-
-Browserless Skia path via the `pictex` package (same renderer engine as
-Chrome, just without the browser shell).
+Browserless Skia path via the `pictex` package.
 
 - Install: `html2pic` + `skia-python` wheels (already in the pycaps group).
-- Peak RSS: similar to css, with a slower startup curve on small clips.
-- Speed: roughly on par with css in steady state.
-- Needs no X display. That was its one genuine advantage over `css`; since
-  2026-09-02 `css` runs without one too, so it no longer differentiates.
+- Needs no X display; since 2026-09-02 `css` runs without one too.
+- Since pycaps 0.3.0 it renders `word-focus` with the same word gaps, font
+  and colour as `css`. Glow and soft shadows differ: `explosive`'s glow
+  comes out as a box round each word. The bundled config renders with
+  `css`, and a pictex render is checked frame by frame before use.
 
-**Why the spacing breaks.** Both bundled templates space words with CSS
-padding on the word element (`word-focus` uses `padding: 4px 4px`,
-`explosive` uses `padding: 5px 8px`); neither sets a word-spacing property.
-The two renderers then disagree on what a word's measured width includes.
-The css renderer measures each letter plus a `NON_CONTENT_WIDTH` sentinel
-specifically so the padding is counted. The pictex renderer instead renders
-the word and crops with `CropMode.CONTENT_BOX`, which by definition excludes
-padding, so it reports a glyph-only width and the layout butts each word
-against the next. At 1080x1920 the render scale is 3.0, so `word-focus`
-loses roughly 24px of gap between adjacent words: a total collapse rather
-than tight kerning.
-
-This is an upstream defect in pycaps, not in this project's wiring, which
-only instantiates the renderer class. Tracked in issue #174.
-
-Switch with `--pycaps-renderer pictex` if you want to preview the path, and
-check a frame before trusting the output.
+**Why words used to run together.** pycaps stored a template's CSS on the
+renderer that was set when `add_css()` ran, and `with_custom_subtitle_renderer()`
+replaced that renderer, so the pictex renderer got no template style at all,
+including the padding both templates use as word spacing. pycaps 0.3.0 keeps
+the CSS across the swap.
 
 ## Limitations (v1)
 

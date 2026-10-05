@@ -7,11 +7,10 @@ forking the template into `pycaps-templates/`, the renderer appends a later
 rule at the same specificity, which wins the cascade, when
 `subtitle_settings.pycaps.force_sentence_case` is set.
 
-The caller is what is driven here, not the helper. `_build_pipeline` wires the
-renderer *after* the layout merge, and `with_custom_subtitle_renderer` replaces
-the renderer object that appended CSS lives on -- so a call placed before the
-pictex swap is discarded with the CSS renderer, and a test of the helper alone
-would not notice.
+The caller is what is driven here, not the helper. Before pycaps 0.3.0,
+appended CSS lived on the renderer object `with_custom_subtitle_renderer`
+replaced, so a call placed before the pictex swap was discarded; 0.3.0 keeps
+it on the builder, and the call still follows the swap.
 """
 
 from __future__ import annotations
@@ -123,7 +122,7 @@ class TestTheBuildAppendsTheOverride:
         assert PycapsSettings().force_sentence_case is False
 
     def test_it_runs_after_the_renderer_swap(self, monkeypatch, tmp_path):
-        """Appended CSS lives on the renderer object the swap replaces."""
+        """The append follows the swap, which older pycaps needed."""
         builder = _build(
             monkeypatch, tmp_path, force_sentence_case=True, renderer="pictex"
         )
@@ -132,7 +131,7 @@ class TestTheBuildAppendsTheOverride:
         assert "with_custom_subtitle_renderer" in names
         assert names.index("add_css_content") > names.index(
             "with_custom_subtitle_renderer"
-        ), "CSS appended before the pictex swap is discarded with the CSS renderer"
+        ), "CSS appended before the pictex swap was discarded before pycaps 0.3.0"
 
 
 @pytest.mark.unit
@@ -176,9 +175,14 @@ class TestAgainstTheRealTemplate:
         from src.video.pycaps_engine.renderer import _force_sentence_case
 
         builder = TemplateLoader(TemplateFactory().create(template_name)).load(False)
+        template_css = builder.get_css()
         _force_sentence_case(builder)
 
-        assert _CSS in builder._caps_pipeline._renderer._custom_css
+        # pycaps keeps appended CSS on the builder and hands it to whichever
+        # renderer is set when the pipeline is built; the override follows
+        # the template's own stylesheet, so it wins the cascade.
+        css = builder.get_css()
+        assert css.startswith(template_css) and _CSS in css[len(template_css) :]
 
     def test_a_builder_without_the_method_is_left_alone(self):
         from src.video.pycaps_engine.renderer import _force_sentence_case
