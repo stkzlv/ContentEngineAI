@@ -22,10 +22,12 @@ def test_contains_needs_every_significant_word() -> None:
     assert contains("Level up with this Smart Watch!", "smart watch")
     assert contains("watch, but smart", "smart watch")
     assert contains("Before this smartwatch, I", "smart watch")
-    # A spoken answer drops the question words of a topic title.
-    assert contains(
-        "Your laptop fan runs when idle because", "Why your laptop fan runs when idle"
-    )
+    # A spoken answer drops the question words of a topic title, but a
+    # product keyword keeps every word.
+    title = "Why your laptop fan runs when idle"
+    assert contains("Your laptop fan runs when idle because", title, question=True)
+    assert not contains("Your laptop fan runs when idle because", title)
+    assert not contains("This bottle opener is great", "can opener")
     assert not contains("A smart ring", "smart watch")
     assert not contains(None, "smart watch")
     assert not contains("anything", "a")
@@ -109,3 +111,32 @@ def test_the_row_and_the_report_carry_it(tmp_path: Path) -> None:
 
 def test_no_phrases_means_no_report_lines() -> None:
     assert coverage_lines([{"profile": "p"}]) == []
+
+
+@pytest.mark.req("REQ-CNT-055")
+def test_a_topic_row_reads_its_title_as_a_question(tmp_path: Path) -> None:
+    root = tmp_path / "topic-x"
+    root.mkdir()
+    ctx = SimpleNamespace(
+        state={"hook_headline": "Laptop fan runs when idle"},
+        config=SimpleNamespace(
+            video_settings=SimpleNamespace(
+                first_frame_pre_motion=False, video_transition_duration=0.3
+            )
+        ),
+        product=SimpleNamespace(
+            topic="t", title="Why your laptop fan runs when idle", keyword=""
+        ),
+        profile_name="p",
+        profile=SimpleNamespace(
+            video_assembly_mode="sequential",
+            first_frame_pre_motion=None,
+            video_transition_duration=0.5,
+        ),
+        run_paths={"music_info_file": None, "run_root": root},
+        script="Your laptop fan runs when idle because of updates.",
+    )
+
+    placed = choices_from_context(ctx)["search_phrase"]
+
+    assert placed["spoken"] is True and placed["headline"] is True

@@ -111,11 +111,13 @@ def _search_phrase_placement(ctx: Any) -> dict[str, Any] | None:
     from src.video.search_phrase import captions, placement, search_phrase
 
     run_root = Path(ctx.run_paths["run_root"])
+    product = getattr(ctx, "product", None)
     return placement(
-        search_phrase(getattr(ctx, "product", None)),
+        search_phrase(product),
         ctx.script,
         ctx.state.get("hook_headline"),
         captions(run_root),
+        question=bool(getattr(product, "topic", None)),
     )
 
 

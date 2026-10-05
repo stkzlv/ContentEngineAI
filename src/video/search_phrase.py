@@ -7,10 +7,10 @@ nothing here changes a script, a headline or a caption.
 
 The phrase is the product's search keyword, or a topic's title, which is
 already phrased the way people type it. A place counts when every word of the
-phrase of three or more letters, question and filler words aside, appears
-there in any case and order, or the phrase appears with its spaces closed up
-("smart watch" in "smartwatch"). Captions are measured before the publisher
-puts its disclosure in front of them.
+phrase of three or more letters appears there in any case and order (a
+topic's title leaves its question and filler words aside), or the phrase
+appears with its spaces closed up ("smart watch" in "smartwatch"). Captions
+are measured before the publisher puts its disclosure in front of them.
 """
 
 from __future__ import annotations
@@ -36,17 +36,21 @@ STOP_WORDS = frozenset(
 )
 
 
-def _terms(phrase: str) -> set[str]:
+def _terms(phrase: str, *, question: bool = False) -> set[str]:
+    """The words a place must carry. A question (a topic's title) drops its
+    question and filler words; a product keyword keeps every word, or
+    "can opener" would match any opener.
+    """
     return {
         w
         for w in re.findall(r"[\w']+", phrase.lower())
-        if len(w) >= 3 and w not in STOP_WORDS
+        if len(w) >= 3 and not (question and w in STOP_WORDS)
     }
 
 
-def contains(text: str | None, phrase: str) -> bool:
+def contains(text: str | None, phrase: str, *, question: bool = False) -> bool:
     """Whether every significant word of `phrase` appears in `text`."""
-    terms = _terms(phrase)
+    terms = _terms(phrase, question=question)
     if not text or not terms:
         return False
     if terms <= set(re.findall(r"[\w']+", text.lower())):
@@ -100,17 +104,25 @@ def placement(
     script: str | None,
     headline: str | None,
     platform_captions: dict[str, str],
+    *,
+    question: bool = False,
 ) -> dict[str, Any] | None:
-    """Where the phrase appears; None without a phrase to look for."""
-    if not phrase or not _terms(phrase):
+    """Where the phrase appears; None without a phrase to look for.
+
+    `question` marks a topic's title, whose question words a spoken answer
+    drops.
+    """
+    if not phrase or not _terms(phrase, question=question):
         return None
     sentences = split_sentences(script or "")
     return {
         "phrase": phrase,
-        "spoken": contains(sentences[0] if sentences else "", phrase),
-        "headline": contains(headline, phrase),
+        "spoken": contains(
+            sentences[0] if sentences else "", phrase, question=question
+        ),
+        "headline": contains(headline, phrase, question=question),
         "captions": {
-            platform: contains(text[:CAPTION_PREFIX_CHARS], phrase)
+            platform: contains(text[:CAPTION_PREFIX_CHARS], phrase, question=question)
             for platform, text in platform_captions.items()
         },
     }
