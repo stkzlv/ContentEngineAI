@@ -38,6 +38,7 @@ from src.video.producer.context import (
     InsufficientMediaError,
     PipelineContext,
     PipelineError,
+    TopicNotSourcedError,
 )
 
 # The pycaps engine and its `pycaps.ai` tagger are absent on a default
@@ -549,6 +550,46 @@ async def step_gather_visuals(ctx: PipelineContext):
         )
 
 
+async def _topic_step_list(ctx: PipelineContext) -> Any:
+    """The sourced step list for a topic, when step lists are on (design 0017).
+
+    None for a product, or with the switch off. A topic whose steps cannot be
+    sourced, or that forks by device, is dropped with `TopicNotSourcedError`,
+    which the orchestrator handles as a skip. The list is written beside the
+    script, and a one-line summary goes into the state.
+    """
+    cfg = ctx.config.llm_settings.topic_scripts.step_list
+    if not cfg.enabled or not getattr(ctx.product, "topic", None):
+        return None
+    from src.ai.step_list import build_step_list, drop_reason
+
+    api_key = ctx.secrets.get(ctx.config.llm_settings.api_key_env_var, "")
+    step_list = await build_step_list(
+        ctx.product.title or "",
+        ctx.product.description or "",
+        api_key=api_key,
+        settings=cfg,
+    )
+    record = Path(ctx.run_paths["script_file"]).with_name("step_list.json")
+    if step_list is not None:
+        ensure_dirs_exist(record)
+        record.write_text(step_list.to_json(), encoding="utf-8")
+    reason = drop_reason(step_list, cfg.max_steps)
+    if reason:
+        raise TopicNotSourcedError(f"Topic '{ctx.product.title}' dropped: {reason}")
+    assert step_list is not None  # drop_reason returned None
+    # A string, not a dict: the state loader reads a dict as a step record.
+    ctx.state["step_list"] = (
+        f"steps={len(step_list.steps)} refused={len(step_list.refused)}"
+    )
+    logger.info(
+        "Step list: %d sourced step(s), %d refused",
+        len(step_list.steps),
+        len(step_list.refused),
+    )
+    return step_list
+
+
 async def step_generate_script(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "generate_script",
@@ -581,6 +622,7 @@ async def step_generate_script(ctx: PipelineContext):
                 len(ctx.script or ""),
             )
         else:
+            step_list = await _topic_step_list(ctx)
             try:
                 script_text, template_name, cta_line = await generate_ai_script(
                     ctx.product,
@@ -595,6 +637,7 @@ async def step_generate_script(ctx: PipelineContext):
                     ctx.config.api_settings,
                     product_id=ctx.product.asin,
                     pillar=pillar,
+                    step_list=step_list,
                 )
             except (RuntimeError, ValueError, OSError) as e:
                 raise PipelineError(f"Script generation failed: {e}") from e

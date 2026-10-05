@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.161.0] - 2026-10-05
+
+### Added
+
+- An `llm_settings.topic_scripts.step_list` setting, off by default, writes a topic's script from a sourced step list found by grounded search, refusing unsourced steps, dropping topics that cannot be sourced or fork by device, and setting the length by the step count.
+
 ## [0.160.0] - 2026-10-04
 
 ### Added

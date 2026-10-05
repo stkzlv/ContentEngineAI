@@ -1602,6 +1602,27 @@ use, and `thinking_budget` is deliberately not applied to it. `timeout_seconds`
 is generous against a measured ten-second median because a grounded call has a
 search round trip inside it.
 
+#### Topic scripts from a sourced step list
+
+```yaml
+  topic_scripts:
+    step_list:
+      enabled: false     # held until the reach-test readout
+      model: "gemini-3.7-flash"
+      max_steps: 6
+      timeout_seconds: 60
+```
+
+With `step_list.enabled`, a topic's script starts with one grounded call for
+its steps: each step's action, exact UI path, expected result and the URL of
+the page that states it. A step whose source is not a web URL is refused; a
+topic left with no sourced step is dropped, and one whose steps fork by device
+or exceed `max_steps` is set aside for a series, both as a skipped product. The
+script is then written from the steps with a length set by their count (50-75
+words for one or two steps, 100-185 for more), naming the screen where the
+steps start and the source's common mistake at its step. The list is kept in
+`temp/step_list.json`.
+
 Every topic run that generates a script writes
 `temp/script_fact_check.json`, including on a clean verdict, so a run where the check found nothing stays
 distinguishable from one where it never ran. A run that resumes over an

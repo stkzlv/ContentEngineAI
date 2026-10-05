@@ -40,6 +40,7 @@ from src.ai.model_pool import (
     fetch_and_select_model,
     model_reject_reason,
 )
+from src.ai.step_list import StepList
 from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
@@ -874,6 +875,7 @@ async def generate_script(
     api_settings=None,
     product_id: str | None = None,
     pillar: str | None = None,
+    step_list: StepList | None = None,
 ) -> tuple[str | None, str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
@@ -882,6 +884,10 @@ async def generate_script(
     closing line the prompt asked for, returned rather than recomputed by the
     caller so the recorded choice cannot disagree with the rendered one. All
     three are None on failure.
+
+    With a `step_list` (a topic, step lists on, design 0017) the script is
+    written from the sourced steps with `topic_from_steps.md`, its length set
+    by the step count; the template stem returned is `topic_from_steps`.
     """
     # Script validation thresholds from config
     sv = settings.script_validation
@@ -930,9 +936,14 @@ async def generate_script(
     if pillar:
         _warn_unknown_pillar(pillar, settings)
 
-    template_path = select_script_template(
-        settings, product_id, pillar, is_topic=bool(getattr(product, "topic", None))
-    )
+    if step_list is not None:
+        from src.ai.step_list import SCRIPT_PROMPT_PATH
+
+        template_path = SCRIPT_PROMPT_PATH
+    else:
+        template_path = select_script_template(
+            settings, product_id, pillar, is_topic=bool(getattr(product, "topic", None))
+        )
     template_name = template_path.stem
     is_topic = bool(getattr(product, "topic", None))
     audience = _resolve_audience(pillar, settings, is_topic)
@@ -953,6 +964,10 @@ async def generate_script(
                 select_signature(settings.script_templates.signature, product_id),
             ),
         )
+        if step_list is not None:
+            from src.ai.step_list import fill, render_steps
+
+            prompt = fill(prompt, render_steps(step_list))
     except (FileNotFoundError, ValueError) as e:
         raise ScriptGenerationError(f"Prompt template error: {e}") from e
 
@@ -967,6 +982,12 @@ async def generate_script(
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
         )
+        if ok and step_list is not None:
+            from src.ai.step_list import too_short
+
+            if too_short(script, len(step_list.steps)):
+                near_miss.setdefault("short", script)
+                return False, "Script is short for the number of steps"
         if not ok and reason == NO_CTA_REASON and "script" not in near_miss:
             near_miss["script"] = script
         return ok, reason
@@ -1153,7 +1174,7 @@ async def generate_script(
                 fb.api_key_env_var,
             )
 
-    if near_miss and cta_options:
+    if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing
         # the render over that is the worse outcome; a bolted-on closing line
         # is the price, and the warning is what makes it visible.
@@ -1179,6 +1200,12 @@ async def generate_script(
         # different one would make the recorded choice a lie about what
         # shipped, and would put every fallback render back on one CTA.
         return script.rstrip() + " " + cta_line, template_name, cta_line
+
+    if "short" in near_miss:
+        # Every attempt ran short of the step count's length but was
+        # otherwise complete; a short tutorial beats no render.
+        logger.warning("No attempt reached the step count's length; using one")
+        return near_miss["short"], template_name, cta_line
 
     logger.error("All models failed to generate a script.")
     return None, None, None

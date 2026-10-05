@@ -24,6 +24,10 @@ class InsufficientMediaError(PipelineError):
     pass
 
 
+class TopicNotSourcedError(InsufficientMediaError):
+    """A topic whose steps could not be sourced, skipped like a short listing."""
+
+
 class PipelineContext:
     """Container for pipeline state and artifacts."""
 

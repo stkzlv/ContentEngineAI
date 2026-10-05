@@ -590,7 +590,7 @@ async def create_video_for_product(
 
         except InsufficientMediaError as e:
             skipped_run = True
-            logger.warning("Product skipped due to insufficient media: %s", e)
+            logger.warning("Product skipped: %s", e)
             # Mark as skipped, not failed - this is expected for some products
             monitor.finish_pipeline(success=False, error_message=str(e), skipped=True)
             # Clean up background processing on skip
