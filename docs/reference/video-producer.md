@@ -360,6 +360,7 @@ Files a render leaves for inspection:
 | `pipeline_state.json` | Completed steps, `hook_headline`, `assemble_video.cold_open_variant`. |
 | `temp/gathered_visuals.json` | Each stock item's search phrase and `relevance_score`. |
 | `temp/script_fact_check.json` | The script fact-check outcome. |
+| `temp/step_list.json` | A topic's sourced step list, with refused steps, when step lists are on. |
 
 A successful run without `--debug` deletes `temp/`.
 

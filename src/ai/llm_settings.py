@@ -292,6 +292,28 @@ class ScriptFactCheckConfig(BaseModel):
     timeout_seconds: int = Field(45, ge=1)
 
 
+class StepListConfig(BaseModel):
+    """Write a topic script from a sourced step list (design 0017).
+
+    One grounded call returns the steps (action, exact UI path, expected
+    result, source URL each); a step without a source is refused and its
+    topic dropped, and a topic that forks by device or needs more
+    than `max_steps` is set aside for a series. The script's length then
+    follows the step count. Ships off until the reach-test readout.
+    """
+
+    enabled: bool = False
+    model: str = Field("gemini-2.5-flash")
+    max_steps: int = Field(6, ge=1, le=12)
+    timeout_seconds: int = Field(60, ge=1)
+
+
+class TopicScriptsConfig(BaseModel):
+    step_list: StepListConfig = Field(
+        default_factory=StepListConfig  # type: ignore[arg-type]
+    )
+
+
 class LLMSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -353,6 +375,7 @@ class LLMSettings(BaseModel):
     visual_search_terms: VisualSearchTermsConfig = Field(
         default_factory=VisualSearchTermsConfig  # type: ignore[arg-type]
     )
+    topic_scripts: TopicScriptsConfig = Field(default_factory=TopicScriptsConfig)
     fallback_provider: LLMSettings | None = Field(None)
 
 

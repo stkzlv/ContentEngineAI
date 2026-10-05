@@ -28,7 +28,7 @@ A workable split for a 40-second tutorial; if the answer first appears past 8 se
 
 The topic narrator profile targets 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: measured `slideshow_stock` renders land between 20 and 28 seconds, because a short topic description yields a short script.
 
-Planned: length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
+Built and held off: length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
 
 | Tutorial type | Example | Steps | Duration | Words |
 |---|---|---|---|---|
@@ -44,7 +44,7 @@ Why:
 - **Fast speech is fine [A].** Engagement rose with speaking rate; viewers followed even 254 words per minute. Pauses belong between steps, not within them.
 - **Platform limits are not targets.** YouTube Shorts accept up to 3 minutes since October 2024 [A]; Reels and TikTok allow longer.
 
-A Short loops, which helps re-watching one step, but a viewer cannot jump to step 5, so a topic that forks by device becomes a series (REQ-VID-121).
+A Short loops, which helps re-watching one step, but a viewer cannot jump to step 5, so a topic that forks by device is set aside for a series rather than rendered (REQ-VID-121).
 
 ## Visual source when there is no product
 
@@ -108,7 +108,7 @@ A promo video that oversells a product costs credibility; a tutorial that gets a
 - It never invents a product to recommend (REQ-CNT-029).
 - After generation, `script_fact_check` (on by default) checks the script's falsifiable claims with one grounded web search, revises at most `max_flags_to_revise` sentences (default 3), refuses a revision that drifts more than `max_length_drift` (default 25%) in length, and ships the original if anything fails (REQ-CNT-049 to REQ-CNT-051). A fabricated setting name or menu path is immediately checkable and immediately disqualifying.
 
-Planned: every step cites a source before the video renders, and a topic whose steps cannot be sourced is dropped (REQ-VID-122, [design 0017](../design/0017-tutorial-step-lists.md)).
+Built and held off: every step cites a source before the video renders, and a topic whose steps cannot be sourced is dropped (REQ-VID-122, [design 0017](../design/0017-tutorial-step-lists.md)).
 
 ## What makes a short tutorial useful
 
