@@ -981,9 +981,8 @@ async def generate_script(
 
     if step_list is not None:
         # A one-step tutorial is shorter than the general floor allows. Lower
-        # the floor to the band's retry threshold, so a draft between the two
-        # is judged by the length rule (retried, kept as a last resort)
-        # rather than refused outright.
+        # the floor to the band's retry threshold, so a draft inside the
+        # band's tolerance is accepted rather than refused.
         from src.ai.step_list import LENGTH_TOLERANCE, word_range
 
         band_floor = int(word_range(len(step_list.steps))[0] * LENGTH_TOLERANCE)

@@ -327,7 +327,7 @@ async def test_a_one_step_script_may_be_shorter_than_the_general_floor() -> None
 
 @pytest.mark.req("REQ-VID-121")
 @pytest.mark.asyncio
-async def test_a_one_step_draft_under_its_band_is_retried_then_kept() -> None:
+async def test_a_one_step_draft_inside_the_tolerance_is_accepted() -> None:
     from src.ai import script_generator
 
     cta = config.llm_settings.script_templates.cta_options_for(True)[0]
@@ -347,4 +347,5 @@ async def test_a_one_step_draft_under_its_band_is_retried_then_kept() -> None:
             step_list=_sl(1),
         )
 
+    assert call.await_count == 1
     assert script is not None and script.startswith("Press and hold")
