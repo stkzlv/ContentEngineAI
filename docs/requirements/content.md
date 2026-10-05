@@ -192,8 +192,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-104** `shipped` Users can rename, add or remove pillars in config without code changes.
 - **REQ-CNT-105** `shipped` Where `batch.keywords` is a map keyed by pillar, each scraped product carries its source keyword's pillar to the producer.
 - **REQ-CNT-106** `shipped` `batch.keywords` also accepts a flat list, which attaches no pillar.
-- **REQ-CNT-107** `partial` A keyword listed under more than one pillar carries each of those pillars.
-  - Gap: the keyword keeps only the last pillar it is listed under, although it is searched once per listing (#584).
+- **REQ-CNT-107** `shipped` If a keyword is listed under more than one pillar, config loading fails with an error naming the keyword and both pillars ([decision 0012](../decisions/0012-a-keyword-belongs-to-one-pillar.md)).
 - **REQ-CNT-108** `shipped` A keyword passed on the command line carries its configured pillar, and a keyword not in the config carries none.
 - **REQ-CNT-109** `shipped` A template can be listed under several pillars in `script_templates.pillars`.
 - **REQ-CNT-110** `shipped` A render's pillar is `--pillar` when passed, else the pillar an earlier run recorded, else the product's keyword pillar.
