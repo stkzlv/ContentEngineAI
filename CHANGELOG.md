@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.0] - 2026-10-05
+
+### Changed
+
+- **Breaking**: A keyword listed under two pillars in `batch.keywords` (case and spacing aside) now fails config loading with an error naming both, instead of keeping the last pillar silently.
+
 ## [0.167.0] - 2026-10-05
 
 ### Added

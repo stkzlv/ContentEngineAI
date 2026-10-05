@@ -13,11 +13,16 @@ CLI never flattened it at all, so a run with no `--keywords` searched for the
 literal strings `value` and `utility` rather than any configured keyword.
 
 Both shapes are accepted. A flat list is the pre-pillar config and attaches no
-pillar.
+pillar. A keyword listed under two pillars is refused: a product carries one
+pillar, and the map used to keep whichever group came last without a word.
 """
 
 from datetime import date
 from typing import Any
+
+
+class KeywordPillarError(ValueError):
+    """A keyword is listed under more than one pillar."""
 
 
 def normalize_keyword(keyword: Any) -> str:
@@ -37,6 +42,9 @@ def read_keyword_pillars(raw: Any) -> tuple[list[str], dict[str, str]]:
     The keyword list keeps its original spelling, because it is what gets
     searched. The map is keyed by the normalized form, because it is what gets
     looked up.
+
+    Raises KeywordPillarError when one keyword (after normalization) is
+    listed under two pillars.
     """
     keywords: list[str] = []
     pillars: dict[str, str] = {}
@@ -47,8 +55,14 @@ def read_keyword_pillars(raw: Any) -> tuple[list[str], dict[str, str]]:
                 continue
             for keyword in group:
                 text = str(keyword)
+                key = normalize_keyword(text)
+                if key in pillars and pillars[key] != str(pillar):
+                    raise KeywordPillarError(
+                        f"keyword {text!r} is listed under both "
+                        f"{pillars[key]!r} and {str(pillar)!r}; list it under one"
+                    )
                 keywords.append(text)
-                pillars[normalize_keyword(text)] = str(pillar)
+                pillars[key] = str(pillar)
     elif isinstance(raw, list):
         keywords = [str(keyword) for keyword in raw]
 

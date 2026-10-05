@@ -87,7 +87,7 @@ The bundled `config/scraper.yaml` sets `max_products: 1`, so a run stops after t
 ### Product ids and keywords
 
 - **Product ids** (`--product-ids`): each id is scraped on its own and yields one product. Every id is processed, whatever `max_products` says.
-- **Keywords** (`--keywords`, or `batch.keywords` in the config): each keyword yields up to `products_per_keyword` products, and the keyword loop stops when the total reaches `max_products`. When `batch.keywords` is a mapping keyed by pillar (the bundled shape), each scraped product carries the pillar of its source keyword through to the producer. A flat list is also accepted, and attaches no pillar.
+- **Keywords** (`--keywords`, or `batch.keywords` in the config): each keyword yields up to `products_per_keyword` products, and the keyword loop stops when the total reaches `max_products`. When `batch.keywords` is a mapping keyed by pillar (the bundled shape), each scraped product carries the pillar of its source keyword through to the producer, and a keyword listed under two pillars (case and spacing aside) fails config loading, naming both ([decision 0012](../decisions/0012-a-keyword-belongs-to-one-pillar.md)). A flat list is also accepted, and attaches no pillar.
 
 ### Inputs from the config
 
