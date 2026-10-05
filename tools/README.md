@@ -12,5 +12,6 @@ One-off and operational utilities. Everything here is invoked explicitly; nothin
 | `check_docs.py` | `make check-docs`, CI `docs-check` job; `--docs-only` in the CI `test` job | Checks the docs a change must touch moved with it (CONTRIBUTING, Definition of done) and whether a diff touches only docs |
 | `merge_was_tested.py` | CI `test` job, on a push to `main` | Says whether the merged tree is the one its pull request's test job already passed, so the suite is not run twice |
 | `release_check.py` | `make release-check`, CI `version-check` and `release` jobs | Checks a branch bumps the version and dates its CHANGELOG heading; prints the version for tagging |
+| `check_topic_pool.py` | run by hand | Runs the tutorial topic filter over the configured topic pool and lists the topics a render would drop |
 | `requirements_coverage.py` | run by hand | Lists the requirement ids in `docs/requirements/` that no test cites |
 | `freesound_oauth2_setup.py` | run by hand, once | Interactive OAuth2 bootstrap for the Freesound provider; writes tokens to `.env` |

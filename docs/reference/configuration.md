@@ -1618,7 +1618,10 @@ its steps: each step's action, exact UI path, expected result and the URL of
 the page that states it. A step whose source is not a web URL is refused, and
 the topic with it, since a tutorial with a step missing cannot be followed; a
 topic whose steps fork by device or exceed `max_steps` is set aside for a
-series. Both count as a skipped product. The
+series. The same call checks the topic is specific, searchable, demonstrable
+and non-default and asks for no health, financial or legal advice, and a
+topic that fails is dropped. All of these count as a skipped product;
+`python -m tools.check_topic_pool` runs the check over the pool by hand. The
 script is then written from the steps with a length set by their count (40-80
 words for one or two steps, 110-200 for three to six), naming the device and
 version, the screen where the steps start and the source's common mistake at
