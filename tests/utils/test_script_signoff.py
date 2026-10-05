@@ -9,7 +9,11 @@ import pytest
 
 from src.ai.platform_metadata import _read_video_script
 from src.publisher.first_comment import extract_closing_line
-from src.utils.script_signoff import drop_signoff, recorded_signoff
+from src.utils.script_signoff import (
+    drop_signoff,
+    recorded_signoff,
+    signature_in_script,
+)
 
 SIGNOFF = "That's the fix for today."
 SCRIPT = (
@@ -80,3 +84,19 @@ def test_the_caption_prompts_get_the_script_without_the_signoff(
     assert text is not None
     assert SIGNOFF not in text
     assert "stays steady.\nDrop a comment" in text
+
+
+@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.parametrize(
+    ("line", "script", "found"),
+    [
+        ("Quick find for you.", "Quick find for you, if it broke.", True),
+        ("That's the find!", "so that's the find for today.", True),
+        ("Quick find for you.", "Quick find for your desk.", False),
+        ("", "Anything at all.", False),
+    ],
+)
+def test_signature_in_script_matches_whole_words_only(
+    line: str, script: str, found: bool
+) -> None:
+    assert signature_in_script(line, script) is found

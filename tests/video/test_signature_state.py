@@ -77,3 +77,38 @@ async def test_no_signature_records_nothing(ctx, monkeypatch) -> None:
     )
     await _generate(ctx)
     assert "signoff" not in ctx.state
+
+
+@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("script", "found"),
+    [
+        ("Quick find for you, if your old tracker died. Link in bio.", True),
+        ("QUICK FIND FOR YOU! Your tracker died. Link in bio.", True),
+        ("A quick find for your desk. Link in bio.", False),
+    ],
+)
+async def test_an_opener_is_found_whatever_its_punctuation(
+    ctx, monkeypatch, caplog, script, found
+) -> None:
+    from src.video.producer import steps
+
+    monkeypatch.setattr(
+        config.llm_settings.script_templates,
+        "signature",
+        SignatureConfig(use_rate=1.0, openers=["Quick find for you."]),
+    )
+    caplog.set_level("INFO", logger=steps.logger.name)
+    with (
+        patch.object(
+            steps,
+            "generate_ai_script",
+            AsyncMock(return_value=(script, "classic_promo", "Link in bio.")),
+        ),
+        patch.object(steps, "_ensure_fact_checked", AsyncMock()),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+    ):
+        await steps.step_generate_script(ctx)
+    verdict = "is in the script" if found else "is NOT in the script"
+    assert any(verdict in r.getMessage() for r in caplog.records)

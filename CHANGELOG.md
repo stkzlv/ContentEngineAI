@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.4] - 2026-10-05
+
+### Fixed
+
+- The log line that says whether a drawn signature line is in the script compares words only, so an opener the model joins to its first sentence with a comma, or writes in capitals, no longer reads as missing.
+
 ## [0.168.3] - 2026-10-05
 
 ### Fixed
