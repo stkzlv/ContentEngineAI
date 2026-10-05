@@ -20,7 +20,6 @@ from src.video.sound_effects import (
     plan_events,
     resolve_effects,
     sentence_starts,
-    transition_times,
 )
 
 needs_ffmpeg = pytest.mark.skipif(
@@ -51,13 +50,7 @@ def test_the_shipped_config_keeps_effects_off() -> None:
     effects = load_video_config_modular().audio_settings.sound_effects
 
     assert effects.enabled is False
-    assert effects.transition == effects.reveal == effects.cta == []
-
-
-def test_transitions_land_mid_crossfade() -> None:
-    # The builder's xfade offsets are 2.5 and 5.0 for 3.0 s segments, 0.5 s
-    # crossfades; the effect sits in the middle of each.
-    assert transition_times([3.0, 3.0, 3.0], 0.5) == [2.75, 5.25]
+    assert effects.hook == effects.reveal == effects.cta == []
 
 
 def test_sentences_start_after_a_closing_mark() -> None:
@@ -65,31 +58,27 @@ def test_sentences_start_after_a_closing_mark() -> None:
 
 
 @pytest.mark.req("REQ-VID-012")
-def test_reveal_and_cta_clear_the_word_onset() -> None:
-    events = plan_events([], WORDS, 15.0, 2)
+def test_the_hook_reveal_and_cta_clear_the_word_onset() -> None:
+    events = plan_events(WORDS, 15.0, 2)
 
-    assert events == [SoundEvent("reveal", 2.1), SoundEvent("cta", 12.1)]
+    # The hook is the first frame, moved past the first word's onset.
+    assert events == [
+        SoundEvent("hook", 0.1),
+        SoundEvent("reveal", 2.1),
+        SoundEvent("cta", 12.1),
+    ]
 
 
 @pytest.mark.req("REQ-VID-012")
-def test_the_cap_drops_transitions_first() -> None:
-    transitions = [1.0, 3.0, 4.0, 6.0, 9.0, 11.5, 13.0]
+def test_the_cap_drops_the_hook_first() -> None:
+    # One per 10 s: the hook (0.1 s) and the reveal (2.1 s) share a window.
+    events = plan_events(WORDS, 15.0, 1)
 
-    events = plan_events(transitions, WORDS, 15.0, 2)
-
-    kinds = [e.kind for e in events]
-    assert "reveal" in kinds and "cta" in kinds
-    times = [e.time for e in events]
-    assert all(
-        sum(1 for t in times if start <= t < start + 10.0) <= 2 for start in times
-    )
-    assert kinds.count("transition") < len(transitions)
+    assert [e.kind for e in events] == ["reveal", "cta"]
 
 
-def test_no_word_timings_means_transitions_only() -> None:
-    events = plan_events([2.75, 5.25], [], 9.0, 2)
-
-    assert [e.kind for e in events] == ["transition", "transition"]
+def test_no_word_timings_means_the_hook_only() -> None:
+    assert plan_events([], 9.0, 2) == [SoundEvent("hook", 0.0)]
 
 
 def _pool(tmp_path: Path, kind: str, n: int = 5) -> list[Path]:
@@ -121,7 +110,7 @@ def test_a_missing_file_is_skipped(tmp_path: Path, caplog) -> None:
 
 def _settings(tmp_path: Path) -> SimpleNamespace:
     return SimpleNamespace(
-        transition=_pool(tmp_path, "transition"),
+        hook=_pool(tmp_path, "hook"),
         reveal=_pool(tmp_path, "reveal"),
         cta=_pool(tmp_path, "cta"),
     )
@@ -130,7 +119,7 @@ def _settings(tmp_path: Path) -> SimpleNamespace:
 @pytest.mark.req("REQ-VID-012")
 def test_three_events_become_three_delayed_inputs_at_the_level(tmp_path) -> None:
     events = [
-        SoundEvent("transition", 2.75),
+        SoundEvent("hook", 0.1),
         SoundEvent("reveal", 4.1),
         SoundEvent("cta", 12.1),
     ]
@@ -150,7 +139,7 @@ def test_three_events_become_three_delayed_inputs_at_the_level(tmp_path) -> None
 
     level = cfg.audio_settings.voiceover_volume_db - 12
     graph = ";".join(filters)
-    for n, delay in enumerate((2750, 4100, 12100)):
+    for n, delay in enumerate((100, 4100, 12100)):
         assert f"volume={level:g}dB,adelay={delay}:all=1[a_sfx_{n}]" in graph
     assert parts.count("-i") == 4
     assert re.search(r"amix=inputs=4", graph)
@@ -160,9 +149,7 @@ def test_off_adds_nothing_to_the_command(tmp_path: Path) -> None:
     from src.video.assembler.core import VideoAssembler
 
     assembler = VideoAssembler(config)
-    timed = [(Path("a.png"), 3.0, False), (Path("b.png"), 3.0, False)]
-
-    assert assembler._sound_effects(timed, 6.0, WORDS) == []
+    assert assembler._sound_effects(6.0, WORDS) == []
 
 
 @pytest.mark.req("REQ-VID-012")
@@ -172,16 +159,15 @@ def test_the_assembler_places_effects_from_the_timeline(tmp_path: Path) -> None:
     cfg = config.model_copy(deep=True)
     effects = cfg.audio_settings.sound_effects
     effects.enabled = True
-    for kind in ("transition", "reveal", "cta"):
+    for kind in ("hook", "reveal", "cta"):
         setattr(effects, kind, _pool(tmp_path, kind))
     assembler = VideoAssembler(cfg)
     assembler.product_id = "B0X"
-    timed = [(Path(f"{i}.png"), 3.5, False) for i in range(5)]
 
-    placed = assembler._sound_effects(timed, 15.0, WORDS)
+    placed = assembler._sound_effects(15.0, WORDS)
 
     starts = sorted(start for _, start in placed)
-    assert 2.1 in starts and 12.1 in starts
+    assert starts == [0.1, 2.1, 12.1]
     assert all(
         sum(1 for t in starts if s <= t < s + 10.0) <= effects.max_per_10_sec
         for s in starts
@@ -257,15 +243,15 @@ def test_an_empty_pool_does_not_take_the_caps_places(tmp_path: Path) -> None:
     cfg = config.model_copy(deep=True)
     effects = cfg.audio_settings.sound_effects
     effects.enabled = True
-    effects.transition = _pool(tmp_path, "transition")
-    effects.cta = [tmp_path / "missing.wav"]  # listed, but not on disk
+    effects.max_per_10_sec = 1
+    effects.hook = _pool(tmp_path, "hook")
+    effects.reveal = [tmp_path / "missing.wav"]  # listed, but not on disk
     assembler = VideoAssembler(cfg)
-    timed = [(Path(f"{i}.png"), 4.0, False) for i in range(3)]
 
-    # 13 s, so the call to action at 12.1 s is inside the render.
-    placed = assembler._sound_effects(timed, 13.0, WORDS)
+    # The reveal outranks the hook in their shared window, but cannot sound.
+    placed = assembler._sound_effects(13.0, WORDS)
 
-    assert sorted(start for _, start in placed) == [3.75, 7.25]
+    assert [start for _, start in placed] == [0.1]
 
 
 def test_the_step_reads_word_timings_from_the_transcript(tmp_path: Path) -> None:

@@ -1,13 +1,15 @@
 """Where sparse sound effects land and which file each one plays (design 0003).
 
-Three events: each crossfade between visuals, the reveal (the start of the
-sentence after the hook) and the call to action (the start of the last
-sentence). The plan is capped per 10 seconds, keeping the call to action and
-the reveal before any transition, and an effect never lands in a spoken
-word's first 100 ms, where it would mask the consonant.
+Three events: the hook (the first frame, the cut to motion under the hook
+headline), the reveal (the start of the sentence after the hook) and the call
+to action (the start of the last sentence). The audio research reserves
+effects for these beats; one on every cut is worse than none. The plan is
+capped per 10 seconds, keeping the call to action, then the reveal, then the
+hook, and an effect never lands in a spoken word's first 100 ms, where it
+would mask the consonant.
 
 Nothing here raises: a missing file is skipped with a warning, and a render
-with no word timings gets transition effects only.
+with no word timings gets the hook effect only.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Lower sorts first: what the cap keeps when it must drop something.
-PRIORITY = {"cta": 0, "reveal": 1, "transition": 2}
+PRIORITY = {"cta": 0, "reveal": 1, "hook": 2}
 WORD_ONSET_SEC = 0.1
 WINDOW_SEC = 10.0
 _SENTENCE_END = (".", "!", "?")
@@ -31,16 +33,6 @@ _SENTENCE_END = (".", "!", "?")
 class SoundEvent:
     kind: str
     time: float
-
-
-def transition_times(durations: list[float], transition_sec: float) -> list[float]:
-    """The midpoint of each crossfade, from the timeline's segment durations."""
-    times = []
-    offset = 0.0
-    for duration in durations[:-1]:
-        offset += duration - transition_sec
-        times.append(offset + transition_sec / 2)
-    return times
 
 
 def sentence_starts(words: list[dict[str, Any]]) -> list[float]:
@@ -68,7 +60,6 @@ def _clear_of_onsets(time: float, words: list[dict[str, Any]]) -> float:
 
 
 def plan_events(
-    transitions: list[float],
     words: list[dict[str, Any]],
     duration: float,
     max_per_10_sec: int,
@@ -80,7 +71,7 @@ def plan_events(
     pool cannot take the cap's places from one that can sound. None means
     every kind.
     """
-    events = [SoundEvent("transition", t) for t in transitions]
+    events = [SoundEvent("hook", 0.0)]
     starts = sentence_starts(words)
     if len(starts) >= 2:
         events.append(SoundEvent("reveal", starts[1]))

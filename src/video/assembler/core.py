@@ -633,7 +633,6 @@ class VideoAssembler:
 
     def _sound_effects(
         self,
-        timed_visuals: list[tuple[Path, float, bool]],
         total_duration: float,
         spoken_words: list[dict[str, Any]] | None,
     ) -> list[tuple[Path, float]]:
@@ -645,22 +644,11 @@ class VideoAssembler:
             plan_events,
             playable_kinds,
             resolve_effects,
-            transition_times,
         )
 
-        video_settings = (
-            self.profile_settings.video_settings
-            if self.profile_settings
-            else self.config.video_settings
-        )
-        transitions = transition_times(
-            [duration for _, duration, _ in timed_visuals],
-            video_settings.transition_duration_sec,
-        )
         if spoken_words is None:
-            logger.info("Sound effects: no word timings, transitions only")
+            logger.info("Sound effects: no word timings, hook only")
         events = plan_events(
-            transitions,
             spoken_words or [],
             total_duration,
             settings.max_per_10_sec,
@@ -856,9 +844,7 @@ class VideoAssembler:
                 self.media_inspector,
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end_sec,
-                sound_effects=self._sound_effects(
-                    visual_chain_result[2], total_video_duration, spoken_words
-                ),
+                sound_effects=self._sound_effects(total_video_duration, spoken_words),
             )
 
             # FFmpeg writes here, not to the finished name. A killed encode
