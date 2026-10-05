@@ -18,7 +18,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - On when: `video_settings.still_motion.enabled` is set after the reach-test readout (#540), once swipe-away and completion (#551) on a batch with motion are no worse than without.
 - **REQ-VID-011** `held` Where a profile's ending is `peak`, a render ends on its last spoken word with no silent or fading tail; with `loop`, an image-only render's last frame also matches its first.
   - On when: a profile sets `ending` to `peak` or `loop` after the reach-test readout (#540), once average percentage viewed rises and the last spoken word stays intact.
-- **REQ-VID-012** `held` Where sound effects are on, sparse effects mark a few beats (a transition, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
+- **REQ-VID-012** `held` Where sound effects are on, sparse effects mark three beats (the hook on the first frame, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
   - On when: `audio_settings.sound_effects.enabled` is set after the reach-test readout (#540), once completion on an A/B batch is no worse with effects.
 - **REQ-VID-013** `held` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
   - On when: `video_settings.beat_snap.enabled` is set once a blind listening comparison prefers it or completion improves.

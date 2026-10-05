@@ -83,7 +83,7 @@ class SoundEffectsSettings(BaseModel):
     enabled: bool = Field(False)
     level_db: float = Field(-15.0, ge=-40.0, le=0.0)
     max_per_10_sec: int = Field(2, ge=1, le=10)
-    transition: list[Path] = Field(default_factory=list)
+    hook: list[Path] = Field(default_factory=list)
     reveal: list[Path] = Field(default_factory=list)
     cta: list[Path] = Field(default_factory=list)
 

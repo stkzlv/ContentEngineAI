@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.163.0] - 2026-10-05
+
+### Changed
+
+- **Breaking**: The held sound effects mark the hook on the first frame, the reveal and the call to action, as the audio research reserves them, instead of every crossfade; `audio_settings.sound_effects.transition` is replaced by `hook`, and a config that still sets `transition` fails validation.
+
 ## [0.162.1] - 2026-10-05
 
 ### Added
