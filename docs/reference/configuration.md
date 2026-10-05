@@ -1595,6 +1595,12 @@ would leave nothing protected. It must also keep the closing call to action verb
 pass the usual script validation, and stay within `max_length_drift` of the
 original length. Anything else ships the original with the reason logged.
 
+When every fix asks to remove its claim ("Remove the reference to..."), the
+flagged sentences are deleted without asking a model, under the same guards
+except the length drift; a rewrite there once replaced an invented claim with
+another. A rewrite is also refused when a sentence it adds names a subject a
+removal fix asked to drop.
+
 There is no round count to set. The script is checked once and repaired once,
 so the repaired sentence is never itself checked -- a real gap, and the reason
 the containment rules above are as tight as they are.

@@ -1149,3 +1149,97 @@ class TestTheProductArm:
         rendered = template.format(LISTING="THE-LISTING", SCRIPT="THE-SCRIPT")
         assert "THE-LISTING" in rendered
         assert "THE-SCRIPT" in rendered
+
+
+REMOVE_FIX = "Remove the reference to a steel clamp-style mount."
+PRODUCT = (
+    "This smartwatch lasts a week on one charge. "
+    "It tracks over 140 workouts. "
+    "But steel beats plastic for any clamp-style mount. "
+    f"{CTA}"
+)
+REMOVE_FLAG = [
+    FactCheckClaim(
+        claim="But steel beats plastic for any clamp-style mount.",
+        reason="The listing is for a smartwatch and mentions no mount.",
+        fix=REMOVE_FIX,
+    )
+]
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-151")
+class TestARemovalIsCarriedOut:
+    """A rewrite of a sentence the checker said to remove invented a new
+    detail ("The mount is a simple clip, not a clamp." for a watch, #672).
+    """
+
+    def test_removal_terms_name_the_subject(self) -> None:
+        from src.ai.script_fact_check import removal_terms
+
+        assert removal_terms(REMOVE_FIX) == {"steel", "clamp", "style", "mount"}
+        assert removal_terms("It is Settings, then System.") is None
+
+    def test_the_flagged_sentence_is_dropped(self) -> None:
+        from src.ai.script_fact_check import remove_flagged
+
+        assert remove_flagged(PRODUCT, REMOVE_FLAG) == (
+            f"This smartwatch lasts a week on one charge. "
+            f"It tracks over 140 workouts. {CTA}"
+        )
+        assert remove_flagged(GOOD, FLAG) is None
+
+    def test_a_rewrite_restating_the_removed_subject_is_refused(self) -> None:
+        revised = PRODUCT.replace(
+            "But steel beats plastic for any clamp-style mount.",
+            "The mount is a simple clip, not a clamp.",
+        )
+
+        accepted, reason = accept_revision(PRODUCT, revised, REMOVE_FLAG, **GUARDS)
+
+        assert accepted is None
+        assert reason == "the revision kept what a fix asked to remove: clamp, mount"
+
+    @pytest.mark.asyncio
+    async def test_a_removal_ships_without_asking_a_model(self) -> None:
+        answer = (
+            "VERDICT: FLAGGED\n"
+            "CLAIM: But steel beats plastic for any clamp-style mount.\n"
+            "RULING: wrong\n"
+            "REASON: The listing mentions no mount.\n"
+            f"FIX: {REMOVE_FIX}"
+        )
+        reviser = AsyncMock(return_value="The mount is a simple clip.")
+        with (
+            patch("google.genai.Client", return_value=fake_client(answer)),
+            patch("src.ai.platform_metadata.utilities.generate_with_llm", reviser),
+        ):
+            out = await run(PRODUCT)
+
+        assert "mount" not in out.script and out.script.endswith(CTA)
+        assert out.record["revision"]["removed"] is True
+        reviser.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_a_removal_failing_validation_falls_back_to_the_reviser(
+        self,
+    ) -> None:
+        """Dropping the only body sentence leaves too little; the reviser
+        then gets its turn, under the same guards.
+        """
+        short = f"But steel beats plastic for any clamp-style mount. {CTA}"
+        answer = (
+            "VERDICT: FLAGGED\n"
+            "CLAIM: But steel beats plastic for any clamp-style mount.\n"
+            "RULING: wrong\nREASON: No mount.\n"
+            f"FIX: {REMOVE_FIX}"
+        )
+        reviser = AsyncMock(return_value=None)
+        with (
+            patch("google.genai.Client", return_value=fake_client(answer)),
+            patch("src.ai.platform_metadata.utilities.generate_with_llm", reviser),
+        ):
+            out = await run(short)
+
+        reviser.assert_called_once()
+        assert out.script == short
