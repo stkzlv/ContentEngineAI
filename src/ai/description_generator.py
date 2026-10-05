@@ -35,6 +35,7 @@ from src.ai.llm_settings import DescriptionValidationConfig, LLMSettings
 
 # Configure module logger
 from src.ai.model_pool import (
+    configured_live,
     discover_any_free_model,
     fetch_and_select_model,
     model_reject_reason,
@@ -480,7 +481,7 @@ async def generate_description(
         models_to_try.extend(free_models)
 
     # Add configured models as fallback (if not already in list)
-    for model in settings.models:
+    for model in configured_live(settings):
         if model not in models_to_try:
             models_to_try.append(model)
 
@@ -635,7 +636,7 @@ async def generate_description(
                 fb_free_models = []
 
             fb_models: list[str] = list(fb_free_models)
-            for m in fb.models:
+            for m in configured_live(fb):
                 if m not in fb_models:
                     fb_models.append(m)
 

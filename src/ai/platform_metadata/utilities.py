@@ -20,7 +20,7 @@ from src.ai.description_generator import (
     strip_single_asterisk_emphasis,
 )
 from src.ai.llm_settings import LLMSettings
-from src.ai.model_pool import fetch_and_select_model
+from src.ai.model_pool import configured_live, fetch_and_select_model
 from src.ai.platform_metadata.models import PlatformMetadata
 from src.scraper.amazon.models import ProductData
 
@@ -206,7 +206,7 @@ async def generate_with_llm(
                 logger.info("Free models to try: %s", free_models[:3])
 
         # Add configured models as fallback (if not already in list)
-        for model in settings.models:
+        for model in configured_live(settings):
             if model not in models_to_try:
                 models_to_try.append(model)
 
@@ -245,7 +245,7 @@ async def generate_with_llm(
                     fb_free_models = []
 
                 fb_models: list[str] = list(fb_free_models)
-                for m in fb.models:
+                for m in configured_live(fb):
                     if m not in fb_models:
                         fb_models.append(m)
 

@@ -161,6 +161,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             # Call LLM API directly (custom formatting needed)
             from src.ai.platform_metadata.utilities import (
                 call_llm_api_with_retry,
+                configured_live,
                 fetch_and_select_model,
             )
 
@@ -177,7 +178,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                     logger.info("Free models to try: %s", free_models[:3])
 
             # Add configured models as fallback (if not already in list)
-            for model in settings.models:
+            for model in configured_live(settings):
                 if model not in models_to_try:
                     models_to_try.append(model)
 
