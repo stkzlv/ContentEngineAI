@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - An `llm_settings.topic_scripts.step_list` setting, off by default, writes a topic's script from a sourced step list found by grounded search, refusing unsourced steps, dropping topics that cannot be sourced or fork by device, and setting the length by the step count.
 
+## [0.160.1] - 2026-10-05
+
+### Fixed
+
+- An unreachable coverage service no longer fails the required test check: the coverage upload step continues on error.
+
 ## [0.160.0] - 2026-10-04
 
 ### Added
