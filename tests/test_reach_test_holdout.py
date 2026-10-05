@@ -81,3 +81,10 @@ def test_the_script_lint_is_off() -> None:
     """The lint rejects and retries scripts, so it changes them (design 0007)."""
     lint = load_video_config_modular().llm_settings.script_validation.lint
     assert lint.enabled is False
+
+
+@pytest.mark.req("REQ-CNT-054")
+def test_the_hook_rules_are_off() -> None:
+    """They change the script, headline and caption prompts (design 0007)."""
+    settings = load_video_config_modular().llm_settings
+    assert settings.script_templates.hook_rules.enabled is False

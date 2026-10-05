@@ -16,6 +16,7 @@ from src.ai.description_generator import (
     _call_llm_api_with_retry,
     format_prompt,
     load_prompt_template,
+    search_phrase_rule,
     strip_single_asterisk_emphasis,
 )
 from src.ai.llm_settings import LLMSettings
@@ -116,6 +117,7 @@ async def generate_with_llm(
     pillar: str | None = None,
     pillar_preambles: dict[str, str] | None = None,
     extra_placeholders: dict[str, str] | None = None,
+    lead_with_search_phrase: bool = False,
 ) -> str | None:
     """High-level helper to generate content using LLM with automatic model fallback.
 
@@ -148,6 +150,9 @@ async def generate_with_llm(
         extra_placeholders: Optional prompt-specific template substitutions for
             config-derived values (e.g. `{MAX_WORDS}`), so a prompt doesn't have
             to hardcode a number the config claims to own.
+        lead_with_search_phrase: Append the search-phrase rule when
+            `script_templates.hook_rules` is on (captions, titles and the
+            hook headline; design 0007).
 
     Returns:
     -------
@@ -167,6 +172,9 @@ async def generate_with_llm(
             video_script=video_script,
             extra_placeholders=extra_placeholders,
         )
+        # Captions, titles and the hook headline ask, never the fact check.
+        if lead_with_search_phrase:
+            prompt += search_phrase_rule(product, settings)
 
         # Step 2b: Prepend narrator profile and pillar preamble
         if narrator_profile or pillar:

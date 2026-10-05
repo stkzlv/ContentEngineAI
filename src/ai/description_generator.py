@@ -18,6 +18,7 @@ import logging
 import re
 import unicodedata
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from aiohttp.client_exceptions import (
@@ -77,6 +78,36 @@ def load_prompt_template(path: Path) -> str:
         raise FileNotFoundError(f"Prompt template not found: {path}")
     with path.open("r", encoding="utf-8") as f:
         return f.read()
+
+
+def search_phrase_rule(product: Any, settings: Any) -> str:
+    """The rule asking a caption, title or headline to lead with the search
+    phrase (design 0007), or "" while `script_templates.hook_rules` is off.
+
+    Appended after the formatted prompt, so a prompt is unchanged when off.
+    """
+    templates = getattr(settings, "script_templates", None)
+    if not getattr(getattr(templates, "hook_rules", None), "enabled", False):
+        return ""
+    from src.video.search_phrase import key_words, search_phrase
+
+    phrase = search_phrase(product)
+    if not phrase:
+        return ""
+    if getattr(product, "topic", None):
+        # A topic's title runs longer than a headline holds; its key words,
+        # the ones the placement report looks for, fit.
+        words = ", ".join(key_words(phrase, question=True))
+        if not words:
+            return ""
+        return (
+            f"\n\nSearch words: {words}. Open with them: put these words in "
+            "the first words of what you write."
+        )
+    return (
+        f'\n\nSearch phrase: "{phrase}". Open with it: put the phrase, or all '
+        "of its words, in the first words of what you write."
+    )
 
 
 def format_prompt(
@@ -469,7 +500,9 @@ async def generate_description(
     )
     try:
         template = load_prompt_template(template_path)
-        prompt = format_prompt(template, product)
+        prompt = format_prompt(template, product) + search_phrase_rule(
+            product, settings
+        )
     except (FileNotFoundError, ValueError) as e:
         raise DescriptionGenerationError(f"Prompt template error: {e}") from e
 

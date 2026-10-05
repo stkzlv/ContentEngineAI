@@ -48,6 +48,16 @@ def _terms(phrase: str, *, question: bool = False) -> set[str]:
     }
 
 
+def key_words(phrase: str, *, question: bool = False) -> list[str]:
+    """The words a place must carry, in the phrase's order."""
+    terms = _terms(phrase, question=question)
+    seen: list[str] = []
+    for word in re.findall(r"[\w']+", phrase.lower()):
+        if word in terms and word not in seen:
+            seen.append(word)
+    return seen
+
+
 def contains(text: str | None, phrase: str, *, question: bool = False) -> bool:
     """Whether every significant word of `phrase` appears in `text`."""
     terms = _terms(phrase, question=question)

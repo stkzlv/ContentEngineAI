@@ -93,7 +93,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
 - **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries.
   - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
-- **REQ-CNT-054** `planned #548` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
+- **REQ-CNT-054** `held` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
   - On when: `script_templates.hook_rules.enabled` is set after the reach-test readout (#540).
 - **REQ-CNT-055** `shipped` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
 

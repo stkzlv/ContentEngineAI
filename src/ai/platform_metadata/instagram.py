@@ -17,6 +17,7 @@ from src.ai.platform_metadata.utilities import (
     format_prompt,
     generate_with_llm,
     load_prompt_template,
+    search_phrase_rule,
     strip_inline_markdown,
 )
 from src.ai.prompt_selection import prompt_path_for
@@ -140,7 +141,9 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
             template = template.replace("{EMOJI_ENABLED}", emoji_status)
 
             # Format with product data
-            prompt = format_prompt(template, product, video_script=video_script)
+            prompt = format_prompt(
+                template, product, video_script=video_script
+            ) + search_phrase_rule(product, settings)
 
             if narrator_profile or pillar:
                 from src.ai.script_generator import apply_prompt_preambles
