@@ -112,3 +112,32 @@ async def test_an_opener_is_found_whatever_its_punctuation(
         await steps.step_generate_script(ctx)
     verdict = "is in the script" if found else "is NOT in the script"
     assert any(verdict in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.asyncio
+async def test_a_tutorial_records_no_transition(ctx, monkeypatch, caplog) -> None:
+    from src.ai.step_list import Step, StepList
+    from src.video.producer import steps
+
+    monkeypatch.setattr(
+        config.llm_settings.script_templates,
+        "signature",
+        SignatureConfig(use_rate=1.0, transitions=["Here's the thing."]),
+    )
+    step_list = StepList(
+        "Settings", "iOS", False, [Step("Do it", "A > B", "done", "https://x/")]
+    )
+    caplog.set_level("INFO", logger=steps.logger.name)
+    with (
+        patch.object(steps, "_topic_step_list", AsyncMock(return_value=step_list)),
+        patch.object(
+            steps,
+            "generate_ai_script",
+            AsyncMock(return_value=(SCRIPT, "classic_promo", "Link in bio.")),
+        ),
+        patch.object(steps, "_ensure_fact_checked", AsyncMock()),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+    ):
+        await steps.step_generate_script(ctx)
+    assert not any("transition" in r.getMessage() for r in caplog.records)
