@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -21,7 +22,7 @@ from src.ai.step_list import (
 )
 from src.video.config import config
 
-ANSWER = {
+ANSWER: dict[str, Any] = {
     "start_screen": "the Settings app",
     "platform": "iOS 18",
     "forks": False,
@@ -52,12 +53,19 @@ ANSWER = {
         },
     ],
     "common_mistake": {"step": 3, "mistake": "turning off one app only"},
+    "topic_check": {
+        "specific": True,
+        "searchable": True,
+        "demonstrable": True,
+        "non_default": True,
+        "advice": "none",
+    },
 }
 
 
 def _sl(n: int, *, forks: bool = False) -> StepList:
     steps = [Step(f"Do {i}", f"A > {i}", f"see {i}", "https://x/") for i in range(n)]
-    return StepList("Settings", "iOS", forks, steps)
+    return StepList("Settings", "iOS", forks, steps, topic_failures=[])
 
 
 @pytest.mark.req("REQ-VID-122")
@@ -239,7 +247,9 @@ async def test_the_step_records_the_list_or_drops_the_topic(tmp_path: Path) -> N
     record = json.loads((tmp_path / "text" / "step_list.json").read_text())
     assert len(record["steps"]) == 3
 
-    for result in (None, _sl(0), _sl(3, forks=True)):
+    filtered = _sl(3)
+    filtered.topic_failures = ["asks for legal advice"]
+    for result in (None, _sl(0), _sl(3, forks=True), filtered):
         with (
             patch("src.ai.step_list.build_step_list", AsyncMock(return_value=result)),
             pytest.raises(steps.TopicNotSourcedError) as err,
@@ -349,3 +359,49 @@ async def test_a_one_step_draft_inside_the_tolerance_is_accepted() -> None:
 
     assert call.await_count == 1
     assert script is not None and script.startswith("Press and hold")
+
+
+@pytest.mark.req("REQ-VID-151")
+@pytest.mark.parametrize(
+    ("check", "reason"),
+    [
+        ({"specific": False}, "not specific"),
+        ({"searchable": False}, "not searchable"),
+        ({"demonstrable": False}, "not demonstrable"),
+        ({"non_default": False}, "not non-default"),
+        ({"advice": "health"}, "asks for health advice"),
+        ({"advice": "Financial"}, "asks for financial advice"),
+        ({"advice": "legal"}, "asks for legal advice"),
+        ({"specific": "true"}, "not specific"),
+        ({"advice": None}, "advice unanswered"),
+        ({"advice": ["financial"]}, "advice unanswered"),
+    ],
+)
+def test_a_topic_failing_the_filter_is_dropped(check, reason) -> None:
+    answer = dict(ANSWER)
+    answer["steps"] = [{"action": "Open", "source": "https://a/"}]
+    answer["topic_check"] = {**ANSWER["topic_check"], **check}
+    passing = parse_step_list(
+        json.dumps({**answer, "topic_check": ANSWER["topic_check"]})
+    )
+    assert passing is not None and drop_reason(passing, 6) is None
+
+    parsed = parse_step_list(json.dumps(answer))
+
+    assert parsed is not None
+    assert drop_reason(parsed, 6) == f"fails the topic filter: {reason}"
+
+
+@pytest.mark.req("REQ-VID-151")
+@pytest.mark.parametrize("check", [None, "yes", [], {"specific": True}])
+def test_a_missing_or_loose_topic_check_does_not_pass(check) -> None:
+    answer = dict(ANSWER)
+    answer["steps"] = [{"action": "Open", "source": "https://a/"}]
+    answer["topic_check"] = check
+
+    reason = drop_reason(parse_step_list(json.dumps(answer)), 6)
+
+    assert reason is not None
+    assert reason in ("no topic check came back",) or reason.startswith(
+        "fails the topic filter"
+    )

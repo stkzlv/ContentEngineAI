@@ -7,8 +7,11 @@ then written from the list, and its length follows the step count.
 A step with no source is refused, and the topic with it: a tutorial with a
 step missing cannot be followed. A topic is also dropped when nothing could
 be sourced, and one whose steps fork by device, or need more steps than a
-short video holds, is set aside for a series. Nothing here raises: a failed
-call returns None, which the caller treats as unsourced.
+short video holds, is set aside for a series. The same call judges the
+topic itself (specific, searchable, demonstrable, non-default, and no health,
+financial or legal advice), and a topic that fails is dropped too. Nothing
+here raises: a failed call returns None, which the caller treats as
+unsourced.
 """
 
 from __future__ import annotations
@@ -50,6 +53,8 @@ class StepList:
     mistake_step: int | None = None
     mistake: str | None = None
     refused: list[Step] = field(default_factory=list)
+    # The topic filter's failed criteria; None when no check came back.
+    topic_failures: list[str] | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, ensure_ascii=False)
@@ -61,6 +66,27 @@ def _text(value: Any) -> str:
 
 def _sourced(source: str) -> bool:
     return source.startswith(("https://", "http://"))
+
+
+TOPIC_CRITERIA = ("specific", "searchable", "demonstrable", "non_default")
+
+
+def _topic_failures(check: Any) -> list[str] | None:
+    """The criteria a topic fails; None when the check is missing or unreadable."""
+    if not isinstance(check, dict):
+        return None
+    failures = [
+        f"not {name.replace('_', '-')}"
+        for name in TOPIC_CRITERIA
+        if check.get(name) is not True
+    ]
+    advice = check.get("advice")
+    # Strict like the criteria: only the string "none" passes.
+    if not isinstance(advice, str) or not advice.strip():
+        failures.append("advice unanswered")
+    elif advice.strip().lower() != "none":
+        failures.append(f"asks for {advice.strip().lower()} advice")
+    return failures
 
 
 def parse_step_list(answer: str | None) -> StepList | None:
@@ -110,6 +136,7 @@ def parse_step_list(answer: str | None) -> StepList | None:
         mistake_step=mistake_step,
         mistake=(mistake_text or None) if mistake_step else None,
         refused=refused,
+        topic_failures=_topic_failures(data.get("topic_check")),
     )
 
 
@@ -117,6 +144,10 @@ def drop_reason(step_list: StepList | None, max_steps: int) -> str | None:
     """Why the topic is not rendered from this list, or None to go ahead."""
     if step_list is None:
         return "no step list came back"
+    if step_list.topic_failures is None:
+        return "no topic check came back"
+    if step_list.topic_failures:
+        return "fails the topic filter: " + ", ".join(step_list.topic_failures)
     if not step_list.steps:
         return "no step could be sourced"
     if step_list.refused:

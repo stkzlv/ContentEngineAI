@@ -52,7 +52,7 @@ def test_video_content_stays_top_aligned() -> None:
     assert config.video_settings.video_vertical_align == "top"
 
 
-@pytest.mark.req("REQ-VID-121", "REQ-VID-122")
+@pytest.mark.req("REQ-VID-121", "REQ-VID-122", "REQ-VID-151")
 def test_topic_step_lists_are_off() -> None:
     """Step lists rewrite the topic arm's scripts (design 0017)."""
     settings = load_video_config_modular().llm_settings

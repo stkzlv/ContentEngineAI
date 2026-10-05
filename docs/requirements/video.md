@@ -231,7 +231,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-124** `planned #561` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
   - On when: `video_settings.graphics.enabled` is set after the reach-test readout (#540).
-- **REQ-VID-151** `planned #559` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
+- **REQ-VID-151** `held` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
   - On when: `topic_scripts.step_list.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).

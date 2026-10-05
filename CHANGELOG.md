@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.162.0] - 2026-10-05
+
+### Added
+
+- With step lists on, a topic must pass a filter (specific, searchable, demonstrable, non-default, and no health, financial or legal advice) or it is dropped, and `python -m tools.check_topic_pool` runs that filter over the topic pool by hand.
+
 ## [0.161.0] - 2026-10-05
 
 ### Added
