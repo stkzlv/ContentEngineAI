@@ -182,6 +182,10 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: steps.scope.outputs.mode == 'full'
+      # Coverage is a report, not a gate: when the service is unreachable the
+      # action fails before `fail_ci_if_error` applies, and the required test
+      # check would block every merge.
+      continue-on-error: true
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
