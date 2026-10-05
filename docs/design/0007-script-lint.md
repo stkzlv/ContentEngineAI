@@ -40,6 +40,14 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 **Tests.** Each banned shape rejects a fixture script; the length caps reject an over-long script; off leaves `_validate` unchanged; the report counts a fixture where the phrase is missing from the caption.
 
+## As built
+
+- The lint (`REQ-CNT-053`) is built and held off. `script_validation.lint` carries `enabled`, `banned_phrases` (regular expressions, matched case-insensitively, checked at config load), `max_sentence_words`, `max_words_per_sec` and `target_duration_sec`. No profile has a target duration, so the word cap is `max_words_per_sec` times a configured `target_duration_sec` of 40, the top of the narrator profiles' 30-40 seconds (`REQ-CNT-142`). A tutorial written from a step list skips the word cap, since its step count sets its length.
+- The bundled list adds "in today's video" and "you won't believe" to the design's phrases, from the Context's filler evidence.
+- A script failing only the lint is kept as a last resort ahead of a script missing its call to action, since it is the more complete of the two.
+- The search-phrase report (`REQ-CNT-055`) shipped: each render's row in `state/render_choices.jsonl` records where the phrase appears, and the variety report prints the share per place. The phrase is the product keyword, or a topic's title rather than its stock keywords, since the title is phrased as searched. A place counts when every word of three or more letters appears there, or the phrase appears with its spaces closed up, since the product keyword "smart watch" was written "smartwatch" in a real script and headline.
+- The hook and placement rules (`REQ-CNT-054`) are not built yet.
+
 ## Alternatives considered
 
 None recorded.

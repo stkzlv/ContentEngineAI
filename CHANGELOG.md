@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.166.0] - 2026-10-05
+
+### Added
+
+- A `script_validation.lint` setting, off by default, rejects and retries a script with a common machine-writing phrase, a sentence over the length cap or more words than its target duration allows, keeping one as a last resort.
+- Each render's record notes whether its search phrase appears in the first spoken sentence, the hook headline and the opening of each platform caption, and the variety report shows the share of renders for each.
+
 ## [0.165.2] - 2026-10-05
 
 ### Dependencies

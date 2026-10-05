@@ -70,6 +70,16 @@ llm_settings:
   script_validation:
     min_chars: 200
     min_words: 50
+    # Machine-writing tells, a sentence cap and a word cap from the target
+    # duration (design 0007). A failing script is retried, and kept as a
+    # last resort. It changes scripts, so it stays off until the reach-test
+    # readout. banned_phrases is a list of regular expressions; leave it out
+    # to use the bundled list.
+    lint:
+      enabled: false
+      max_sentence_words: 16
+      max_words_per_sec: 2.8
+      target_duration_sec: 40
 
   # Description validation thresholds. The floors alone cannot tell a
   # description from a reasoning model's monologue about writing one: that

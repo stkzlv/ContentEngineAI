@@ -989,6 +989,8 @@ async def generate_script(
         sv_min_words = min(sv_min_words, band_floor)
         sv_min_chars = min(sv_min_chars, band_floor * 4)
 
+    lint = settings.script_validation.lint
+
     def _validate(script: str) -> tuple[bool, str]:
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
@@ -999,6 +1001,14 @@ async def generate_script(
         if ok and short:
             near_miss.setdefault("short", script)
             return False, "Script is short for the number of steps"
+        if ok and lint.enabled:
+            from src.ai.script_lint import lint_script
+
+            # A tutorial's length comes from its steps, not the duration cap.
+            failure = lint_script(script, lint, word_cap=step_list is None)
+            if failure:
+                near_miss.setdefault("lint", script)
+                return False, f"Script lint: {failure}"
         if (
             not ok
             and reason == NO_CTA_REASON
@@ -1189,6 +1199,12 @@ async def generate_script(
                 "Fallback provider configured but API key %s not found",
                 fb.api_key_env_var,
             )
+
+    if "lint" in near_miss:
+        # Complete, closing on its call to action, and only the lint
+        # objected: a render with a tell in it beats no render (design 0007).
+        logger.warning("No attempt passed the script lint; using one that failed it")
+        return near_miss["lint"], template_name, cta_line
 
     if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing

@@ -91,11 +91,11 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-050** `shipped` When the check flags claims, the producer revises at most `script_fact_check.max_flags_to_revise` sentences (default 3) and refuses a revision whose length differs from the original by more than `script_fact_check.max_length_drift` (default 25%).
 - **REQ-CNT-051** `shipped` If the fact check or the revision fails for any reason, the producer ships the original script.
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
-- **REQ-CNT-053** `planned #548` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries.
+- **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries.
   - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
 - **REQ-CNT-054** `planned #548` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
   - On when: `script_templates.hook_rules.enabled` is set after the reach-test readout (#540).
-- **REQ-CNT-055** `planned #548` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
+- **REQ-CNT-055** `shipped` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
 
 ## Voice profiles
 
