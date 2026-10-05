@@ -121,6 +121,9 @@ export PATH="$HOME/.local/bin:$PATH"
 # falls back to FFmpeg captions and warns once.
 poetry install --with pycaps
 
+# Optional: librosa, for moving cuts to music beats (video_settings.beat_snap).
+# poetry install --with pycaps,beats
+
 # Install the browser the pycaps CSS renderer uses. The scraper does not
 # use Playwright; it drives Botasaurus.
 poetry run playwright install chromium
