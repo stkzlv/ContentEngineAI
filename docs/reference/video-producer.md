@@ -81,7 +81,7 @@ Read only when the resolved engine is `pycaps`. Install and configuration are in
 |---|---|---|---|
 | `--pycaps-template` | yes | Force one template for every product. Clears the template pool, so the per-product selector falls through to this name. | `--pycaps-template hype` |
 | `--pycaps-template-pool` | yes | Pool for deterministic per-product selection. Wins over the clear when passed with `--pycaps-template`. | `--pycaps-template-pool word-focus hype vibrant` |
-| `--pycaps-renderer` | yes | `css` (default, Playwright and Chromium, the only production-safe option) or `pictex` (browserless Skia, preview only: it renders words with no gaps between them). | `--pycaps-renderer pictex` |
+| `--pycaps-renderer` | yes | `css` (default, Playwright and Chromium, the only production-safe option) or `pictex` (browserless Skia; matches `css` on `word-focus`, renders glows and soft shadows differently). | `--pycaps-renderer pictex` |
 
 ### FFmpeg caption style
 

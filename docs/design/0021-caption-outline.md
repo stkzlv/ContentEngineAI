@@ -15,7 +15,7 @@ The caption research asks for a white fill with a black stroke at 8-10% of the f
 ## Non-goals
 
 - The FFmpeg caption presets, which keep their 2-4 px outline (`REQ-VID-057`).
-- The pictex renderer, which is preview-only.
+- The pictex renderer, which renders glows and shadows differently; the outline is drawn on `css` only.
 
 ## Design
 

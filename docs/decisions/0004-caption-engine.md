@@ -1,6 +1,6 @@
 # 0004. pycaps with the CSS renderer is the caption engine
 
-- **Status:** Accepted
+- **Status:** Amended by 0011
 - **Date:** 2026-10-01
 
 ## Context and problem

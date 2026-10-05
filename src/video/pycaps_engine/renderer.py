@@ -225,10 +225,10 @@ def _force_sentence_case(builder: Any) -> None:
     template's own stylesheet is left as shipped and the override travels
     with the config rather than with a project-local fork of the template.
 
-    Has to run after the renderer is wired: `with_custom_subtitle_renderer`
-    replaces the renderer object, and appended CSS lives on that object, so
-    CSS appended before the pictex swap is discarded with the CSS renderer.
-    Both bundled renderers accept `append_css`. Tolerates the builder method
+    Runs after the renderer is wired. Since pycaps 0.3.0 appended CSS
+    collects on the builder and reaches whichever renderer is set at build
+    time; before it, CSS lived on the renderer object and the pictex swap
+    discarded it. Tolerates the builder method
     being absent so a pycaps upgrade that renames it degrades to the
     template's casing rather than raising.
     """

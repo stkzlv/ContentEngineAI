@@ -311,11 +311,9 @@ class PycapsSettings(BaseModel):
             "css = Playwright + Chromium (full CSS fidelity, ~400 MB RAM "
             "per render, ~0.7x realtime). "
             "pictex = browser-free Skia path (fewer CSS features, no Chromium "
-            "dep). PREVIEW ONLY: pictex measures word width with padding "
-            "cropped off while the templates use that padding as the "
-            "inter-word gap, so captions render with no spaces between "
-            "words. Default css matches benchmark winner and is the only "
-            "production-safe option."
+            "dep). Since pycaps 0.3.0 it keeps the template's CSS, so word "
+            "gaps match css; glows and soft shadows render differently. "
+            "Default css is the benchmark winner and the production renderer."
         ),
     )
     force_sentence_case: bool = Field(

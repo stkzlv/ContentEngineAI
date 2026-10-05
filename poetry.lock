@@ -3665,7 +3665,7 @@ global = ["pybind11-global (==3.0.3)"]
 
 [[package]]
 name = "pycaps"
-version = "0.2.1"
+version = "0.3.0"
 description = "A Python tool to edit videos and automatically add CSS-styled subtitles to videos."
 optional = false
 python-versions = ">=3.10"
@@ -3685,15 +3685,16 @@ tqdm = "*"
 typer = "*"
 
 [package.extras]
-all = ["google-cloud-speech", "html2pic", "openai-whisper", "playwright", "pywebview"]
+all = ["faster-whisper", "google-cloud-speech", "html2pic", "openai-whisper", "playwright", "pywebview"]
 base = ["openai-whisper", "playwright", "pywebview"]
 fast = ["google-cloud-speech", "html2pic"]
+faster-whisper = ["faster-whisper"]
 
 [package.source]
 type = "git"
 url = "https://github.com/francozanardi/pycaps.git"
-reference = "3a47171e1470246a5d7748d98d7d40f40fd45b04"
-resolved_reference = "3a47171e1470246a5d7748d98d7d40f40fd45b04"
+reference = "e2d36edfa08e3307d65b15bb20f17399dc2c9b40"
+resolved_reference = "e2d36edfa08e3307d65b15bb20f17399dc2c9b40"
 
 [[package]]
 name = "pycparser"
@@ -6061,4 +6062,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "199b87c894be7294b7c3d7453b551407cfde7e220a9ef90ddb5da693aee7ac32"
+content-hash = "0ad01e9b07e8547247f3be4ade97eb9988270cd6c01b8d618c2945ce947b4c0d"
