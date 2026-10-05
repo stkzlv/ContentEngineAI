@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.170.0] - 2026-10-05
+
+### Added
+
+- Five public-domain (CC0) sound effects per event, from Freesound and listed in `static/sfx/SOURCES.md`, fill the `audio_settings.sound_effects` pools in the bundled config; effects stay off.
+
 ## [0.169.0] - 2026-10-05
 
 ### Added

@@ -21,7 +21,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 ## Non-goals
 
-- Bundled effect files. The feature ships without them; the config points at a local directory.
+- Fetching effects from a provider at render time. The pools are local files; the bundled config points at CC0 copies under `static/sfx`.
 
 ## Design
 
@@ -40,7 +40,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - An effect that would start in a word's first 100 ms moves to 100 ms after that word's start; the reveal and the call to action, placed at a sentence's first word, always do, and so does the hook when the voice starts on the first frame.
 - Only event kinds with a file on disk are planned, so an empty pool cannot take the cap's places from one that can sound. The cap keeps the call to action, then the reveal, then the hook, and drops any event that would put more than `max_per_10_sec` in a 10-second window.
 - Each file is drawn with the seed `<product_id>:sfx:<event>:<n>`, the `n`th event of its kind.
-- The effect level is the voice's `voiceover_volume_db` plus `level_db`.
+- The effect level is the voice's `voiceover_volume_db` plus `level_db`, applied as plain gain, so the bundled files are peak-normalised to -1 dBFS to make `level_db` mean the same for each. They are five CC0 Freesound uploads per event, listed in `static/sfx/SOURCES.md`, picked by name, rating and length rather than by listening.
 - Each render records its effects as `kind:file` in `state/render_choices.jsonl` (`sound_effects`), and the variety report counts each file (#659).
 
 ## Alternatives considered

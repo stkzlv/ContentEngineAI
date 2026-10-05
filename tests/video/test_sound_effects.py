@@ -50,7 +50,6 @@ def test_the_shipped_config_keeps_effects_off() -> None:
     effects = load_video_config_modular().audio_settings.sound_effects
 
     assert effects.enabled is False
-    assert effects.hook == effects.reveal == effects.cta == []
 
 
 def test_sentences_start_after_a_closing_mark() -> None:
@@ -246,6 +245,7 @@ def test_an_empty_pool_does_not_take_the_caps_places(tmp_path: Path) -> None:
     effects.max_per_10_sec = 1
     effects.hook = _pool(tmp_path, "hook")
     effects.reveal = [tmp_path / "missing.wav"]  # listed, but not on disk
+    effects.cta = []
     assembler = VideoAssembler(cfg)
 
     # The reveal outranks the hook in their shared window, but cannot sound.
@@ -275,3 +275,16 @@ def test_the_step_reads_word_timings_from_the_transcript(tmp_path: Path) -> None
     ]
     transcript.write_text("{not json")
     assert steps._spoken_words(ctx) is None
+
+
+@pytest.mark.req("REQ-VID-012")
+def test_the_bundled_pools_are_on_disk_and_sourced() -> None:
+    """Five or more files per event, each present and listed in SOURCES.md."""
+    settings = load_video_config_modular().audio_settings.sound_effects
+    sources = Path("static/sfx/SOURCES.md").read_text(encoding="utf-8")
+    for kind in ("hook", "reveal", "cta"):
+        pool = getattr(settings, kind)
+        assert len(pool) >= 5, kind
+        for path in pool:
+            assert Path(path).is_file(), path
+            assert f"`{Path(path).relative_to('static/sfx')}`" in sources, path

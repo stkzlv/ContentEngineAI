@@ -74,7 +74,8 @@ class SignatureSting(BaseModel):
 class SoundEffectsSettings(BaseModel):
     """Sparse effects on a few beats (design 0003), off by default.
 
-    One pool of local files per event; nothing is bundled. Mixed through the
+    One pool of local files per event, empty by default; the bundled config
+    points at the CC0 files under static/sfx. Mixed through the
     same `amix` and `loudnorm` as the music, `level_db` relative to the voice.
     """
 

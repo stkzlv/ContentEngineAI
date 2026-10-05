@@ -687,13 +687,14 @@ audio_settings:
   # hook, never in a word's first 100 ms. reveal and cta need the Whisper
   # transcript (pycaps engine); without it only the hook plays. Pools are
   # local files, drawn per product; a missing file is skipped with a warning.
+  # The bundled pools are CC0 effects under static/sfx (static/sfx/SOURCES.md).
   sound_effects:
     enabled: false
     level_db: -15            # relative to the voice
     max_per_10_sec: 2
-    hook: []                 # e.g. ["assets/sfx/hit_1.wav", ...]
-    reveal: []
-    cta: []
+    hook: ["static/sfx/hook/hook-614084.mp3", ...]   # five per pool bundled
+    reveal: ["static/sfx/reveal/reveal-776016.mp3", ...]
+    cta: ["static/sfx/cta/cta-644946.mp3", ...]
 
   # Polish on the voiceover before the mix, off by default. The stages run
   # in this order; deess_intensity 0, air_shelf_db 0 or limiter false drop
