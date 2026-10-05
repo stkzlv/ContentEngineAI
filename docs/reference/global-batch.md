@@ -58,7 +58,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--fail-fast` / `--no-fail-fast` | switch | off | Stops the pipeline at the first failure, publishing included unless `--fail-fast-publish`/`--no-fail-fast-publish` or a `fail_fast_publish` key says otherwise. |
 | `--strict` | switch | off | Exits non-zero when any product was lost to a failure or a skip, not only when none succeeded. |
 | `--process-all-products` / `--no-process-all-products` | switch | off | Renders every product in the outputs directory, not only those this run scraped. |
-| `--outputs-dir` | `PATH` | `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else `global_batch.outputs_dir` in `config/pipeline.yaml` | Where the scraper writes and the producer reads. |
+| `--outputs-dir` | `PATH` | `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else `global_batch.outputs_dir` in `config/pipeline.yaml` | Where the scraper writes, the producer reads, and each render writes its video and state. |
 | `--debug` / `--no-debug` | switch | off | Debug logging. |
 | `--resume` | switch | off | Resumes an interrupted run from its checkpoint, skipping completed products and phases. |
 | `--dry-run` | switch | off | Validates the configuration and prints the planned products, profiles and platforms without running anything. |
@@ -104,7 +104,7 @@ The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds unt
 | `random_profile` | `false` | Picks a profile per product, deterministically from the product id. |
 | `profile_pool` | `[]` | The profiles `random_profile` picks from; empty means every profile. |
 | `fail_fast` | `false` | Stops the pipeline at the first failure. |
-| `outputs_dir` | `outputs` | Where the scraper writes and the producer reads. |
+| `outputs_dir` | `outputs` | Where the scraper writes, the producer reads, and each render writes its video and state. |
 | `debug` | `false` | Debug logging. |
 
 ### `webhook`

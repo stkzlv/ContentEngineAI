@@ -33,7 +33,7 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--random-profile` | Pick a profile per product, deterministic by product id. | `--random-profile` |
 | `--profile-pool` | Profiles `--random-profile` draws from. Without it, the YAML `batch.profile_pool` applies, then every profile except `base` and `slideshow_stock`. | `--profile-pool prof1 prof2` |
 | `--product-ids` | Limit `--batch` to these product ids. | `--product-ids B0ASIN1 B0ASIN2` |
-| `--outputs-dir` | Directory to scan for products in batch mode (default `global_output_directory` from `config/core.yaml`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
+| `--outputs-dir` | The outputs directory: batch mode finds products there, and every render writes its video, state and temp files there (default `global_output_directory` from `config/core.yaml`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
 | `--fail-fast` | Stop the batch on the first failure. | `--fail-fast` |
 | `--strict` | Exit non-zero when any product was lost, to a failure or a skip. By default only a run where nothing succeeded exits non-zero. | `--strict` |
 | `--output-format` | Batch summary format: `text` (default) or `json`. | `--output-format json` |

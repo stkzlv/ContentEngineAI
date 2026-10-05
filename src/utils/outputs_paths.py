@@ -553,3 +553,23 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def with_outputs_root(
+    overrides: dict[str, Any] | None, outputs_dir: str | Path | None
+) -> dict[str, Any] | None:
+    """Config overrides that also put the outputs root at `outputs_dir`.
+
+    A run that names an outputs directory finds its products there; without
+    this its renders, state and temp files still went to the configured
+    root, so a scratch copy of a product overwrote the real one. A relative
+    path is taken from the repository root, as everywhere else. Passed only
+    to the config load: the dotted overrides handed to the per-render merge
+    stay as they were.
+    """
+    if not outputs_dir:
+        return overrides
+    path = Path(outputs_dir)
+    if not path.is_absolute():
+        path = get_project_root() / path
+    return {**(overrides or {}), "output_dir": str(path)}
