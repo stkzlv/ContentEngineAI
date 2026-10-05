@@ -233,7 +233,7 @@ async def test_the_step_records_the_list_or_drops_the_topic(tmp_path: Path) -> N
         listed = await steps._topic_step_list(ctx)
 
     assert listed is not None and len(listed.steps) == 3
-    assert ctx.state["step_list"] == "steps=3 refused=0"
+    assert ctx.state["step_list"] == "steps=3"
     record = json.loads((tmp_path / "text" / "step_list.json").read_text())
     assert len(record["steps"]) == 3
 
@@ -280,3 +280,18 @@ async def test_a_short_draft_without_its_cta_is_not_the_cta_fallback() -> None:
         )
 
     assert script is not None and script.startswith("Tap the option")
+
+
+@pytest.mark.req("REQ-VID-122")
+def test_an_empty_step_drops_the_topic_like_an_unsourced_one() -> None:
+    answer = dict(ANSWER)
+    answer["common_mistake"] = None
+    for blank in ({"action": "", "source": "https://a/"}, "not a step"):
+        answer["steps"] = [
+            {"action": "Open", "source": "https://a/"},
+            blank,
+            {"action": "Close", "source": "https://a/"},
+        ]
+        parsed = parse_step_list(json.dumps(answer))
+        assert parsed is not None and len(parsed.refused) == 1
+        assert drop_reason(parsed, 6) == "a step could not be sourced"

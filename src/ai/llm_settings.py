@@ -296,8 +296,8 @@ class StepListConfig(BaseModel):
     """Write a topic script from a sourced step list (design 0017).
 
     One grounded call returns the steps (action, exact UI path, expected
-    result, source URL each); a step without a source is refused, a topic
-    left with none is dropped, and a topic that forks by device or needs more
+    result, source URL each); a step without a source is refused and its
+    topic dropped, and a topic that forks by device or needs more
     than `max_steps` is set aside for a series. The script's length then
     follows the step count. Ships off until the reach-test readout.
     """

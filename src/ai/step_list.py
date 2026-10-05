@@ -82,6 +82,8 @@ def parse_step_list(answer: str | None) -> StepList | None:
     position: dict[int, int] = {}
     for number, raw in enumerate(data["steps"], start=1):
         if not isinstance(raw, dict):
+            # A step with nothing to say is a missing step, like an unsourced one.
+            refused.append(Step("", "", "", ""))
             continue
         step = Step(
             _text(raw.get("action")),
@@ -89,9 +91,7 @@ def parse_step_list(answer: str | None) -> StepList | None:
             _text(raw.get("expected")),
             _text(raw.get("source")),
         )
-        if not step.action:
-            continue
-        if _sourced(step.source):
+        if step.action and _sourced(step.source):
             kept.append(step)
             position[number] = len(kept)
         else:
