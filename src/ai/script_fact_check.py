@@ -149,25 +149,45 @@ class FactCheckOutcome:
     record: dict[str, Any]
 
 
-_REMOVAL_VERB = re.compile(r"^\s*(?:remove|delete|drop|omit|cut)\b", re.IGNORECASE)
-# Words a removal fix uses to point at the claim rather than name its subject.
+_REMOVAL_VERBS = frozenset({"remove", "delete", "drop", "omit", "cut"})
+# A removal fix points at the script ("remove the battery claim", "remove
+# this"). A fix that only starts with the verb is usually a corrected step:
+# "Delete the cached files in Settings" is an instruction, not a removal.
 _REMOVAL_POINTERS = frozenset(
-    "the that this these those with from about reference references mention "
-    "mentions claim claims sentence statement line phrase entire entirely part "
-    "any all".split()
+    "reference references mention mentions claim claims sentence statement "
+    "line phrase".split()
 )
+_BARE_POINTERS = frozenset({"this", "that", "it"})
+# Sentence openers that lean on the sentence before them.
+_ANAPHORA = frozenset("that this these those it its they so which then also".split())
 
 
-def removal_terms(fix: str) -> set[str] | None:
-    """The subject words of a fix that asks to remove the claim, else None.
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
 
-    "Remove the reference to a steel clamp-style mount." names steel, clamp,
-    style and mount: a repair must not bring any of them back.
+
+def is_removal(fix: str) -> bool:
+    """Whether a fix asks to remove the claim rather than correct it."""
+    words = _words(fix)
+    if not words or words[0] not in _REMOVAL_VERBS:
+        return False
+    if len(words) == 2 and words[1] in _BARE_POINTERS:
+        return True
+    return any(w in _REMOVAL_POINTERS for w in words[1:6])
+
+
+def removal_terms(claim: FactCheckClaim) -> set[str] | None:
+    """The claim's own words a removal fix names, else None.
+
+    "Remove the reference to a steel clamp-style mount" on the claim "steel
+    beats plastic for any clamp-style mount" names steel, clamp, style and
+    mount; the fix's own filler ("the listing does not say") is not the
+    claim's subject.
     """
-    if not _REMOVAL_VERB.match(fix):
+    if not is_removal(claim.fix):
         return None
-    words = re.findall(r"[a-z0-9]+", fix.lower())[1:]
-    return {w for w in words if len(w) >= 4 and w not in _REMOVAL_POINTERS}
+    claim_words = {w for w in _words(claim.claim) if len(w) >= 4}
+    return {w for w in _words(claim.fix) if w in claim_words} - _REMOVAL_POINTERS
 
 
 def remove_flagged(original: str, flagged: list[FactCheckClaim]) -> str | None:
@@ -175,15 +195,38 @@ def remove_flagged(original: str, flagged: list[FactCheckClaim]) -> str | None:
 
     A rewrite of a sentence the checker said to remove invented a new detail
     in its place ("The mount is a simple clip" for a watch), so a removal is
-    carried out here, with no model in the loop. None when any fix asks for
-    something other than a removal.
+    carried out here, with no model in the loop. None, leaving it to the
+    reviser, when any fix is not a removal, when the sentences to delete are
+    not exactly the claim (an unflagged sentence repeating the claim's words
+    would go with it), or when the sentence after a deleted one leans on it
+    ("That's why...").
     """
-    if not flagged or any(removal_terms(c.fix) is None for c in flagged):
+    if not flagged or not all(is_removal(c.fix) for c in flagged):
         return None
-    kept = [
-        s for s in sentences(original) if not any(_covers(c.claim, s) for c in flagged)
-    ]
-    return " ".join(kept)
+    old = sentences(original)
+    drop: set[int] = set()
+    for claim in flagged:
+        target = _normalise(claim.claim)
+        exact = [i for i, s in enumerate(old) if _normalise(s) == target]
+        covered = [i for i, s in enumerate(old) if _covers(claim.claim, s)]
+        if len(exact) == 1:
+            drop.add(exact[0])
+        elif (
+            covered
+            and covered == list(range(covered[0], covered[-1] + 1))
+            and _normalise(" ".join(old[i] for i in covered)) == target
+        ):
+            # A claim the splitter cut in two: the run is exactly the claim.
+            drop.update(covered)
+        else:
+            return None
+    for i in drop:
+        follower = i + 1
+        if follower < len(old) and follower not in drop:
+            first = _words(old[follower])[:1]
+            if first and first[0] in _ANAPHORA:
+                return None
+    return " ".join(s for i, s in enumerate(old) if i not in drop)
 
 
 def _normalise(text: str) -> str:
@@ -513,8 +556,11 @@ def accept_revision(
     # for any clamp-style mount" into an invented "the mount is a simple clip".
     old_norm = {_normalise(s) for s in old_sentences}
     added = [s for s in new_sentences if _normalise(s) not in old_norm]
+    # Words another flag's correction brings in are that repair, not a
+    # restatement of the removed claim.
+    corrected = {w for c in flagged if not is_removal(c.fix) for w in _words(c.fix)}
     for claim in flagged:
-        terms = removal_terms(claim.fix)
+        terms = (removal_terms(claim) or set()) - corrected
         if not terms:
             continue
         for sentence in added:
@@ -825,7 +871,7 @@ async def fact_check_and_revise(
             record["revision"]["reason"] = "removed the flagged sentence(s)"
             record["revision"]["accepted"] = True
             record["revision"]["removed"] = True
-            logger.info("Fact check: removed %d flagged sentence(s)", len(flagged))
+            logger.info("Fact check: removed %d flagged claim(s)", len(flagged))
             return FactCheckOutcome(script=accepted, record=record)
         logger.info("Fact check: removal refused (%s); asking for a rewrite", reason)
 

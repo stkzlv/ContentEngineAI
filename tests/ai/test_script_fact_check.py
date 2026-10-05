@@ -1174,11 +1174,94 @@ class TestARemovalIsCarriedOut:
     detail ("The mount is a simple clip, not a clamp." for a watch, #672).
     """
 
-    def test_removal_terms_name_the_subject(self) -> None:
+    def test_removal_terms_name_the_claims_subject(self) -> None:
         from src.ai.script_fact_check import removal_terms
 
-        assert removal_terms(REMOVE_FIX) == {"steel", "clamp", "style", "mount"}
-        assert removal_terms("It is Settings, then System.") is None
+        assert removal_terms(REMOVE_FLAG[0]) == {"steel", "clamp", "style", "mount"}
+        assert removal_terms(FLAG[0]) is None
+        # The fix's justification is not the claim's subject.
+        why = FactCheckClaim(
+            claim="It is fully waterproof.",
+            reason="r",
+            fix="Remove the claim; the listing does not say it is waterproof.",
+        )
+        assert removal_terms(why) == {"waterproof"}
+
+    @pytest.mark.parametrize(
+        "fix",
+        [
+            "Delete the cached files in Settings, Apps, Camera, Storage.",
+            "Remove the back cover before lifting the battery.",
+            "Drop the brightness to 50 percent in Display settings.",
+        ],
+    )
+    def test_a_corrected_step_is_not_a_removal(self, fix: str) -> None:
+        from src.ai.script_fact_check import is_removal
+
+        assert not is_removal(fix)
+
+    @pytest.mark.parametrize(
+        "fix", [REMOVE_FIX, "Remove this.", "Delete the battery runtime claim."]
+    )
+    def test_a_fix_pointing_at_the_claim_is_a_removal(self, fix: str) -> None:
+        from src.ai.script_fact_check import is_removal
+
+        assert is_removal(fix)
+
+    def test_a_removal_takes_no_unflagged_sentence_with_it(self) -> None:
+        from src.ai.script_fact_check import remove_flagged
+
+        script = (
+            "It lasts all night. It charges in ten minutes and it lasts all "
+            f"night. Great for camping trips with friends. {CTA}"
+        )
+        flag = [
+            FactCheckClaim(
+                claim="It charges in ten minutes and it lasts all night.",
+                reason="r",
+                fix="Remove the charging time claim.",
+            )
+        ]
+
+        # The claim's words also cover sentence 0; only the claim itself goes.
+        assert remove_flagged(script, flag) == (
+            f"It lasts all night. Great for camping trips with friends. {CTA}"
+        )
+
+    def test_a_sentence_leaning_on_the_removed_one_sends_it_to_the_reviser(
+        self,
+    ) -> None:
+        from src.ai.script_fact_check import remove_flagged
+
+        script = PRODUCT.replace(CTA, f"That's why it suits cyclists. {CTA}")
+
+        assert remove_flagged(script, REMOVE_FLAG) is None
+
+    def test_another_flags_correction_may_use_the_removed_words(self) -> None:
+        script = (
+            "This lamp runs ten hours on one battery. This lamp charges by "
+            f"USB-C. It folds flat for travel. {CTA}"
+        )
+        flags = [
+            FactCheckClaim(
+                claim="This lamp runs ten hours on one battery.",
+                reason="r",
+                fix="Remove the battery runtime claim.",
+            ),
+            FactCheckClaim(
+                claim="This lamp charges by USB-C.",
+                reason="r",
+                fix="The lamp charges its battery by micro-USB.",
+            ),
+        ]
+        revised = (
+            "The lamp charges its battery by micro-USB. It folds flat for "
+            f"travel. {CTA}"
+        )
+
+        accepted, reason = accept_revision(script, revised, flags, **GUARDS)
+
+        assert accepted == revised, reason
 
     def test_the_flagged_sentence_is_dropped(self) -> None:
         from src.ai.script_fact_check import remove_flagged

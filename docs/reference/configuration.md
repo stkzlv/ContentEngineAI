@@ -1595,11 +1595,15 @@ would leave nothing protected. It must also keep the closing call to action verb
 pass the usual script validation, and stay within `max_length_drift` of the
 original length. Anything else ships the original with the reason logged.
 
-When every fix asks to remove its claim ("Remove the reference to..."), the
-flagged sentences are deleted without asking a model, under the same guards
-except the length drift; a rewrite there once replaced an invented claim with
-another. A rewrite is also refused when a sentence it adds names a subject a
-removal fix asked to drop.
+When every fix asks to remove its claim (it points at the claim: "Remove
+the reference to...", "Delete the battery claim", "Remove this"), the flagged
+sentences are deleted without asking a model, under the same guards except
+the length drift; a rewrite there once replaced an invented claim with
+another. Only sentences that are exactly the claim go, and a following
+sentence that leans on a deleted one ("That's why...") sends the repair to
+the reviser instead. A rewrite is also refused when a sentence it adds
+repeats the removed claim's own subject words, other than words another
+flag's correction brings in.
 
 There is no round count to set. The script is checked once and repaired once,
 so the repaired sentence is never itself checked -- a real gap, and the reason
