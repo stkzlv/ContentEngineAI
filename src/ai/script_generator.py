@@ -34,7 +34,12 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.ai.llm_settings import MIN_PHRASE_WORDS, LLMSettings, SignatureConfig
+from src.ai.llm_settings import (
+    MIN_PHRASE_WORDS,
+    LLMSettings,
+    ScriptLintConfig,
+    SignatureConfig,
+)
 from src.ai.model_pool import (
     configured_live,
     discover_any_free_model,
@@ -348,15 +353,36 @@ def render_hook_rules(enabled: bool) -> str:
     return HOOK_RULES if enabled else ""
 
 
+def render_lint_rule(lint: ScriptLintConfig | None, word_cap: bool = True) -> str:
+    """The lint's limits, stated to the model (design 0007), or "" when off.
+
+    Without them the model writes 18-22 word sentences against a 16-word cap
+    and spends every retry on the lint. `word_cap` is off for a tutorial,
+    whose length its step count sets and the lint does not check.
+    """
+    if lint is None or not lint.enabled:
+        return ""
+    rule = (
+        f"- **Keep every sentence to {lint.max_sentence_words} words or "
+        "fewer**; split a longer one in two."
+    )
+    if word_cap:
+        cap = int(lint.max_words_per_sec * lint.target_duration_sec)
+        rule += f"\n- **Keep the whole script to {cap} words or fewer.**"
+    return rule
+
+
 def render_ending_rules(
     cta_line: str,
     is_topic: bool,
     naturalism: int,
     signature: SignatureChoice | None = None,
     hook_rules: bool = False,
+    lint: ScriptLintConfig | None = None,
+    word_cap: bool = True,
 ) -> str:
     """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature,
-    and the hook rules.
+    the hook rules and the lint's limits.
     """
     return "\n".join(
         rule
@@ -365,6 +391,7 @@ def render_ending_rules(
             render_naturalism_rule(naturalism),
             render_signature_rules(signature or SignatureChoice()),
             render_hook_rules(hook_rules),
+            render_lint_rule(lint, word_cap),
         )
         if rule
     )
@@ -983,6 +1010,8 @@ async def generate_script(
                 settings.script_templates.naturalism.intensity,
                 select_signature(settings.script_templates.signature, product_id),
                 hook_rules=settings.script_templates.hook_rules.enabled,
+                lint=settings.script_validation.lint,
+                word_cap=step_list is None,
             ),
         )
         if step_list is not None:

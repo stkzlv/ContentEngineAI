@@ -1038,8 +1038,10 @@ llm_settings:
     min_chars: 200
     min_words: 50
     # Machine-writing tells, a sentence cap and a word cap of
-    # max_words_per_sec x target_duration_sec (design 0007). A failing script
-    # is retried and kept as a last resort; off until the reach-test readout.
+    # max_words_per_sec x target_duration_sec (design 0007), both stated in
+    # the script prompt when on (a tutorial gets the sentence cap only). A
+    # failing script is retried and kept as a last resort; off until the
+    # reach-test readout.
     # banned_phrases (regular expressions) defaults to the bundled list.
     lint:
       enabled: false
