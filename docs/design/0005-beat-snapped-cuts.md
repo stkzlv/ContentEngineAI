@@ -35,6 +35,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - A cut is the middle of a crossfade. Moving it lengthens one neighbour and shortens the other by the same amount, so the timeline's length holds; a move that would lengthen a video clip is skipped, since a clip may have no frames to spare.
 - Beats are detected in the assembler, not after `download_music`, so a resumed `assemble_video` run gets them too; the cache beside the track makes the second render free.
 - On a bundled lofi track librosa found 253 beats, and five of seven cuts on a 3.1 s timeline moved onto a beat; the other two had none within 150 ms and stayed. On a click track at 120 BPM, librosa's beats sat within 35 ms of the clicks, bounded by its 23 ms frame hop.
+- Each render records how many cuts beat snapping moved in `state/render_choices.jsonl` (`beat_snap_moved`), empty when snapping did not run (#659).
 
 ## Alternatives considered
 

@@ -41,6 +41,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - Only event kinds with a file on disk are planned, so an empty pool cannot take the cap's places from one that can sound. The cap keeps the call to action, then the reveal, then the hook, and drops any event that would put more than `max_per_10_sec` in a 10-second window.
 - Each file is drawn with the seed `<product_id>:sfx:<event>:<n>`, the `n`th event of its kind.
 - The effect level is the voice's `voiceover_volume_db` plus `level_db`.
+- Each render records its effects as `kind:file` in `state/render_choices.jsonl` (`sound_effects`), and the variety report counts each file (#659).
 
 ## Alternatives considered
 
