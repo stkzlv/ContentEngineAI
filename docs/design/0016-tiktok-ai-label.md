@@ -34,6 +34,10 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - Optionally add a bounded AI-role statement to the profile bio or the caption template, behind a config key. It must describe the real process. The study behind the idea found the label penalty disappears when AI's role is limited (polishing, a first draft) and persists when AI writes the whole piece, so a truthful statement helps only to the extent a person really reviews each video.
 - Inspect a rendered file with `exiftool` or a C2PA reader for SynthID or C2PA metadata carried through from the TTS audio, and record whether it survives the mux.
 
+## As built
+
+- The policy decision is [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md): the label stays on until the reach-test readout, then `tiktok_settings.video_made_with_ai` goes to false. The compliance row is corrected.
+
 ## Alternatives considered
 
 - **Keep the label on voluntarily.** One of the two outcomes the policy decision chooses between.
@@ -47,6 +51,5 @@ Remove the switch when: never; it is a lasting option, because the AI-role state
 
 ## Open questions
 
-- Keep the label on voluntarily, or turn it off.
 - Whether SynthID or C2PA metadata from the TTS audio survives the mux.
 - The spec names no config key for the AI-role statement.
