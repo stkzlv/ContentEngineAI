@@ -52,10 +52,10 @@ DIMENSIONS = (
     "pre_motion",
     "transition_sec",
     "ending",
-    # Lists: each element counts on its own.
+    "beat_snap_moved",
+    # Lists, where each element counts on its own.
     "still_moves",
     "sound_effects",
-    "beat_snap_moved",
 )
 
 DEFAULT_LAST = 14
