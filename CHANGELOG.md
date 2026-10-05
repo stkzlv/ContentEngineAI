@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.1] - 2026-10-05
+
+### Changed
+
+- Decision record 0013 settles the TikTok AI label: it stays on until the reach-test readout, then goes off, since TikTok's rules do not require it for generic text-to-speech narration.
+
 ## [0.168.0] - 2026-10-05
 
 ### Changed
