@@ -185,13 +185,12 @@ llm_settings:
     max_tokens: 600
     temperature: 0.7
     timeout_seconds: 60
+    # OpenRouter's free list churns; a listed model it has withdrawn is
+    # skipped for the run once the live list is fetched.
     models:
-      - "tngtech/deepseek-r1t2-chimera:free"
-      - "arcee-ai/trinity-large-preview:free"
-      - "z-ai/glm-4.5-air:free"
-      - "nvidia/nemotron-3-nano-30b-a3b:free"
-      - "tngtech/deepseek-r1t-chimera:free"
-      - "tngtech/tng-r1t-chimera:free"
+      - "google/gemma-4-31b-it:free"
+      - "nvidia/nemotron-3-super-120b-a12b:free"
+      - "qwen/qwen3.8-27b:free"
 
   # Script template system
   # Templates control the style/structure of generated scripts

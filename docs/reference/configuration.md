@@ -1068,11 +1068,12 @@ llm_settings:
     max_tokens: 600
     temperature: 0.7
     timeout_seconds: 60
+    # A listed free model OpenRouter no longer offers is skipped once the
+    # live list has been fetched, rather than tried and refused with a 404.
     models:
-      - "tngtech/deepseek-r1t2-chimera:free"
-      - "arcee-ai/trinity-large-preview:free"
-      - "z-ai/glm-4.5-air:free"
-      - "nvidia/nemotron-3-nano-30b-a3b:free"
+      - "google/gemma-4-31b-it:free"
+      - "nvidia/nemotron-3-super-120b-a12b:free"
+      - "qwen/qwen3.8-27b:free"
 ```
 
 **Platform-Specific Metadata Generation:**

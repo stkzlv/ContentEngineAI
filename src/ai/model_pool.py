@@ -86,6 +86,36 @@ def model_reject_reason(model: dict[str, Any]) -> str | None:
     return _output_modality_reason(model) or _reasoning_reason(model)
 
 
+# The free model ids each OpenRouter endpoint listed on its last successful
+# fetch. OpenRouter's free list churns: every configured fallback model of one
+# install had gone, and each run spent a 404 per model before discovery.
+_LIVE_FREE: dict[str, set[str]] = {}
+
+
+def _endpoint(settings: Any) -> str:
+    return (
+        getattr(settings, "base_url", None) or "https://openrouter.ai/api/v1"
+    ).rstrip("/")
+
+
+def configured_live(settings: Any) -> list[str]:
+    """The configured models, minus OpenRouter free models no longer listed.
+
+    Only filters an OpenRouter provider whose free list was fetched this run;
+    any other provider, or a failed fetch, keeps the configured list as is.
+    """
+    models = list(getattr(settings, "models", []) or [])
+    if getattr(settings, "provider", None) != "openrouter":
+        return models
+    live = _LIVE_FREE.get(_endpoint(settings))
+    if live is None:
+        return models
+    gone = [m for m in models if m.endswith(":free") and m not in live]
+    if gone:
+        logger.info("Skipping configured models no longer listed: %s", gone)
+    return [m for m in models if m not in gone]
+
+
 async def fetch_and_select_model(
     settings: LLMSettings, api_key: str, session: aiohttp.ClientSession, api_settings
 ) -> list[str]:
@@ -164,6 +194,7 @@ async def fetch_and_select_model(
             if not all_free_ids:
                 logger.warning("No free models found from API. Using fallback list.")
                 return []
+            _LIVE_FREE[_endpoint(settings)] = all_free_ids
 
             # Configured models that are verified free (priority)
             ordered_models = [m for m in settings.models if m in all_free_ids]

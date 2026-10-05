@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.3] - 2026-10-05
+
+### Fixed
+
+- A configured OpenRouter free model that OpenRouter no longer lists is skipped once the live list is fetched, instead of costing a refused call on every retry, and the bundled fallback list names models it offers today.
+
 ## [0.168.2] - 2026-10-05
 
 ### Fixed
