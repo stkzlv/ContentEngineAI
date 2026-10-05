@@ -551,10 +551,6 @@ def main() -> None:
     print(resolve_outputs_dir(None))
 
 
-if __name__ == "__main__":
-    main()
-
-
 def with_outputs_root(
     overrides: dict[str, Any] | None, outputs_dir: str | Path | None
 ) -> dict[str, Any] | None:
@@ -573,3 +569,7 @@ def with_outputs_root(
     if not path.is_absolute():
         path = get_project_root() / path
     return {**(overrides or {}), "output_dir": str(path)}
+
+
+if __name__ == "__main__":
+    main()
