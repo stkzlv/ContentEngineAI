@@ -115,11 +115,11 @@ def test_drop_reasons() -> None:
 
 @pytest.mark.req("REQ-VID-121")
 def test_length_follows_the_step_count() -> None:
-    assert word_range(1) == word_range(2) == (50, 75)
-    assert word_range(3) == word_range(6) == (100, 185)
-    assert too_short("word " * 70, 3)
-    assert not too_short("word " * 85, 3)
-    assert not too_short("word " * 41, 2)
+    assert word_range(1) == word_range(2) == (40, 80)
+    assert word_range(3) == word_range(6) == (110, 200)
+    assert too_short("word " * 85, 3)
+    assert not too_short("word " * 90, 3)
+    assert not too_short("word " * 33, 2)
 
 
 @pytest.mark.req("REQ-CNT-146", "REQ-CNT-147")
@@ -132,7 +132,8 @@ def test_the_prompt_names_the_start_and_the_mistake_at_its_step() -> None:
     assert fills["START_SCREEN"] == "Settings"
     assert fills["MISTAKE_RULE"].startswith("At step 2,")
     assert fills["STEP_LIST"].splitlines()[0].startswith("1. Do 0 (A > 0).")
-    assert fills["WORD_RANGE"] == "100-185"
+    assert fills["WORD_RANGE"] == "110-200"
+    assert fills["PLATFORM"] == "iOS"
     sl.mistake = None
     assert "no mistake" in render_steps(sl)["MISTAKE_RULE"]
 
@@ -176,7 +177,8 @@ async def test_the_script_is_written_from_the_steps() -> None:
     prompt = call.call_args.args[0]
     assert template == "topic_from_steps"
     assert "1. Do 0 (A > 0)." in prompt and "the Settings app" in prompt
-    assert "100-185 words" in prompt and "<<" not in prompt
+    assert "110-200 words" in prompt and "<<" not in prompt
+    assert "iOS" in prompt
     assert script is not None
 
 
@@ -233,7 +235,7 @@ async def test_the_step_records_the_list_or_drops_the_topic(tmp_path: Path) -> N
         listed = await steps._topic_step_list(ctx)
 
     assert listed is not None and len(listed.steps) == 3
-    assert ctx.state["step_list"] == "steps=3"
+    assert ctx.state["step_list"] == "steps=3 platform=iOS"
     record = json.loads((tmp_path / "text" / "step_list.json").read_text())
     assert len(record["steps"]) == 3
 
@@ -295,3 +297,29 @@ def test_an_empty_step_drops_the_topic_like_an_unsourced_one() -> None:
         parsed = parse_step_list(json.dumps(answer))
         assert parsed is not None and len(parsed.refused) == 1
         assert drop_reason(parsed, 6) == "a step could not be sourced"
+
+
+@pytest.mark.req("REQ-VID-121")
+@pytest.mark.asyncio
+async def test_a_one_step_script_may_be_shorter_than_the_general_floor() -> None:
+    from src.ai import script_generator
+
+    cta = config.llm_settings.script_templates.cta_options_for(True)[0]
+    # 42 words: inside the one-step band, under script_validation.min_words.
+    reply = ("Press and hold the two buttons now. " * 6) + cta
+    assert len(reply.split()) < config.llm_settings.script_validation.min_words
+    call = AsyncMock(return_value=reply)
+
+    with patch.object(script_generator, "_call_llm_api_with_retry", call):
+        script, _, _ = await script_generator.generate_script(
+            _product(),
+            config.llm_settings,
+            {config.llm_settings.api_key_env_var: "k"},
+            AsyncMock(),
+            {},
+            False,
+            step_list=_sl(1),
+        )
+
+    assert call.await_count == 1
+    assert script is not None and script.startswith("Press and hold")

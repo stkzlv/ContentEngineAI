@@ -1619,9 +1619,10 @@ the page that states it. A step whose source is not a web URL is refused, and
 the topic with it, since a tutorial with a step missing cannot be followed; a
 topic whose steps fork by device or exceed `max_steps` is set aside for a
 series. Both count as a skipped product. The
-script is then written from the steps with a length set by their count (50-75
-words for one or two steps, 100-185 for more), naming the screen where the
-steps start and the source's common mistake at its step. The list is kept in
+script is then written from the steps with a length set by their count (40-80
+words for one or two steps, 110-200 for three to six), naming the device and
+version, the screen where the steps start and the source's common mistake at
+its step, and closing on the result and a one-sentence path recap. The list is kept in
 `temp/step_list.json`.
 
 Every topic run that generates a script writes

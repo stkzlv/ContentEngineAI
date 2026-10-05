@@ -579,7 +579,9 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
         raise TopicNotSourcedError(f"Topic '{ctx.product.title}' dropped: {reason}")
     assert step_list is not None  # drop_reason returned None
     # A string, not a dict: the state loader reads a dict as a step record.
-    ctx.state["step_list"] = f"steps={len(step_list.steps)}"
+    ctx.state["step_list"] = (
+        f"steps={len(step_list.steps)} platform={step_list.platform or 'unknown'}"
+    )
     logger.info("Step list: %d sourced step(s)", len(step_list.steps))
     return step_list
 

@@ -26,10 +26,11 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "topic_step_list.md"
 SCRIPT_PROMPT_PATH = Path(__file__).parent / "prompts" / "topic_from_steps.md"
-# Words for a short (one or two steps) and a longer (three or more) tutorial,
-# at roughly 150 words a minute: 20-30 s and 40-75 s.
-SHORT_WORDS = (50, 75)
-LONG_WORDS = (100, 185)
+# Words for a single setting or shortcut (one or two steps, 15-30 s) and a
+# multi-step fix (three to six, 40-75 s), from the tutorial research's length
+# table (docs/explanation/tutorials.md, "Length").
+SHORT_WORDS = (40, 80)
+LONG_WORDS = (110, 200)
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,7 @@ def render_steps(step_list: StepList) -> dict[str, str]:
     low, high = word_range(count)
     return {
         "STEP_LIST": "\n".join(lines),
+        "PLATFORM": step_list.platform or "the device the steps were checked on",
         "START_SCREEN": step_list.start_screen or "the screen the first step opens",
         "MISTAKE_RULE": mistake,
         "WORD_RANGE": f"{low}-{high}",

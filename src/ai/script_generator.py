@@ -979,6 +979,15 @@ async def generate_script(
     # only defect was the ending, for the last resort at the bottom.
     near_miss: dict[str, str] = {}
 
+    if step_list is not None:
+        # A one-step tutorial is shorter than the general floor allows; its
+        # own band sets the floor instead.
+        from src.ai.step_list import word_range
+
+        band_floor = word_range(len(step_list.steps))[0]
+        sv_min_words = min(sv_min_words, band_floor)
+        sv_min_chars = min(sv_min_chars, band_floor * 4)
+
     def _validate(script: str) -> tuple[bool, str]:
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
