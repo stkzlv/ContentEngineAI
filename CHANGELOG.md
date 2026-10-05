@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.165.1] - 2026-10-05
+
+### Fixed
+
+- A producer or global batch run with `--outputs-dir` renders into that directory instead of the configured outputs root, so a copy of a product elsewhere no longer overwrites the original's video and state.
+
 ## [0.165.0] - 2026-10-05
 
 ### Added

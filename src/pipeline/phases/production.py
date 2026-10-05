@@ -17,6 +17,7 @@ from typing import Any
 from src.pipeline.config import GlobalBatchConfig, ProductionPhaseSummary
 from src.scraper.amazon.models import ProductData
 from src.utils.logging_setup import log_context
+from src.utils.outputs_paths import with_outputs_root
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
 from src.video.producer.utils import (
@@ -68,7 +69,11 @@ async def run_production_phase(
     # Load the config with the overrides applied, as the producer does: the
     # per-render merge reads only video and subtitle keys, so a key such as
     # `description_settings.metadata_mode` takes effect only here.
-    config = load_video_config_modular(cli_overrides=build_cli_overrides())
+    # Rendered into the batch's outputs directory, where it found the
+    # products and keeps its state, not the video config's default root.
+    config = load_video_config_modular(
+        cli_overrides=with_outputs_root(build_cli_overrides(), batch_config.outputs_dir)
+    )
 
     # Build secrets dict from environment variables (shared definition)
     secrets = collect_producer_secrets(config)

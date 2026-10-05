@@ -22,7 +22,7 @@ from src.utils import cleanup_temp_dirs
 from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
-from src.utils.outputs_paths import is_product_directory
+from src.utils.outputs_paths import is_product_directory, with_outputs_root
 from src.utils.performance import PerformanceHistoryManager
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config import VideoConfig
@@ -351,8 +351,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help=(
-            "Directory to scan for products (default: global_output_directory "
-            "in config/core.yaml)."
+            "Outputs directory: products are found there and rendered there "
+            "(default: global_output_directory in config/core.yaml)."
         ),
     )
     parser.add_argument(
@@ -481,7 +481,9 @@ async def main():
     # Load config first to get log directory path
     try:
         # Use modular config loading (automatically handles modular vs monolithic)
-        config = load_video_config_modular(cli_overrides=cli_overrides)
+        config = load_video_config_modular(
+            cli_overrides=with_outputs_root(cli_overrides, args.outputs_dir)
+        )
     except Exception as e:
         # Fallback logging setup if config fails. `force=True` because
         # basicConfig is a no-op once root has handlers, and something
