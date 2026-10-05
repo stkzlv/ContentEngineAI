@@ -1036,6 +1036,15 @@ llm_settings:
   script_validation:
     min_chars: 200
     min_words: 50
+    # Machine-writing tells, a sentence cap and a word cap of
+    # max_words_per_sec x target_duration_sec (design 0007). A failing script
+    # is retried and kept as a last resort; off until the reach-test readout.
+    # banned_phrases (regular expressions) defaults to the bundled list.
+    lint:
+      enabled: false
+      max_sentence_words: 16
+      max_words_per_sec: 2.8
+      target_duration_sec: 40
 
   # Description validation thresholds. max_chars is what separates a
   # description from a reasoning model's monologue about writing one.
@@ -2622,6 +2631,8 @@ llm_settings:
   script_validation:
     min_chars: 200    # Minimum character count for valid scripts
     min_words: 50     # Minimum word count for valid scripts
+    lint:             # Script lint (design 0007), off by default
+      enabled: false
 
   # Description validation thresholds (nested under description_validation)
   description_validation:

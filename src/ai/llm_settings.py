@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Shortest acceptable stock-search phrase, in words. Below this a phrase is an
 # object with no place and no actor, which the library answers with a
@@ -185,11 +185,54 @@ class ScriptTemplateConfig(BaseModel):
         return self.pillar_audiences
 
 
+# Machine-writing tells (design 0007): "it's not X, it's Y" and the stock
+# words and openers that mark a script as generated.
+DEFAULT_BANNED_PHRASES = [
+    r"\bit'?s not (?:just )?(?:\w+\s){0,3}\w+[,;]? it'?s\b",
+    r"\bgame[- ]changer\b",
+    r"\bsay goodbye to\b",
+    r"\belevates? (?:your|the)\b",
+    r"\bseamless(?:ly)?\b",
+    r"\bdelve[sd]?\b",
+    r"\bwhether you'?re\b",
+    r"\bin today'?s video\b",
+    r"\byou won'?t believe\b",
+]
+
+
+class ScriptLintConfig(BaseModel):
+    """The script lint (design 0007), off until the reach-test readout."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    # Regular expressions, matched case-insensitively.
+    banned_phrases: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_BANNED_PHRASES)
+    )
+    max_sentence_words: int = Field(default=16, ge=4)
+    # 2.8 words a second is about 170 a minute, the top of common practice.
+    max_words_per_sec: float = Field(default=2.8, gt=0)
+    # The narrator profiles ask for 30-40 seconds of speech (REQ-CNT-142).
+    target_duration_sec: float = Field(default=40.0, gt=0)
+
+    @field_validator("banned_phrases")
+    @classmethod
+    def _patterns_compile(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"banned phrase {pattern!r}: {e}") from e
+        return value
+
+
 class ScriptValidationConfig(BaseModel):
     """Thresholds for script completeness validation."""
 
     min_chars: int = Field(200)
     min_words: int = Field(50)
+    lint: ScriptLintConfig = Field(default_factory=ScriptLintConfig)
 
 
 class DescriptionValidationConfig(BaseModel):

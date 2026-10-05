@@ -106,6 +106,21 @@ def _music_name(music_info_file: Path | None) -> str | None:
     return str(name) if name else None
 
 
+def _search_phrase_placement(ctx: Any) -> dict[str, Any] | None:
+    """Where the render's search phrase appears (design 0007)."""
+    from src.video.search_phrase import captions, placement, search_phrase
+
+    run_root = Path(ctx.run_paths["run_root"])
+    product = getattr(ctx, "product", None)
+    return placement(
+        search_phrase(product),
+        ctx.script,
+        ctx.state.get("hook_headline"),
+        captions(run_root),
+        question=bool(getattr(product, "topic", None)),
+    )
+
+
 def choices_from_context(ctx: Any) -> dict[str, Any]:
     """The row for one finished render, read off its pipeline context."""
     state = ctx.state
@@ -143,6 +158,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "still_moves": assembly.get("still_moves"),
         "beat_snap_moved": assembly.get("beat_snap_moved"),
         "sound_effects": assembly.get("sound_effects"),
+        "search_phrase": _search_phrase_placement(ctx),
         "script": ctx.script,
     }
 
@@ -281,6 +297,9 @@ def report(
         lines.append(f"ALERT scripts {id_a} and {id_b} are {ratio:.0%} alike")
     if not alerts and not pairs:
         lines.append("No alerts.")
+    from src.video.search_phrase import coverage_lines
+
+    lines += coverage_lines(list(rows))
     return lines
 
 

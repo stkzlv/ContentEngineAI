@@ -74,3 +74,10 @@ def test_the_caption_outline_is_off() -> None:
         if pycaps is not None and not isinstance(pycaps, PycapsSettings):
             pycaps = PycapsSettings(**pycaps)
         assert pycaps is None or pycaps.outline_px == 0, profile
+
+
+@pytest.mark.req("REQ-CNT-053")
+def test_the_script_lint_is_off() -> None:
+    """The lint rejects and retries scripts, so it changes them (design 0007)."""
+    lint = load_video_config_modular().llm_settings.script_validation.lint
+    assert lint.enabled is False
