@@ -106,7 +106,7 @@ A promo video that oversells a product costs credibility; a tutorial that gets a
 - A topic script names a menu path or a URL only when it can state it exactly for a platform it names; otherwise it names an observable on the device or says that it differs by device (REQ-CNT-030).
 - It carries one honest limit, the case where the fix does not work, placed among the steps (REQ-CNT-032). A tutorial with no failure condition reads as untested.
 - It never invents a product to recommend (REQ-CNT-029).
-- After generation, `script_fact_check` (on by default) checks the script's falsifiable claims with one grounded web search, revises at most `max_flags_to_revise` sentences (default 3), refuses a revision that drifts more than `max_length_drift` (default 25%) in length, and ships the original if anything fails (REQ-CNT-049 to REQ-CNT-051). A fabricated setting name or menu path is immediately checkable and immediately disqualifying.
+- After generation, `script_fact_check` (on by default) checks the script's falsifiable claims with one grounded web search, revises at most `max_flags_to_revise` sentences (default 3), refuses a revision that drifts more than `max_length_drift` (default 25%) in length, and ships the original if anything fails (REQ-CNT-049 to REQ-CNT-051). A claim the check says to remove is deleted rather than rewritten when nothing after it depends on it, and a rewrite may not restate it (REQ-CNT-151). A fabricated setting name or menu path is immediately checkable and immediately disqualifying.
 
 Built and held off: every step cites a source before the video renders, and a topic whose steps cannot be sourced is dropped (REQ-VID-122, [design 0017](../design/0017-tutorial-step-lists.md)).
 
