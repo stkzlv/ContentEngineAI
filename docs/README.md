@@ -34,7 +34,7 @@ The maintainer accepts design docs and decision records. Proposals are discussed
 
 Requirements use `shipped`, `partial`, `planned #N`, `planned (decision NNNN)`, `held` or `deprecated`; [the requirements index](requirements/README.md) defines each.
 
-Design docs use `Draft`, `Accepted`, `Implemented` or `Superseded by NNNN`. Decision records use `Accepted`, `Amended by NNNN` (still in force, with a later record changing part of it) or `Superseded by NNNN`.
+Design docs use `Draft`, `Accepted`, `Held` (built, switched off), `Implemented` or `Superseded by NNNN`. Decision records use `Accepted`, `Amended by NNNN` (still in force, with a later record changing part of it) or `Superseded by NNNN`.
 
 A feature that changes rendered output ships off by default ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)). Its design doc's rollout section says what turns it on and when the switch can be removed.
 

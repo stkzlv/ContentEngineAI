@@ -1,6 +1,6 @@
 # 0003. Sparse event sound effects
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #544
 - **Requirements:** REQ-VID-012
 

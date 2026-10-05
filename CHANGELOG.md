@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.162.1] - 2026-10-05
+
+### Added
+
+- A design status `Held` marks a feature that is built behind a switch that stays off, and the docs check holds each design's status to its requirements.
+- Decision records explain why the call to action is spoken rather than staged until a click path works, and why pycaps captions sit below the research's caption band.
+- A test checks that no configured call to action or closing-line example is engagement bait, listing the two share requests left for the pool edit.
+
+### Fixed
+
+- Docs and config comments that disagreed with the research or the code: the `#ad` size note no longer calls a design heuristic an FTC rule, the explanation pages state which calls to action point at the profile and the shipped sound-effect level, and the step-list switch is named by its full key.
+
 ## [0.162.0] - 2026-10-05
 
 ### Added

@@ -78,7 +78,7 @@ The pycaps engine places the block as a lower third: `vertical_align: "bottom"` 
 Why:
 
 - The bottom of the frame is interactive UI: 35% on Reels since Meta's March 2026 change, and about 25% on TikTok. A block centred around 52% of the frame, its lowest pixel above y=1250 (65%), clears all three platforms in one render [C] ([Kreatli](https://kreatli.com/guides/tiktok-safe-zone), [Zeely](https://zeely.ai/blog/tiktok-safe-zones/), [Postplanify](https://postplanify.com/blog/social-media-safe-zones-2026-complete-guide)). [Platform safe zones](platform-safe-zones.md) holds the canonical numbers; defer to it when the two pages diverge.
-- The pycaps block stays lower than that recommendation to keep clear of centred product video on the `product_video_*` profiles, which ends near 66% of the frame. Issue #99 (closed) records why raising the block was dropped.
+- The pycaps block stays lower than that recommendation to keep clear of centred product video on the `product_video_*` profiles, which ends near 66% of the frame. [Decision 0010](../decisions/0010-pycaps-captions-sit-low.md) records why raising the block was dropped.
 - Two lines of 3-5 words is the readable maximum on a phone; three lines becomes a wall of text, and 80% of the width leaves a margin inside every platform's side overlay [C] ([Opus Clip, TikTok](https://www.opus.pro/blog/tiktok-caption-subtitle-best-practices), [Opus Clip, Shorts](https://www.opus.pro/blog/youtube-shorts-caption-subtitle-best-practices), [Nimdzi](https://www.nimdzi.com/subtitling-vertical-videos-guidelines-where-art-thou/)).
 
 ## Timing and reading

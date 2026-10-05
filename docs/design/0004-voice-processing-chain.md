@@ -1,6 +1,6 @@
 # 0004. Optional voice processing chain
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #545
 - **Requirements:** REQ-CNT-073, REQ-CNT-074
 

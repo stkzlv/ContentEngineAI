@@ -170,7 +170,7 @@ video_settings:
     text: "#ad"
     # language: es
     position: "top-right"             # top-left, top-right, bottom-left, bottom-right
-    size_factor: 0.45                 # Font size as fraction of subtitle font size (slightly under FTC's 50-60% band; tuned for tighter corner placement)
+    size_factor: 0.45                 # Font size as fraction of subtitle font size. The FTC asks for clear and conspicuous, not a ratio; 50-60% is a design heuristic, this sits under it for a tighter corner
     font_color: "white"
     outline_color: "black"
     outline_thickness: 3

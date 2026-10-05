@@ -117,7 +117,7 @@ Planned: the CTA pools carry share requests ("Share with someone who needs this.
 
 ## Calls to action
 
-Every script ends on exactly one configured call to action, verbatim, as its final sentence: `script_templates.cta_options` for products, `cta_options_topic` for topics (`REQ-CNT-033`). One line is chosen per record by a salted hash, and only that line is rendered into the template rules (`REQ-CNT-034`); validation rejects a script whose last sentence is not a configured line (`REQ-CNT-035`), and `--cta` or `fixed_cta` forces one (`REQ-CNT-037`). The call to action is spoken and captioned; the render has no separate end card and no early "soft" call to action.
+Every script ends on exactly one configured call to action, verbatim, as its final sentence: `script_templates.cta_options` for products, `cta_options_topic` for topics (`REQ-CNT-033`). One line is chosen per record by a salted hash, and only that line is rendered into the template rules (`REQ-CNT-034`); validation rejects a script whose last sentence is not a configured line (`REQ-CNT-035`), and `--cta` or `fixed_cta` forces one (`REQ-CNT-037`). The call to action is spoken and captioned; the render has no separate end card and no early "soft" call to action ([decision 0009](../decisions/0009-no-staged-cta-until-a-click-path-works.md)).
 
 Why:
 
@@ -130,7 +130,7 @@ Built and held off until the reach-test readout: ending on the last spoken word,
 
 ## Where a call to action can point
 
-The product CTAs point at the profile ("Link in bio if you want one."), and the publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
+One product CTA points at the profile ("Link in bio if you want one."); the others ask for a follow, a comment or a share until the pool is reworked (#549). The publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
 
 | Surface | Clickable destination? |
 |---|---|
@@ -145,7 +145,7 @@ Why: a video classified as a Short cannot carry a clickable link on any surface 
 
 ## Disclosure
 
-A render with a material connection carries a persistent `#ad` overlay in a fixed corner for the full clip (`video_settings.disclosure_overlay`, top-right at 0.45 times the subtitle font by default, `REQ-CMP-001`, `REQ-CMP-002`), and its caption leads with the disclosure on its own line (`REQ-CMP-006`). The overlay and the caption follow the same recorded decision (`REQ-CMP-007`). The hook overlay sits centre-upper, so the two don't compete for the same zone in the first seconds.
+A render with a material connection carries a persistent `#ad` overlay in a fixed corner for the full clip (`video_settings.disclosure_overlay`, top-right at 0.45 times the subtitle font by default, `REQ-CMP-001`, `REQ-CMP-002`; the FTC asks for clear and conspicuous, not a size ratio), and its caption leads with the disclosure on its own line (`REQ-CMP-006`). The overlay and the caption follow the same recorded decision (`REQ-CMP-007`). The hook overlay sits centre-upper, so the two don't compete for the same zone in the first seconds.
 
 AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on by default (`REQ-CMP-016`) and under review ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
 

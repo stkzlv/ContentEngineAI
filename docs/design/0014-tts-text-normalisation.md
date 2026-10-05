@@ -1,6 +1,6 @@
 # 0014. Normalise numbers, units and model names before TTS
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #556
 - **Requirements:** REQ-CNT-075, REQ-CNT-076
 
