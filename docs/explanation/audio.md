@@ -12,7 +12,7 @@ Built and held off: a voice processing chain on the voiceover before the mix (`a
 
 Planned: a signature sting at the start or end (`audio_settings.signature_sting`, `null` by default, `REQ-VID-027`, held).
 
-Built and held off: sparse event sound effects (`audio_settings.sound_effects`, [design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`). Effects mark the first frame under the hook headline, the start of the sentence after the hook and the start of the last sentence, as the research reserves them, at most two per 10 seconds by default with the call to action and the reveal kept first, and never in a spoken word's first 100 ms. Why sparse: a 2026 study of rated short videos found engagement rises with sensation value up to a point and then falls [B].
+Built and held off: sparse event sound effects (`audio_settings.sound_effects`, [design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`). Effects mark the first frame under the hook headline, the start of the sentence after the hook and the start of the last sentence, as the research reserves them, at most two per 10 seconds by default with the call to action and the reveal kept first, and never in a spoken word's first 100 ms. Why sparse: a 2026 study of rated short videos found engagement rises with sensation value up to a point and then falls [B]. The project bundles five public-domain (CC0) effects per event under `static/sfx`, listed with their Freesound sources in `static/sfx/SOURCES.md`; they were picked by name, rating and length, not by listening, so an A/B should start with a listen.
 
 ## Original audio over trending sound
 

@@ -293,15 +293,32 @@ audio_settings:
   # timings, so only with the pycaps engine). At most max_per_10_sec,
   # keeping cta, then reveal, then hook; never in a spoken word's first
   # 100 ms. One pool of local
-  # files per event, five or more each so no sound repeats as a template;
-  # nothing is bundled. Off until an A/B after the reach-test readout.
+  # files per event, five or more each so no sound repeats as a template.
+  # The bundled pools are CC0 effects under static/sfx (sources in
+  # static/sfx/SOURCES.md). Off until an A/B after the reach-test readout.
   sound_effects:
     enabled: false
     level_db: -15            # relative to the voice
     max_per_10_sec: 2
-    hook: []                 # the first frame, under the hook headline
-    reveal: []
-    cta: []
+    # hook plays on the first frame, under the hook headline
+    hook:
+      - "static/sfx/hook/hook-614084.mp3"
+      - "static/sfx/hook/hook-830856.mp3"
+      - "static/sfx/hook/hook-475133.mp3"
+      - "static/sfx/hook/hook-733890.mp3"
+      - "static/sfx/hook/hook-422495.mp3"
+    reveal:
+      - "static/sfx/reveal/reveal-776016.mp3"
+      - "static/sfx/reveal/reveal-220190.mp3"
+      - "static/sfx/reveal/reveal-541993.mp3"
+      - "static/sfx/reveal/reveal-744140.mp3"
+      - "static/sfx/reveal/reveal-220180.mp3"
+    cta:
+      - "static/sfx/cta/cta-644946.mp3"
+      - "static/sfx/cta/cta-644944.mp3"
+      - "static/sfx/cta/cta-531020.mp3"
+      - "static/sfx/cta/cta-534261.mp3"
+      - "static/sfx/cta/cta-531017.mp3"
 
   # Polish on the voiceover before the mix: high-pass, a small cut at the
   # harsh 2-4 kHz peak, gentle compression, de-essing (0 intensity = off), an
