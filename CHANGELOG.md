@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.164.0] - 2026-10-05
+
+### Added
+
+- A `subtitle_settings.pycaps.outline_px` setting, off by default, draws an opaque black outline of that width round each pycaps caption word in place of the template's text shadow; 6 px is the chosen width once the reach test reads out.
+
 ## [0.163.0] - 2026-10-05
 
 ### Changed

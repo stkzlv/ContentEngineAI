@@ -110,6 +110,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#591).
 - **REQ-VID-057** `partial` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
   - Gap: FFmpeg karaoke draws black text with a white outline that fills yellow, the pycaps `explosive` template has a yellow base fill with an orange glow and no outline, and `word-focus` has a white fill with a 2 px black shadow and an orange box behind the active word (#591).
+- **REQ-VID-158** `held` Where the caption outline is on, the pycaps engine draws an opaque black outline of the configured width round each caption word, in place of the template's text shadow.
+  - On when: `subtitle_settings.pycaps.outline_px` is set to 6 after the reach-test readout (#540).
 - **REQ-VID-058** `shipped` A caption holds at most 2 lines, each at most 80% of the frame width; on the FFmpeg engine a line also holds at most `max_words_per_line` words (bundled 3), while the pycaps engine splits lines by the template's character count.
 - **REQ-VID-136** `shipped` On the FFmpeg engine, a caption line also holds at most `max_line_length` characters (bundled 30, `--max-line-length`).
 - **REQ-VID-059** `shipped` A caption segment lasts between 0.6 s and 2.5 s.

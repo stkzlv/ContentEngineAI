@@ -10,6 +10,8 @@ enabled after the readout.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from src.video.config import load_video_config_modular
@@ -57,3 +59,18 @@ def test_topic_step_lists_are_off() -> None:
     """Step lists rewrite the topic arm's scripts (design 0017)."""
     settings = load_video_config_modular().llm_settings
     assert settings.topic_scripts.step_list.enabled is False
+
+
+@pytest.mark.req("REQ-VID-158")
+def test_the_caption_outline_is_off() -> None:
+    """The outline restyles every caption (6 px chosen, held for the readout)."""
+    from src.video.config.subtitle_models import PycapsSettings
+
+    config = load_video_config_modular()
+    for profile in config.video_profiles:
+        merged = config.get_profile_merged_settings(profile)
+        # A profile override can arrive as a mapping.
+        pycaps: Any = merged.subtitle_settings.pycaps
+        if pycaps is not None and not isinstance(pycaps, PycapsSettings):
+            pycaps = PycapsSettings(**pycaps)
+        assert pycaps is None or pycaps.outline_px == 0, profile

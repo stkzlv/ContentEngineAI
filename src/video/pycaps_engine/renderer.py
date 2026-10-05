@@ -28,6 +28,7 @@ import hashlib
 import logging
 import os
 import resource
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -157,6 +158,63 @@ def _safe_zone_max_width(safe_zone: Any) -> float | None:
 
 
 _SENTENCE_CASE_CSS = ".word { text-transform: none; }"
+
+# The frame height every bundled profile renders at, used when a probe fails.
+_DEFAULT_FRAME_HEIGHT = 1920
+
+
+def _frame_height(video: Path) -> int:
+    """The video's height in pixels, or the bundled frame height."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0"]
+            + ["-show_entries", "stream=height", "-of", "csv=p=0", str(video)],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        ).stdout
+        return int(out.strip().splitlines()[0])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError) as e:
+        logger.debug("Frame height probe failed for %s: %s", video.name, e)
+        return _DEFAULT_FRAME_HEIGHT
+
+
+def _css_scale(video_height: int) -> float:
+    """Frame pixels per template CSS pixel in pycaps' css renderer."""
+    try:
+        from pycaps.renderer.css_subtitle_renderer import CssSubtitleRenderer
+    except ImportError:
+        # pycaps' own constants: 2x at a 1280-pixel reference height,
+        # the height ratio clamped to 0.25-5.
+        return 2.0 * max(0.25, min(5.0, video_height / 1280))
+    r = CssSubtitleRenderer
+    modifier = video_height / r.REFERENCE_VIDEO_HEIGHT
+    modifier = max(r.MIN_SCALE_MODIFIER, min(r.MAX_SCALE_MODIFIER, modifier))
+    return float(r.BASE_DEVICE_SCALE_FACTOR * modifier)
+
+
+def outline_css(frame_px: float, video_height: int) -> str:
+    """CSS for a black outline `frame_px` wide outside each glyph.
+
+    The stroke is painted under the fill, so half its width shows outside
+    the glyph; the template's text shadow is dropped so the outline is the
+    only edge.
+    """
+    css_px = 2 * frame_px / _css_scale(video_height)
+    return (
+        ".word { text-shadow: none; "
+        f"-webkit-text-stroke: {css_px:.3f}px #000; paint-order: stroke fill; }}"
+    )
+
+
+def _add_outline(builder: Any, frame_px: float, video_height: int) -> None:
+    """Append the outline rule; a builder without the method keeps its edge."""
+    add = getattr(builder, "add_css_content", None)
+    if add is None:
+        logger.warning("pycaps builder has no add_css_content; no caption outline")
+        return
+    add(outline_css(frame_px, video_height))
 
 
 def _force_sentence_case(builder: Any) -> None:
@@ -568,6 +626,15 @@ class PycapsRenderer:
 
         if settings.force_sentence_case:
             _force_sentence_case(builder)
+        if settings.outline_px > 0:
+            if settings.renderer == "css":
+                _add_outline(builder, settings.outline_px, _frame_height(input_video))
+            else:
+                logger.warning(
+                    "Caption outline needs the css renderer; %s renders the "
+                    "template's own edge",
+                    settings.renderer,
+                )
         if settings.ai_tag_prompt_override:
             _override_ai_tag_prompt(builder, settings.ai_tag_prompt_override)
         if settings.mute_template_sound_effects:

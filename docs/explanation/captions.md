@@ -30,7 +30,7 @@ Why: mixed case reads faster than ALL CAPS, because ascenders and descenders car
 
 ## Colour and contrast
 
-Captions have a white fill and an opaque black outline of 2-4 px depending on the style preset, a drop shadow on every preset except `minimal`, and no background box (`REQ-VID-057`). `modern` is the default FFmpeg preset. When `randomize_colors` is on (off globally, on in several slideshow profiles), the fill is drawn per product from `color_pool`: white, yellow (`#FFFF00`), neon green (`#00FF4C`) or saturated yellow (`#FFEB00`), each on a black outline.
+Captions have a white fill and an opaque black outline of 2-4 px depending on the style preset, a drop shadow on every preset except `minimal`, and no background box (`REQ-VID-057`). The pycaps templates ring words with a text shadow instead of a stroke; built and held off, `pycaps.outline_px` draws a real black outline, 6 px chosen from a side-by-side render (`REQ-VID-158`, [design 0021](../design/0021-caption-outline.md)). `modern` is the default FFmpeg preset. When `randomize_colors` is on (off globally, on in several slideshow profiles), the fill is drawn per product from `color_pool`: white, yellow (`#FFFF00`), neon green (`#00FF4C`) or saturated yellow (`#FFEB00`), each on a black outline.
 
 Why:
 
