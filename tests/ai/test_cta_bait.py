@@ -18,14 +18,18 @@ from src.video.config import config
 
 SCRIPTS = Path(__file__).parents[2] / "src" / "ai" / "prompts" / "scripts"
 
+_I = re.IGNORECASE
 BAIT = [
-    re.compile(r"\bshare\b", re.IGNORECASE),
-    re.compile(r"\btag (a|your|someone|a friend)\b", re.IGNORECASE),
-    re.compile(r"\bvote\b", re.IGNORECASE),
-    # "Comment YES", "type 1 below": a set word, not an opinion.
-    re.compile(r"\b(?i:comment|type|reply)(?i: with)? [\"']?[A-Z0-9]{1,8}\b[\"']?"),
-    re.compile(r"\b(drop|leave|comment)( an?)? emoji\b", re.IGNORECASE),
-    re.compile(r"\bfollow (for|to (see|get|unlock)) (part|the rest|the answer)", re.I),
+    # A request to pass the video on, not "share your setup".
+    re.compile(
+        r"\b(share|send) (this|it|with (someone|a friend|whoever|anyone))\b", _I
+    ),
+    re.compile(r"\btag (a|your|someone|a friend)\b", _I),
+    re.compile(r"\bvote (for|in|below|with)\b", _I),
+    # "Comment YES if...", "reply 1 below": a set word, not an opinion.
+    re.compile(r"\b(comment|reply)( with)? [\"']?\w{1,8}[\"']? (if|below)\b", _I),
+    re.compile(r"\b(drop|leave|comment)( an?)? (emoji|[^\w\s])", _I),
+    re.compile(r"\bfollow (for|to (see|get|unlock)) (part|the rest|the answer)", _I),
 ]
 
 # Removed by the pool edit after the readout (#549).
@@ -57,6 +61,9 @@ def closing_examples() -> list[str]:
         "Vote in the comments.",
         "Comment YES if you agree.",
         "Drop an emoji if this helped.",
+        "Drop a \U0001f525 if this helped.",
+        "comment yes if you agree",
+        "Send this to someone who needs it.",
         "Follow for part 2.",
     ],
 )
@@ -72,6 +79,10 @@ def test_bait_is_recognised(line: str) -> None:
         "Team magnetic or team plug-in?",
         "Save this for the next time it happens.",
         "Follow for more fixes like this.",
+        "Which one gets your vote?",
+        "Reply A or B.",
+        "Share your setup in the comments.",
+        "Type C beats micro-USB for every cable.",
     ],
 )
 def test_a_genuine_line_passes(line: str) -> None:
