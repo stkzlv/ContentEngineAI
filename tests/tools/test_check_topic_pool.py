@@ -8,7 +8,15 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.ai.step_list import Step, StepList
+from src.video.config import config
 from tools import check_topic_pool
+
+
+@pytest.fixture(autouse=True)
+def _api_key(monkeypatch):
+    # The repository's own .env stays out of the test.
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
+    monkeypatch.setenv(config.llm_settings.api_key_env_var, "k")
 
 
 def _list(failures: list[str]) -> StepList:
@@ -48,3 +56,15 @@ def test_without_a_file_the_batch_pool_is_read() -> None:
         assert check_topic_pool.configured_pool(None) == []
 
     configured.assert_called_once()
+
+
+def test_without_an_api_key_nothing_is_checked(tmp_path: Path, monkeypatch) -> None:
+    pool = tmp_path / "topics.yaml"
+    pool.write_text('- title: "Turn off refresh on iPhone"\n')
+    monkeypatch.delenv(config.llm_settings.api_key_env_var)
+    built = AsyncMock()
+
+    with patch("src.ai.step_list.build_step_list", built):
+        assert check_topic_pool.main([str(pool)]) == 2
+
+    built.assert_not_called()

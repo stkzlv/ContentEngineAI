@@ -372,6 +372,9 @@ async def test_a_one_step_draft_inside_the_tolerance_is_accepted() -> None:
         ({"advice": "health"}, "asks for health advice"),
         ({"advice": "Financial"}, "asks for financial advice"),
         ({"advice": "legal"}, "asks for legal advice"),
+        ({"specific": "true"}, "not specific"),
+        ({"advice": None}, "advice unanswered"),
+        ({"advice": ["financial"]}, "advice unanswered"),
     ],
 )
 def test_a_topic_failing_the_filter_is_dropped(check, reason) -> None:
@@ -390,7 +393,7 @@ def test_a_topic_failing_the_filter_is_dropped(check, reason) -> None:
 
 
 @pytest.mark.req("REQ-VID-151")
-@pytest.mark.parametrize("check", [None, "yes", [], {"specific": "true"}])
+@pytest.mark.parametrize("check", [None, "yes", [], {"specific": True}])
 def test_a_missing_or_loose_topic_check_does_not_pass(check) -> None:
     answer = dict(ANSWER)
     answer["steps"] = [{"action": "Open", "source": "https://a/"}]

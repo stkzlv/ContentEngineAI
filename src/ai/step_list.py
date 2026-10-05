@@ -80,10 +80,12 @@ def _topic_failures(check: Any) -> list[str] | None:
         for name in TOPIC_CRITERIA
         if check.get(name) is not True
     ]
-    advice = _text(check.get("advice")).lower()
-    # Strict: any answer but "none" (or an empty one) names advice it asks for.
-    if advice and advice != "none":
-        failures.append(f"asks for {advice} advice")
+    advice = check.get("advice")
+    # Strict like the criteria: only the string "none" passes.
+    if not isinstance(advice, str) or not advice.strip():
+        failures.append("advice unanswered")
+    elif advice.strip().lower() != "none":
+        failures.append(f"asks for {advice.strip().lower()} advice")
     return failures
 
 

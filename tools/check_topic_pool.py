@@ -7,8 +7,8 @@ pool before their turn comes round.
 
 Reads the pool the batch reads (`PIPELINE_TOPICS_FILE`, then `topics_file`,
 then `topics:` in `config/pipeline.yaml`), or a topics file given as the
-argument. Needs the LLM API key in the environment or `.env`. Exits 1 when
-any topic would be dropped.
+argument. Needs the LLM API key in the environment or `.env` (exits 2
+without it). Exits 1 when any topic would be dropped.
 """
 
 from __future__ import annotations
@@ -74,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         print("No topics configured.")
         return 0
     api_key = os.environ.get(llm.api_key_env_var, "")
+    if not api_key:
+        # Without it every topic would read as dropped.
+        print(f"{llm.api_key_env_var} is not set.", file=sys.stderr)
+        return 2
     lines = asyncio.run(check_pool(specs, api_key, llm.topic_scripts.step_list))
     print("\n".join(lines))
     return 1 if any(line.startswith("drop") for line in lines) else 0
