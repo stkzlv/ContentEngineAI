@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 from typing import Any
 
 from src.research.demand import RISE
@@ -126,7 +127,7 @@ def _value(key: str, value: Any) -> str:
 
 def _escape(cell: str) -> str:
     """A table cell: Amazon titles use " | " as a separator."""
-    return cell.replace("|", "\\|").replace("\n", " ")
+    return re.sub(r"[\r\n]+", " ", cell.replace("|", "\\|"))
 
 
 def _notes(c: dict[str, Any]) -> str:

@@ -295,7 +295,7 @@ def test_the_lint_exempts_the_products_own_name_as_the_producer_does() -> None:
 
 
 def test_a_title_with_a_pipe_keeps_the_table_whole() -> None:
-    checks = run_checks([_record(title="Mount | Magnetic | 2 pack")], (5, 30))
+    checks = run_checks([_record(title="Mount | Magnetic\r\n| 2 pack")], (5, 30))
     row = next(
         line for line in render_report(None, checks).splitlines() if "Mount" in line
     )

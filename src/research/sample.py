@@ -8,6 +8,7 @@ the hook headline exactly as a render would. Nothing is scraped or rendered.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import shutil
@@ -144,16 +145,18 @@ async def run_sample(
 ) -> list[dict[str, Any]]:
     """Sample every topic under every variant and every product once."""
     records: list[dict[str, Any]] = []
+    # Before any model call and before any earlier sample is cleared.
+    if profile not in load().video_profiles:
+        raise ValueError(f"sample.profile {profile!r} names no video profile")
     async with aiohttp.ClientSession() as session:
         for variant in variants:
             root = out_dir / "samples" / variant
             # The script step reuses a script already on disk, so a second
-            # run into the same directory would measure the first run's.
-            shutil.rmtree(root, ignore_errors=True)
+            # run into the same directory would measure the first run's. A
+            # clear that fails raises: a stale sample must not pass silently.
+            with contextlib.suppress(FileNotFoundError):
+                shutil.rmtree(root)
             base = load(cli_overrides=with_outputs_root({}, root))
-            if profile not in base.video_profiles:
-                # Before any model call, not one sample in.
-                raise ValueError(f"sample.profile {profile!r} names no video profile")
             secrets = collect_producer_secrets(base)
             for spec in topics:
                 config = variant_config(base, variant, spec.title)
