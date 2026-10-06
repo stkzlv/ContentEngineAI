@@ -23,7 +23,9 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _run(tmp_path: Path, producer_exit: int) -> tuple[int, str, list[str]]:
+def _run(
+    tmp_path: Path, producer_exit: int, only_step: str = ""
+) -> tuple[int, str, list[str]]:
     topics = tmp_path / "topics.yaml"
     topics.write_text(
         yaml.safe_dump([{"title": f"Topic {n}", "description": "d"} for n in "ABC"])
@@ -31,11 +33,13 @@ def _run(tmp_path: Path, producer_exit: int) -> tuple[int, str, list[str]]:
     calls = tmp_path / "calls"
     fake = tmp_path / "python"
     # The enumeration goes to the real interpreter; every producer call is
-    # recorded and exits with the code under test.
+    # recorded and exits with the code under test, or only on `only_step`.
+    fail = f'[[ " $* " == *" {only_step} "* ]] && exit {producer_exit}; exit 0'
     fake.write_text(
         "#!/usr/bin/env bash\n"
         'if [ "$2" = src.video.producer ]; then\n'
-        f'  echo "$*" >> {calls}; exit {producer_exit}\n'
+        f'  echo "$*" >> {calls}\n'
+        f"  {fail if only_step else f'exit {producer_exit}'}\n"
         "fi\n"
         f'exec {sys.executable} "$@"\n'
     )
@@ -43,7 +47,13 @@ def _run(tmp_path: Path, producer_exit: int) -> tuple[int, str, list[str]]:
     result = subprocess.run(
         ["scripts/render-topics-batch.sh"],
         cwd=REPO,
-        env={**os.environ, "TOPICS": str(topics), "LOWPRI_PYTHON": str(fake)},
+        env={
+            **os.environ,
+            "TOPICS": str(topics),
+            "LOWPRI_PYTHON": str(fake),
+            # Renders into the test's directory, never the real outputs tree.
+            "OUTPUTS_DIR": str(tmp_path / "out"),
+        },
         capture_output=True,
         text=True,
         timeout=120,
@@ -68,3 +78,18 @@ def test_another_failure_still_moves_on(tmp_path: Path) -> None:
     assert code != 0
     assert len(calls) == 3  # each topic's script step was tried
     assert "stopped for memory" not in out
+
+
+@pytest.mark.req("REQ-OPS-105")
+def test_a_refusal_at_a_later_step_stops_the_batch(tmp_path: Path) -> None:
+    from src.video.producer.topic_input import topic_product_id
+
+    # The script checks the script step left an output dir; make Topic A's.
+    (tmp_path / "out" / topic_product_id("Topic A")).mkdir(parents=True)
+
+    code, out, calls = _run(tmp_path, 75, only_step="create_voiceover")
+
+    assert code != 0
+    assert "STOP  Topic A (not enough memory at create_voiceover)" in out
+    assert not any("Topic B" in c for c in calls)
+    assert calls[-1].endswith("--step create_voiceover --debug")

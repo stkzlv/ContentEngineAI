@@ -709,7 +709,7 @@ make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=8G NICE_LEVEL=1
 
 Requires `ionice` and `choom` (from `util-linux`). Without `systemd-run` the targets refuse to run; `ALLOW_UNCAPPED=1` runs them with `nice` and `ionice` and no memory cap.
 
-The cap stops a run growing; it does not make room. Each render first waits until the machine has `memory_guard.min_available_gb` free (default 4.5 GB, above a stock render's 4.1-4.3 GB peak) and some swap, logging `Waiting up to 900 s for memory`, and fails after the wait rather than start into an out-of-memory kill. If memory still runs out, the run is the process killed, not your browser. The log line `Memory peak after <id>` gives the scope's high-water mark so far, which for a single render is what it used. A batch stops at the first refusal; `make topics-batch` stops on the producer's exit code 75.
+The cap stops a run growing; it does not make room. Each render first waits until the machine has `memory_guard.min_available_gb` free (default 4.5 GB, above a stock render's 4.1-4.3 GB peak) and, where there is swap, `min_available_gb + min_swap_free_gb` of available memory and free swap together, logging `Waiting up to 900 s for memory`, and fails after the wait rather than start into an out-of-memory kill. If memory still runs out, the run is the process killed, not your browser. The log line `Memory peak after <id>` gives the scope's high-water mark so far, which for a single render is what it used. A batch stops at the first refusal; `make topics-batch` stops on the producer's exit code 75.
 
 ### Rendering a batch of topics
 
