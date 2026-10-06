@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.175.1] - 2026-10-06
+
+### Documentation
+
+- The tutorials explanation records what viewers ask about most, from Google Trends, autocomplete and support-site data, and what it means for choosing topics that pass the topic filter.
+
 ## [0.175.0] - 2026-10-06
 
 ### Added
