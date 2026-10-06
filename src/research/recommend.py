@@ -23,11 +23,31 @@ def wrong_or_outdated(verification: list[dict[str, Any]], variant: str) -> float
     A share, not a count: a variant that drops topics has fewer scripts, and
     a total would reward it for that. None when nothing was verified.
     """
-    rows = [v for v in verification if v["variant"] == variant and "tally" in v]
+    rows = [v for v in verification if v["variant"] == variant and sourced(v)]
     if not rows:
         return None
     bad = sum(bool(v["tally"]["wrong"] + v["tally"]["outdated"]) for v in rows)
     return round(bad / len(rows), 2)
+
+
+def sourced(row: dict[str, Any]) -> bool:
+    """A script the verifier could judge: at least one verdict with a source.
+
+    One whose verdicts are all unverified says nothing about its steps, so
+    it must not count as a clean script.
+    """
+    tally: dict[str, int] = row.get("tally") or {}
+    judged = sum(tally.get(k, 0) for k in ("correct", "wrong", "outdated"))
+    return judged > 0
+
+
+def unjudged(verification: list[dict[str, Any]], variant: str) -> int:
+    """Scripts with a readable answer but no sourced verdict."""
+    return sum(
+        1
+        for v in verification
+        if v["variant"] == variant and "tally" in v and not sourced(v)
+    )
 
 
 def _variant_key(variant: str, all_tasks: bool) -> tuple[str, str, Any] | None:
@@ -67,6 +87,10 @@ def variant_recommendations(
             "in_band": [base["in_band"], stats["in_band"]],
             "template_misfit": [base["template_misfit"], stats["template_misfit"]],
             "dropped": [base["errors"], stats["errors"]],
+            "unjudged": [
+                unjudged(verification, "shipped"),
+                unjudged(verification, variant),
+            ],
         }
         if wrong is None or base_wrong is None:
             decision, reason = "undecided", "no verification for this comparison"

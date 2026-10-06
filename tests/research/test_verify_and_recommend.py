@@ -255,3 +255,58 @@ def test_verify_needs_samples_and_a_key(tmp_path: Path, monkeypatch, capsys) -> 
     monkeypatch.setattr("src.research.__main__.load_dotenv", lambda *a, **k: None)
     assert main(["verify", "--out", str(tmp_path)]) == 2
     assert "is not set" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        'Here is [the] list: [{"claim": "Tap A", "verdict": "correct", "source": "'
+        + APPLE
+        + '"}]',
+        '[{"claim": "Tap A", "verdict": "correct", "source": "'
+        + APPLE
+        + '"}]\nSources: [1] apple',
+        '```json\n[{"claim": "Tap [A]", "verdict": "correct", "source": "'
+        + APPLE
+        + '"}]\n```',
+        # A valid array that is not the verdicts comes first.
+        'Checked [1, 2] sources: [{"claim": "Tap A", "verdict": "correct", '
+        '"source": "' + APPLE + '"}]',
+    ],
+)
+def test_bracketed_prose_around_the_json_is_skipped(answer) -> None:
+    verdicts = parse_verdicts(answer)
+    assert verdicts and verdicts[0]["verdict"] == "correct"
+
+
+@pytest.mark.req("REQ-OPS-112")
+def test_a_script_with_only_unverified_verdicts_is_not_clean() -> None:
+    unjudged_rows = [
+        {
+            "variant": "step_lists",
+            "tally": {"correct": 0, "wrong": 0, "outdated": 0, "unverified": 3},
+        }
+    ]
+    verification = _verified("shipped", [1, 0]) + unjudged_rows
+    summary = {"shipped/topic": _summary(), "step_lists/topic": _summary()}
+
+    assert wrong_or_outdated(verification, "step_lists") is None
+    (rec,) = variant_recommendations(summary, verification, all_tasks=True)
+    assert rec["decision"] == "undecided"
+    assert rec["evidence"]["unjudged"] == [0, 1]
+
+
+def test_the_none_placeholder_shows_only_when_nothing_is_recommended() -> None:
+    from src.research.report import render_recommendations
+
+    one = {
+        "products": {"drop_candidates": ["foo"], "add_candidates": []},
+        "topics": {"uncovered": []},
+    }
+    empty: dict[str, dict[str, list[str]]] = {
+        "products": {"drop_candidates": [], "add_candidates": []},
+        "topics": {"uncovered": []},
+    }
+
+    assert "- None:" not in render_recommendations(one, None, None, None)
+    assert "- None:" in render_recommendations(empty, None, None, None)

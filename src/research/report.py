@@ -206,6 +206,7 @@ def render_recommendations(
         "until the reach-test readout stays off until then (decision 0002).",
         "",
     ]
+    header = len(lines)
     if checks:
         titles = [s["title"] for s in samples or [] if s.get("kind") == "topic"]
         all_tasks = bool(titles) and all(is_task(t) for t in titles)
@@ -227,7 +228,8 @@ def render_recommendations(
                 f"{_value('in_band', e['in_band'][1])}; template misfits "
                 f"{_value('template_misfit', e['template_misfit'][0])} -> "
                 f"{_value('template_misfit', e['template_misfit'][1])}; dropped "
-                f"{e['dropped'][0]} -> {e['dropped'][1]}."
+                f"{e['dropped'][0]} -> {e['dropped'][1]}; scripts the verifier "
+                f"could not judge {e['unjudged'][0]} -> {e['unjudged'][1]}."
             )
     if demand:
         for r in demand_recommendations(demand):
@@ -236,7 +238,7 @@ def render_recommendations(
                 f"- **{r['change']} in `{r['key']}`** ({r['file']}; {r['reason']}): "
                 f"{items}."
             )
-    if len(lines) == 5:
+    if len(lines) == header:
         lines.append("- None: run the demand, sample and verify stages first.")
     return "\n".join(lines) + "\n"
 

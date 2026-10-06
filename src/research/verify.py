@@ -27,14 +27,19 @@ def parse_verdicts(answer: str | None) -> list[dict[str, str]] | None:
     """The model's verdicts, each with a source, or None when unreadable."""
     if not answer:
         return None
-    match = re.search(r"\[.*\]", answer, re.S)
-    if not match:
-        return None
-    try:
-        raw = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(raw, list):
+    # A grounded answer is free text: take the first complete JSON array,
+    # skipping bracketed prose before it ("Here is [the] list") and after it.
+    raw = None
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\[", answer):
+        try:
+            found, _ = decoder.raw_decode(answer, match.start())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(found, list) and (not found or isinstance(found[0], dict)):
+            raw = found
+            break
+    if raw is None:
         return None
     out = []
     for item in raw:

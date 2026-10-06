@@ -241,7 +241,7 @@ else
 	@echo "$(YELLOW)  make clean-outputs CONFIRM=1$(NC)"
 endif
 
-research: ## Content research (ARGS="demand" or ARGS="report --out DIR"; needs: poetry install --with research)
+research: ## Content research (ARGS="demand", "sample", "check", "verify" or "report --out DIR"; demand needs: poetry install --with research)
 	@PY='$(LOWPRI_PYTHON)'; [ -n "$$PY" ] || { echo "$(RED)No project interpreter found. Run 'poetry install' first.$(NC)"; exit 1; }; \
 	"$$PY" -m src.research $(ARGS)
 

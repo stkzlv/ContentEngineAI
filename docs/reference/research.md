@@ -38,7 +38,6 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `sample.profile` | `slideshow_stock` | The profile whose name the run paths use; the script step reads nothing else from it |
 | `sample.variants` | all three | `shipped` (required, the baseline), `step_lists` (step lists on), `task_answer_first` (a "How to" topic on `topic_answer_first` only) |
 | `sample.band` | `[75, 100]` | The word band a script is checked against; a step-list script uses its step count's band |
-
 | `verify.model` | `gemini-3.7-flash` | The model the verification call uses, with Google Search grounding |
 | `verify.timeout_seconds` | `90` | Seconds before a verification call is recorded as failed |
 
@@ -56,4 +55,4 @@ In the run directory:
 
 ## Recommended changes
 
-A variant is recommended when a smaller share of its verified scripts has a wrong or outdated step than under `shipped`, with no smaller share in the word band and no larger share of template misfits; otherwise it is kept, or left undecided without verification. `step_lists` maps to `llm_settings.topic_scripts.step_list.enabled: true`; `task_answer_first` maps to `llm_settings.script_templates.topic_templates: [topic_answer_first]` when every sampled topic is a task, and otherwise needs a pipeline change. Keyword drops and adds and uncovered topic searches are listed for consideration. Nothing is applied.
+A variant is recommended when a smaller share of its verified scripts (those with at least one verdict that cites a source) has a wrong or outdated step than under `shipped`, with no smaller share in the word band and no larger share of template misfits; otherwise it is kept, or left undecided without verification. `step_lists` maps to `llm_settings.topic_scripts.step_list.enabled: true`; `task_answer_first` maps to `llm_settings.script_templates.topic_templates: [topic_answer_first]` when every sampled topic is a task, and otherwise needs a pipeline change. Keyword drops and adds and uncovered topic searches are listed for consideration. Nothing is applied.
