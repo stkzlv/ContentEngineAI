@@ -16,7 +16,7 @@ from src.ai.script_fact_check import fact_check_and_revise
 from src.ai.script_generator import (
     generate_hook_headline,
     generate_visual_search_phrases,
-    signature_for,
+    select_signature,
 )
 from src.ai.script_generator import generate_script as generate_ai_script
 from src.audio.manager import AudioManager
@@ -657,10 +657,10 @@ async def step_generate_script(ctx: PipelineContext):
             # The same deterministic draw the prompt used. The sign-off sits
             # where the first-comment extractor looks for the closing beat,
             # so the extractor has to be told what to strip.
-            signature = signature_for(
+            signature = select_signature(
                 ctx.config.llm_settings.script_templates.signature,
                 ctx.product.asin,
-                tutorial=step_list is not None,
+                is_topic=bool(getattr(ctx.product, "topic", None)),
             )
             if signature.signoff:
                 ctx.state["signoff"] = signature.signoff

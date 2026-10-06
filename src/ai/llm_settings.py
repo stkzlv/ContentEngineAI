@@ -24,19 +24,27 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 MIN_PHRASE_WORDS = 3
 
 
-class SignatureConfig(BaseModel):
-    """Recurring verbal elements a viewer recognises the channel by.
+# An opener runs straight into the first sentence, so a long one pushes the
+# search phrase later in the first spoken sentence and caption (design 0022).
+MAX_OPENER_WORDS = 5
 
-    Each pool is drawn per product at `use_rate`, independently, so the
+
+class SignaturePools(BaseModel):
+    """One arm's signature lines: the product videos' or the topic videos'.
+
+    Each pool is drawn per render at `use_rate`, independently, so the
     signature recurs without appearing in every render, which would read as
-    the templated sameness the platforms throttle. Empty pools (the default)
-    leave the prompt unchanged.
+    the templated sameness the platforms throttle.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     use_rate: float = Field(default=0.5, ge=0.0, le=1.0)
-    # Words that start the first sentence, before the hook ("Quick one").
+    # Words the first sentence starts with and runs on from, with no comma
+    # ("Here's how to"): a comma lets the voice pause and the transcript
+    # split the opener into a sentence of its own.
     openers: list[str] = Field(default_factory=list)
-    # A phrase used once where the script turns from problem to answer.
+    # A short sentence used once where the script turns from problem to fix.
     transitions: list[str] = Field(default_factory=list)
     # A full sentence spoken immediately before the call to action.
     signoffs: list[str] = Field(default_factory=list)
@@ -49,11 +57,45 @@ class SignatureConfig(BaseModel):
                 raise ValueError(f"Signature entry carries no words: {entry!r}")
         return entries
 
+    @field_validator("openers")
+    @classmethod
+    def _openers_are_short(cls, entries: list[str]) -> list[str]:
+        for entry in entries:
+            if len(entry.split()) > MAX_OPENER_WORDS:
+                raise ValueError(
+                    f"Signature opener {entry!r} runs over {MAX_OPENER_WORDS} words"
+                )
+        return entries
+
     @property
     def configured(self) -> bool:
         return self.use_rate > 0 and bool(
             self.openers or self.transitions or self.signoffs
         )
+
+
+class SignatureConfig(BaseModel):
+    """Recurring verbal elements a viewer recognises the channel by.
+
+    Off unless `enabled`, so the lines can be written into the config before
+    the switch is turned on (design 0022). A product render draws from
+    `product`, a topic render from `topic`: a how-to has no opinion to sign
+    off with, and a product video does not open on a task.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    product: SignaturePools = Field(default_factory=SignaturePools)
+    topic: SignaturePools = Field(default_factory=SignaturePools)
+
+    def pools(self, is_topic: bool) -> SignaturePools:
+        return self.topic if is_topic else self.product
+
+    @property
+    def configured(self) -> bool:
+        """Whether any render can draw a signature line."""
+        return self.enabled and (self.product.configured or self.topic.configured)
 
 
 class NaturalismConfig(BaseModel):
@@ -128,7 +170,8 @@ class ScriptTemplateConfig(BaseModel):
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
-    # Recurring opener, transition and sign-off. Empty pools = off.
+    # Recurring opener, transition and sign-off, per video type. Off unless
+    # `enabled`, whatever the pools hold.
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
     # Concrete hook, "but/therefore" chain and search-phrase lead. Off.
     hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.173.0] - 2026-10-06
+
+### Changed
+
+- **Breaking**: `script_templates.signature` takes `enabled` (default off) and separate `product` and `topic` pools, each with its own `use_rate`; the flat `use_rate`, `openers`, `transitions` and `signoffs` keys are refused, so move them under `product` or `topic` and set `enabled: true`.
+- A signature opener runs into the first sentence with no comma and is at most five words, so the transcript keeps the search phrase in the first sentence; a step-list tutorial can now draw a transition, from the topic pool.
+
+### Added
+
+- The bundled config carries signature lines for product and topic videos, chosen from research recorded in design 0022, switched off.
+
 ## [0.172.0] - 2026-10-06
 
 ### Added

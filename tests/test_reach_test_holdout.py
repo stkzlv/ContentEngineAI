@@ -38,6 +38,8 @@ def test_the_selected_voice_keeps_uniform_pauses() -> None:
 @pytest.mark.req("REQ-CNT-045", "REQ-VID-027")
 def test_the_author_signature_is_off() -> None:
     config = load_video_config_modular()
+    # The lines ship filled (design 0022); the switch is what holds them.
+    assert config.llm_settings.script_templates.signature.enabled is False
     assert not config.llm_settings.script_templates.signature.configured
     assert config.audio_settings.signature_sting is None
 
