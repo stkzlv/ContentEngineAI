@@ -25,7 +25,7 @@ MIN_PHRASE_WORDS = 3
 
 
 # An opener runs straight into the first sentence, so a long one pushes the
-# search phrase out of the first caption line (design 0022).
+# search phrase later in the first spoken sentence and caption (design 0022).
 MAX_OPENER_WORDS = 5
 
 
@@ -170,7 +170,8 @@ class ScriptTemplateConfig(BaseModel):
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
-    # Recurring opener, transition and sign-off. Empty pools = off.
+    # Recurring opener, transition and sign-off, per video type. Off unless
+    # `enabled`, whatever the pools hold.
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
     # Concrete hook, "but/therefore" chain and search-phrase lead. Off.
     hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)

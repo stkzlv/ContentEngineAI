@@ -33,7 +33,7 @@ No source gives a best use rate, a cost for a sign-off before the call to action
 
 ## Non-goals
 
-- **Choosing a line by channel history.** Not repeating the last video's line would need the render history at selection time. Four lines per pool and a use rate under one already vary it, and the variety report ([0006](0006-render-choices-and-variety-report.md)) shows the spread.
+- **Choosing a line by channel history.** Not repeating the last video's line would need the render history at selection time. Three or four lines per pool and a use rate under one already vary it, and the variety report ([0006](0006-render-choices-and-variety-report.md)) shows the spread.
 - **On-screen signature text.** All three elements are spoken.
 - **Changing the sting** (`audio_settings.signature_sting`), which stays a separate setting.
 
@@ -87,8 +87,12 @@ Remove the switch when: `enabled` has been on in the bundled config for 30 days 
 ## Open questions
 
 - **Use rates.** 0.4 and 0.5 are judgement calls, with no source behind them.
+- **Openers against symptom-first templates.** Whether a topic opener should be drawn only for step-list tutorials and `topic_answer_first`, which open on the task anyway.
 - **Tagline sign-offs.** They make a claim about time. A fix with many steps may take longer than a minute to follow, even when the video does not.
 
 ## As built
+
+With a topic opener drawn, the symptom-first and mistake-first topic templates open on the task instead: live scripts for `topic_symptom_cause` and `topic_mistake_fix` began "Here's how to stop your iPhone battery draining overnight" and "Easy way to fix your iPhone battery draining overnight is to turn off Background App Refresh". They read well, but at the topic use rate of 0.4 the opener overrides those templates' opening about four times in ten, which narrows the variety the templates exist for. A step-list tutorial can now draw a transition, from the topic pool.
+
 
 Built as designed and held off. With the bundled lines on and both use rates at 1.0, one live script per arm placed every drawn line where its rule puts it. The topic script opened "The fast way to turn off Background App Refresh on iPhone is to go into your Settings", with no comma and the search phrase in the first sentence. The product script drew no opener, used "Here's what matters." mid-script and signed off with "That's the real picture." before the call to action.
