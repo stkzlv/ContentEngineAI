@@ -83,6 +83,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
 - **REQ-CNT-047** `held` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
   - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
+- **REQ-CNT-153** `held` Where a signature pool lists `opener_templates`, an opener is drawn only for a script written from one of those templates; the bundled topic pool lists the templates that open on the task (`topic_from_steps`, `topic_answer_first`), so a symptom-first or mistake-first script keeps its opening.
+  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
 - **REQ-CNT-152** `shipped` While `script_templates.signature.enabled` is false, no signature line is drawn and the script prompt is unchanged, whatever the pools hold.
 
 ## Script checks

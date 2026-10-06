@@ -338,6 +338,11 @@ llm_settings:
           - "That's the real picture."
       topic:
         use_rate: 0.4
+        # Only the templates that open on the task: elsewhere the opening
+        # line is the symptom or the mistake, and that is the hook.
+        opener_templates:
+          - topic_from_steps
+          - topic_answer_first
         openers:
           - "Here's how to"
           - "Quick fix to"

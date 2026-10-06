@@ -661,6 +661,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.config.llm_settings.script_templates.signature,
                 ctx.product.asin,
                 is_topic=bool(getattr(ctx.product, "topic", None)),
+                template=template_name,
             )
             if signature.signoff:
                 ctx.state["signoff"] = signature.signoff

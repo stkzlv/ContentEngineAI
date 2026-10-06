@@ -214,11 +214,14 @@ ARMS = SignatureConfig(
 )
 
 
-async def _prompt(monkeypatch, signature, *, topic: bool, step_list=None) -> str:
+async def _prompt(
+    monkeypatch, signature, *, topic: bool, step_list=None, template=None
+) -> str:
     from src.video.producer.topic_input import TopicSpec, build_topic_product
 
     settings = load_video_config_modular().llm_settings
     settings.script_templates.signature = signature
+    settings.script_templates.fixed_template = template
     seen: list[str] = []
 
     async def capture(prompt, *a, **k):
@@ -326,3 +329,55 @@ class TestTheConfig:
             if re.search(r"\d|second|minute|instant", line, re.IGNORECASE)
         ]
         assert timed == []
+
+
+class TestOpenerTemplates:
+    POOLS = SignaturePools(
+        use_rate=1.0,
+        openers=["Here's how to"],
+        opener_templates=["topic_answer_first"],
+        transitions=["Here's the fix."],
+        signoffs=["That's the whole fix."],
+    )
+    SIG = SignatureConfig(enabled=True, topic=POOLS)
+
+    @pytest.mark.req("REQ-CNT-153")
+    def test_the_opener_is_drawn_only_for_a_listed_template(self) -> None:
+        listed = select_signature(self.SIG, "topic-x", True, "topic_answer_first")
+        other = select_signature(self.SIG, "topic-x", True, "topic_symptom_cause")
+
+        assert listed.opener == "Here's how to"
+        assert other.opener == ""
+        # Leaving the opener out moves no other element's draw.
+        assert (other.transition, other.signoff) == (
+            listed.transition,
+            listed.signoff,
+        )
+
+    def test_an_empty_list_allows_every_template(self) -> None:
+        pools = self.POOLS.model_copy(update={"opener_templates": []})
+        sig = SignatureConfig(enabled=True, topic=pools)
+        assert select_signature(sig, "topic-x", True, "topic_mistake_fix").opener
+
+    @pytest.mark.req("REQ-CNT-153")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("template", "opens"),
+        [("topic_answer_first", True), ("topic_symptom_cause", False)],
+    )
+    async def test_the_prompt_follows_the_template(
+        self, monkeypatch: pytest.MonkeyPatch, template: str, opens: bool
+    ) -> None:
+        prompt = await _prompt(monkeypatch, self.SIG, topic=True, template=template)
+        assert ('"Here\'s how to"' in prompt) is opens
+        assert '"That\'s the whole fix."' in prompt
+
+    def test_the_bundled_template_names_exist(self) -> None:
+        signature = load_video_config_modular().llm_settings.script_templates.signature
+        prompts = Path("src/ai/prompts")
+        for name in (
+            signature.product.opener_templates + signature.topic.opener_templates
+        ):
+            assert (prompts / f"{name}.md").exists() or (
+                prompts / "scripts" / f"{name}.md"
+            ).exists(), name

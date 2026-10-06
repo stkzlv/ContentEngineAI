@@ -152,3 +152,44 @@ async def test_the_record_draws_from_the_renders_arm(
     ):
         await steps.step_generate_script(ctx)
     assert ctx.state["signoff"] == ("Topic sign-off." if topic else "Product sign-off.")
+
+
+@pytest.mark.req("REQ-CNT-153")
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("template", "opens"),
+    [("topic_answer_first", True), ("topic_symptom_cause", False)],
+)
+async def test_the_record_follows_the_template(
+    ctx, monkeypatch, caplog, template, opens
+) -> None:
+    from src.ai.llm_settings import SignatureConfig, SignaturePools
+    from src.video.producer import steps
+
+    monkeypatch.setattr(
+        config.llm_settings.script_templates,
+        "signature",
+        SignatureConfig(
+            enabled=True,
+            topic=SignaturePools(
+                use_rate=1.0,
+                openers=["Here's how to"],
+                opener_templates=["topic_answer_first"],
+            ),
+        ),
+    )
+    ctx.product.topic = "a topic"
+    caplog.set_level("INFO", logger=steps.logger.name)
+    with (
+        patch.object(steps, "_topic_step_list", AsyncMock(return_value=None)),
+        patch.object(
+            steps,
+            "generate_ai_script",
+            AsyncMock(return_value=(SCRIPT, template, "Link in bio.")),
+        ),
+        patch.object(steps, "_ensure_fact_checked", AsyncMock()),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+    ):
+        await steps.step_generate_script(ctx)
+    logged = any("Signature opener" in r.getMessage() for r in caplog.records)
+    assert logged is opens
