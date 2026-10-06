@@ -9,11 +9,12 @@
 | `demand` | Measure Google Trends interest and Google autocomplete, write `demand.json`, then the report |
 | `sample` | Generate text-only scripts through the producer's script step for the pool topics under each variant and the most recent scraped products, write `samples.json`, then check them and render the report. A rerun into the same run directory clears that variant's earlier samples first, because the script step would otherwise reuse a script already on disk |
 | `check` | Re-run the measured checks over `samples.json` (no model call), write `checks.json`, render the report |
+| `verify` | Check every topic sample's steps and claims with one grounded Gemini call each (the LLM key from `.env`), write `verification.json`, render the report |
 | `report` | Re-render `report.md` from the records already in the run directory, with no request |
 | `--config PATH` | Research settings (default `config/research.yaml`) |
 | `--out DIR` | Run directory (default `<outputs>/reports/research-<date>`) |
 
-Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --with research`). It loads `.env` for `PIPELINE_TOPICS_FILE` and the outputs root, as the batch does.
+Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --with research`), when `verify` finds no `samples.json`, or when the LLM API key is not set. It loads `.env` for `PIPELINE_TOPICS_FILE` and the outputs root, as the batch does.
 
 ## Inputs
 
@@ -37,6 +38,8 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `sample.profile` | `slideshow_stock` | The profile whose name the run paths use; the script step reads nothing else from it |
 | `sample.variants` | all three | `shipped` (required, the baseline), `step_lists` (step lists on), `task_answer_first` (a "How to" topic on `topic_answer_first` only) |
 | `sample.band` | `[75, 100]` | The word band a script is checked against; a step-list script uses its step count's band |
+| `verify.model` | `gemini-3.7-flash` | The model the verification call uses, with Google Search grounding |
+| `verify.timeout_seconds` | `90` | Seconds before a verification call is recorded as failed |
 
 Every block refuses an unknown key. Variants are applied in memory; no YAML is changed.
 
@@ -47,4 +50,9 @@ In the run directory:
 - `demand.json`: per keyword and topic, per country, `share` of the anchor, `recent_ratio` (last quarter's mean over the year's; above 1.1 is a rise, below 1/1.1 a fall, in the report and the drop rule alike) and `peak_month` (from five years); the drop and add candidates; the suggestions; and `missing`, every request that failed, the five-year request included (a missing five-year reading shows its peak month as "-").
 - `samples.json`: per sample, its variant and kind, the script, template, CTA, hook headline, sign-off, step count and fact-check record, or the error that failed or dropped it. The scripts themselves are under `samples/<variant>/`.
 - `checks.json`: the measured checks per sample and the per-variant summary.
-- `report.md`: the tables and candidate lists, and the variant comparison. A failed request shows as "no data", never as zero.
+- `verification.json`: per topic sample, each claim's verdict (correct, wrong, outdated or unverified), source URL, quote and correction, and the tally; or the error of a failed call. A verdict without a source is unverified.
+- `report.md`: the recommended changes first, then the demand tables and candidate lists, the variant comparison and the verification. A failed request shows as "no data", never as zero.
+
+## Recommended changes
+
+A variant is recommended when a smaller share of its verified scripts (those with at least one verdict that cites a source) has a wrong or outdated step than under `shipped`, with no smaller share in the word band and no larger share of template misfits; otherwise it is kept, or left undecided without verification. `step_lists` maps to `llm_settings.topic_scripts.step_list.enabled: true`; `task_answer_first` maps to `llm_settings.script_templates.topic_templates: [topic_answer_first]` when every sampled topic is a task, and otherwise needs a pipeline change. Keyword drops and adds and uncovered topic searches are listed for consideration. Nothing is applied.

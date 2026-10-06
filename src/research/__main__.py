@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -19,8 +21,10 @@ from src.research.demand import run_demand
 from src.research.report import render_report
 from src.research.sample import recent_products, sample
 from src.research.sources import PytrendsSource, TrendsUnavailableError
+from src.research.verify import run_verify
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
+from src.video.config import load_video_config_modular
 
 SCRAPER_CONFIG = Path("config/scraper.yaml")
 
@@ -56,7 +60,9 @@ def run_dir(out: str | None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m src.research")
-    parser.add_argument("stage", choices=["demand", "sample", "check", "report"])
+    parser.add_argument(
+        "stage", choices=["demand", "sample", "check", "verify", "report"]
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_PATH)
     parser.add_argument(
         "--out", help="Run directory (default: outputs/reports/research-<date>)"
@@ -105,9 +111,37 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"Wrote {checks_file}")
 
+    verify_file = out / "verification.json"
+    if args.stage == "verify":
+        if not samples_file.exists():
+            print("No samples.json here: run the sample stage first", file=sys.stderr)
+            return 2
+        research = load_research_config(args.config)
+        llm = load_video_config_modular().llm_settings
+        api_key = os.environ.get(llm.api_key_env_var, "")
+        if not api_key:
+            print(f"{llm.api_key_env_var} is not set", file=sys.stderr)
+            return 2
+        verified = asyncio.run(
+            run_verify(
+                json.loads(samples_file.read_text(encoding="utf-8")),
+                api_key=api_key,
+                model=research.verify.model,
+                timeout=research.verify.timeout_seconds,
+            )
+        )
+        verify_file.write_text(json.dumps(verified, indent=1), encoding="utf-8")
+        print(f"Wrote {verify_file}")
+
     report = out / "report.md"
     report.write_text(
-        render_report(_load(demand_file), _load(checks_file)), encoding="utf-8"
+        render_report(
+            _load(demand_file),
+            _load(checks_file),
+            _load(verify_file),
+            _load(samples_file),
+        ),
+        encoding="utf-8",
     )
     print(f"Wrote {report}")
     return 0

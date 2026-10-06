@@ -50,6 +50,14 @@ class SampleResearch(BaseModel):
         return value
 
 
+class VerifyResearch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # A model with Google Search grounding, as the step lists use.
+    model: str = "gemini-3.7-flash"
+    timeout_seconds: float = Field(default=90, gt=0)
+
+
 class ResearchConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -59,6 +67,7 @@ class ResearchConfig(BaseModel):
     products: ProductResearch
     topics: TopicResearch
     sample: SampleResearch = Field(default_factory=SampleResearch)
+    verify: VerifyResearch = Field(default_factory=VerifyResearch)
 
 
 def load_research_config(path: Path = DEFAULT_PATH) -> ResearchConfig:

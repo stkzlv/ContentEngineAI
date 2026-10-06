@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.178.0] - 2026-10-06
+
+### Added
+
+- `make research ARGS="verify"` checks every sampled topic script's steps and claims against official documentation with one grounded Gemini call each, and the research report now leads with recommended config changes: a variant is recommended only when fewer of its scripts have a wrong or outdated step without costing length or template fit, alongside the keyword and topic candidates from the demand stage; nothing is applied.
+
 ## [0.177.0] - 2026-10-06
 
 ### Added

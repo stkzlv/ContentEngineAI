@@ -40,3 +40,9 @@ sample:
   profile: slideshow_stock
   variants: [shipped, step_lists, task_answer_first]
   band: [75, 100]     # words; a step-list script uses its own band
+
+# Grounded verification (`verify` stage): one Gemini call with Google Search
+# per topic script judges each step against official documentation.
+verify:
+  model: "gemini-3.7-flash"
+  timeout_seconds: 90
