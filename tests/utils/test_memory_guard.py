@@ -8,7 +8,6 @@ the OOM killer's first choice.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import sys
 from pathlib import Path
@@ -75,7 +74,13 @@ def test_missing_kernel_files_read_as_unknown(tmp_path: Path) -> None:
     [
         (OK, None),
         (MemoryState(2.0, 11.0, 6.0, 0.0), "2.0 GB available, under 3 GB"),
-        (MemoryState(8.0, 11.0, 0.5, 0.0), "0.5 GB swap free, under 1 GB"),
+        # Swap counts only when RAM headroom is thin: pages stay swapped
+        # after RAM frees, and full swap beside plenty available is no risk.
+        (MemoryState(8.0, 11.0, 0.0, 0.0), None),
+        (
+            MemoryState(3.2, 11.0, 0.5, 0.0),
+            "3.2 GB available and 0.5 GB swap free, under 4 GB together",
+        ),
         # A machine with no swap is not short of swap.
         (MemoryState(8.0, 0.0, 0.0, 0.0), None),
     ],
@@ -133,20 +138,19 @@ async def test_the_wait_is_skipped(monkeypatch: pytest.MonkeyPatch, skip: str) -
 
 
 @pytest.mark.req("REQ-OPS-106")
-@pytest.mark.parametrize(
-    ("cap", "expected"),
-    [("max", "1.50 GB\n"), (str(6 * 1024**3), "1.50 GB of a 6.0 GB cap")],
-)
-def test_the_peak_is_logged(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, cap: str, expected: str
+@pytest.mark.parametrize("cap", ["max", str(6 * 1024**3)])
+def test_the_peak_is_logged_inside_a_capped_scope_only(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, cap: str
 ) -> None:
+    """Outside a capped scope the cgroup is the terminal's, not the render's."""
     (tmp_path / "memory.peak").write_text(f"{int(1.5 * 1024**3)}\n")
     (tmp_path / "memory.max").write_text(f"{cap}\n")
     caplog.set_level("INFO", logger=memory_guard.logger.name)
 
     log_peak("B0X", tmp_path)
 
-    assert f"Memory peak after B0X: {expected}" in caplog.text + "\n"
+    logged = "Memory peak after B0X: 1.50 GB of a 6.0 GB cap" in caplog.text
+    assert logged is (cap != "max")
 
 
 def test_no_peak_file_logs_nothing(
@@ -161,7 +165,8 @@ def test_the_bundled_config_turns_the_guard_on() -> None:
     from src.video.config import load_video_config_modular
 
     guard = load_video_config_modular().memory_guard
-    assert guard.enabled and guard.min_available_gb >= 2.9
+    # A stock render's tree peaks at 4.1-4.3 GB (docs/testing.md).
+    assert guard.enabled and guard.min_available_gb >= 4.3
 
 
 def _products(tmp_path: Path) -> Path:
@@ -218,9 +223,11 @@ async def test_the_producer_stops_its_batch_when_memory_stays_short(
     ):
         from src.video.producer.cli import main
 
-        with contextlib.suppress(SystemExit):
+        with pytest.raises(SystemExit) as stopped:
             await main()
 
+    # Its own exit code, which the topics batch stops on.
+    assert stopped.value.code == memory_guard.EXIT_NO_MEMORY
     assert wait.await_count == 1  # stopped after the first refusal
     create.assert_not_called()
 

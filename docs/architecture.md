@@ -32,7 +32,7 @@ Stakeholders:
 | FFmpeg and FFprobe on `PATH` | All assembly, probing and the fallback caption burn go through FFmpeg subprocesses. |
 | Optional pycaps engine with Playwright and Chromium | The bundled caption engine needs about 1 GB of browser; without it a render falls back to FFmpeg captions ([decision 0004](decisions/0004-caption-engine.md)). |
 | Botasaurus driving a real Chromium | The scraper needs a display (or Xvfb) and runs one browser session per scrape. |
-| One machine, shared with a desktop session | A render peaks around 2 to 2.5 GB RSS; full runs go through the memory-capped `*-lowpri` targets. |
+| One machine, shared with a desktop session | A render's process tree peaks near 2.8 GB for image profiles and 4.1-4.3 GB for stock ones; full runs go through the memory-capped `*-lowpri` targets. |
 | Third-party APIs with quotas and outages | Every provider call has retries, a circuit breaker or a fallback provider, and runs inside a time budget. |
 | Publishing through one scheduling service | The pipeline never talks to YouTube, TikTok or Instagram directly; it reads post status back from the service. |
 | Public repository with private overlays | Public docs and config ship generic defaults; account-specific values live in `.env` and gitignored `*.private.*` files. |

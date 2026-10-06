@@ -587,9 +587,11 @@ class MemoryGuardSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = Field(default=True)
-    # A render peaks at about 2.6-2.9 GB, Whisper and FFmpeg included.
-    min_available_gb: float = Field(default=3.0, ge=0)
-    # With swap full, the next allocation anywhere starts a kernel OOM.
+    # A stock render's process tree peaks at 4.1-4.3 GB with Whisper and the
+    # caption browser alive (docs/testing.md); image profiles near 2.8 GB.
+    min_available_gb: float = Field(default=4.5, ge=0)
+    # Added to min_available_gb when the two are checked together: other apps
+    # need somewhere to go as the render, which cannot swap, grows.
     min_swap_free_gb: float = Field(default=1.0, ge=0)
     wait_sec: float = Field(default=900, ge=0)
     poll_sec: float = Field(default=30, gt=0)

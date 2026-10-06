@@ -23,6 +23,7 @@ from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
 from src.utils.memory_guard import (
+    EXIT_NO_MEMORY,
     InsufficientMemoryError,
     log_peak,
     wait_for_memory,
@@ -714,6 +715,7 @@ async def main():
                 profile_name,
             )
 
+    stopped_for_memory = False
     for i, idx in enumerate(indices):
         product_dir, product = products_list[idx]
         product_id = product.asin or product.title or f"product_{idx}"
@@ -876,6 +878,7 @@ async def main():
         if memory_short:
             # The rest would wait for the same memory and fail the same way.
             logger.error("Stopping: not enough memory to start another render")
+            stopped_for_memory = True
             break
 
         if i < len(indices) - 1:
@@ -945,6 +948,10 @@ async def main():
     # Non-zero exit when nothing was produced, so CI, cron, and wrappers
     # checking $? see the failure.
     exit_code = batch_summary.exit_code(strict=args.strict)
+    if stopped_for_memory:
+        # Its own code, so a wrapper running one process per step (the topics
+        # batch) stops too rather than wait out the guard for every topic.
+        exit_code = EXIT_NO_MEMORY
 
     # Keyed on what happened, not on the exit code: under --strict a partial
     # loss also exits non-zero, and reporting success for a run that exits 1

@@ -81,8 +81,8 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-040** `shipped` The scrape, produce, batch, publish and test runs each have a low-priority `make` target (`scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri`, `test-lowpri`) that runs them at reduced CPU and I/O priority under a memory cap with swap disabled.
   - Check: a run that exceeds `MEM_LIMIT` (default 6G) is stopped without other applications on the machine being killed.
 - **REQ-OPS-104** `shipped` If the machine runs out of memory during a low-priority run, the run is the process killed: its scope asks systemd-oomd to kill it under sustained memory pressure, and its OOM score is raised above other applications'.
-- **REQ-OPS-105** `shipped` Before each render, in the producer and the global batch, the pipeline waits until the machine has `memory_guard.min_available_gb` available and, where there is swap, `min_swap_free_gb` of swap free; after `wait_sec` it fails that render and stops the batch instead of starting it.
-- **REQ-OPS-106** `shipped` After each render, the log records the peak memory of the run's cgroup and its cap.
+- **REQ-OPS-105** `shipped` Before each render, in the producer, the global batch and the topics batch, the pipeline waits until the machine has `memory_guard.min_available_gb` available and, where there is swap, `min_available_gb + min_swap_free_gb` of available memory and free swap together; after `wait_sec` it fails that render and stops the batch instead of starting it.
+- **REQ-OPS-106** `shipped` Inside a capped scope, after each render, the log records the scope's peak memory so far and its cap.
 
 ## Resource cleanup
 

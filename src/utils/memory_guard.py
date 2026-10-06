@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Skips the wait, for a run the operator knows will fit.
 SKIP_ENV = "ALLOW_LOW_MEMORY"
+# The producer's exit code when it stopped for memory (EX_TEMPFAIL).
+EXIT_NO_MEMORY = 75
 _GB = 1024**3
 
 
@@ -76,11 +78,15 @@ def shortfall(state: MemoryState, settings: Any) -> str | None:
             f"{state.available_gb:.1f} GB available, under "
             f"{settings.min_available_gb:g} GB"
         )
+    # Swap matters only when RAM headroom is thin: the render cannot swap,
+    # but other apps must have somewhere to go as it grows. Swapped pages stay
+    # swapped after RAM frees, so full swap with plenty available is no risk.
     # No swap at all is a machine choice, not a full swap.
-    if state.swap_total_gb > 0 and state.swap_free_gb < settings.min_swap_free_gb:
+    need = settings.min_available_gb + settings.min_swap_free_gb
+    if state.swap_total_gb > 0 and state.available_gb + state.swap_free_gb < need:
         return (
-            f"{state.swap_free_gb:.1f} GB swap free, under "
-            f"{settings.min_swap_free_gb:g} GB"
+            f"{state.available_gb:.1f} GB available and "
+            f"{state.swap_free_gb:.1f} GB swap free, under {need:g} GB together"
         )
     return None
 
@@ -138,10 +144,10 @@ def _read_bytes(path: Path) -> int | None:
 
 
 def log_peak(label: str, cgroup: Path | None = None) -> None:
-    """Log this process's cgroup peak memory, and its cap when it has one.
+    """Log this process's cgroup peak memory, inside a capped scope only.
 
-    Inside the lowpri scope the peak covers every child (FFmpeg, Whisper,
-    the caption browser). In a batch it is the peak so far, not this
+    The peak covers every child (FFmpeg, Whisper, the caption browser). It
+    is a high-water mark: in a batch it is the largest so far, not this
     product's alone.
     """
     cgroup = cgroup or _own_cgroup()
@@ -151,9 +157,14 @@ def log_peak(label: str, cgroup: Path | None = None) -> None:
     if peak is None:
         return
     cap = _read_bytes(cgroup / "memory.max")  # "max" (no cap) reads as None
+    if cap is None:
+        # Outside a capped scope the cgroup is the terminal's or the
+        # editor's, and its peak says nothing about the render.
+        return
     logger.info(
-        "Memory peak after %s: %.2f GB%s",
+        "Memory peak after %s: %.2f GB of a %.1f GB cap (the scope's high-water "
+        "mark so far)",
         label,
         peak / _GB,
-        f" of a {cap / _GB:.1f} GB cap" if cap else "",
+        cap / _GB,
     )

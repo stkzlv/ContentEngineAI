@@ -1280,12 +1280,14 @@ aspect_ratio:
 # - Empty list = every profile eligible for random selection
 # - Specified list = only those profiles will be randomly selected
 # Before each render the producer waits until the machine has the render's
-# budget free (MemAvailable, and free swap when there is swap), and gives up
-# after wait_sec rather than starting into an OOM that would kill another
-# app. A render peaks at about 2.6-2.9 GB. ALLOW_LOW_MEMORY=1 skips the wait.
+# budget free: min_available_gb of MemAvailable, and, where there is swap,
+# min_available_gb + min_swap_free_gb of available memory and free swap
+# together. It gives up after wait_sec rather than start into an OOM that
+# would kill another app. A stock render's tree peaks at 4.1-4.3 GB
+# (docs/testing.md). ALLOW_LOW_MEMORY=1 skips the wait.
 memory_guard:
   enabled: true
-  min_available_gb: 3.0
+  min_available_gb: 4.5
   min_swap_free_gb: 1.0
   wait_sec: 900
   poll_sec: 30

@@ -651,7 +651,7 @@ make perf-report
 2. **Let the render wait for memory.** Before each render the producer waits
    until `memory_guard.min_available_gb` is free; a run that logs
    `Waiting up to ... for memory` is short because of other applications.
-   Close some, or wait. `Memory peak after <id>` shows what a render used.
+   Close some, or wait. `Memory peak after <id>` shows the scope's peak so far.
 
 3. **Process Fewer Items:**
    ```bash
