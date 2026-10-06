@@ -7,6 +7,8 @@
 | Argument | Meaning |
 |---|---|
 | `demand` | Measure Google Trends interest and Google autocomplete, write `demand.json`, then the report |
+| `sample` | Generate text-only scripts through the producer's script step for the pool topics under each variant and the most recent scraped products, write `samples.json`, then check them and render the report |
+| `check` | Re-run the measured checks over `samples.json` (no model call), write `checks.json`, render the report |
 | `report` | Re-render `report.md` from the records already in the run directory, with no request |
 | `--config PATH` | Research settings (default `config/research.yaml`) |
 | `--out DIR` | Run directory (default `<outputs>/reports/research-<date>`) |
@@ -31,11 +33,19 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `topics.anchor` | required | The term every topic's interest is a share of |
 | `topics.suggest_stems` | `[]` | Autocomplete stems; suggestions no pool topic covers are listed |
 
-Every block refuses an unknown key.
+| `sample.topics` | `16` | Pool topics to sample, in pool order |
+| `sample.products` | `8` | The most recently scraped products to sample (under `shipped` only) |
+| `sample.profile` | `slideshow_stock` | The profile whose name the run paths use; the script step reads nothing else from it |
+| `sample.variants` | all three | `shipped` (required, the baseline), `step_lists` (step lists on), `task_answer_first` (a "How to" topic on `topic_answer_first` only) |
+| `sample.band` | `[75, 100]` | The word band a script is checked against; a step-list script uses its step count's band |
+
+Every block refuses an unknown key. Variants are applied in memory; no YAML is changed.
 
 ## Outputs
 
 In the run directory:
 
 - `demand.json`: per keyword and topic, per country, `share` of the anchor, `recent_ratio` (last quarter's mean over the year's; above 1.1 is a rise, below 1/1.1 a fall, in the report and the drop rule alike) and `peak_month` (from five years); the drop and add candidates; the suggestions; and `missing`, every request that failed, the five-year request included (a missing five-year reading shows its peak month as "-").
-- `report.md`: the tables and candidate lists. A failed request shows as "no data", never as zero.
+- `samples.json`: per sample, its variant and kind, the script, template, CTA, hook headline, sign-off, step count and fact-check record, or the error that failed or dropped it. The scripts themselves are under `samples/<variant>/`.
+- `checks.json`: the measured checks per sample and the per-variant summary.
+- `report.md`: the tables and candidate lists, and the variant comparison. A failed request shows as "no data", never as zero.

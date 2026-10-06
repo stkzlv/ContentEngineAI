@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DEFAULT_PATH = Path("config/research.yaml")
 
@@ -25,6 +25,31 @@ class TopicResearch(BaseModel):
     suggest_stems: list[str] = Field(default_factory=list)
 
 
+VARIANTS = ("shipped", "step_lists", "task_answer_first")
+
+
+class SampleResearch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    topics: int = Field(default=16, ge=0)
+    products: int = Field(default=8, ge=0)
+    # Any profile: the script step only needs its name for the run paths.
+    profile: str = "slideshow_stock"
+    variants: list[str] = Field(default_factory=lambda: list(VARIANTS), min_length=1)
+    # The narrator profiles ask for 30-40 seconds, roughly 75-100 words.
+    band: tuple[int, int] = (75, 100)
+
+    @field_validator("variants")
+    @classmethod
+    def _known(cls, value: list[str]) -> list[str]:
+        unknown = sorted(set(value) - set(VARIANTS))
+        if unknown:
+            raise ValueError(f"unknown variant(s): {unknown}; known: {list(VARIANTS)}")
+        if "shipped" not in value:
+            raise ValueError("variants must include shipped, the baseline")
+        return value
+
+
 class ResearchConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,6 +58,7 @@ class ResearchConfig(BaseModel):
     max_retries: int = Field(default=2, ge=0)
     products: ProductResearch
     topics: TopicResearch
+    sample: SampleResearch = Field(default_factory=SampleResearch)
 
 
 def load_research_config(path: Path = DEFAULT_PATH) -> ResearchConfig:

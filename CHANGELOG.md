@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.177.0] - 2026-10-06
+
+### Added
+
+- `make research ARGS="sample"` generates text-only scripts through the producer's own script step for the pool topics under each variant (shipped, step lists on, how-to topics on the answer-first template) and for recently scraped products, measures each (word band, search phrase first, script lint, CTA last, fact-check flags and rewrites, template fit, repeated openings), and compares the variants in the research report.
+
 ## [0.176.0] - 2026-10-06
 
 ### Added
