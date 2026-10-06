@@ -84,6 +84,37 @@ A topic video is a search product, not a feed product, and the prompts are writt
 
 YouTube restructured its search filters on 2026-01-08, adding a Type filter that selects Shorts only, long-form only, or a mix ([Tubefilter](https://www.tubefilter.com/2026/01/09/youtube-search-filters-shorts-vs-long-form/)). Most coverage framed it as letting users exclude Shorts. It cuts both ways: Shorts became an explicitly selectable result type and an explicitly excludable one, and no data on the split is published. The safe reading is that Shorts search behaviour changed recently enough to invalidate older guidance, not that it improved.
 
+## What viewers ask about
+
+A topic earns its search traffic only if people type it. The evidence below was gathered in October 2026 to pick topics by demand rather than by what seems interesting.
+
+**How much people ask.** "How do I..." searches reached an all-time high in 2025, up 25% on the year [A, [Google](https://blog.google/products-and-platforms/products/search/year-in-search-2025/)]. Google Trends gives relative interest, not volumes. Over the 12 months to October 2026 in the US, against "iphone storage full" as 1.0 [A, Google Trends through the unofficial `pytrends` client, compared within shared requests]:
+
+| Search | US | UK |
+|---|---|---|
+| clear cache | 22.3 | 27.8 |
+| screenshot on windows | 8.3 | 6.0 |
+| scan qr code | 6.8 | n/a |
+| share location iphone | 5.5 | n/a |
+| factory reset iphone | 5.1 | 5.9 |
+| wifi not working | 3.3 | 6.3 |
+| block spam calls | 2.7 | 1.7 |
+| bluetooth not connecting | 2.2 | 2.9 |
+| transfer data to new iphone | 1.0 | 1.2 |
+| whatsapp backup | 0.9 | 3.8 |
+| iphone battery drain | 0.7 | 0.9 |
+| forgot iphone passcode | 0.6 | 0.7 |
+
+In India, "whatsapp backup" runs about 20 times "iphone storage full".
+
+**What people type.** Google's autocomplete shows the phrasing, not the volume [A]. "How to turn off" completes first with "ai on google" in the US and UK. "Why is my phone" completes with not charging, getting hot and slow. "Samsung how to" completes with screenshot, block spam calls, check battery health and transfer to a new phone. The fastest-rising US searches over the year included sharing location on iPhone, scanning a QR code on Android and uploading contacts to Gmail.
+
+**What support sites put first.** Apple's iPhone support page leads with a forgotten Apple Account password, a disabled iPhone, backup and updates [A, curated, [Apple](https://support.apple.com/iphone)]. Microsoft's Windows support page leads with installation and updates [A, curated, [Microsoft](https://support.microsoft.com/en-us/windows)]. Neither says how it ranks them.
+
+**When.** Searches for moving data to a new iPhone peak in the September launch weeks and at Christmas (five years of Trends) [A]. Phone storage searches peak in April-June.
+
+**What this means for the pool.** Demand clusters around everyday chores: storage and cache, moving to a new phone, spam calls and texts, screenshots and screen recording, resets, Wi-Fi and Bluetooth, lockouts and battery. A topic phrased the way people search, one device or app and one outcome, passes the topic filter (REQ-VID-151): of a pool of claim-style titles ("One repeater makes your wifi slower"), the filter kept 1 in 17, and of searches phrased as tasks, 16 in 26. The filter drops some of the highest-demand tasks as default behaviour (a QR code scan, a factory reset) and splits others whose steps fork by device (screen recording on iPhone) into series.
+
 ## Durability metrics
 
 The `analytics` command stores, for each published post, its cumulative views at day 2 and day 7 and a durability ratio: views after the first 30 days divided by views within them (REQ-PUB-072, REQ-PUB-073). A figure a post has not reached is unknown rather than the running total, and a post with no views in its first 30 days has an unknown ratio rather than 0.0 (REQ-PUB-074, REQ-PUB-075). Reports rank posts by durability (REQ-PUB-079), and each registry row records whether the video came from a topic or a scraped product (REQ-PUB-093). The capture cadence and why it is a scheduled job are in [design 0020](../design/0020-analytics-history.md).
@@ -188,4 +219,5 @@ Most published short-form guidance is vendor marketing for editing tools, and th
 - **Retention percentages in editing-tool articles are not supported.** Figures like "45-55% up to 70-85%" appear without method, sample or platform, from companies selling editing tools ([Shortzly](https://shortzly.com/blog/short-form-video-retention-strategies)).
 - **No published comparison of stock footage against screen capture exists for Shorts**; the pipeline has to measure it.
 - **The human-over-machine voice effect (d = 0.74) comes from studies that predate modern TTS.**
+- **Topic demand is relative.** Google Trends compares searches and gives no volumes, and autocomplete shows phrasing, not frequency. Published keyword-volume lists for these searches state no method. No platform publishes which tech tips perform on TikTok or Shorts.
 - **Nothing here substitutes for a test on your own channel.** Two arms, interleaved by day, same voice and cadence, differing only in format; sequential comparison confounds the format change with whatever else moved. The reach test (#540) is that comparison, which is why every planned change above ships off until it reads out.
