@@ -18,7 +18,7 @@ Each folder holds one kind of document, with its own reader and its own update r
 
 The contributor docs stay at the top of `docs/`: `development.md`, `linting.md`, `testing.md` and `versioning.md`. Release tooling and contributor workflows look for `docs/versioning.md` and `docs/development.md` at those paths.
 
-Each module has a guide (`guides/publishing.md`, `producing-videos.md`, `scraping.md`), a reference page (`reference/publisher.md`, `video-producer.md`, `scraper.md`, and `global-batch.md` for the batch pipeline) and an explanation page (`explanation/publishing.md`, `video-pipeline.md`, `scraping.md`). `promotional-video-best-practices.md` is a forwarding page kept for the script prompts that cite it.
+Each module has a guide (`guides/publishing.md`, `producing-videos.md`, `scraping.md`), a reference page (`reference/publisher.md`, `video-producer.md`, `scraper.md`, and `global-batch.md` for the batch pipeline; the content research has `guides/research.md` and `reference/research.md`) and an explanation page (`explanation/publishing.md`, `video-pipeline.md`, `scraping.md`). `promotional-video-best-practices.md` is a forwarding page kept for the script prompts that cite it.
 
 ## From idea to shipped feature
 

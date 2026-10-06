@@ -1,0 +1,33 @@
+# Content research (design 0023): `python -m src.research`. Read only by
+# src/research; nothing here changes a render. Google Trends gives relative
+# interest, so every figure is a share of one anchor term per side, and the
+# anchors must stay the same between runs for figures to compare.
+
+# Countries to measure (ISO codes, as Google Trends takes them).
+countries: [US, GB]
+# Seconds between Trends requests; it answers 429 to a faster client.
+request_pause_sec: 10
+# Retries for a rate-limited request, each after a longer pause.
+max_retries: 2
+
+products:
+  # A steady, broad term the product keywords are measured against.
+  anchor: "phone charger"
+  # A keyword under this share of the products' median interest in every
+  # country, with no rise over the last quarter, is a drop candidate.
+  drop_below: 0.25
+  # Broad searches whose rising related searches suggest keywords to add.
+  seeds: ["tech gadgets", "phone accessories", "smart home devices"]
+
+topics:
+  anchor: "iphone storage full"
+  # Autocomplete stems: the suggestions show how viewers phrase questions.
+  suggest_stems:
+    - "how to turn off"
+    - "how to stop"
+    - "why is my phone"
+    - "iphone how to"
+    - "samsung how to"
+    - "windows 11 how to"
+    - "gmail how to"
+    - "whatsapp how to"

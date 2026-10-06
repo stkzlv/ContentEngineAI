@@ -58,12 +58,16 @@ class TopicSpec:
         description: Source material for the script. The script generator reads
             only the title and the description, so this is what shapes the video.
         keywords: Optional stock-media search terms for this topic.
+        search: Optional search the content research measures this topic
+            by, where the title is too long for Google Trends. No render
+            reads it.
 
     """
 
     title: str
     description: str = ""
     keywords: list[str] = field(default_factory=list)
+    search: str = ""
 
     def __post_init__(self) -> None:
         """Validate here so `--topic` and a topics file behave identically.
@@ -161,7 +165,11 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     if not isinstance(keywords, list) or not all(isinstance(k, str) for k in keywords):
         raise TopicInputError(f"{where}: 'keywords' must be a list of strings")
 
-    unknown = set(entry) - {"title", "description", "keywords"}
+    search = entry.get("search", "")
+    if not isinstance(search, str):
+        raise TopicInputError(f"{where}: 'search' must be a string")
+
+    unknown = set(entry) - {"title", "description", "keywords", "search"}
     if unknown:
         # Strict, because a typo in a hand-written file would otherwise cost a
         # render before anyone noticed the field never applied.
@@ -170,7 +178,10 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
         )
 
     return TopicSpec(
-        title=title.strip(), description=description, keywords=list(keywords)
+        title=title.strip(),
+        description=description,
+        keywords=list(keywords),
+        search=search.strip(),
     )
 
 

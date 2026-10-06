@@ -377,6 +377,9 @@ resolving to an empty one. Adding a provider means adding a field to
 misspelled section would otherwise configure nothing while the run reported
 shortening as enabled.
 
+### 8. **Research Configuration** (`config/research.yaml`)
+Read only by the content research (`python -m src.research`); nothing in it changes a render. The anchors, countries, product seeds and topic autocomplete stems are listed in [the research reference](research.md#configresearchyaml).
+
 ## Core Configuration Sections
 
 <details>

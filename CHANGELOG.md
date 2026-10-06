@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.176.0] - 2026-10-06
+
+### Added
+
+- `python -m src.research demand` (`make research`) measures Google Trends interest for every scraper keyword and pool topic against a fixed anchor, with trend and peak month, collects Google autocomplete for configured stems, and writes a report of keywords to drop or add and searches the topic pool misses; settings are in `config/research.yaml`, and pytrends comes from the optional `research` dependency group.
+
 ## [0.175.1] - 2026-10-06
 
 ### Documentation

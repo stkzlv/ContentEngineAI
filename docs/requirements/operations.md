@@ -130,6 +130,15 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-080** `shipped` When `--output <file>` is passed, the performance report saves the report as JSON to that file instead of printing it, whatever `--format` says.
 - **REQ-OPS-081** `shipped` The performance report reads history from `--history-dir`, which defaults to the repository's `outputs/performance_history` from any working directory.
 
+## Content research
+
+- **REQ-OPS-107** `shipped` `python -m src.research demand` measures Google Trends relative interest for every scraper keyword and every pool topic against one anchor term per side, in each configured country, over 12 months and 5 years, records each term's peak month, and lists Google autocomplete suggestions for the configured stems; a source that is rate-limited or returns nothing is reported as missing, not as zero.
+- **REQ-OPS-108** `shipped` The demand report marks a scraper keyword as a drop candidate when its interest is below `drop_below` of its side's median in every country and has not risen over the last quarter, lists rising related searches from the configured product seeds that are not already keywords as add candidates, and lists topic autocomplete suggestions that no pool topic covers.
+- **REQ-OPS-109** `planned #686` The `sample` stage generates scripts text-only, with no scraping and no rendering, for N pool topics and N already-scraped products under each configured variant (`shipped`, `step_lists`, `task_answer_first`).
+- **REQ-OPS-110** `planned #686` Every sampled script is measured for word count against its band, the search phrase in the first sentence, openings repeated across the sample, the lint's tells, the CTA as its last sentence, fact-check flags and rewrites, and a task topic written with a symptom or mistake template.
+- **REQ-OPS-111** `planned #686` Each sampled topic script's steps and claims are checked by a grounded model call that returns correct, wrong, outdated or unverified with a source URL per verdict; a verdict without a source counts as unverified.
+- **REQ-OPS-112** `planned #686` The research report recommends a config change only when a variant beats the shipped config on the measured checks of the same sample, names the key and value, and never edits configuration.
+
 ## Release and CI
 
 - **REQ-OPS-082** `shipped` On every pull request to `main`, CI fails unless the `pyproject.toml` version is the next patch, minor or major version after the base branch's.

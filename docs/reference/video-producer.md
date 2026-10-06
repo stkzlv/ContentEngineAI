@@ -41,7 +41,7 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--topic` | Render a subject instead of a product; replaces `products_file`. | `--topic "Why wifi drops"` |
 | `--topic-description` | Source material the script is written from. The script generator reads only the title and this description. | `--topic-description "Router placement."` |
 | `--topic-keywords` | Comma-separated stock search terms for the topic. Comma-separated rather than repeated, because a multi-value flag before a positional swallows it. | `--topic-keywords "wifi router, home network"` |
-| `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description` and optional `keywords`. | `--topics-file topics.yaml` |
+| `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description`, optional `keywords` and optional `search` (the search the content research measures the topic by; no render reads it). | `--topics-file topics.yaml` |
 
 ### Run control
 

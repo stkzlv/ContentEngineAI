@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.175.1"
+version = "0.176.0"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -87,6 +87,16 @@ optional = true
 
 [tool.poetry.group.beats.dependencies]
 librosa = "^1.0.0"
+
+# Optional: content research (`python -m src.research`, design 0023): Google
+# Trends through the unofficial pytrends client. Enable with
+# `poetry install --with research`; without it the demand stage reports Trends
+# as unavailable.
+[tool.poetry.group.research]
+optional = true
+
+[tool.poetry.group.research.dependencies]
+pytrends = "^4.9.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
