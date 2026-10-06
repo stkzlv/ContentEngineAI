@@ -707,7 +707,9 @@ make topics-batch TOPICS=topics.private.yaml
 make batch-lowpri ARGS="--product-ids B0ASIN1 --debug" MEM_LIMIT=8G NICE_LEVEL=19
 ```
 
-Requires `ionice` (from `util-linux`). Falls back to `nice` + `ionice` without memory cap if `systemd-run` is unavailable.
+Requires `ionice` and `choom` (from `util-linux`). Without `systemd-run` the targets refuse to run; `ALLOW_UNCAPPED=1` runs them with `nice` and `ionice` and no memory cap.
+
+The cap stops a run growing; it does not make room. Each render first waits until the machine has `memory_guard.min_available_gb` free (default 3 GB) and some swap, logging `Waiting up to 900 s for memory`, and fails after the wait rather than start into an out-of-memory kill. If memory still runs out, the run is the process killed, not your browser. The log line `Memory peak after <id>` gives what each render actually used.
 
 ### Rendering a batch of topics
 

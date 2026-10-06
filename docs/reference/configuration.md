@@ -392,6 +392,7 @@ outro_duration_sec: 1.0
 
 **Options:**
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
+- `memory_guard`: before each render, in the producer and the global batch alike, wait until the machine has the render's budget free, and give up after `wait_sec` rather than start into an out-of-memory kill of another app. `enabled` (default `true`), `min_available_gb` (default `3.0`, `MemAvailable`; a render peaks at about 2.6-2.9 GB), `min_swap_free_gb` (default `1.0`, checked only when there is swap), `wait_sec` (default `900`), `poll_sec` (default `30`). Waiting does not count against `pipeline_timeout_sec`. A refusal fails that product and stops the rest of the batch. After each render the producer logs its scope's peak memory (`Memory peak after <id>`), the measured budget. `ALLOW_LOW_MEMORY=1` skips the wait.
 - `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word. Applies to the `outro` ending only; `peak` and `loop` use `video_settings.peak_margin_sec` ([Ending](video-producer.md#ending)).
 
 </details>
@@ -2259,6 +2260,7 @@ The machine settings the config reads from the environment. Behaviour settings l
 | `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory for the producer, the publisher and the global batch |
 | `OUTPUTS_DIR` | string | outputs | Base output directory, as above, and the scraper's output base; wins over `CONTENT_ENGINE_OUTPUT` |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
+| `ALLOW_LOW_MEMORY` | `1` or unset | unset | Start a render without waiting for `memory_guard`'s free memory |
 
 Debug mode is `global_settings.debug_mode` in `config/scraper.yaml` or `--debug`; the pipeline timeout is `pipeline_timeout_sec`.
 

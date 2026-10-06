@@ -59,3 +59,33 @@ def test_allow_uncapped_runs_it_anyway(tmp_path: Path) -> None:
     result = run_target(tmp_path, ALLOW_UNCAPPED="1")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "no memory cap" in result.stdout
+
+
+LOWPRI_TARGETS = [
+    "test-lowpri",
+    "batch-lowpri",
+    "scrape-lowpri",
+    "produce-lowpri",
+    "publish-lowpri",
+    "topics-batch",
+]
+
+
+@pytest.mark.req("REQ-OPS-104")
+@pytest.mark.parametrize("target", LOWPRI_TARGETS)
+def test_every_lowpri_run_is_the_oom_victim(target: str) -> None:
+    """A capped run asks oomd to kill it, and every run raises its OOM score."""
+    recipe = subprocess.run(
+        ["make", "-n", target, "TOPICS=t.yaml"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    ).stdout
+    capped, _, uncapped = recipe.partition("ALLOW_UNCAPPED")
+
+    assert "MemoryMax=" in capped and "MemorySwapMax=0" in capped
+    assert "ManagedOOMMemoryPressure=kill" in capped
+    assert "choom -n 1000 --" in capped
+    assert "choom -n 1000 --" in uncapped

@@ -22,6 +22,11 @@ from src.utils import cleanup_temp_dirs
 from src.utils.background_processing import cleanup_global_background_processor
 from src.utils.connection_pool import get_http_session
 from src.utils.logging_setup import setup_debug_logging
+from src.utils.memory_guard import (
+    InsufficientMemoryError,
+    log_peak,
+    wait_for_memory,
+)
 from src.utils.outputs_paths import is_product_directory, with_outputs_root
 from src.utils.performance import PerformanceHistoryManager
 from src.utils.pipeline_deadline import set_pipeline_deadline
@@ -740,7 +745,10 @@ async def main():
 
         product_started = time.monotonic()
         product_error = None
+        memory_short = False
         try:
+            # Outside the timeout: waiting for memory is not render time.
+            await wait_for_memory(config.memory_guard, product_id)
             # Steps that derive their own limits read this, so an inner limit
             # cannot exceed the budget this `wait_for` enforces (#398). Set
             # inside the per-product loop: that, not `wait_for`, is what keeps
@@ -760,6 +768,11 @@ async def main():
                 ),
                 timeout=config.pipeline_timeout_sec,
             )
+        except InsufficientMemoryError as e:
+            product_error = str(e)
+            logger.error("%s", e)
+            memory_short = True
+            result_path = None
         except TimeoutError:
             product_error = f"Pipeline timed out after {config.pipeline_timeout_sec}s"
             logger.error("%s for product %s", product_error, product_id)
@@ -772,6 +785,8 @@ async def main():
             result_path = None
 
         duration = time.monotonic() - product_started
+        if not memory_short:
+            log_peak(product_id)
 
         failed_step = failed_step_from_result(result_path)
         if result_path == "SKIPPED":
@@ -857,6 +872,11 @@ async def main():
                         product_id,
                     )
                     break
+
+        if memory_short:
+            # The rest would wait for the same memory and fail the same way.
+            logger.error("Stopping: not enough memory to start another render")
+            break
 
         if i < len(indices) - 1:
             delay = random.uniform(  # noqa: S311

@@ -218,7 +218,7 @@ Each render keeps `pipeline_state.json` in its product's `temp/` directory, one 
 ```mermaid
 flowchart TB
     subgraph machine["Operator machine"]
-        subgraph scope["systemd user scope: MemoryMax, MemorySwapMax=0, nice, ionice"]
+        subgraph scope["systemd user scope: MemoryMax, MemorySwapMax=0, oomd kill, OOM score 1000, nice, ionice"]
             run["batch, scrape, produce, publish or test run"]
         end
         timer["contentengineai-analytics.timer"] --> svc["analytics service<br/>python -m src.publisher.late analytics"]
@@ -234,7 +234,7 @@ flowchart TB
     end
 ```
 
-- **Low-priority targets.** `make batch-lowpri`, `scrape-lowpri`, `produce-lowpri`, `publish-lowpri` and `test-lowpri` start the run in a `systemd-run --user --scope` with `MemoryMax=$(MEM_LIMIT)` (default 6G), `MemorySwapMax=0`, `nice` and `ionice`. A blow-up is then killed inside the scope instead of the host's out-of-memory handling killing desktop applications. The recipes exec the project interpreter directly instead of `poetry run`, because the scope doesn't carry the caller's virtualenv. Without `systemd-run` they refuse to run; `ALLOW_UNCAPPED=1` runs them with `nice` and `ionice` alone.
+- **Low-priority targets.** `make batch-lowpri`, `scrape-lowpri`, `produce-lowpri`, `publish-lowpri` and `test-lowpri` start the run in a `systemd-run --user --scope` with `MemoryMax=$(MEM_LIMIT)` (default 6G), `MemorySwapMax=0`, `nice` and `ionice`. A blow-up is then killed inside the scope instead of the host's out-of-memory handling killing desktop applications. The cap does not help when the machine is already short, so the scope also sets `ManagedOOMMemoryPressure=kill` (systemd-oomd kills the scope under sustained pressure) and runs the command through `choom -n 1000`, which makes it the kernel OOM killer's first choice; a scope takes no `OOMScoreAdjust`, and Chrome marks its tabs 300. Before each render the producer also waits for free memory (`memory_guard`). All of it is the `LOWPRI_SCOPE` variable in the Makefile. The recipes exec the project interpreter directly instead of `poetry run`, because the scope doesn't carry the caller's virtualenv. Without `systemd-run` they refuse to run; `ALLOW_UNCAPPED=1` runs them with `nice` and `ionice` alone.
 - **Analytics timer.** `deploy/install-timer.sh` (through `make install-analytics-timer`) renders the unit templates in `deploy/`, installs them as user units and runs one sweep. The timer runs the analytics sweep daily by default (`ON_CALENDAR` in `deploy/schedule.env`), and an `OnFailure=` unit records failures. [The publishing guide](guides/publishing.md) covers setup.
 - **CI and releases.** Every pull request is a release: `version-check` runs `tools/release_check.py` against the base branch. On a push to `main`, the `release` job in `ci.yml` tags the version from `pyproject.toml` and creates the GitHub release from the CHANGELOG section. `release.yml` covers a tag pushed by hand. [Versioning](versioning.md) has the rules. `docs-check.yml` runs `tools/check_docs.py` on each pull request, and the `test` job runs only `make test-docs` when that tool reports a docs-only diff.
 

@@ -26,7 +26,7 @@ ContentEngineAI is a video production pipeline: it scrapes product data, writes 
 
 Scraping and rendering are heavy: a render peaks around 2-2.5 GB and runs for minutes, and running one bare while the machine is in use gets unrelated apps killed by the out-of-memory guard.
 
-- Full scrapes, renders and batch runs go through the low-priority targets: `make scrape-lowpri`, `make produce-lowpri`, `make batch-lowpri`, `make publish-lowpri`, with arguments in `ARGS="..."`. They run under a memory cap (`MEM_LIMIT`, default 6G; don't lower it for a render) with `MemorySwapMax=0` and `nice`, and refuse to run without `systemd-run` unless `ALLOW_UNCAPPED=1` is set.
+- Full scrapes, renders and batch runs go through the low-priority targets: `make scrape-lowpri`, `make produce-lowpri`, `make batch-lowpri`, `make publish-lowpri`, with arguments in `ARGS="..."`. They run under a memory cap (`MEM_LIMIT`, default 6G; don't lower it for a render) with `MemorySwapMax=0` and `nice`, make the run the out-of-memory victim rather than another app, and refuse to run without `systemd-run` unless `ALLOW_UNCAPPED=1` is set. Each render first waits for free memory (`memory_guard`); `ALLOW_LOW_MEMORY=1` skips that. An ad-hoc heavy command uses the same scope: `make -s print-lowpri-scope` prints it.
 - The full test suite goes through `make test-lowpri`; on a busy machine bound the workers, `make test-lowpri ARGS="-n 4"`.
 - Bare `python -m ...` runs are for targeted tests, `--step` debug runs, `--dry-run`, and help or config-loading calls.
 - The lowpri recipes deliberately don't use `poetry run`: inside `systemd-run --scope` it resolves an interpreter without the project's dependencies. Don't "simplify" them back.

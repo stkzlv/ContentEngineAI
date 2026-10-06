@@ -581,6 +581,20 @@ class BatchSettings(BaseModel):
     )
 
 
+class MemoryGuardSettings(BaseModel):
+    """Wait before each render until the machine has its budget free."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=True)
+    # A render peaks at about 2.6-2.9 GB, Whisper and FFmpeg included.
+    min_available_gb: float = Field(default=3.0, ge=0)
+    # With swap full, the next allocation anywhere starts a kernel OOM.
+    min_swap_free_gb: float = Field(default=1.0, ge=0)
+    wait_sec: float = Field(default=900, ge=0)
+    poll_sec: float = Field(default=30, gt=0)
+
+
 class VideoConfig(BaseModel):
     global_output_directory: str = Field("outputs")
     output_structure: OutputStructure = Field(
@@ -593,6 +607,7 @@ class VideoConfig(BaseModel):
         default_factory=lambda: CleanupSettings()  # type: ignore[call-arg]
     )
     batch: BatchSettings = Field(default_factory=BatchSettings)
+    memory_guard: MemoryGuardSettings = Field(default_factory=MemoryGuardSettings)
     pipeline_timeout_sec: int = Field(
         2700,
         description="Total pipeline timeout in seconds. Sized against "

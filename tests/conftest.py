@@ -35,6 +35,17 @@ def _no_installation_topic_pool(monkeypatch):
     monkeypatch.delenv("PIPELINE_TOPICS_FILE", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _no_memory_wait(monkeypatch):
+    """Keep the machine's free memory out of every render-loop test.
+
+    The producer waits for free memory before each render; a test that
+    drives the loop would otherwise pass or hang with the developer's load.
+    The guard's own tests remove this.
+    """
+    monkeypatch.setenv("ALLOW_LOW_MEMORY", "1")
+
+
 @pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
     """Create a temporary directory for test files."""

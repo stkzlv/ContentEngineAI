@@ -19,7 +19,7 @@ NC := \033[0m # No Color
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
-	print-python install-analytics-timer uninstall-analytics-timer analytics-timer-status
+	print-python print-lowpri-scope install-analytics-timer uninstall-analytics-timer analytics-timer-status
 
 # Default target
 help:
@@ -394,6 +394,20 @@ PROFILE := slideshow_stock
 # point of them; ALLOW_UNCAPPED=1 runs them with nice/ionice only.
 ALLOW_UNCAPPED ?=
 
+# The scope every lowpri run starts in. MemoryMax caps the run and
+# MemorySwapMax=0 keeps it out of swap, but neither protects other apps when
+# the machine is already short: the kernel OOM killer then picks the largest
+# score, which was the user's browser (Chrome marks its tabs 300). So the
+# scope asks systemd-oomd to kill it, not another app, when its memory
+# pressure stays over the limit, and choom makes it the kernel's first choice
+# (a scope takes no OOMScoreAdjust). The producer also waits for free memory
+# before each render (`memory_guard` in config/video_production.yaml).
+OOM_SCORE_ADJ := 1000
+OOMD_PRESSURE_LIMIT := 60%
+LOWPRI_SCOPE = systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+	-p ManagedOOMMemoryPressure=kill -p ManagedOOMMemoryPressureLimit=$(OOMD_PRESSURE_LIMIT) \
+	choom -n $(OOM_SCORE_ADJ) --
+
 # `systemd-run --user --scope` starts the process via the user service manager,
 # which does not inherit the caller's PATH / virtualenv, so `poetry run python`
 # inside the scope resolves a bare interpreter missing project deps
@@ -410,57 +424,57 @@ ALLOW_UNCAPPED ?=
 LOWPRI_PYTHON = $(shell for p in "$$HOME/.pyenv/versions/$$(cat .python-version 2>/dev/null)/bin/python" "$$VIRTUAL_ENV/bin/python" "$$(python3 -c 'import sys;print(sys.executable)' 2>/dev/null)" "$$(poetry env info -p 2>/dev/null)/bin/python"; do [ -x "$$p" ] && "$$p" -c 'import yaml' >/dev/null 2>&1 && { echo "$$p"; break; }; done)
 
 test-lowpri: ## Run the test suite under the lowpri cgroup (ARGS="tests/publisher")
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running tests with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m pytest $(ARGS); \
 	else \
 		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running tests with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			"$$PY" -m pytest $(ARGS); \
+			choom -n $(OOM_SCORE_ADJ) -- "$$PY" -m pytest $(ARGS); \
 	fi
 
 batch: ## Run global batch pipeline (pass ARGS="--keywords foo --debug")
 	poetry run python -m src.pipeline.global_batch $(ARGS)
 
 batch-lowpri: ## Run batch pipeline with reduced CPU/IO/memory priority
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.pipeline.global_batch $(ARGS); \
 	else \
 		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			"$$PY" -m src.pipeline.global_batch $(ARGS); \
+			choom -n $(OOM_SCORE_ADJ) -- "$$PY" -m src.pipeline.global_batch $(ARGS); \
 	fi
 
 scrape-lowpri: ## Run scraper with reduced CPU/IO/memory priority
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.scraper.amazon.scraper $(ARGS); \
 	else \
 		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running scraper with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			"$$PY" -m src.scraper.amazon.scraper $(ARGS); \
+			choom -n $(OOM_SCORE_ADJ) -- "$$PY" -m src.scraper.amazon.scraper $(ARGS); \
 	fi
 
 # Watchable debug scrape. Headful Chrome cannot be driven on a live Wayland
@@ -491,7 +505,7 @@ scrape-watch: ## Debug scrape on a dedicated Xvfb, watch over VNC (localhost:590
 		exit $$ret
 
 topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFILE=slideshow_stock])
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@command -v ffprobe >/dev/null 2>&1 || { echo "$(RED)ffprobe not found; the batch verifies each render with it$(NC)"; exit 1; }
 	@[ -n "$(TOPICS)" ] || { echo "$(RED)Set TOPICS=<topics.yaml> (same shape as --topics-file; see topics.example.yaml)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
@@ -499,7 +513,7 @@ topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFI
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Rendering topics from $(TOPICS) with nice=$(NICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" LOWPRI_PYTHON="$$PY" \
 			    TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			./scripts/render-topics-batch.sh; \
@@ -508,24 +522,24 @@ topics-batch: ## Render a list of topics step by step (TOPICS=topics.yaml [PROFI
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		LOWPRI_PYTHON="$$PY" TOPICS="$(TOPICS)" PROFILE="$(PROFILE)" \
 			nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			./scripts/render-topics-batch.sh; \
+			choom -n $(OOM_SCORE_ADJ) -- ./scripts/render-topics-batch.sh; \
 	fi
 
 produce-lowpri: ## Run video producer with reduced CPU/IO/memory priority
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.video.producer $(ARGS); \
 	else \
 		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running producer with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			"$$PY" -m src.video.producer $(ARGS); \
+			choom -n $(OOM_SCORE_ADJ) -- "$$PY" -m src.video.producer $(ARGS); \
 	fi
 
 publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single B0ASIN1 --debug")
@@ -533,6 +547,11 @@ publish: ## Schedule posts for products (ARGS="schedule --debug" or ARGS="single
 
 analytics: ## Capture per-post day-N and durability figures (size: analytics.limit)
 	poetry run python -m src.publisher.late analytics $(ARGS)
+
+# Print the scope a lowpri run starts in, for an ad-hoc heavy command:
+#   $(make -s print-lowpri-scope) python my_render.py
+print-lowpri-scope:
+	@echo '$(LOWPRI_SCOPE)'
 
 # Print the project interpreter. The installed timer needs the same one the
 # *-lowpri targets resolve, and a second copy of that candidate list in shell
@@ -577,20 +596,20 @@ analytics-timer-status: ## Show when the sweep last ran and when it runs next
 	fi
 
 publish-lowpri: ## Schedule posts with reduced CPU/IO/memory priority
-	@command -v ionice >/dev/null 2>&1 || { echo "$(RED)ionice not found (install util-linux)$(NC)"; exit 1; }
+	@command -v ionice >/dev/null 2>&1 && command -v choom >/dev/null 2>&1 || { echo "$(RED)ionice or choom not found (install util-linux)$(NC)"; exit 1; }
 	@PY='$(LOWPRI_PYTHON)'; \
 	[ -n "$$PY" ] || { echo "$(RED)No project interpreter found (tried .python-version, active venv, python3, poetry env). Run 'poetry install' first.$(NC)"; exit 1; }; \
 	if command -v systemd-run >/dev/null 2>&1; then \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL), memory cap=$(MEM_LIMIT)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			systemd-run --user --scope -p MemoryMax=$(MEM_LIMIT) -p MemorySwapMax=0 \
+			$(LOWPRI_SCOPE) \
 			env PATH="$$(dirname "$$PY"):$$PATH" "$$PY" -m src.publisher.late $(ARGS); \
 	else \
 		[ "$(ALLOW_UNCAPPED)" = 1 ] || { echo "$(RED)systemd-run not available: refusing to run without the memory cap. Set ALLOW_UNCAPPED=1 to run uncapped.$(NC)"; exit 1; }; \
 		echo "$(YELLOW)ALLOW_UNCAPPED=1: running with no memory cap$(NC)"; \
 		echo "$(BLUE)Running publisher with nice=$(NICE_LEVEL), ionice=$(IONICE_CLASS)/$(IONICE_LEVEL)$(NC)"; \
 		nice -n $(NICE_LEVEL) ionice -c $(IONICE_CLASS) -n $(IONICE_LEVEL) \
-			"$$PY" -m src.publisher.late $(ARGS); \
+			choom -n $(OOM_SCORE_ADJ) -- "$$PY" -m src.publisher.late $(ARGS); \
 	fi
 
 # Video production commands

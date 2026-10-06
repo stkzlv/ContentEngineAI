@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.172.0] - 2026-10-06
+
+### Added
+
+- Each render waits until the machine has its memory budget free (`memory_guard`, default 3 GB available and 1 GB of swap free) and fails after a bounded wait instead of starting, and logs the peak memory it used.
+- The low-priority targets make their run the out-of-memory victim: systemd-oomd kills the run's scope under sustained memory pressure, and its OOM score is raised so the kernel picks it before other applications.
+
+### Removed
+
+- The startup warning about available memory under 2 GB, which the wait replaces.
+
 ## [0.171.1] - 2026-10-05
 
 ### Fixed
