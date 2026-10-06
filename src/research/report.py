@@ -124,6 +124,11 @@ def _value(key: str, value: Any) -> str:
     return f"{value:.0%}" if key in SHARE_ROWS else f"{value:g}"
 
 
+def _escape(cell: str) -> str:
+    """A table cell: Amazon titles use " | " as a separator."""
+    return cell.replace("|", "\\|").replace("\n", " ")
+
+
 def _notes(c: dict[str, Any]) -> str:
     found = [
         (not c["in_band"], f"out of band {c['band'][0]}-{c['band'][1]}"),
@@ -171,10 +176,11 @@ def render_samples(checks: dict[str, Any]) -> str:
     for row in checks["samples"]:
         c = row["checks"]
         failed = "error" in c
+        title = _escape(row["title"][:60])
         lines.append(
-            f"| {row['variant']} | {row['kind']} | {row['title'][:60]} | "
+            f"| {row['variant']} | {row['kind']} | {title} | "
             f"{row.get('template') or '-'} | {'-' if failed else c['words']} | "
-            f"{'failed: ' + c['error'][:80] if failed else _notes(c)} |"
+            f"{_escape('failed: ' + c['error'][:80] if failed else _notes(c))} |"
         )
     return "\n".join(lines) + "\n"
 

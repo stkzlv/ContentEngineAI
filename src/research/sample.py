@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -146,7 +147,13 @@ async def run_sample(
     async with aiohttp.ClientSession() as session:
         for variant in variants:
             root = out_dir / "samples" / variant
+            # The script step reuses a script already on disk, so a second
+            # run into the same directory would measure the first run's.
+            shutil.rmtree(root, ignore_errors=True)
             base = load(cli_overrides=with_outputs_root({}, root))
+            if profile not in base.video_profiles:
+                # Before any model call, not one sample in.
+                raise ValueError(f"sample.profile {profile!r} names no video profile")
             secrets = collect_producer_secrets(base)
             for spec in topics:
                 config = variant_config(base, variant, spec.title)

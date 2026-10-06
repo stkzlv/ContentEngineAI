@@ -233,3 +233,71 @@ def test_the_variants_must_be_known_and_keep_the_baseline() -> None:
         SampleResearch(variants=["shipped", "louder"])
     with pytest.raises(ValidationError, match="must include shipped"):
         SampleResearch(variants=["step_lists"])
+
+
+@pytest.mark.req("REQ-OPS-109")
+def test_a_rerun_does_not_reuse_the_last_runs_scripts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    stale = tmp_path / "samples" / "shipped" / "topic-x" / "temp" / "script.txt"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("Last run's script.")
+    seen_stale: list[bool] = []
+
+    async def fake_one(config, product, profile, secrets, session):
+        seen_stale.append(stale.exists())
+        return {"id": product.asin, "title": product.title, "script": "x"}
+
+    monkeypatch.setattr(sample_mod, "sample_one", fake_one)
+    monkeypatch.setattr(sample_mod, "collect_producer_secrets", lambda c: {})
+    asyncio.run(
+        run_sample(
+            ["shipped"],
+            [TopicSpec(title="How to x", description="d")],
+            [],
+            "slideshow_stock",
+            tmp_path,
+        )
+    )
+
+    assert seen_stale == [False]
+
+
+def test_an_unknown_profile_fails_before_any_sample(
+    tmp_path: Path, monkeypatch
+) -> None:
+    calls: list[str] = []
+
+    async def fake_one(*args):
+        calls.append("called")
+        return {}
+
+    monkeypatch.setattr(sample_mod, "sample_one", fake_one)
+    with pytest.raises(ValueError, match="names no video profile"):
+        asyncio.run(
+            run_sample(["shipped"], [TopicSpec(title="t")], [], "no_such", tmp_path)
+        )
+    assert calls == []
+
+
+@pytest.mark.req("REQ-OPS-110")
+def test_the_lint_exempts_the_products_own_name_as_the_producer_does() -> None:
+    script = f"The Seamless Shower Mat stops slips. It grips. {CTA}"
+    record = _record(
+        kind="product",
+        title="Seamless Shower Mat",
+        keyword="shower mat",
+        script=script,
+    )
+    assert check_one(record, (5, 30))["lint"] is None
+    other = _record(kind="product", title="Bath mat", keyword="mat", script=script)
+    assert "Seamless" in (check_one(other, (5, 30))["lint"] or "")
+
+
+def test_a_title_with_a_pipe_keeps_the_table_whole() -> None:
+    checks = run_checks([_record(title="Mount | Magnetic | 2 pack")], (5, 30))
+    row = next(
+        line for line in render_report(None, checks).splitlines() if "Mount" in line
+    )
+    assert "Mount \\| Magnetic \\| 2 pack" in row
+    assert row.count(" | ") == 5  # six cells

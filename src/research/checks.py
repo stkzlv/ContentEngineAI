@@ -51,7 +51,14 @@ def check_one(record: dict[str, Any], band: tuple[int, int]) -> dict[str, Any]:
     fact = record.get("fact_check") or {}
     flagged = fact.get("flagged") or []
     revision = fact.get("revision") or {}
-    tell = lint_script(script, ScriptLintConfig(enabled=True), word_cap=False)
+    # As the producer lints: the product's own name is no tell, and only a
+    # step-list script skips the word cap.
+    tell = lint_script(
+        script,
+        ScriptLintConfig(enabled=True),
+        word_cap=not record.get("steps"),
+        exempt=f"{record.get('title') or ''} {record.get('keyword') or ''}",
+    )
     return {
         "words": count,
         "band": [low, high],

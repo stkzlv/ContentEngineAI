@@ -7,7 +7,7 @@
 | Argument | Meaning |
 |---|---|
 | `demand` | Measure Google Trends interest and Google autocomplete, write `demand.json`, then the report |
-| `sample` | Generate text-only scripts through the producer's script step for the pool topics under each variant and the most recent scraped products, write `samples.json`, then check them and render the report |
+| `sample` | Generate text-only scripts through the producer's script step for the pool topics under each variant and the most recent scraped products, write `samples.json`, then check them and render the report. A rerun into the same run directory clears that variant's earlier samples first, because the script step would otherwise reuse a script already on disk |
 | `check` | Re-run the measured checks over `samples.json` (no model call), write `checks.json`, render the report |
 | `report` | Re-render `report.md` from the records already in the run directory, with no request |
 | `--config PATH` | Research settings (default `config/research.yaml`) |
@@ -32,7 +32,6 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `products.seeds` | `[]` | Broad searches whose rising related searches are add candidates |
 | `topics.anchor` | required | The term every topic's interest is a share of |
 | `topics.suggest_stems` | `[]` | Autocomplete stems; suggestions no pool topic covers are listed |
-
 | `sample.topics` | `16` | Pool topics to sample, in pool order |
 | `sample.products` | `8` | The most recently scraped products to sample (under `shipped` only) |
 | `sample.profile` | `slideshow_stock` | The profile whose name the run paths use; the script step reads nothing else from it |
