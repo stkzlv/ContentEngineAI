@@ -80,3 +80,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |
 | [0021](0021-caption-outline.md) | A black outline round pycaps captions | #591 | Held |
+| [0022](0022-signature-lines.md) | Signature lines per video type | #440 | Held |

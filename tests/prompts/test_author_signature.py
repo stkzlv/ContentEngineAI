@@ -16,7 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.ai import script_generator
-from src.ai.llm_settings import SignatureConfig
+from src.ai.llm_settings import SignatureConfig, SignaturePools
 from src.ai.script_generator import (
     SignatureChoice,
     render_cta_rule,
@@ -29,6 +29,13 @@ from src.publisher.first_comment import build_first_comment, extract_closing_lin
 from src.publisher.models import FirstCommentConfig
 from src.scraper.amazon.models import ProductData
 from src.video.config import load_video_config_modular
+
+
+def _on(use_rate: float = 1.0, **pools: list[str]) -> SignatureConfig:
+    """Signature switched on, the same pools for both arms."""
+    arm = SignaturePools(use_rate=use_rate, **pools)
+    return SignatureConfig(enabled=True, product=arm, topic=arm)
+
 
 CTA = "Link in bio if you want one."
 POOLS = {
@@ -51,40 +58,40 @@ class TestSelection:
         assert select_signature(SignatureConfig(), "B0X") == SignatureChoice()
 
     def test_no_product_draws_nothing(self) -> None:
-        config = SignatureConfig(use_rate=1.0, **POOLS)
+        config = _on(1.0, **POOLS)
         assert select_signature(config, None) == SignatureChoice()
 
     def test_rate_one_always_draws_every_element(self) -> None:
-        choice = select_signature(SignatureConfig(use_rate=1.0, **POOLS), "B0X")
+        choice = select_signature(_on(1.0, **POOLS), "B0X")
         assert choice.opener in POOLS["openers"]
         assert choice.transition == "here's the thing"
         assert choice.signoff == "That's the find for today."
 
     def test_rate_zero_never_draws(self) -> None:
-        config = SignatureConfig(use_rate=0.0, **POOLS)
+        config = _on(0.0, **POOLS)
         assert not config.configured
         assert select_signature(config, "B0X") == SignatureChoice()
 
     def test_the_same_product_gets_the_same_choice(self) -> None:
-        config = SignatureConfig(use_rate=0.5, **POOLS)
+        config = _on(0.5, **POOLS)
         assert select_signature(config, "B0A") == select_signature(config, "B0A")
 
     def test_a_batch_recurs_at_about_the_configured_rate(self) -> None:
-        config = SignatureConfig(use_rate=0.5, **POOLS)
+        config = _on(0.5, **POOLS)
         draws = [select_signature(config, f"B0{i:05d}") for i in range(400)]
         for element in ("opener", "transition", "signoff"):
             share = sum(bool(getattr(d, element)) for d in draws) / len(draws)
             assert 0.4 < share < 0.6, (element, share)
 
     def test_elements_are_drawn_independently(self) -> None:
-        config = SignatureConfig(use_rate=0.5, **POOLS)
+        config = _on(0.5, **POOLS)
         draws = [select_signature(config, f"B0{i:05d}") for i in range(400)]
         both = sum(bool(d.opener and d.signoff) for d in draws) / len(draws)
         assert 0.15 < both < 0.35
 
     def test_an_empty_entry_is_refused_at_load(self) -> None:
         with pytest.raises(ValidationError):
-            SignatureConfig(signoffs=["..."])
+            SignaturePools(signoffs=["..."])
 
 
 class TestTheRules:
@@ -100,16 +107,15 @@ class TestTheRules:
         choice = SignatureChoice(opener="Quick one", signoff="That's it for today.")
         lines = render_ending_rules(CTA, False, 0, choice).split("\n")
         assert lines[0] == render_cta_rule(CTA)
-        assert any('"Quick one,"' in line for line in lines[1:])
+        assert any('"Quick one"' in line for line in lines[1:])
         assert any("directly before the call to action" in line for line in lines)
 
-    def test_the_opener_joins_the_first_sentence(self) -> None:
-        rule = render_signature_rules(SignatureChoice(opener="Quick one"))
-        assert "continue that same sentence" in rule
-
-    def test_an_opener_ending_in_a_full_stop_gets_one_comma(self) -> None:
-        rule = render_signature_rules(SignatureChoice(opener="Quick find for you."))
-        assert '"Quick find for you,"' in rule
+    @pytest.mark.req("REQ-CNT-045")
+    def test_the_opener_runs_into_the_first_sentence_with_no_comma(self) -> None:
+        """At a comma the voice pauses and Whisper splits off the opener."""
+        rule = render_signature_rules(SignatureChoice(opener="Here's how to."))
+        assert '"Here\'s how to"' in rule
+        assert "with no comma" in rule and "Here's how to," not in rule
 
     def test_a_tutorial_signoff_follows_the_recap(self) -> None:
         choice = SignatureChoice(signoff="That's the find for today.")
@@ -133,7 +139,7 @@ async def test_the_drawn_signature_reaches_the_composed_prompt(
     settings = load_video_config_modular().llm_settings
     settings.script_templates.fixed_cta = CTA
     settings.script_templates.signature = (
-        SignatureConfig(use_rate=1.0, **POOLS) if configured else SignatureConfig()
+        _on(1.0, **POOLS) if configured else SignatureConfig()
     )
     seen: list[str] = []
 
@@ -195,17 +201,23 @@ class TestTheFirstCommentSkipsTheSignoff:
         assert build_first_comment(config, "youtube", "B0X", tmp_path) == CLOSING
 
 
-@pytest.mark.req("REQ-CNT-045")
-@pytest.mark.asyncio
-@pytest.mark.parametrize("tutorial", [False, True])
-async def test_a_tutorial_prompt_has_no_transition(
-    monkeypatch: pytest.MonkeyPatch, tutorial: bool
-) -> None:
-    from src.ai.step_list import Step, StepList
+ARMS = SignatureConfig(
+    enabled=True,
+    product=SignaturePools(use_rate=1.0, signoffs=["That's my honest take."]),
+    topic=SignaturePools(
+        use_rate=1.0,
+        openers=["Here's how to"],
+        transitions=["Here's the fix."],
+        signoffs=["That's the whole fix."],
+    ),
+)
+
+
+async def _prompt(monkeypatch, signature, *, topic: bool, step_list=None) -> str:
     from src.video.producer.topic_input import TopicSpec, build_topic_product
 
     settings = load_video_config_modular().llm_settings
-    settings.script_templates.signature = SignatureConfig(use_rate=1.0, **POOLS)
+    settings.script_templates.signature = signature
     seen: list[str] = []
 
     async def capture(prompt, *a, **k):
@@ -216,21 +228,85 @@ async def test_a_tutorial_prompt_has_no_transition(
     monkeypatch.setattr(
         script_generator, "fetch_and_select_model", AsyncMock(return_value=[])
     )
-    steps = [Step(f"Do {i}", "A > B", "done", "https://x/") for i in range(3)]
+    product = (
+        build_topic_product(TopicSpec(title="How to fix it", description="x"))
+        if topic
+        else ProductData(title="Magnetic phone mount", price="", url="", platform="t")
+    )
     await script_generator.generate_script(
-        build_topic_product(TopicSpec(title="How to fix it", description="x")),
+        product,
         settings,
         {settings.api_key_env_var: "k"},
         None,
         {},
         False,
-        product_id="topic-fix",
-        step_list=(
-            StepList("Settings", "iOS", False, steps, topic_failures=[])
-            if tutorial
-            else None
-        ),
+        product_id="topic-fix" if topic else "B0TEST0001",
+        step_list=step_list,
     )
     assert seen
-    assert ('"here\'s the thing"' in seen[0]) is not tutorial
-    assert ("recap of the whole path" in seen[0]) is tutorial
+    return seen[0]
+
+
+@pytest.mark.req("REQ-CNT-046")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("topic", [False, True])
+async def test_each_arm_draws_its_own_pools(
+    monkeypatch: pytest.MonkeyPatch, topic: bool
+) -> None:
+    prompt = await _prompt(monkeypatch, ARMS, topic=topic)
+
+    assert ('"That\'s the whole fix."' in prompt) is topic
+    assert ('"Here\'s how to"' in prompt) is topic
+    assert ('"That\'s my honest take."' in prompt) is not topic
+
+
+@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.asyncio
+async def test_a_tutorial_signs_off_after_its_recap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.ai.step_list import Step, StepList
+
+    steps = [Step(f"Do {i}", "A > B", "done", "https://x/") for i in range(3)]
+    prompt = await _prompt(
+        monkeypatch,
+        ARMS,
+        topic=True,
+        step_list=StepList("Settings", "iOS", False, steps, topic_failures=[]),
+    )
+
+    assert "recap of the whole path" in prompt
+    assert '"Here\'s the fix."' in prompt  # the topic pool's transition
+
+
+@pytest.mark.req("REQ-CNT-152")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("topic", [False, True])
+async def test_filled_pools_switched_off_leave_the_prompt_unchanged(
+    monkeypatch: pytest.MonkeyPatch, topic: bool
+) -> None:
+    held = ARMS.model_copy(update={"enabled": False})
+
+    assert await _prompt(monkeypatch, held, topic=topic) == await _prompt(
+        monkeypatch, SignatureConfig(), topic=topic
+    )
+
+
+class TestTheConfig:
+    def test_an_opener_over_five_words_is_refused(self) -> None:
+        SignaturePools(openers=["The fast way to"])
+        with pytest.raises(ValidationError, match="over 5 words"):
+            SignaturePools(openers=["Here is the very quick way to"])
+
+    def test_the_flat_keys_are_refused(self) -> None:
+        with pytest.raises(ValidationError, match="use_rate"):
+            SignatureConfig.model_validate({"use_rate": 0.5, "openers": []})
+
+    @pytest.mark.req("REQ-CNT-152")
+    def test_the_bundled_lines_ship_switched_off(self) -> None:
+        signature = load_video_config_modular().llm_settings.script_templates.signature
+        assert signature.enabled is False
+        for arm in (signature.product, signature.topic):
+            assert len(arm.signoffs) >= 3 and len(arm.transitions) >= 3
+        assert signature.topic.openers and not signature.product.openers
+        assert not any("honest" in line.lower() for line in signature.topic.signoffs)

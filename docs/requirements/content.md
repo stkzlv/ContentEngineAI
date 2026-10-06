@@ -77,12 +77,13 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
 - **REQ-CNT-044** `held` Where naturalism is on, filler never lands in the first sentence, inside a number, name or claim, or in or after the call to action, and uses words the captions carry rather than sounds speech recognition drops.
   - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
-- **REQ-CNT-045** `held` Where an author signature is configured, a script carries an opener that starts the first sentence, one transition where the script turns, and a sign-off right before the call to action; a tutorial written from a step list has no transition, and its sign-off follows the recap of the path.
-  - On when: the `script_templates.signature` pools (`openers`, `transitions`, `signoffs`) are filled after the reach-test readout, in stages (#540); empty pools mean off.
-- **REQ-CNT-046** `held` Each signature element is drawn per product, reproducibly, below `script_templates.signature.use_rate`, so the signature recurs without appearing in every render.
-  - On when: the `script_templates.signature` pools are filled after the reach-test readout, in stages (#540).
+- **REQ-CNT-045** `held` Where the author signature is enabled, a script carries an opener of at most five words that starts the first sentence and runs into it with no comma, one transition where the script turns, and a sign-off right before the call to action; a tutorial written from a step list signs off after the recap of the path.
+  - On when: `script_templates.signature.enabled` is set after the reach-test readout, topic arm first (#540, [design 0022](../design/0022-signature-lines.md)).
+- **REQ-CNT-046** `held` Each signature element is drawn per render, reproducibly, from the render's own pools (`signature.topic` for a topic, `signature.product` for a product) below that arm's `use_rate`, so the signature recurs without appearing in every render.
+  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
 - **REQ-CNT-047** `held` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
-  - On when: the `script_templates.signature` pools are filled after the reach-test readout, in stages (#540).
+  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
+- **REQ-CNT-152** `shipped` While `script_templates.signature.enabled` is false, no signature line is drawn and the script prompt is unchanged, whatever the pools hold.
 
 ## Script checks
 

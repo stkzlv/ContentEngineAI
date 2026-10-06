@@ -20,7 +20,7 @@ import logging
 import random
 import re
 import unicodedata
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 import aiohttp
@@ -279,16 +279,18 @@ class SignatureChoice:
 
 
 def select_signature(
-    signature: SignatureConfig, product_id: str | None
+    signature: SignatureConfig, product_id: str | None, is_topic: bool = False
 ) -> SignatureChoice:
-    """Draw each signature element for a product, deterministically.
+    """Draw each signature element for a render, deterministically.
 
-    One salted draw per element, so whether a render opens with the tic says
-    nothing about whether it signs off, and a product gets the same choice on
-    every run. No product id means no signature rather than a random one,
-    which would make the render irreproducible.
+    From the render's arm: a topic draws from `topic`, a product from
+    `product`. One salted draw per element, so whether a render opens with
+    the opener says nothing about whether it signs off, and a product gets
+    the same choice on every run. No product id means no signature rather
+    than a random one, which would make the render irreproducible.
     """
-    if not product_id or not signature.configured:
+    pools = signature.pools(is_topic)
+    if not product_id or not signature.enabled or not pools.configured:
         return SignatureChoice()
 
     def draw(element: str, pool: list[str]) -> str:
@@ -298,26 +300,13 @@ def select_signature(
             f"{product_id}:signature:{element}".encode(), usedforsecurity=False
         )
         rng = random.Random(int(digest.hexdigest()[:8], 16))  # noqa: S311
-        return rng.choice(pool) if rng.random() < signature.use_rate else ""
+        return rng.choice(pool) if rng.random() < pools.use_rate else ""
 
     return SignatureChoice(
-        opener=draw("opener", signature.openers),
-        transition=draw("transition", signature.transitions),
-        signoff=draw("signoff", signature.signoffs),
+        opener=draw("opener", pools.openers),
+        transition=draw("transition", pools.transitions),
+        signoff=draw("signoff", pools.signoffs),
     )
-
-
-def signature_for(
-    signature: SignatureConfig, product_id: str | None, tutorial: bool = False
-) -> SignatureChoice:
-    """The drawn signature, without the transition for a step-list tutorial.
-
-    A tutorial has no turn from the problem to what helps for the transition
-    to mark; placed anyway, it lands before the first step. The prompt and
-    the script step's record both read this, so they agree.
-    """
-    choice = select_signature(signature, product_id)
-    return replace(choice, transition="") if tutorial else choice
 
 
 def render_signature_rules(choice: SignatureChoice, tutorial: bool = False) -> str:
@@ -333,12 +322,15 @@ def render_signature_rules(choice: SignatureChoice, tutorial: bool = False) -> s
     """
     rules = []
     if choice.opener:
-        # A pool line may end in a full stop; the rule appends the comma.
+        # Run on with no comma: at a comma the voice pauses and the
+        # transcript makes the opener a sentence of its own, which pushes
+        # the search phrase out of the first caption (design 0022).
         opener = choice.opener.rstrip(" .!?,;:")
         rules.append(
-            f'- **Start the first sentence with the words "{opener},"** '
-            "and continue that same sentence with the hook the template asks "
-            "for."
+            f'- **Start the first sentence with the words "{opener}"** and '
+            "run straight on, with no comma after them, into the hook the "
+            "template asks for, so that sentence still names what the "
+            "viewer searched for."
         )
     if choice.transition:
         rules.append(
@@ -1030,10 +1022,8 @@ async def generate_script(
                 cta_line,
                 is_topic,
                 settings.script_templates.naturalism.intensity,
-                signature_for(
-                    settings.script_templates.signature,
-                    product_id,
-                    tutorial=step_list is not None,
+                select_signature(
+                    settings.script_templates.signature, product_id, is_topic
                 ),
                 hook_rules=settings.script_templates.hook_rules.enabled,
                 lint=settings.script_validation.lint,

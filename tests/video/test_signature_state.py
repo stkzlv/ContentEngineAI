@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.ai.llm_settings import SignatureConfig
+from src.ai.llm_settings import SignatureConfig, SignaturePools
 from src.video.config import config
 from src.video.producer.context import PipelineContext
 from src.video.producer.state import (
@@ -18,6 +18,13 @@ from src.video.producer.state import (
     _update_state_after_step,
     get_video_run_paths,
 )
+
+
+def _on(use_rate: float = 1.0, **pools: list[str]) -> SignatureConfig:
+    """Signature switched on, the same pools for both arms."""
+    arm = SignaturePools(use_rate=use_rate, **pools)
+    return SignatureConfig(enabled=True, product=arm, topic=arm)
+
 
 SIGNOFF = "That's the find for today."
 SCRIPT = f"A script about a mount. Team magnetic or plug-in? {SIGNOFF} Link in bio."
@@ -62,7 +69,7 @@ async def test_a_drawn_signoff_is_recorded_and_survives_the_step_entry(
     monkeypatch.setattr(
         config.llm_settings.script_templates,
         "signature",
-        SignatureConfig(use_rate=1.0, signoffs=[SIGNOFF]),
+        _on(1.0, signoffs=[SIGNOFF]),
     )
     await _generate(ctx)
     assert ctx.state["signoff"] == SIGNOFF
@@ -97,7 +104,7 @@ async def test_an_opener_is_found_whatever_its_punctuation(
     monkeypatch.setattr(
         config.llm_settings.script_templates,
         "signature",
-        SignatureConfig(use_rate=1.0, openers=["Quick find for you."]),
+        _on(1.0, openers=["Quick find for you."]),
     )
     caplog.set_level("INFO", logger=steps.logger.name)
     with (
@@ -114,23 +121,27 @@ async def test_an_opener_is_found_whatever_its_punctuation(
     assert any(verdict in r.getMessage() for r in caplog.records)
 
 
-@pytest.mark.req("REQ-CNT-045")
+@pytest.mark.req("REQ-CNT-046")
 @pytest.mark.asyncio
-async def test_a_tutorial_records_no_transition(ctx, monkeypatch, caplog) -> None:
-    from src.ai.step_list import Step, StepList
+@pytest.mark.parametrize("topic", [False, True])
+async def test_the_record_draws_from_the_renders_arm(
+    ctx, monkeypatch, caplog, topic
+) -> None:
+    from src.ai.llm_settings import SignatureConfig, SignaturePools
     from src.video.producer import steps
 
     monkeypatch.setattr(
         config.llm_settings.script_templates,
         "signature",
-        SignatureConfig(use_rate=1.0, transitions=["Here's the thing."]),
+        SignatureConfig(
+            enabled=True,
+            product=SignaturePools(use_rate=1.0, signoffs=["Product sign-off."]),
+            topic=SignaturePools(use_rate=1.0, signoffs=["Topic sign-off."]),
+        ),
     )
-    step_list = StepList(
-        "Settings", "iOS", False, [Step("Do it", "A > B", "done", "https://x/")]
-    )
-    caplog.set_level("INFO", logger=steps.logger.name)
+    ctx.product.topic = "a topic" if topic else None
     with (
-        patch.object(steps, "_topic_step_list", AsyncMock(return_value=step_list)),
+        patch.object(steps, "_topic_step_list", AsyncMock(return_value=None)),
         patch.object(
             steps,
             "generate_ai_script",
@@ -140,4 +151,4 @@ async def test_a_tutorial_records_no_transition(ctx, monkeypatch, caplog) -> Non
         patch.object(steps, "_ensure_hook_headline", AsyncMock()),
     ):
         await steps.step_generate_script(ctx)
-    assert not any("transition" in r.getMessage() for r in caplog.records)
+    assert ctx.state["signoff"] == ("Topic sign-off." if topic else "Product sign-off.")
