@@ -17,6 +17,11 @@ from typing import Any
 from src.pipeline.config import GlobalBatchConfig, ProductionPhaseSummary
 from src.scraper.amazon.models import ProductData
 from src.utils.logging_setup import log_context
+from src.utils.memory_guard import (
+    InsufficientMemoryError,
+    log_peak,
+    wait_for_memory,
+)
 from src.utils.outputs_paths import with_outputs_root
 from src.utils.pipeline_deadline import set_pipeline_deadline
 from src.video.config_adapter import load_video_config_modular
@@ -148,6 +153,8 @@ async def run_production_phase(
                     # overridden one.
                     cli_overrides = build_cli_overrides()
 
+                    # Outside the timeout, as in the producer CLI.
+                    await wait_for_memory(config.memory_guard, product_id)
                     # Call video producer with timeout
                     # See the producer CLI: an inner limit must not exceed
                     # the budget this `wait_for` enforces (#398).
@@ -166,6 +173,7 @@ async def run_production_phase(
                         ),
                         timeout=config.pipeline_timeout_sec,
                     )
+                    log_peak(product_id)
 
                     failed_step = failed_step_from_result(result_path)
                     if result_path == "SKIPPED":
@@ -216,6 +224,14 @@ async def run_production_phase(
                         if batch_config.fail_fast:
                             logger.error("Fail-fast enabled, stopping production phase")
                             break
+
+                except InsufficientMemoryError as e:
+                    failed += 1
+                    failed_products.append(product_id)
+                    logger.error("[%s/%s] %s", idx, total_products, e)
+                    # The rest would wait for the same memory and fail too.
+                    logger.error("Stopping production: not enough memory")
+                    break
 
                 except TimeoutError:
                     failed += 1

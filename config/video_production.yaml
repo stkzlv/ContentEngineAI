@@ -1279,6 +1279,19 @@ aspect_ratio:
 # - profile_pool: Controls which video profiles are used for random selection
 # - Empty list = every profile eligible for random selection
 # - Specified list = only those profiles will be randomly selected
+# Before each render the producer waits until the machine has the render's
+# budget free: min_available_gb of MemAvailable, and, where there is swap,
+# min_available_gb + min_swap_free_gb of available memory and free swap
+# together. It gives up after wait_sec rather than start into an OOM that
+# would kill another app. A stock render's tree peaks at 4.1-4.3 GB
+# (docs/testing.md). ALLOW_LOW_MEMORY=1 skips the wait.
+memory_guard:
+  enabled: true
+  min_available_gb: 4.5
+  min_swap_free_gb: 1.0
+  wait_sec: 900
+  poll_sec: 30
+
 batch:
   # Profile pool for random profile selection (--random-profile mode)
   # List of profile names to randomly select from when processing products

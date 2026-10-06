@@ -392,6 +392,7 @@ outro_duration_sec: 1.0
 
 **Options:**
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
+- `memory_guard`: before each render, wait until the machine has the render's budget free, and give up after `wait_sec` rather than start into an out-of-memory kill of another app. `enabled` (default `true`); `min_available_gb` (default `4.5`, `MemAvailable`; a stock render's process tree peaks at 4.1-4.3 GB, an image render near 2.8 GB); `min_swap_free_gb` (default `1.0`; where there is swap, available memory and free swap together must reach `min_available_gb + min_swap_free_gb`, since swapped pages stay swapped after RAM frees and full swap beside plenty available is no risk); `wait_sec` (default `900`); `poll_sec` (default `30`). Waiting does not count against `pipeline_timeout_sec`. A refusal fails that render; the producer batch and the global batch stop, and the producer exits 75, on which `make topics-batch` stops too. Inside a capped scope the producer logs `Memory peak after <id>`, the scope's high-water mark so far (in a batch, the largest of every render up to then). `ALLOW_LOW_MEMORY=1` skips the wait.
 - `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word. Applies to the `outro` ending only; `peak` and `loop` use `video_settings.peak_margin_sec` ([Ending](video-producer.md#ending)).
 
 </details>
@@ -2259,6 +2260,7 @@ The machine settings the config reads from the environment. Behaviour settings l
 | `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory for the producer, the publisher and the global batch |
 | `OUTPUTS_DIR` | string | outputs | Base output directory, as above, and the scraper's output base; wins over `CONTENT_ENGINE_OUTPUT` |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
+| `ALLOW_LOW_MEMORY` | `1` or unset | unset | Start a render without waiting for `memory_guard`'s free memory |
 
 Debug mode is `global_settings.debug_mode` in `config/scraper.yaml` or `--debug`; the pipeline timeout is `pipeline_timeout_sec`.
 

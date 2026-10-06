@@ -581,6 +581,22 @@ class BatchSettings(BaseModel):
     )
 
 
+class MemoryGuardSettings(BaseModel):
+    """Wait before each render until the machine has its budget free."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=True)
+    # A stock render's process tree peaks at 4.1-4.3 GB with Whisper and the
+    # caption browser alive (docs/testing.md); image profiles near 2.8 GB.
+    min_available_gb: float = Field(default=4.5, ge=0)
+    # Added to min_available_gb when the two are checked together: other apps
+    # need somewhere to go as the render, which cannot swap, grows.
+    min_swap_free_gb: float = Field(default=1.0, ge=0)
+    wait_sec: float = Field(default=900, ge=0)
+    poll_sec: float = Field(default=30, gt=0)
+
+
 class VideoConfig(BaseModel):
     global_output_directory: str = Field("outputs")
     output_structure: OutputStructure = Field(
@@ -593,6 +609,7 @@ class VideoConfig(BaseModel):
         default_factory=lambda: CleanupSettings()  # type: ignore[call-arg]
     )
     batch: BatchSettings = Field(default_factory=BatchSettings)
+    memory_guard: MemoryGuardSettings = Field(default_factory=MemoryGuardSettings)
     pipeline_timeout_sec: int = Field(
         2700,
         description="Total pipeline timeout in seconds. Sized against "

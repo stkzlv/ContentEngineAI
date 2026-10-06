@@ -70,6 +70,10 @@ ok=0; failed=0; summary=()
 # Every producer call reads from /dev/null: a child inheriting this shell's
 # stdin swallows whatever is feeding the loop.
 run() { "$PY" -m src.video.producer "$@" --debug < /dev/null; }
+# The producer exits 75 when it waited for memory and gave up. Every later
+# topic would wait out the same guard, so the batch stops there.
+NO_MEMORY=75
+stopped=""
 
 for ((i = 0; i < total; i++)); do
   pid=${fields[$((i * 4 + 1))]}
@@ -78,8 +82,12 @@ for ((i = 0; i < total; i++)); do
   kw=${fields[$((i * 4 + 4))]}
   echo "=== [$((i + 1))/$total] $title"
 
-  if ! run "$PROFILE" --topic "$title" --topic-description "$desc" \
-           --topic-keywords "$kw" --step generate_script; then
+  rc=0
+  run "$PROFILE" --topic "$title" --topic-description "$desc" \
+      --topic-keywords "$kw" --step generate_script || rc=$?
+  if [ "$rc" -eq "$NO_MEMORY" ]; then
+    summary+=("STOP  $title (not enough memory)"); failed=$((failed + 1)); stopped=1; break
+  elif [ "$rc" -ne 0 ]; then
     summary+=("FAIL  $title (generate_script)"); failed=$((failed + 1)); continue
   fi
 
@@ -90,8 +98,13 @@ for ((i = 0; i < total; i++)); do
 
   step_failed=""
   for s in $STEPS; do
-    if ! run "$dir/data.json" "$PROFILE" --step "$s"; then step_failed=$s; break; fi
+    rc=0
+    run "$dir/data.json" "$PROFILE" --step "$s" || rc=$?
+    if [ "$rc" -ne 0 ]; then step_failed=$s; break; fi
   done
+  if [ "$rc" -eq "$NO_MEMORY" ]; then
+    summary+=("STOP  $title (not enough memory at $step_failed)"); failed=$((failed + 1)); stopped=1; break
+  fi
   if [ -n "$step_failed" ]; then
     summary+=("FAIL  $title ($step_failed)"); failed=$((failed + 1)); continue
   fi
@@ -118,6 +131,6 @@ for ((i = 0; i < total; i++)); do
 done
 
 echo
-echo "=== summary: $ok rendered, $failed failed"
+echo "=== summary: $ok rendered, $failed failed${stopped:+, stopped for memory}"
 printf '  %s\n' "${summary[@]}"
 [ "$failed" -eq 0 ]

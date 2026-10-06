@@ -355,21 +355,8 @@ class VideoConfigValidator:
                 else:
                     errors.append(f"Required package not installed: {pip_name}")
 
-        # System-level validation
-        try:
-            import psutil
-
-            # Memory check (Whisper models can be large)
-            available_memory_gb = psutil.virtual_memory().available / (1024**3)
-            if available_memory_gb < 2.0:
-                logger.warning(
-                    "Low available memory: %.1fGB. Whisper models may cause OOM "
-                    "errors.",
-                    available_memory_gb,
-                )
-        except ImportError:
-            logger.warning("psutil not available for system resource validation")
-
+        # Free memory is checked before each render, where it can still
+        # change the outcome (`src/utils/memory_guard.py`), not here.
         return errors
 
     def _validate_effect_count(self, subtitle_settings: Any, errors: list[str]) -> None:

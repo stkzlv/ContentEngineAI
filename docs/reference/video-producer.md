@@ -35,7 +35,7 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--product-ids` | Limit `--batch` to these product ids. | `--product-ids B0ASIN1 B0ASIN2` |
 | `--outputs-dir` | The outputs directory: batch mode finds products there, and every render writes its video, state and temp files there, with the producer's logs and performance history beside them (default `global_output_directory` from `config/core.yaml`, resolved against the repository root when relative). | `--outputs-dir custom_outputs` |
 | `--fail-fast` | Stop the batch on the first failure. | `--fail-fast` |
-| `--strict` | Exit non-zero when any product was lost, to a failure or a skip. By default only a run where nothing succeeded exits non-zero. | `--strict` |
+| `--strict` | Exit non-zero when any product was lost, to a failure or a skip. By default only a run where nothing succeeded exits non-zero. A run that stopped because memory stayed short (`memory_guard`) exits 75, whatever succeeded before it, with or without `--strict`. | `--strict` |
 | `--output-format` | Batch summary format: `text` (default) or `json`. | `--output-format json` |
 | `--product-index` | 0-based index of the product in a `data.json` that holds a list. | `--product-index 0` |
 | `--topic` | Render a subject instead of a product; replaces `products_file`. | `--topic "Why wifi drops"` |
