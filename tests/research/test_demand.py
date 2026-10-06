@@ -259,3 +259,27 @@ def test_a_failed_rising_request_is_missing_not_no_candidates(monkeypatch) -> No
     record = run_demand(config, source, [], [])
 
     assert "Trends US: rising searches for tech gadgets" in record["missing"]
+
+
+@pytest.mark.req("REQ-OPS-107")
+def test_a_failed_five_year_request_is_missing() -> None:
+    class YearOnly(FakeTrends):
+        def interest(self, terms, geo, timeframe):
+            if timeframe == demand_mod.FIVE_YEARS:
+                return None
+            return super().interest(terms, geo, timeframe)
+
+    found, missing = measure(
+        YearOnly({"anchor": 10.0, "a": 5.0}), ["a"], "anchor", "US"
+    )
+
+    reading = found["a"]
+    assert reading and reading["share"] == 0.5 and reading["peak_month"] is None
+    assert missing == ["Trends US (5 years): a"]
+
+
+def test_the_anchor_as_a_term_reads_one() -> None:
+    found, missing = measure(FakeTrends({"anchor": 10.0}), ["anchor"], "anchor", "US")
+
+    reading = found["anchor"]
+    assert reading and reading["share"] == 1.0 and missing == []

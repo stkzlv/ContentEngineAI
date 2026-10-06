@@ -26,6 +26,9 @@ YEAR = "today 12-m"
 FIVE_YEARS = "today 5-y"
 # Weekly points in the last quarter of a 12-month series.
 QUARTER_POINTS = 13
+# A last quarter this far above the year's mean is a rise, in the report's
+# labels and in the drop rule alike.
+RISE = 1.1
 
 
 def batches(terms: list[str], size: int = TERMS_PER_REQUEST) -> list[list[str]]:
@@ -64,6 +67,9 @@ def measure(
     """
     found: dict[str, dict[str, Any] | None] = {}
     missing: list[str] = []
+    if anchor in terms:
+        # Its own share is 1.0 by definition; it is never a term in a batch.
+        found[anchor] = {"share": 1.0, "recent_ratio": None, "peak_month": None}
     for group in batches([t for t in terms if t != anchor]):
         year = source.interest([anchor, *group], geo, YEAR)
         five = source.interest([anchor, *group], geo, FIVE_YEARS)
@@ -73,6 +79,8 @@ def measure(
                 found[term] = None
                 missing.append(f"Trends {geo}: {term}")
                 continue
+            if not five or term not in five:
+                missing.append(f"Trends {geo} (5 years): {term}")
             found[term] = {
                 "share": round(_mean(year[term]) / base, 3),
                 "recent_ratio": recent_ratio(year[term]),
@@ -103,7 +111,7 @@ def drop_candidates(
         if not readings or any(r is None for r in readings):
             continue
         low = all(r["share"] < drop_below * medians[g] for g, r in per_geo.items() if r)
-        rising = any((r["recent_ratio"] or 0) > 1.0 for r in per_geo.values() if r)
+        rising = any((r["recent_ratio"] or 0) > RISE for r in per_geo.values() if r)
         if low and not rising:
             out.append(term)
     return out

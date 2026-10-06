@@ -20,7 +20,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--topic` | `TITLE` | none | Renders a video about a topic instead of a scraped product. Skips scraping; the record is built from the title. |
 | `--topic-description` | `TEXT` | none | Source material the topic script is written from, with `--topic`. |
 | `--topic-keywords` | `TERMS` | none | Comma-separated stock media search terms for the topic. |
-| `--topics-file` | `FILE` | none | A YAML list of topics to render, each with a title and an optional description and keywords. |
+| `--topics-file` | `FILE` | none | A YAML list of topics to render, each with a title and an optional description, keywords and `search` (the search the content research measures it by). |
 | `--max-products` | `N` | `global_batch.max_products` | Cap on the products collected across all keywords. |
 | `--products-per-keyword` | `N` | `global_batch.products_per_keyword` | Cap on the products scraped for one keyword. |
 
@@ -88,7 +88,7 @@ The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds unt
 | `product_ids` | `[]` | Products every run scrapes. |
 | `keywords` | `{}` | Keywords grouped by content pillar, or a flat list with no pillar. Empty means the run draws from `batch.keywords` in `config/scraper.yaml`; a value here replaces that pool for batch runs. |
 | `keywords_per_run` | unset | How many keywords one run searches, taken in rotation by date. Unset, it is what the run consumes, `max_products` divided by `products_per_keyword`. |
-| `topics` | two sample topics | Topics rendered without scraping, each a `title` with an optional `description` and `keywords`. Same shape as `--topics-file`. |
+| `topics` | two sample topics | Topics rendered without scraping, each a `title` with an optional `description`, `keywords` and `search`. Same shape as `--topics-file`. |
 | `topics_file` | `null` | A file whose topics replace `topics`. A relative path resolves against `config/`. `PIPELINE_TOPICS_FILE` overrides it; a missing file is an error. |
 | `topics_per_run` | `1` | How many topics a run with no input flags includes, taken in rotation by date. `0` renders products only. Topics on the command line ignore it. |
 | `alternate_formats` | `true` | A run with no input flags renders one side per day, topics or products, chosen by date parity. A side with nothing configured falls back to the other with a warning. |

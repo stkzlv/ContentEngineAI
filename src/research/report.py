@@ -5,16 +5,21 @@ from __future__ import annotations
 import calendar
 from typing import Any
 
+from src.research.demand import RISE
+
 
 def _cell(reading: dict[str, Any] | None) -> str:
     if reading is None:
         return "no data"
     trend = reading.get("recent_ratio")
-    arrow = (
-        ""
-        if trend is None
-        else (" rising" if trend > 1.1 else (" falling" if trend < 0.9 else ""))
-    )
+    if trend is None:
+        arrow = ""
+    elif trend > RISE:
+        arrow = " rising"
+    elif trend < 1 / RISE:
+        arrow = " falling"
+    else:
+        arrow = ""
     return f"{reading['share']:.2f}{arrow}"
 
 

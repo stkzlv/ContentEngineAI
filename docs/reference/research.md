@@ -26,7 +26,7 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `request_pause_sec` | `10` | Seconds before each Trends request; it answers 429 to a faster client |
 | `max_retries` | `2` | Retries for a failed request, each after a longer pause |
 | `products.anchor` | required | The broad term every keyword's interest is a share of; keep it the same between runs |
-| `products.drop_below` | `0.25` | A keyword under this share of the keywords' median in every country, not rising, is a drop candidate |
+| `products.drop_below` | `0.25` | A keyword under this share of the keywords' median in every country, and not rising (last quarter at most 1.1 times the year), is a drop candidate |
 | `products.seeds` | `[]` | Broad searches whose rising related searches are add candidates |
 | `topics.anchor` | required | The term every topic's interest is a share of |
 | `topics.suggest_stems` | `[]` | Autocomplete stems; suggestions no pool topic covers are listed |
@@ -37,5 +37,5 @@ Every block refuses an unknown key.
 
 In the run directory:
 
-- `demand.json`: per keyword and topic, per country, `share` of the anchor, `recent_ratio` (last quarter's mean over the year's; above 1 is a rise) and `peak_month` (from five years); the drop and add candidates; the suggestions; and `missing`, every request that failed.
+- `demand.json`: per keyword and topic, per country, `share` of the anchor, `recent_ratio` (last quarter's mean over the year's; above 1.1 is a rise, below 1/1.1 a fall, in the report and the drop rule alike) and `peak_month` (from five years); the drop and add candidates; the suggestions; and `missing`, every request that failed, the five-year request included (a missing five-year reading shows its peak month as "-").
 - `report.md`: the tables and candidate lists. A failed request shows as "no data", never as zero.

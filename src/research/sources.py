@@ -38,6 +38,21 @@ class TrendsSource(Protocol):
         """Rising related searches as (query, growth); None when it failed."""
 
 
+def default_errors(
+    trends_errors: Any, requests: Any
+) -> tuple[type[BaseException], ...]:
+    """What a failed, rate-limited or oddly shaped Trends request raises."""
+    return (
+        trends_errors.ResponseError,  # TooManyRequestsError subclasses it
+        requests.RequestException,
+        # A payload shaped differently from what pytrends parses.
+        KeyError,
+        IndexError,
+        TypeError,
+        ValueError,
+    )
+
+
 class PytrendsSource:
     """The pytrends client, paced and retried."""
 
@@ -46,7 +61,17 @@ class PytrendsSource:
         pause_sec: float,
         max_retries: int,
         sleep: Callable[[float], None] = time.sleep,
+        client: Any = None,
+        errors: tuple[type[BaseException], ...] | None = None,
     ) -> None:
+        """`client` and `errors` are for tests; by default, pytrends' own."""
+        self._pause = pause_sec
+        self._retries = max_retries
+        self._sleep = sleep
+        if client is not None:
+            self._client = client
+            self._errors = errors or (RuntimeError,)
+            return
         try:
             # Optional `research` group; untyped.
             import pytrends.exceptions as trends_errors  # type: ignore[import-untyped, import-not-found, unused-ignore]
@@ -56,17 +81,9 @@ class PytrendsSource:
             raise TrendsUnavailableError(str(e)) from e
         # What a failed or rate-limited request raises; TooManyRequestsError
         # subclasses ResponseError.
-        self._errors: tuple[type[BaseException], ...] = (
-            trends_errors.ResponseError,
-            requests.RequestException,
-            KeyError,
-            ValueError,
-        )
+        self._errors = default_errors(trends_errors, requests)
         # No `retries` argument: with urllib3 2 it raises inside pytrends.
         self._client = trends.TrendReq(hl="en-US", tz=0)
-        self._pause = pause_sec
-        self._retries = max_retries
-        self._sleep = sleep
 
     def _call(self, fn: Callable[[], Any], what: str) -> Any:
         for attempt in range(self._retries + 1):
