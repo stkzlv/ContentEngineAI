@@ -643,17 +643,23 @@ make perf-report
 **Error:** `Out of memory` or system freeze
 
 **Solutions:**
-1. **Reduce Memory Usage:**
-   There is no memory-cap setting to tune. The cap is the `make *-lowpri`
-   cgroup, which is what keeps a render from taking the session down with it.
+1. **Run through a `make *-lowpri` target.** Its cgroup caps the run
+   (`MEM_LIMIT`) and makes it the process the kernel kills if memory runs
+   out, rather than your browser or editor. For a command of your own, start
+   it with `$(make -s print-lowpri-scope)`.
 
-2. **Process Fewer Items:**
+2. **Let the render wait for memory.** Before each render the producer waits
+   until `memory_guard.min_available_gb` is free; a run that logs
+   `Waiting up to ... for memory` is short because of other applications.
+   Close some, or wait. `Memory peak after <id>` shows what a render used.
+
+3. **Process Fewer Items:**
    ```bash
    # Process one product at a time
    poetry run python -m src.video.producer products.json profile --product-index 0
    ```
 
-3. **Clear Cache:**
+4. **Clear Cache:**
    ```bash
    # Clear cache if it's too large
    rm -rf outputs/cache/
