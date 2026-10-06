@@ -151,6 +151,10 @@ Every module also uses `utils` and the config layer; the dotted lines stand for 
 
 The publisher lives in `src/publisher/`. `late/client.py::LatePublisher` is the only `BasePublisher` implementation; `registry.py::create_publisher_from_config` builds it for both the CLI and the batch. `schedule.py::ScheduleManager` finds free slots, `tracking.py` writes the publish history, `product_registry.py` the published-products registry, `cleanup.py` removes published product directories, `analytics.py` captures per-post figures, and `blob_retention.py` and `partial_post_sweep.py` are the post-publish sweeps. `link_in_bio/manager.py::LinkInBioManager` adds the product link through `lnkbio.py`. Entry point: `python -m src.publisher.late` with subcommands such as `single`, `schedule` and `analytics`. Notes: [publisher.md](notes/publisher.md), [link-in-bio.md](notes/link-in-bio.md).
 
+### Content research
+
+`src/research/` measures what the configuration should change and is not part of any render ([design 0023](design/0023-content-research.md)). `sources.py` wraps Google Trends (pytrends, the optional `research` group) and Google autocomplete, paced and retried; `demand.py` turns their readings into shares of an anchor term, trends, peak months and drop and add candidates; `report.py` renders the report; `__main__.py` is the command line (`python -m src.research`). It reads `config/research.yaml`, the scraper keywords and the topic pool, and writes under `outputs/reports/`. Reference: [research.md](reference/research.md).
+
 ### Utilities and configuration
 
 `src/utils/` holds the cross-cutting pieces: `logging_setup.py`, `outputs_paths.py`, `performance.py`, `retry.py`, `circuit_breaker.py`, `connection_pool.py`, `pipeline_deadline.py`, `secrets.py` and the `url_shortener/` package (`bare`, the default no-op, and PicSee). `src/config_manager.py::UnifiedConfigManager` loads the YAML files and applies the environment and CLI tiers; `src/video/config/` and `src/scraper/config_models.py` hold the Pydantic models. Notes: [ci-and-dependencies.md](notes/ci-and-dependencies.md).

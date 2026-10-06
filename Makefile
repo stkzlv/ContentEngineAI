@@ -19,7 +19,7 @@ NC := \033[0m # No Color
 	scrape-test scrape-advanced \
 	batch batch-lowpri scrape-lowpri scrape-watch topics-batch produce-lowpri publish publish-lowpri analytics \
 	test-parallel test-lowpri \
-	print-python print-lowpri-scope install-analytics-timer uninstall-analytics-timer analytics-timer-status
+	print-python print-lowpri-scope research install-analytics-timer uninstall-analytics-timer analytics-timer-status
 
 # Default target
 help:
@@ -240,6 +240,10 @@ else
 	@echo "$(YELLOW)This was a dry run. To perform the actual cleanup, run:$(NC)"
 	@echo "$(YELLOW)  make clean-outputs CONFIRM=1$(NC)"
 endif
+
+research: ## Content research (ARGS="demand" or ARGS="report --out DIR"; needs: poetry install --with research)
+	@PY='$(LOWPRI_PYTHON)'; [ -n "$$PY" ] || { echo "$(RED)No project interpreter found. Run 'poetry install' first.$(NC)"; exit 1; }; \
+	"$$PY" -m src.research $(ARGS)
 
 perf-report:
 	@echo "$(BLUE)Generating performance monitoring report...$(NC)"
