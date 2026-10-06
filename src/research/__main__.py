@@ -8,13 +8,16 @@ import logging
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
 
+from src.research.checks import run_checks
 from src.research.config import DEFAULT_PATH, load_research_config
 from src.research.demand import run_demand
 from src.research.report import render_report
+from src.research.sample import recent_products, sample
 from src.research.sources import PytrendsSource, TrendsUnavailableError
 from src.scraper.base.keyword_pillars import read_keyword_pillars
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
@@ -28,16 +31,21 @@ def scraper_keywords(path: Path = SCRAPER_CONFIG) -> list[str]:
     return keywords
 
 
-def pool_topics() -> list[tuple[str, str]]:
+def pool_specs() -> list[Any]:
     """The topic pool the batch reads, as the topic filter's tool reads it."""
     from src.pipeline.config import DEFAULT_PIPELINE_CONFIG_PATH, _configured_topics
 
     raw = yaml.safe_load(DEFAULT_PIPELINE_CONFIG_PATH.read_text(encoding="utf-8"))
     batch = (raw or {}).get("global_batch") or {}
-    return [
-        (t.title, t.search)
-        for t in _configured_topics(batch, DEFAULT_PIPELINE_CONFIG_PATH)
-    ]
+    return list(_configured_topics(batch, DEFAULT_PIPELINE_CONFIG_PATH))
+
+
+def pool_topics() -> list[tuple[str, str]]:
+    return [(t.title, t.search) for t in pool_specs()]
+
+
+def _load(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
 def run_dir(out: str | None) -> Path:
@@ -48,7 +56,7 @@ def run_dir(out: str | None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m src.research")
-    parser.add_argument("stage", choices=["demand", "report"])
+    parser.add_argument("stage", choices=["demand", "sample", "check", "report"])
     parser.add_argument("--config", type=Path, default=DEFAULT_PATH)
     parser.add_argument(
         "--out", help="Run directory (default: outputs/reports/research-<date>)"
@@ -76,13 +84,31 @@ def main(argv: list[str] | None = None) -> int:
         demand_file.write_text(json.dumps(measured, indent=1), encoding="utf-8")
         print(f"Wrote {demand_file}")
 
-    demand = (
-        json.loads(demand_file.read_text(encoding="utf-8"))
-        if demand_file.exists()
-        else None
-    )
+    samples_file = out / "samples.json"
+    checks_file = out / "checks.json"
+    if args.stage == "sample":
+        settings = load_research_config(args.config).sample
+        records = sample(
+            settings.variants,
+            pool_specs()[: settings.topics],
+            recent_products(Path(resolve_outputs_dir(None)), settings.products),
+            settings.profile,
+            out,
+        )
+        samples_file.write_text(json.dumps(records, indent=1), encoding="utf-8")
+        print(f"Wrote {samples_file}")
+    if args.stage in ("sample", "check") and samples_file.exists():
+        band = load_research_config(args.config).sample.band
+        records = json.loads(samples_file.read_text(encoding="utf-8"))
+        checks_file.write_text(
+            json.dumps(run_checks(records, band), indent=1), encoding="utf-8"
+        )
+        print(f"Wrote {checks_file}")
+
     report = out / "report.md"
-    report.write_text(render_report(demand), encoding="utf-8")
+    report.write_text(
+        render_report(_load(demand_file), _load(checks_file)), encoding="utf-8"
+    )
     print(f"Wrote {report}")
     return 0
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 from typing import Any
 
 from src.research.demand import RISE
@@ -94,7 +95,100 @@ def render_demand(demand: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_report(demand: dict[str, Any] | None) -> str:
+SUMMARY_ROWS = (
+    ("samples", "Samples"),
+    ("errors", "Failed or dropped"),
+    ("median_words", "Median words"),
+    ("in_band", "In the word band"),
+    ("phrase_in_first_sentence", "Search phrase in the first sentence"),
+    ("cta_last", "CTA as the last sentence"),
+    ("with_lint_tell", "Failing the script lint (a tell or a long sentence)"),
+    ("template_misfit", "Task topic on a symptom or mistake template"),
+    ("flagged_claims", "Claims the fact check flagged"),
+    ("rewritten", "Scripts the fact check rewrote"),
+)
+# Shares print as percentages; counts and medians as numbers.
+SHARE_ROWS = frozenset(
+    {
+        "in_band",
+        "phrase_in_first_sentence",
+        "cta_last",
+        "with_lint_tell",
+        "template_misfit",
+    }
+)
+
+
+def _value(key: str, value: Any) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.0%}" if key in SHARE_ROWS else f"{value:g}"
+
+
+def _escape(cell: str) -> str:
+    """A table cell: Amazon titles use " | " as a separator."""
+    return re.sub(r"[\r\n]+", " ", cell.replace("|", "\\|"))
+
+
+def _notes(c: dict[str, Any]) -> str:
+    found = [
+        (not c["in_band"], f"out of band {c['band'][0]}-{c['band'][1]}"),
+        (not c["phrase_in_first_sentence"], "no search phrase in first sentence"),
+        (not c["cta_last"], "CTA not last"),
+        (bool(c["lint"]), f"lint: {c['lint']}"),
+        (bool(c["flagged"]), f"{c['flagged']} flagged"),
+        (c["rewritten"], "rewritten"),
+        (c["template_misfit"], "template misfit"),
+    ]
+    return ", ".join(text for on, text in found if on) or "ok"
+
+
+def render_samples(checks: dict[str, Any]) -> str:
+    summary = checks["summary"]
+    groups = sorted(summary)
+    lines = [
+        "## Script samples",
+        "",
+        "Text-only scripts from the producer's own script step, per variant. "
+        "Topic variants share one sample, so their columns compare directly; "
+        "products run under `shipped` only.",
+        "",
+        "| Check | " + " | ".join(f"`{g}`" for g in groups) + " |",
+        "|---|" + "---|" * len(groups),
+    ]
+    for key, label in SUMMARY_ROWS:
+        cells = " | ".join(_value(key, summary[g].get(key)) for g in groups)
+        lines.append(f"| {label} | {cells} |")
+    repeated = {g: summary[g]["repeated_openings"] for g in groups}
+    if any(repeated.values()):
+        lines += ["", "**Openings used three or more times:**", ""]
+        lines += [
+            f"- `{g}`: " + ", ".join(f'"{o}" ({k})' for o, k in found.items())
+            for g, found in repeated.items()
+            if found
+        ]
+    lines += [
+        "",
+        "### Per sample",
+        "",
+        "| Variant | Kind | Title | Template | Words | Notes |",
+        "|---|---|---|---|---|---|",
+    ]
+    for row in checks["samples"]:
+        c = row["checks"]
+        failed = "error" in c
+        title = _escape(row["title"][:60])
+        lines.append(
+            f"| {row['variant']} | {row['kind']} | {title} | "
+            f"{row.get('template') or '-'} | {'-' if failed else c['words']} | "
+            f"{_escape('failed: ' + c['error'][:80] if failed else _notes(c))} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_report(
+    demand: dict[str, Any] | None, checks: dict[str, Any] | None = None
+) -> str:
     parts = ["# Content research", ""]
     if demand:
         parts += [
@@ -102,4 +196,6 @@ def render_report(demand: dict[str, Any] | None) -> str:
             "",
         ]
         parts.append(render_demand(demand))
+    if checks:
+        parts += ["", render_samples(checks)]
     return "\n".join(parts)

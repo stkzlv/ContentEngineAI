@@ -378,7 +378,7 @@ misspelled section would otherwise configure nothing while the run reported
 shortening as enabled.
 
 ### 8. **Research Configuration** (`config/research.yaml`)
-Read only by the content research (`python -m src.research`); nothing in it changes a render. The anchors, countries, product seeds and topic autocomplete stems are listed in [the research reference](research.md#configresearchyaml).
+Read only by the content research (`python -m src.research`); nothing in it changes a render. The anchors, countries, product seeds, topic autocomplete stems and the script-sample settings are listed in [the research reference](research.md#configresearchyaml).
 
 ## Core Configuration Sections
 
