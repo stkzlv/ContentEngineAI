@@ -2,7 +2,7 @@
 
 - **Status:** Held
 - **Issue:** #440
-- **Requirements:** REQ-CNT-045, REQ-CNT-046, REQ-CNT-152
+- **Requirements:** REQ-CNT-045, REQ-CNT-046, REQ-CNT-152, REQ-CNT-153
 
 ## Context
 
@@ -44,6 +44,7 @@ No source gives a best use rate, a cost for a sign-off before the call to action
 - `enabled` (default `false`). While false, no line is drawn and every prompt is unchanged, whatever the pools hold.
 - `product` and `topic`, each with `use_rate`, `openers`, `transitions` and `signoffs`. A topic render draws from `topic` and a product render from `product`. The flat keys (`use_rate`, `openers`, `transitions`, `signoffs` directly under `signature`) are refused.
 - An opener over five words is refused at load.
+- `opener_templates` on each pool names the script templates that may draw an opener; empty means every one. The bundled topic pool lists `topic_from_steps` and `topic_answer_first`, the templates that open on the task. Every element is still drawn, so leaving out the opener does not move the transition's or the sign-off's draw.
 
 The opener rule asks the model to start the first sentence with the opener and run on with no comma into the hook. The transition rule is unchanged. A step-list tutorial's sign-off follows its recap, as before. The draw is unchanged: one salted MD5 per element on the product id, so a render repeats its choice.
 
@@ -87,12 +88,13 @@ Remove the switch when: `enabled` has been on in the bundled config for 30 days 
 ## Open questions
 
 - **Use rates.** 0.4 and 0.5 are judgement calls, with no source behind them.
-- **Openers against symptom-first templates.** Whether a topic opener should be drawn only for step-list tutorials and `topic_answer_first`, which open on the task anyway.
 - **A recognisable core.** Without the tagline echo, no line carries the distinctive-asset case. A tagline line that makes no time claim could, if one reads naturally.
 
 ## As built
 
-With a topic opener drawn, the symptom-first and mistake-first topic templates open on the task instead: live scripts for `topic_symptom_cause` and `topic_mistake_fix` began "Here's how to stop your iPhone battery draining overnight" and "Easy way to fix your iPhone battery draining overnight is to turn off Background App Refresh". They read well, but at the topic use rate of 0.4 the opener overrides those templates' opening about four times in ten, which narrows the variety the templates exist for. A step-list tutorial can now draw a transition, from the topic pool.
+With a topic opener drawn, the symptom-first and mistake-first topic templates open on the task instead: live scripts for `topic_symptom_cause` and `topic_mistake_fix` began "Here's how to stop your iPhone battery draining overnight" and "Easy way to fix your iPhone battery draining overnight is to turn off Background App Refresh". They read well, but the opener overrode those templates' opening, which narrows the variety the templates exist for, so openers are limited to the task-first templates (below). A step-list tutorial can now draw a transition, from the topic pool.
 
 
 Built as designed and held off. With the bundled lines on and both use rates at 1.0, one live script per arm placed every drawn line where its rule puts it. The topic script opened "The fast way to turn off Background App Refresh on iPhone is to go into your Settings", with no comma and the search phrase in the first sentence. The product script drew no opener, used "Here's what matters." mid-script and signed off with "That's the real picture." before the call to action.
+
+Openers are limited to the task-first templates (`opener_templates`). With the bundled config on and the opener rate at 1.0, live scripts per template opened: `topic_answer_first` "The fast way to stop your iPhone battery draining overnight is to turn off Background App Refresh"; `topic_symptom_cause` "Your iPhone battery drains overnight because of Background App Refresh"; `topic_mistake_fix` "You're likely leaving Background App Refresh on, and that's what's killing your iPhone battery overnight".

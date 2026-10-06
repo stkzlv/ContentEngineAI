@@ -44,6 +44,10 @@ class SignaturePools(BaseModel):
     # ("Here's how to"): a comma lets the voice pause and the transcript
     # split the opener into a sentence of its own.
     openers: list[str] = Field(default_factory=list)
+    # The script templates that may draw an opener; empty means every one.
+    # An opener turns the first sentence into a task ("Here's how to ..."),
+    # which overrides a template that opens on the symptom or the mistake.
+    opener_templates: list[str] = Field(default_factory=list)
     # A short sentence used once where the script turns from problem to fix.
     transitions: list[str] = Field(default_factory=list)
     # A full sentence spoken immediately before the call to action.

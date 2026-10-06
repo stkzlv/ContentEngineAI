@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.175.0] - 2026-10-06
+
+### Added
+
+- A signature pool's `opener_templates` names the script templates that may draw an opener, and the bundled topic pool lists the two that open on the task, so a symptom-first or mistake-first script keeps its opening line.
+
 ## [0.174.0] - 2026-10-06
 
 ### Changed

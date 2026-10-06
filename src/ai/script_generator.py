@@ -279,7 +279,10 @@ class SignatureChoice:
 
 
 def select_signature(
-    signature: SignatureConfig, product_id: str | None, is_topic: bool = False
+    signature: SignatureConfig,
+    product_id: str | None,
+    is_topic: bool = False,
+    template: str | None = None,
 ) -> SignatureChoice:
     """Draw each signature element for a render, deterministically.
 
@@ -302,8 +305,13 @@ def select_signature(
         rng = random.Random(int(digest.hexdigest()[:8], 16))  # noqa: S311
         return rng.choice(pool) if rng.random() < pools.use_rate else ""
 
+    # Every element is still drawn, so leaving out the opener for a template
+    # does not move the transition's or the sign-off's draw.
+    opener = draw("opener", pools.openers)
+    if pools.opener_templates and template not in pools.opener_templates:
+        opener = ""
     return SignatureChoice(
-        opener=draw("opener", pools.openers),
+        opener=opener,
         transition=draw("transition", pools.transitions),
         signoff=draw("signoff", pools.signoffs),
     )
@@ -1023,7 +1031,10 @@ async def generate_script(
                 is_topic,
                 settings.script_templates.naturalism.intensity,
                 select_signature(
-                    settings.script_templates.signature, product_id, is_topic
+                    settings.script_templates.signature,
+                    product_id,
+                    is_topic,
+                    template_name,
                 ),
                 hook_rules=settings.script_templates.hook_rules.enabled,
                 lint=settings.script_validation.lint,
