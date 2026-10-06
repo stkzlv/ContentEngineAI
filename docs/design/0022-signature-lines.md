@@ -53,12 +53,12 @@ The bundled lines:
 |---|---|---|
 | Openers | None: the product name is the hook | "Here's how to", "Quick fix to", "The fast way to", "Easy way to" |
 | Transitions | "Here's what matters.", "Here's what it gets right.", "Here's the useful part." | "Here's the fix.", "Now the fix.", "Here's what works.", "Let's fix it." |
-| Sign-offs | "That's my honest take.", "That's the honest version.", "Now you know the catch.", "That's the real picture." | "That's the whole fix.", "And that's the fix.", "Fixed in under a minute.", "Problem solved in under a minute." |
+| Sign-offs | "That's my honest take.", "That's the honest version.", "Now you know the catch.", "That's the real picture." | "That's the whole fix.", "And that's the fix.", "That's all it takes.", "And you're done." |
 
 Why these:
 
 - **Topic openers** name the kind of video and lead straight into the task ("Here's how to turn off background app refresh").
-- **Topic sign-offs** are factual. Two echo the channel's promise of a fix in under a minute, the one cue with a distinctive-asset case behind it.
+- **Topic sign-offs** are factual and make no claim about time. Lines echoing the channel's promise of a fix in under a minute had the one distinctive-asset case in the evidence, but a fix with many steps can take longer than a minute to follow, so the claim would sometimes be false.
 - **Product sign-offs** carry an opinion, because every product script states one drawback.
 - **The topic use rate is lower** (0.4 against 0.5) because a topic render's opener sits in the first three seconds, where the cost would be.
 - **Every line is short and plain**, with no question mark, ellipsis, dash or capitals for the voice to misread.
@@ -88,7 +88,7 @@ Remove the switch when: `enabled` has been on in the bundled config for 30 days 
 
 - **Use rates.** 0.4 and 0.5 are judgement calls, with no source behind them.
 - **Openers against symptom-first templates.** Whether a topic opener should be drawn only for step-list tutorials and `topic_answer_first`, which open on the task anyway.
-- **Tagline sign-offs.** They make a claim about time. A fix with many steps may take longer than a minute to follow, even when the video does not.
+- **A recognisable core.** Without the tagline echo, no line carries the distinctive-asset case. A tagline line that makes no time claim could, if one reads naturally.
 
 ## As built
 

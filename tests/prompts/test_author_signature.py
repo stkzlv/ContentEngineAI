@@ -9,6 +9,7 @@ product below 1.0, so it recurs without appearing in every render.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -310,3 +311,18 @@ class TestTheConfig:
             assert len(arm.signoffs) >= 3 and len(arm.transitions) >= 3
         assert signature.topic.openers and not signature.product.openers
         assert not any("honest" in line.lower() for line in signature.topic.signoffs)
+
+    def test_no_bundled_line_claims_how_long_a_fix_takes(self) -> None:
+        """A fix with many steps can take longer than the video to follow."""
+        signature = load_video_config_modular().llm_settings.script_templates.signature
+        lines = [
+            line
+            for arm in (signature.product, signature.topic)
+            for line in arm.openers + arm.transitions + arm.signoffs
+        ]
+        timed = [
+            line
+            for line in lines
+            if re.search(r"\d|second|minute|instant", line, re.IGNORECASE)
+        ]
+        assert timed == []

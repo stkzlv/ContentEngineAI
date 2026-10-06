@@ -348,13 +348,13 @@ llm_settings:
           - "Now the fix."
           - "Here's what works."
           - "Let's fix it."
-        # Factual, and two echo the channel's promise of a fix in under a
-        # minute, the one recurring cue with a branding case behind it.
+        # Factual, with no claim about how long the fix takes: a fix with
+        # many steps can take longer than the video to follow.
         signoffs:
           - "That's the whole fix."
           - "And that's the fix."
-          - "Fixed in under a minute."
-          - "Problem solved in under a minute."
+          - "That's all it takes."
+          - "And you're done."
     # A concrete hook and sentences linked by cause or complication in the
     # script, and the search phrase leading the hook headline, the
     # description and every platform caption (design 0007). Off leaves every

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.174.0] - 2026-10-06
+
+### Changed
+
+- The bundled topic sign-offs make no claim about how long a fix takes: "That's all it takes." and "And you're done." replace the two "under a minute" lines, which a fix with many steps could make false.
+
 ## [0.173.0] - 2026-10-06
 
 ### Changed
