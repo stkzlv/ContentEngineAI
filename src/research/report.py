@@ -7,6 +7,9 @@ import re
 from typing import Any
 
 from src.research.demand import RISE
+from src.research.recommend import demand_recommendations, variant_recommendations
+from src.research.sample import is_task
+from src.research.verify import VERDICTS
 
 
 def _cell(reading: dict[str, Any] | None) -> str:
@@ -186,10 +189,102 @@ def render_samples(checks: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _value_text(value: Any) -> str:
+    return ", ".join(map(str, value)) if isinstance(value, list) else str(value).lower()
+
+
+def render_recommendations(
+    demand: dict[str, Any] | None,
+    checks: dict[str, Any] | None,
+    verification: list[dict[str, Any]] | None,
+    samples: list[dict[str, Any]] | None,
+) -> str:
+    lines = [
+        "## Recommended changes",
+        "",
+        "Nothing here has been applied. A change to a switch that is held off "
+        "until the reach-test readout stays off until then (decision 0002).",
+        "",
+    ]
+    if checks:
+        titles = [s["title"] for s in samples or [] if s.get("kind") == "topic"]
+        all_tasks = bool(titles) and all(is_task(t) for t in titles)
+        for r in variant_recommendations(
+            checks["summary"], verification or [], all_tasks
+        ):
+            e = r["evidence"]
+            target = (
+                f"`{r['key']}: {_value_text(r['value'])}` in `{r['file']}`"
+                if r["key"]
+                else r["note"]
+            )
+            lines.append(
+                f"- **{r['variant']}: {r['decision']}** ({r['reason']}). "
+                f"{target}. Scripts with a wrong or outdated step "
+                f"{_value('in_band', e['wrong_or_outdated'][0])} -> "
+                f"{_value('in_band', e['wrong_or_outdated'][1])}; in the word band "
+                f"{_value('in_band', e['in_band'][0])} -> "
+                f"{_value('in_band', e['in_band'][1])}; template misfits "
+                f"{_value('template_misfit', e['template_misfit'][0])} -> "
+                f"{_value('template_misfit', e['template_misfit'][1])}; dropped "
+                f"{e['dropped'][0]} -> {e['dropped'][1]}."
+            )
+    if demand:
+        for r in demand_recommendations(demand):
+            items = ", ".join(r["items"])
+            lines.append(
+                f"- **{r['change']} in `{r['key']}`** ({r['file']}; {r['reason']}): "
+                f"{items}."
+            )
+    if len(lines) == 5:
+        lines.append("- None: run the demand, sample and verify stages first.")
+    return "\n".join(lines) + "\n"
+
+
+def render_verification(verification: list[dict[str, Any]]) -> str:
+    lines = [
+        "## Verification",
+        "",
+        "Each topic script's steps and claims judged against official documentation "
+        "by a model with Google Search; a verdict with no source counts as "
+        "unverified.",
+        "",
+        "| Variant | Correct | Wrong | Outdated | Unverified | Failed calls |",
+        "|---|---|---|---|---|---|",
+    ]
+    for variant in sorted({v["variant"] for v in verification}):
+        rows = [v for v in verification if v["variant"] == variant]
+        total = {k: sum(v.get("tally", {}).get(k, 0) for v in rows) for k in VERDICTS}
+        failed = sum("error" in v for v in rows)
+        lines.append(
+            f"| {variant} | {total['correct']} | {total['wrong']} | "
+            f"{total['outdated']} | {total['unverified']} | {failed} |"
+        )
+    lines += ["", "**Wrong or outdated:**", ""]
+    found = [
+        (v, d)
+        for v in verification
+        for d in v.get("verdicts", [])
+        if d["verdict"] in ("wrong", "outdated")
+    ]
+    lines += [
+        f"- `{v['variant']}` {_escape(v['title'][:50])}: "
+        f"\"{_escape(d['claim'][:90])}\" is {d['verdict']}. "
+        f"{_escape(d['correction'][:120])} ({d['source']})"
+        for v, d in found
+    ] or ["- none"]
+    return "\n".join(lines) + "\n"
+
+
 def render_report(
-    demand: dict[str, Any] | None, checks: dict[str, Any] | None = None
+    demand: dict[str, Any] | None,
+    checks: dict[str, Any] | None = None,
+    verification: list[dict[str, Any]] | None = None,
+    samples: list[dict[str, Any]] | None = None,
 ) -> str:
     parts = ["# Content research", ""]
+    if demand or checks:
+        parts.append(render_recommendations(demand, checks, verification, samples))
     if demand:
         parts += [
             f"Run {demand['date']}, countries {', '.join(demand['countries'])}.",
@@ -198,4 +293,6 @@ def render_report(
         parts.append(render_demand(demand))
     if checks:
         parts += ["", render_samples(checks)]
+    if verification:
+        parts += ["", render_verification(verification)]
     return "\n".join(parts)

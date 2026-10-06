@@ -17,6 +17,12 @@ To sample scripts under each variant (model calls, no scraping or rendering; abo
 make research ARGS="sample"
 ```
 
+Then check the samples' steps against official documentation (one grounded call per topic script):
+
+```bash
+make research ARGS="verify"
+```
+
 To re-render the report from a run's records without new requests:
 
 ```bash
@@ -28,5 +34,7 @@ make research ARGS="report --out outputs/reports/research-2026-10-06"
 - **Shares are relative.** A share of 2.0 means twice the anchor term's interest. Compare within one table; the product and topic tables have different anchors.
 - **Drop candidates** are far below the keywords' median in every country and not rising. Check the peak month before dropping one: a gift item with a December peak reads low in October.
 - **Add candidates** are rising related searches for the product seeds, by growth. A large growth figure on a small base is common; measure a candidate against the anchor (add it to the keywords and run again) before scraping it.
+- **Recommended changes** lead the report. A variant is recommended only on fewer scripts with wrong or outdated steps, without costing length or template fit; read its evidence line, especially how many topics it dropped. A held switch (step lists) stays off until the reach-test readout whatever the report says.
+- **Verification** lists each wrong or outdated step with the page that says so. The verifier is a model too: spot-check a few verdicts against their sources before acting on one.
 - **Script samples** compare the variants on one set of topics. A variant is worth turning on when it fixes more than it breaks: fewer template misfits and more search phrases in the first sentence count for it; dropped topics, scripts out of band and more fact-check rewrites count against it. Read a few scripts in `samples/` before deciding; the checks measure form, not whether a step is right.
 - **Uncovered searches** are autocomplete suggestions no pool topic covers. They show phrasing, not volume. A good new topic names one device or app and one outcome, and passes the topic filter: check it with `python -m tools.check_topic_pool`.
