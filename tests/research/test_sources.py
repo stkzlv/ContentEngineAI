@@ -3,12 +3,46 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 from unittest.mock import MagicMock
 
-import pandas as pd
 import pytest
 
 from src.research.sources import PytrendsSource, suggestions
+
+
+class Frame:
+    """The slice of a pandas DataFrame the source reads; pandas comes only
+    with the optional `research` group, which CI does not install.
+    """
+
+    def __init__(self, columns: dict[str, list[Any]], index: list[str]) -> None:
+        self.columns, self.index = columns, index
+        self.empty = not columns
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.columns
+
+    def __getitem__(self, name: str) -> Frame:
+        return Frame({name: self.columns[name]}, self.index)
+
+    def items(self):
+        (values,) = self.columns.values()
+        return [(Day(i), v) for i, v in zip(self.index, values, strict=True)]
+
+    @property
+    def values(self) -> Rows:
+        return Rows(list(zip(*self.columns.values(), strict=True)))
+
+
+class Day(str):
+    def date(self) -> str:
+        return str(self)
+
+
+class Rows(list):
+    def tolist(self) -> list:
+        return [list(r) for r in self]
 
 
 class RateLimitedError(RuntimeError):
@@ -36,7 +70,7 @@ def test_a_rate_limited_request_is_missing() -> None:
 @pytest.mark.req("REQ-OPS-107")
 def test_an_empty_frame_is_missing_and_no_rising_searches_is_a_reading() -> None:
     client = MagicMock()
-    client.interest_over_time.return_value = pd.DataFrame()
+    client.interest_over_time.return_value = Frame({}, [])
     client.related_queries.return_value = {"a": {"top": None, "rising": None}}
 
     trends = source(client)
@@ -47,11 +81,11 @@ def test_an_empty_frame_is_missing_and_no_rising_searches_is_a_reading() -> None
 
 def test_a_reading_comes_back_per_term() -> None:
     client = MagicMock()
-    client.interest_over_time.return_value = pd.DataFrame(
-        {"a": [10, 20]}, index=pd.to_datetime(["2026-01-04", "2026-01-11"])
+    client.interest_over_time.return_value = Frame(
+        {"a": [10, 20]}, ["2026-01-04", "2026-01-11"]
     )
     client.related_queries.return_value = {
-        "a": {"rising": pd.DataFrame({"query": ["b"], "value": [250]})}
+        "a": {"rising": Frame({"query": ["b"], "value": [250]}, ["0"])}
     }
 
     trends = source(client)

@@ -283,3 +283,21 @@ def test_the_anchor_as_a_term_reads_one() -> None:
 
     reading = found["anchor"]
     assert reading and reading["share"] == 1.0 and missing == []
+
+
+@pytest.mark.req("REQ-OPS-108")
+def test_one_rise_threshold_serves_the_report_and_the_drop_rule() -> None:
+    from src.research.report import _cell
+
+    def r(share, ratio):
+        return {"share": share, "recent_ratio": ratio, "peak_month": None}
+
+    typical = {f"typical {i}": {"US": r(1.0, 1.0)} for i in range(5)}
+    shares = {**typical, "slight rise": {"US": r(0.05, 1.05)}}
+
+    # 1.05 is not a rise: unlabelled in the table, so still dropped.
+    assert drop_candidates(shares, 0.25) == ["slight rise"]
+    assert _cell(r(0.05, 1.05)) == "0.05"
+    assert _cell(r(0.05, 1.15)) == "0.05 rising"
+    assert _cell(r(0.05, 0.92)) == "0.05"  # above 1/1.1, so no label
+    assert _cell(r(0.05, 0.85)) == "0.05 falling"

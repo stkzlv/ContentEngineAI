@@ -62,7 +62,7 @@ A package `src/research`, run as `python -m src.research <stage>` or `make resea
 
 **Verification** asks a Gemini model with Google Search grounding to judge each step and claim against official support pages, returning correct, wrong, outdated or unverified, with the source URL and a short quote. A verdict with no source counts as unverified.
 
-**Recommendations.** A variant is recommended when it beats `shipped` on wrong-or-outdated steps without making length or fit worse, on the same sample. A scraper keyword is a drop candidate when its interest is below `drop_below` of its side's median, that has not risen over the last quarter (its last quarter's mean at most 1.1 times the year's). Rising related searches from the product seeds that are not already keywords are add candidates. Autocomplete suggestions that no pool topic covers are listed as uncovered searches, phrased as found.
+**Recommendations.** A variant is recommended when it beats `shipped` on wrong-or-outdated steps without making length or fit worse, on the same sample. A scraper keyword is a drop candidate when its interest is below `drop_below` of the keywords' median in every country and it has not risen over the last quarter (its last quarter's mean is at most 1.1 times the year's). Rising related searches from the product seeds that are not already keywords are add candidates. Autocomplete suggestions that no pool topic covers are listed as uncovered searches, phrased as found.
 
 **Dependencies.** `pytrends` in an optional `research` Poetry group. Without it the demand stage reports the source as unavailable. Suggestions come from `aiohttp`, already a dependency. When a source is rate-limited or empty, the report says so rather than reporting a zero.
 
