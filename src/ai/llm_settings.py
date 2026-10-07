@@ -294,6 +294,9 @@ class ScriptValidationConfig(BaseModel):
     min_chars: int = Field(200)
     min_words: int = Field(50)
     lint: ScriptLintConfig = Field(default_factory=ScriptLintConfig)
+    # Retry a script that borrows a quoted example from its prompt (#672).
+    # It changes scripts, so it stays off until the reach-test readout.
+    reject_copied_examples: bool = False
 
 
 class DescriptionValidationConfig(BaseModel):
