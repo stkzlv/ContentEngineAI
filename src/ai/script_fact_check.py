@@ -164,6 +164,34 @@ _FILLER_WORDS = frozenset(
     "that this these those with from about entire entirely part into than "
     "they them their there".split()
 )
+# A fix that answers a claimed limit with a universal ("works regardless of
+# how many emails you have") is as unsupported as the limit it denies: nothing
+# documents either. The claim is removed instead of replaced.
+_DENIAL_MARKERS = (
+    "regardless of",
+    "no matter how",
+    "no matter what",
+    "any number of",
+    "unlimited",
+    "no limit",
+)
+# A claimed limit: the word itself, or a number after a bound. A bare number
+# is not one: "iPhone 15" and "20W" are in half the steps of a phone tutorial.
+_LIMIT = re.compile(
+    r"\blimit(?:s|ed)?\b"
+    r"|\b(?:up to|at most|more than|over|fewer than|less than|maximum of)"
+    r"\s+\$?\d",
+    re.I,
+)
+# A fix's own voice, which a narrator never uses: it points at the wrong item
+# ("instead of Optimized Battery Charging") or at where a setting sits.
+_FIX_VOICE = (
+    "instead of",
+    "is located under",
+    "is located in",
+    "can be found under",
+    "is found under",
+)
 # Sentence openers that lean on the sentence before them.
 _ANAPHORA = frozenset("that this these those it its they so which then also".split())
 
@@ -184,6 +212,33 @@ def is_removal(fix: str) -> bool:
     ):
         return True
     return any(w in _REMOVAL_POINTERS for w in words[1:6])
+
+
+def is_denial(fix: str) -> bool:
+    """Whether a fix's text carries a universal ("regardless of", "no limit")."""
+    text = f" {_normalise(fix)} "
+    return any(f" {marker} " in text for marker in _DENIAL_MARKERS)
+
+
+def states_a_limit(claim: str) -> bool:
+    """Whether a claim states a limit ("a limit on bulk actions", "up to 50")."""
+    return bool(_LIMIT.search(claim))
+
+
+# A removal fix that names none of the claim's words, so the guard against
+# restating a removed subject does not refuse another flag's repair.
+DENIAL_REMOVAL = "Remove the claim."
+
+
+def as_removal(claim: FactCheckClaim) -> FactCheckClaim:
+    """A claimed limit answered with a universal, as a removal of the claim.
+
+    Only for a claim that states a limit: a corrected step whose fix happens
+    to say "no matter what charger you use" is a repair, not a denial.
+    """
+    if not (is_denial(claim.fix) and states_a_limit(claim.claim)):
+        return claim
+    return FactCheckClaim(claim=claim.claim, reason=claim.reason, fix=DENIAL_REMOVAL)
 
 
 def removal_terms(claim: FactCheckClaim) -> set[str] | None:
@@ -565,10 +620,44 @@ def accept_revision(
             "sentence(s) beyond the repair",
         )
 
+    # A sentence said twice where the original said it once is the reviser
+    # pasting a fix in beside the sentence it already repaired.
+    old_list = [_normalise(s) for s in old_sentences]
+    for sentence in set(new_norm):
+        said = new_norm.count(sentence)
+        if said > 1 and said > old_list.count(sentence):
+            return None, "the revision repeats a sentence"
+
+    # A removed limit must not come back as the universal that denied it; a
+    # universal another flag's own fix uses is that repair, not the denial.
+    denied = any(c.fix == DENIAL_REMOVAL for c in flagged)
+    repairing = {
+        m
+        for c in flagged
+        if c.fix != DENIAL_REMOVAL
+        for m in _DENIAL_MARKERS
+        if f" {m} " in f" {_normalise(c.fix)} "
+    }
+    # A fix is written as the fact, and sometimes in the checker's voice; a
+    # new sentence that carries that voice was pasted, not narrated.
+    old_norm = {_normalise(s) for s in old_sentences}
+    fixes = [f" {_normalise(c.fix)} " for c in flagged]
+    for sentence in new_sentences:
+        if _normalise(sentence) in old_norm:
+            continue
+        if denied and any(
+            f" {m} " in f" {_normalise(sentence)} "
+            for m in set(_DENIAL_MARKERS) - repairing
+        ):
+            return None, "the revision answers a removed limit with a universal"
+        text = f" {_normalise(sentence)} "
+        for phrase in _FIX_VOICE:
+            if f" {phrase} " in text and any(f" {phrase} " in f for f in fixes):
+                return None, f"the revision copies the fix's wording: {phrase}"
+
     # A fix that says to remove a claim is not satisfied by a sentence that
     # restates its subject: a rewrite turned an invented "steel beats plastic
     # for any clamp-style mount" into an invented "the mount is a simple clip".
-    old_norm = {_normalise(s) for s in old_sentences}
     added = [s for s in new_sentences if _normalise(s) not in old_norm]
     # Words another flag's correction brings in are that repair, not a
     # restatement of the removed claim.
@@ -861,7 +950,11 @@ async def fact_check_and_revise(
         )
         return FactCheckOutcome(script=script, record=record)
 
-    flagged = result.flagged[: cfg.max_flags_to_revise]
+    # A denial is carried out as a removal, by the code path removals take.
+    flagged = [as_removal(c) for c in result.flagged[: cfg.max_flags_to_revise]]
+    denials = sum(c.fix != f.fix for c, f in zip(result.flagged, flagged, strict=False))
+    if denials:
+        record["revision"]["denials_removed"] = denials
     record["revision"]["attempted"] = True
     sv = settings.script_validation
     cta_options = settings.script_templates.cta_options_for(is_topic)
