@@ -200,7 +200,8 @@ def test_run_demand_records_both_sides_and_renders(monkeypatch) -> None:
             "smart plug": 9.0,
             "sunset lamp": 0.5,
             "clear app cache on android": 4.0,
-            "ai glasses": 8.0,
+            # At or above the kept keywords' median (smart plug's 0.9).
+            "ai glasses": 9.5,
             "tech news today": 0.1,
         },
         # Rising next to the strongest keyword; one is a product, one news.
@@ -468,3 +469,74 @@ def test_add_candidates_are_capped_and_measured_for_share_only(monkeypatch) -> N
     assert len(kept) == demand_mod.MAX_CANDIDATES and kept[0] == "gadget 0"
     measured = [c for c in source.calls if any(t.startswith("gadget") for t in c[0])]
     assert measured and all(c[2] == demand_mod.YEAR for c in measured)
+
+
+@pytest.mark.req("REQ-OPS-108")
+def test_the_add_bar_is_the_median_of_the_keywords_worth_keeping(monkeypatch) -> None:
+    config = load_research_config().model_copy(update={"countries": ["US"]})
+    config.products.related_from = 1
+    config.topics.suggest_stems = []
+    anchor = config.products.anchor
+    # Three dead keywords pull the median of all six down to 0.3; the median
+    # of the three kept is 0.8.
+    source = FakeTrends(
+        {
+            anchor: 10.0,
+            "kw1": 10.0,
+            "kw2": 8.0,
+            "kw3": 6.0,
+            "dead1": 0.0,
+            "dead2": 0.0,
+            "dead3": 0.0,
+            "rising one": 5.0,
+            "rising two": 9.0,
+        },
+        rising={"kw1": [("rising one", 900.0), ("rising two", 500.0)]},
+    )
+
+    async def no_suggestions(stems, countries):
+        return {}
+
+    monkeypatch.setattr(demand_mod, "_all_suggestions", no_suggestions)
+    record = run_demand(
+        config, source, ["kw1", "kw2", "kw3", "dead1", "dead2", "dead3"], []
+    )
+
+    assert record["products"]["drop_candidates"] == ["dead1", "dead2", "dead3"]
+    assert [c["query"] for c in record["products"]["add_candidates"]] == ["rising two"]
+
+
+@pytest.mark.req("REQ-OPS-108")
+def test_a_candidate_unrelated_to_its_keyword_is_marked() -> None:
+    def add(query: str) -> dict:
+        return {
+            "query": query,
+            "seed": "wireless earbuds",
+            "geo": "US",
+            "growth": 100.0,
+            "shares": {"US": 1.0},
+        }
+
+    record = {
+        "date": "2026-10-07",
+        "countries": ["US"],
+        "products": {
+            "anchor": "a",
+            "terms": {},
+            "drop_candidates": [],
+            "add_candidates": [add("new york times"), add("best earbuds 2026")],
+        },
+        "topics": {"anchor": "b", "terms": {}, "suggestions": {}, "uncovered": []},
+        "missing": [],
+    }
+
+    lines = render_report(record).splitlines()
+
+    assert any(
+        line.startswith("- new york times")
+        and line.endswith("no word in common with it")
+        for line in lines
+    )
+    assert any(
+        line.startswith("- best earbuds 2026") and line.endswith(")") for line in lines
+    )

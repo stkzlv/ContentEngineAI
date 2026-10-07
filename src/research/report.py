@@ -111,6 +111,16 @@ def _questions(asked: list[dict[str, Any]]) -> list[str]:
     return out
 
 
+def _shares_word(query: str, seed: str) -> bool:
+    """Whether a rising search shares a word with the keyword it came from.
+
+    One that shares none ("new york times" next to "wireless earbuds") is
+    often news or a publisher, though a product name can share none too.
+    """
+    words = set(re.findall(r"[a-z0-9]+", seed.lower()))
+    return bool(words & set(re.findall(r"[a-z0-9]+", query.lower())))
+
+
 def render_demand(demand: dict[str, Any]) -> str:
     countries = demand["countries"]
     p, t = demand["products"], demand["topics"]
@@ -144,14 +154,15 @@ def render_demand(demand: dict[str, Any]) -> str:
         *_wikipedia(views),
         "",
         "**Add candidates** (rising searches next to the strongest keywords, "
-        "kept when they measure at or above the keywords' median share in some "
-        "country):",
+        "kept when they measure at or above the median share of the keywords "
+        "that are not drop candidates, in some country):",
         "",
     ]
     lines += [
-        f"- {a['query']} (next to \"{a['seed']}\", {a['geo']}, +{a['growth']:g}%; "
+        f"- {a['query']} (next to \"{a['seed']}\", {a['geo']}, +{a['growth']:,.0f}%; "
         + ", ".join(f"{g} {v:.2f}" for g, v in a.get("shares", {}).items())
         + ")"
+        + ("" if _shares_word(a["query"], a["seed"]) else "; no word in common with it")
         for a in p["add_candidates"][:25]
     ] or ["- none"]
     topic_rows = {f"{name} (\"{r['term']}\")": r for name, r in t["terms"].items()}
