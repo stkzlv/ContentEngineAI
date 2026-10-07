@@ -117,6 +117,7 @@ async def test_stock_downloads_hold_their_concurrency(
         return True
 
     monkeypatch.setattr(stock_media, "download_file", fake_download)
+    assert config.api_settings is not None
     fetcher = StockMediaFetcher(
         StockMediaSettings(pexels_api_key_env_var="NO_SUCH_KEY"),
         {},
