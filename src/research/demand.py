@@ -244,7 +244,7 @@ def measured_candidates(
     readings: dict[str, dict[str, dict[str, Any] | None]],
     medians: dict[str, float],
 ) -> list[dict[str, Any]]:
-    """Candidates that measure at or above the keywords' median somewhere.
+    """Candidates at or above the kept keywords' median somewhere.
 
     A rising search can be a one-off ("august 2026 tech gadgets") or not a
     product at all; measured against the same anchor, the ones worth
@@ -430,12 +430,14 @@ def run_demand(
         missing += [f"{g} (add candidate)" for g in gaps]
         for c in candidates:
             readings[c["query"]][geo] = found.get(c["query"])
+    drops = drop_candidates(products, config.products.drop_below)
+    # The bar is the median of the keywords worth keeping: dead keywords drag
+    # the median of all of them down until news searches clear it.
+    kept = {k: per for k, per in products.items() if k not in drops}
     medians = {
-        g: statistics.median(
-            r["share"] for per in products.values() if (r := per.get(g))
-        )
+        g: statistics.median(r["share"] for per in kept.values() if (r := per.get(g)))
         for g in config.countries
-        if any(per.get(g) for per in products.values())
+        if any(per.get(g) for per in kept.values())
     }
     suggested = asyncio.run(
         _all_suggestions(config.topics.suggest_stems, config.countries)
@@ -460,7 +462,7 @@ def run_demand(
         "products": {
             "anchor": config.products.anchor,
             "terms": products,
-            "drop_candidates": drop_candidates(products, config.products.drop_below),
+            "drop_candidates": drops,
             "add_candidates": measured_candidates(candidates, readings, medians),
             "wikipedia": views,
         },

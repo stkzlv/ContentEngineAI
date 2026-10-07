@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.182.0] - 2026-10-07
+
+### Fixed
+
+- Research add candidates must reach the median share of the keywords that are not drop candidates, so dead keywords no longer lower the bar, and the report marks a candidate that shares no word with the keyword it came from.
+- A breakout search's growth in the research report prints as a whole number instead of in exponent notation.
+
+### Changed
+
+- The bundled research autocomplete stems replace "how to stop", which returned health searches, with "how to stop my phone" and "how to stop spam".
+
 ## [0.181.0] - 2026-10-07
 
 ### Changed

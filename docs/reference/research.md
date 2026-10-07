@@ -30,7 +30,7 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `max_retries` | `2` | Retries for a failed request, each after a longer pause |
 | `products.anchor` | required | The broad term every keyword's interest is a share of; keep it the same between runs |
 | `products.drop_below` | `0.25` | A keyword under this share of the keywords' median in every country, and not rising (last quarter at most 1.1 times the same quarter a year earlier), is a drop candidate |
-| `products.related_from` | `5` | Rising searches next to this many of the strongest keywords become add candidates: the 20 fastest-rising are measured (twelve months only) and kept when at or above the keywords' median share in some country |
+| `products.related_from` | `5` | Rising searches next to this many of the strongest keywords become add candidates: the 20 fastest-rising are measured (twelve months only) and kept when at or above the median share of the keywords that are not drop candidates, in some country |
 | `products.wikipedia` | `[]` | Entries `{keyword, article}`: the English Wikipedia article a scraper keyword's views are read from; a keyword no longer scraped is skipped. Redirects are followed and the report names the article reached. Map a keyword only to an article about that product |
 | `topics.anchor` | required | The term every topic's interest is a share of |
 | `topics.suggest_stems` | `[]` | Autocomplete stems; suggestions no pool topic covers are listed |

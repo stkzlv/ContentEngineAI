@@ -17,8 +17,8 @@ products:
   # country, with no rise over the last quarter, is a drop candidate.
   drop_below: 0.25
   # Rising searches next to this many of the strongest keywords are add
-  # candidates, kept only when they measure at or above the keywords'
-  # median against the anchor in some country.
+  # candidates, kept only when they measure at or above the median of the
+  # keywords that are not drop candidates, in some country.
   related_from: 5
   # The English Wikipedia article for a keyword. Its monthly views, by people
   # rather than bots, are a second, absolute signal beside Trends' shares;
@@ -48,7 +48,9 @@ topics:
   # Autocomplete stems: the suggestions show how viewers phrase questions.
   suggest_stems:
     - "how to turn off"
-    - "how to stop"
+    # Phone-only stems: a bare "how to stop" returns hiccups and nosebleeds.
+    - "how to stop my phone"
+    - "how to stop spam"
     - "why is my phone"
     - "iphone how to"
     - "samsung how to"
