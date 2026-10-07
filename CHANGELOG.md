@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.181.0] - 2026-10-07
+
+### Changed
+
+- The bundled scraper keywords drop 13 searches that the research demand stage measured at no Google Trends interest in the US and UK, then or a year earlier, leaving 41.
+
 ## [0.180.0] - 2026-10-07
 
 ### Added

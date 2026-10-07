@@ -456,7 +456,6 @@ batch:
       - "wireless earbuds"
       - "bluetooth speaker"
       - "MagSafe wallet"
-      - "MagSafe ring grip"
       - "magnetic phone mount"
       - "galaxy projector"
       - "sunset lamp"
@@ -464,31 +463,20 @@ batch:
 
     novelty:
       - "smart ring"
-      - "smart plant pot"
       - "smart mirror"
-      - "levitating bluetooth speaker"
       - "bone conduction headphones"
       - "portable espresso maker"
       - "retro game console"
-      - "smart bicycle helmet"
       - "solar backpack"
       - "3D pen"
       - "mini projector"
       - "drone with camera"
-      - "hydroponics kit"
-      - "herb growing system"
-      - "projection alarm clock"
-      - "pomodoro cube timer"
 
     utility:
       - "blue light blocking glasses"
-      - "wallet finder"
-      - "compact power station"
-      - "smart luggage tracker"
       - "robot vacuum"
       - "smart doorbell camera"
       - "noise cancelling earbuds"
-      - "phone gimbal stabilizer"
       - "portable monitor"
       - "mechanical keyboard"
       - "smart watch"
@@ -501,7 +489,6 @@ batch:
       - "automatic pet feeder"
       - "GPS pet tracker"
       - "pet water fountain"
-      - "custom macro pad"
 
   # Stop entire batch on first failure (default: false, continue processing)
   # When true: batch stops immediately on first scraping failure

@@ -6,7 +6,7 @@ The content research measures demand and writes a report that answers which scra
 
 ```bash
 poetry install --with research      # pytrends, once
-make research ARGS="demand"         # about 15 minutes for 50 keywords, 16 topics, 2 countries
+make research ARGS="demand"         # about 15 minutes for the bundled keywords, 16 topics, 2 countries
 ```
 
 The report is `outputs/reports/research-<date>/report.md`. Google Trends is rate-limited: the requests are paced, and one that still fails is listed under "Missing data". Run again later rather than lowering `request_pause_sec`.
