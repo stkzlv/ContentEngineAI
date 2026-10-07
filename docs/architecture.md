@@ -313,7 +313,7 @@ The full list, with statuses, is in [the requirements](requirements/README.md).
 
 - **Batch and module drift.** The batch phases re-implement parts of the standalone CLIs (scheduling, cleanup, filters, profile pools), and a fix in one path silently misses the other. [batch-alignment.md](notes/batch-alignment.md) lists where they drifted; the rule is to check the other path on every change.
 - **Environment tier placement.** The environment is applied to the YAML layer before the profile merges, so its place above the profile rests on no machine setting being one a profile can set. A test checks that; a new machine setting a profile also carries would need a second merge.
-- **Partial requirements.** Requirements marked `partial` name their gaps: among them `REQ-OPS-038` (probes, I/O and network calls take no concurrency limit) and `REQ-BAT-040` (random profile choice isn't stable across runs). The requirements files list every one with its `Gap:` line.
+- **Partial requirements.** Requirements marked `partial` name their gaps: among them `REQ-VID-090` (every cold-open variant renders the same way) and `REQ-BAT-040` (random profile choice isn't stable across runs). The requirements files list every one with its `Gap:` line.
 - **Dead or speculative structure.** `ScraperFactory`, `MultiPlatformScraper` and the non-Amazon `Platform` values have no caller.
 - **Link-in-bio window.** The provider's list endpoint returns one page, so the duplicate check sees only recent links ([decision 0005](decisions/0005-duplicates-are-tolerated.md)).
 - **Module notes.** Each file in [the module notes](notes/) records defects that a likely change would bring back. Read the module's file before changing it.

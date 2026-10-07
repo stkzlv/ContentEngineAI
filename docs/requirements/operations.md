@@ -75,8 +75,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 
 ## Resource limits
 
-- **REQ-OPS-038** `partial` The pipeline limits how many FFmpeg, I/O and network operations run at once.
-  - Gap: the FFmpeg encodes take a limit (final assembly, caption burn and the stock-clip transcodes, which the visual builder starts all at once); probes, I/O and network calls are not limited.
+- **REQ-OPS-038** `shipped` The pipeline limits how many FFmpeg encodes, media downloads and image-judge calls run at once: the encodes by `optimization_settings.async_ffmpeg_max_concurrent`, scraper downloads by `concurrent_image_downloads` and `concurrent_video_downloads`, stock downloads by `api_settings.stock_media_concurrent_downloads`, and the stock and image judges by their `concurrency`. Media probes are not limited: a render runs a dimension and a duration probe per visual, each a short `ffprobe`, and durations are cached per file.
 - **REQ-OPS-039** `shipped` The limit on concurrent FFmpeg encodes (final assembly, caption burn and stock-clip transcodes) is set by `optimization_settings.async_ffmpeg_max_concurrent` (default 4).
 - **REQ-OPS-040** `shipped` The scrape, produce, batch, publish and test runs each have a low-priority `make` target (`scrape-lowpri`, `produce-lowpri`, `batch-lowpri`, `publish-lowpri`, `test-lowpri`) that runs them at reduced CPU and I/O priority under a memory cap with swap disabled.
   - Check: a run that exceeds `MEM_LIMIT` (default 6G) is stopped without other applications on the machine being killed.

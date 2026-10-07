@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.183.1] - 2026-10-07
+
+### Changed
+
+- Tests now check that stock downloads and the stock and image judges stay within their concurrency limits, and the concurrency requirement states which operations are limited and why media probes are not.
+
 ## [0.183.0] - 2026-10-07
 
 ### Added
