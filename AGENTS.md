@@ -21,6 +21,7 @@ ContentEngineAI is a video production pipeline: it scrapes product data, writes 
 | CI, gates and dependency pinning | [ci-and-dependencies.md](docs/notes/ci-and-dependencies.md) |
 | Where the batch and the standalone modules have drifted | [batch-alignment.md](docs/notes/batch-alignment.md) |
 | The worked end-to-end cases | [end-to-end-checks.md](docs/notes/end-to-end-checks.md) |
+| Content research (demand, samples, verification) | [research.md](docs/notes/research.md) |
 
 ## Running things
 

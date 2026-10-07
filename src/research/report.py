@@ -15,7 +15,7 @@ from src.research.verify import VERDICTS
 def _cell(reading: dict[str, Any] | None) -> str:
     if reading is None:
         return "no data"
-    trend = reading.get("recent_ratio")
+    trend = reading.get("trend")
     if trend is None:
         arrow = ""
     elif trend > RISE:
@@ -58,9 +58,11 @@ def render_demand(demand: dict[str, Any]) -> str:
     lines = [
         "## Demand",
         "",
-        f"Google Trends relative interest over 12 months, as a share of the anchor "
-        f"term (\"{p['anchor']}\" for products, \"{t['anchor']}\" for topics); "
-        "\"rising\" and \"falling\" compare the last quarter with the year. "
+        f"Google Trends relative interest over 12 months, as the median week's "
+        f"share of the anchor term (\"{p['anchor']}\" for products, "
+        f"\"{t['anchor']}\" for topics); \"rising\" and \"falling\" compare "
+        "the last quarter with the same quarter a year earlier; a peak month "
+        "is one that peaked in at least two of the last complete years. "
         "Trends gives no volumes.",
         "",
         "### Scraper keywords",
@@ -70,12 +72,15 @@ def render_demand(demand: dict[str, Any]) -> str:
         "**Drop candidates** (under the configured share of the median in every "
         "country, not rising): " + (", ".join(p["drop_candidates"]) or "none") + ".",
         "",
-        "**Add candidates** (rising related searches for the product seeds, not "
-        "already keywords):",
+        "**Add candidates** (rising searches next to the strongest keywords, "
+        "kept when they measure at or above the keywords' median share in some "
+        "country):",
         "",
     ]
     lines += [
-        f"- {a['query']} (from \"{a['seed']}\", {a['geo']}, +{a['growth']:g}%)"
+        f"- {a['query']} (next to \"{a['seed']}\", {a['geo']}, +{a['growth']:g}%; "
+        + ", ".join(f"{g} {v:.2f}" for g, v in a.get("shares", {}).items())
+        + ")"
         for a in p["add_candidates"][:25]
     ] or ["- none"]
     topic_rows = {f"{name} (\"{r['term']}\")": r for name, r in t["terms"].items()}

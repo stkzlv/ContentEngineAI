@@ -15,7 +15,9 @@ class ProductResearch(BaseModel):
 
     anchor: str
     drop_below: float = Field(default=0.25, ge=0.0, le=1.0)
-    seeds: list[str] = Field(default_factory=list)
+    # Rising searches next to this many of the strongest keywords become
+    # add candidates, once measured against the anchor.
+    related_from: int = Field(default=5, ge=0)
 
 
 class TopicResearch(BaseModel):

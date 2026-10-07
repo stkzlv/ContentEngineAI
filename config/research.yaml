@@ -16,8 +16,10 @@ products:
   # A keyword under this share of the products' median interest in every
   # country, with no rise over the last quarter, is a drop candidate.
   drop_below: 0.25
-  # Broad searches whose rising related searches suggest keywords to add.
-  seeds: ["tech gadgets", "phone accessories", "smart home devices"]
+  # Rising searches next to this many of the strongest keywords are add
+  # candidates, kept only when they measure at or above the keywords'
+  # median against the anchor in some country.
+  related_from: 5
 
 topics:
   anchor: "iphone storage full"

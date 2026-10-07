@@ -150,8 +150,8 @@ def demand_recommendations(demand: dict[str, Any]) -> list[dict[str, Any]]:
                 "key": "batch.keywords",
                 "change": "add",
                 "items": [a["query"] for a in adds],
-                "reason": "rising related searches for the product seeds; "
-                "measure each against the anchor before scraping",
+                "reason": "rising searches next to the strongest keywords that "
+                "measure at or above the keywords' median",
             }
         )
     uncovered = [u["suggestion"] for u in topics["uncovered"]][:TOP]

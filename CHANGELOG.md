@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.179.0] - 2026-10-07
+
+### Fixed
+
+- The research demand report no longer lets one anomalous week in Google Trends decide its figures: shares use median weeks, the trend compares the last quarter with the same quarter a year earlier, and a peak month must recur in at least two complete years.
+- Keyword add candidates come from rising searches next to the strongest keywords and are kept only when they measure at or above the keywords' median, and the uncovered topic searches alternate between stems.
+
+### Changed
+
+- **Breaking**: `products.seeds` in `config/research.yaml` is replaced by `products.related_from` (the number of strongest keywords to take rising searches from); a config that still sets `seeds` fails validation.
+
 ## [0.178.0] - 2026-10-06
 
 ### Added
