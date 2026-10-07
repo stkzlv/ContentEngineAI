@@ -418,3 +418,53 @@ def test_a_seasonal_high_is_not_a_rise() -> None:
         (day, 30.0 if int(day[5:7]) >= 10 else 10.0) for day, _ in five_years(10.0)
     ]
     assert yoy_ratio(holiday) == 1.0
+
+
+@pytest.mark.req("REQ-OPS-108")
+def test_a_keyword_with_no_interest_then_or_now_is_dropped() -> None:
+    assert yoy_ratio(five_years(0.0)) == 1.0
+    source = FakeTrends(
+        {"anchor": 10.0, **{f"typical {i}": 5.0 for i in range(5)}, "dead": 0.0}
+    )
+    found, missing = measure(
+        source, [*(f"typical {i}" for i in range(5)), "dead"], "anchor", "US"
+    )
+    shares = {k: {"US": v} for k, v in found.items()}
+
+    assert drop_candidates(shares, 0.25) == ["dead"]
+    assert missing == []
+
+
+def test_sparse_noise_gets_no_peak_month() -> None:
+    import random
+
+    rng = random.Random(7)  # noqa: S311 - a seeded fixture, not security
+    hits = 0
+    for _ in range(200):
+        sparse = [
+            (day, 1.0 if rng.random() < 0.1 else 0.0) for day, _ in five_years(0.0)
+        ]
+        hits += peak_month(sparse) is not None
+    assert hits == 0
+
+
+@pytest.mark.req("REQ-OPS-108")
+def test_add_candidates_are_capped_and_measured_for_share_only(monkeypatch) -> None:
+    config = load_research_config().model_copy(update={"countries": ["US"]})
+    config.products.related_from = 1
+    config.topics.suggest_stems = []
+    rising = [(f"gadget {i}", float(1000 - i)) for i in range(30)]
+    levels = {config.products.anchor: 10.0, "smart plug": 9.0}
+    levels.update({f"gadget {i}": 9.0 for i in range(30)})
+    source = FakeTrends(levels, rising={"smart plug": rising})
+
+    async def none(stems, countries):
+        return {}
+
+    monkeypatch.setattr(demand_mod, "_all_suggestions", none)
+    record = run_demand(config, source, ["smart plug"], [])
+
+    kept = [a["query"] for a in record["products"]["add_candidates"]]
+    assert len(kept) == demand_mod.MAX_CANDIDATES and kept[0] == "gadget 0"
+    measured = [c for c in source.calls if any(t.startswith("gadget") for t in c[0])]
+    assert measured and all(c[2] == demand_mod.YEAR for c in measured)

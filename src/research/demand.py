@@ -37,6 +37,11 @@ PEAK_YEARS = 2
 # A year votes only when its top month stands this far above its median
 # month; a flat year has no peak, and a tie would elect January.
 PEAK_LIFT = 1.2
+# Nor does a year whose top month averages under Trends' smallest unit:
+# scattered single readings are noise, not a season.
+PEAK_FLOOR = 1.0
+# Add candidates measured against the anchor, fastest-rising first.
+MAX_CANDIDATES = 20
 
 
 def batches(terms: list[str], size: int = TERMS_PER_REQUEST) -> list[list[str]]:
@@ -63,9 +68,10 @@ def peak_month(series: list[tuple[str, float]]) -> int | None:
             continue
         means = {m: statistics.fmean(v) for m, v in months.items()}
         top = max(means, key=lambda m: means[m])
-        if means[top] <= 0 or means[top] < PEAK_LIFT * statistics.median(
-            means.values()
-        ):
+        typical = statistics.median(means.values())
+        # A sparse year (a typical month of zero) votes for whichever month
+        # caught a stray reading, so it does not vote at all.
+        if typical <= 0 or means[top] < max(PEAK_FLOOR, PEAK_LIFT * typical):
             continue
         votes[top] = votes.get(top, 0) + 1
     if not votes:
@@ -84,13 +90,20 @@ def yoy_ratio(series: list[tuple[str, float]]) -> float | None:
     if len(series) < YEAR_POINTS + QUARTER_POINTS:
         return None
     before = _median(series[-(YEAR_POINTS + QUARTER_POINTS) : -YEAR_POINTS])
+    now = _median(series[-QUARTER_POINTS:])
     if not before:
-        return None
-    return round(_median(series[-QUARTER_POINTS:]) / before, 3)
+        # Nothing then and nothing now is flat, the case the drop rule is
+        # for; something now from nothing has no ratio.
+        return 1.0 if not now else None
+    return round(now / before, 3)
 
 
 def measure(
-    source: TrendsSource, terms: list[str], anchor: str, geo: str
+    source: TrendsSource,
+    terms: list[str],
+    anchor: str,
+    geo: str,
+    five_years: bool = True,
 ) -> tuple[dict[str, dict[str, Any] | None], list[str]]:
     """Each term's share of the anchor, trend and peak month in one country.
 
@@ -104,7 +117,10 @@ def measure(
         found[anchor] = {"share": 1.0, "trend": None, "peak_month": None}
     for group in batches([t for t in terms if t != anchor]):
         year = source.interest([anchor, *group], geo, YEAR)
-        five = source.interest([anchor, *group], geo, FIVE_YEARS)
+        # Share-only callers (add candidates) skip the five-year request.
+        five = (
+            source.interest([anchor, *group], geo, FIVE_YEARS) if five_years else None
+        )
         base = _median(year[anchor]) if year and anchor in year else 0.0
         for term in group:
             if not year or term not in year or not base:
@@ -112,7 +128,7 @@ def measure(
                 missing.append(f"Trends {geo}: {term}")
                 continue
             series = five.get(term) if five else None
-            if series is None:
+            if series is None and five_years:
                 missing.append(f"Trends {geo} (5 years): {term}")
             found[term] = {
                 "share": round(_median(year[term]) / base, 3),
@@ -281,13 +297,20 @@ def run_demand(
                 missing.append(f"Trends {geo}: rising searches for {seed}")
                 continue
             rising += [(seed, geo, q, g) for q, g in found_rising]
-    candidates = new_keywords(rising, keywords)
+    # The fastest-rising first, capped: each candidate costs Trends requests.
+    candidates = sorted(new_keywords(rising, keywords), key=lambda c: -c["growth"])[
+        :MAX_CANDIDATES
+    ]
     readings: dict[str, dict[str, dict[str, Any] | None]] = {
         c["query"]: {} for c in candidates
     }
     for geo in config.countries:
         found, gaps = measure(
-            source, [c["query"] for c in candidates], config.products.anchor, geo
+            source,
+            [c["query"] for c in candidates],
+            config.products.anchor,
+            geo,
+            five_years=False,
         )
         missing += [f"{g} (add candidate)" for g in gaps]
         for c in candidates:
