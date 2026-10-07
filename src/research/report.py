@@ -52,9 +52,77 @@ def _table(
     return out
 
 
+def _trend_word(trend: float | None) -> str:
+    if trend is None:
+        return "-"
+    return "rising" if trend > RISE else "falling" if trend < 1 / RISE else "flat"
+
+
+def _wikipedia(views: dict[str, Any]) -> list[str]:
+    """Monthly views of each mapped keyword's article, most viewed first."""
+    if not views:
+        return []
+    out = [
+        "",
+        "**Wikipedia views** (median month of the last 12, people only, all "
+        "countries; the trend compares the last three months with the same "
+        "months a year earlier, relative to all of English Wikipedia):",
+        "",
+        "| Keyword | Article | Views a month | Trend |",
+        "|---|---|---|---|",
+    ]
+    for keyword, r in sorted(
+        views.items(), key=lambda item: -(item[1] or {}).get("views", -1)
+    ):
+        if r is None:
+            out.append(f"| {keyword} | - | no data | - |")
+            continue
+        out.append(
+            f"| {keyword} | {_escape(r['article'])} | {r['views']:,} | "
+            f"{_trend_word(r['trend'])} |"
+        )
+    return out
+
+
+def _link_text(title: str) -> str:
+    """A title as Markdown link text: its brackets, tags and emphasis literal."""
+    return _escape(re.sub(r"([\\`*_\[\]<>])", r"\\\1", title))
+
+
+def _questions(asked: list[dict[str, Any]]) -> list[str]:
+    if not asked:
+        return []
+    out = [
+        "",
+        "**Most-viewed recent questions** (Stack Exchange, per day since "
+        "asked; content under CC BY-SA, each title links to its question):",
+    ]
+    for source in asked:
+        out += ["", f"*{source['source']}*", ""]
+        found = source["questions"]
+        if found is None:
+            out.append("- no data")
+            continue
+        out += [
+            f"- [{_link_text(q['title'])}]({q['link']}) ({q['views']:,} views, "
+            f"{q['per_day']:g} a day; {', '.join(q['tags'])})"
+            for q in found
+        ] or ["- none"]
+    return out
+
+
 def render_demand(demand: dict[str, Any]) -> str:
     countries = demand["countries"]
     p, t = demand["products"], demand["topics"]
+    views = p.get("wikipedia") or {}
+
+    def drop(keyword: str) -> str:
+        # A second signal that disagrees is worth a look before dropping.
+        r = views.get(keyword)
+        if r and r["trend"] is not None and r["trend"] > RISE:
+            return f"{keyword} (Wikipedia views rising)"
+        return keyword
+
     lines = [
         "## Demand",
         "",
@@ -70,7 +138,10 @@ def render_demand(demand: dict[str, Any]) -> str:
         *_table(p["terms"], countries, "Keyword"),
         "",
         "**Drop candidates** (under the configured share of the median in every "
-        "country, not rising): " + (", ".join(p["drop_candidates"]) or "none") + ".",
+        "country, not rising): "
+        + (", ".join(map(drop, p["drop_candidates"])) or "none")
+        + ".",
+        *_wikipedia(views),
         "",
         "**Add candidates** (rising searches next to the strongest keywords, "
         "kept when they measure at or above the keywords' median share in some "
@@ -97,6 +168,7 @@ def render_demand(demand: dict[str, Any]) -> str:
     lines += [f"- {u['suggestion']} ({u['geo']})" for u in t["uncovered"][:40]] or [
         "- none"
     ]
+    lines += _questions(t.get("questions") or [])
     if demand["missing"]:
         lines += ["", "### Missing data", ""]
         lines += [f"- {m}" for m in demand["missing"]]

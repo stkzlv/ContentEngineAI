@@ -20,6 +20,28 @@ products:
   # candidates, kept only when they measure at or above the keywords'
   # median against the anchor in some country.
   related_from: 5
+  # The English Wikipedia article for a keyword. Its monthly views, by people
+  # rather than bots, are a second, absolute signal beside Trends' shares;
+  # redirects are followed, and the report names the article reached. Map only a keyword with an article about that
+  # product: a broad one ("Headphones" for earbuds) measures something else.
+  wikipedia:
+    - {keyword: "USB C hub", article: "USB hub"}
+    - {keyword: "smart plug", article: "Smart plug"}
+    - {keyword: "portable charger", article: "Battery pack"}
+    - {keyword: "wireless charging pad", article: "Inductive charging"}
+    - {keyword: "bluetooth tracker", article: "Key finder"}
+    - {keyword: "LED strip lights", article: "LED strip light"}
+    - {keyword: "digital picture frame", article: "Digital photo frame"}
+    - {keyword: "bluetooth speaker", article: "Wireless speaker"}
+    - {keyword: "smart ring", article: "Smart ring"}
+    - {keyword: "mini projector", article: "Handheld projector"}
+    - {keyword: "robot vacuum", article: "Robotic vacuum cleaner"}
+    - {keyword: "smart doorbell camera", article: "Smart doorbell"}
+    - {keyword: "noise cancelling earbuds", article: "Noise-cancelling headphones"}
+    - {keyword: "smart watch", article: "Smartwatch"}
+    - {keyword: "fitness tracker band", article: "Fitness tracker"}
+    - {keyword: "solar power bank", article: "Solar charger"}
+    - {keyword: "smart door lock", article: "Smart lock"}
 
 topics:
   anchor: "iphone storage full"
@@ -33,6 +55,17 @@ topics:
     - "windows 11 how to"
     - "gmail how to"
     - "whatsapp how to"
+  # What people ask on Stack Exchange sites, ranked by views per day since
+  # asked. A technical audience, so a signal of what breaks, not of volume.
+  # The API needs no key for these few requests (300 a day per address).
+  stack_exchange:
+    sources:
+      - {site: apple, tagged: iphone}
+      - {site: android}
+      - {site: superuser, tagged: windows-11}
+    days: 90
+    pages: 3
+    top: 10
 
 # Text-only script samples (`sample` stage): the producer's script step, in
 # memory, under each variant. Nothing is scraped or rendered.

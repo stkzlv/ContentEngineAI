@@ -10,6 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 DEFAULT_PATH = Path("config/research.yaml")
 
 
+class WikipediaArticle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    keyword: str
+    article: str
+
+
 class ProductResearch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -18,6 +25,28 @@ class ProductResearch(BaseModel):
     # Rising searches next to this many of the strongest keywords become
     # add candidates, once measured against the anchor.
     related_from: int = Field(default=5, ge=0)
+    # The English Wikipedia article whose monthly views are a keyword's
+    # second, absolute demand signal. Redirects are followed. A keyword with
+    # no specific article is left out: a broad one measures something else.
+    wikipedia: list[WikipediaArticle] = Field(default_factory=list)
+
+
+class QuestionSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    site: str  # a Stack Exchange site's API name, such as "apple"
+    tagged: str = ""  # one tag; empty means every question on the site
+
+
+class StackExchangeResearch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sources: list[QuestionSource] = Field(default_factory=list)
+    # Questions asked in this many days, ranked by views per day.
+    days: int = Field(default=90, ge=1)
+    # Pages of 100 per source; without a key the API allows 300 a day.
+    pages: int = Field(default=3, ge=1, le=10)
+    top: int = Field(default=10, ge=1)
 
 
 class TopicResearch(BaseModel):
@@ -25,6 +54,7 @@ class TopicResearch(BaseModel):
 
     anchor: str
     suggest_stems: list[str] = Field(default_factory=list)
+    stack_exchange: StackExchangeResearch = Field(default_factory=StackExchangeResearch)
 
 
 VARIANTS = ("shipped", "step_lists", "task_answer_first")

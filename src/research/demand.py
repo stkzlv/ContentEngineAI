@@ -7,16 +7,27 @@ run can be re-analysed without a request.
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 import statistics
+import time
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import aiohttp
 
-from src.research.config import ResearchConfig
-from src.research.sources import TERMS_PER_REQUEST, TrendsSource, suggestions
+from src.research.config import ResearchConfig, StackExchangeResearch
+from src.research.sources import (
+    TERMS_PER_REQUEST,
+    WIKI_PAUSE_SEC,
+    TrendsSource,
+    pageviews,
+    questions,
+    resolve_articles,
+    site_views,
+    suggestions,
+)
 from src.scraper.base.keyword_pillars import normalize_keyword
 from src.video.search_phrase import contains
 
@@ -80,17 +91,22 @@ def peak_month(series: list[tuple[str, float]]) -> int | None:
     return month if count >= PEAK_YEARS else None
 
 
-def yoy_ratio(series: list[tuple[str, float]]) -> float | None:
+def yoy_ratio(
+    series: list[tuple[str, float]],
+    quarter: int = QUARTER_POINTS,
+    year: int = YEAR_POINTS,
+) -> float | None:
     """The last quarter's median over the same quarter a year earlier.
 
     Year on year, so a holiday peak inside the last twelve months does not
     make every autumn read as a fall. None without two years of data or
-    with no interest a year earlier.
+    with no interest a year earlier. Weekly by default; a monthly series
+    passes 3 and 12.
     """
-    if len(series) < YEAR_POINTS + QUARTER_POINTS:
+    if len(series) < year + quarter:
         return None
-    before = _median(series[-(YEAR_POINTS + QUARTER_POINTS) : -YEAR_POINTS])
-    now = _median(series[-QUARTER_POINTS:])
+    before = _median(series[-(year + quarter) : -year])
+    now = _median(series[-quarter:])
     if not before:
         # Nothing then and nothing now is flat, the case the drop rule is
         # for; something now from nothing has no ratio.
@@ -263,6 +279,105 @@ async def _all_suggestions(
         return out
 
 
+def views_reading(
+    series: list[tuple[str, float]], site_trend: float | None
+) -> dict[str, Any]:
+    """Median monthly views over the last 12 months, and the year-on-year trend.
+
+    The trend is relative to all of English Wikipedia, whose own views by
+    people are falling: without that, nearly every article reads as falling.
+    """
+    own = yoy_ratio(series, quarter=3, year=12)
+    return {
+        "views": round(_median(series[-12:])),
+        "trend": round(own / site_trend, 3) if own is not None and site_trend else None,
+    }
+
+
+def last_months(today: date, months: int) -> tuple[str, str]:
+    """YYYYMMDD bounds of the `months` complete months before `today`."""
+    end = today.replace(day=1) - timedelta(days=1)
+    year, month = end.year, end.month - months + 1
+    while month < 1:
+        year, month = year - 1, month + 12
+    return f"{year}{month:02d}01", end.strftime("%Y%m%d")
+
+
+def ranked_questions(
+    found: list[dict[str, Any]], now: float, top: int
+) -> list[dict[str, Any]]:
+    """The most-viewed questions per day since asked, so age is no advantage."""
+    out: list[dict[str, Any]] = []
+    for q in found:
+        try:
+            views = int(q["view_count"])
+            days = max(1.0, (now - int(q["creation_date"])) / 86400)
+            title = html.unescape(str(q["title"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        out.append(
+            {
+                "title": title,
+                "link": str(q.get("link", "")),
+                "views": views,
+                "per_day": round(views / days, 1),
+                "tags": [t for t in q.get("tags") or [] if isinstance(t, str)],
+                "answered": bool(q.get("is_answered")),
+            }
+        )
+    return sorted(out, key=lambda q: -float(q["per_day"]))[:top]
+
+
+async def _open_data(
+    articles: dict[str, str], stack: StackExchangeResearch, today: date
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
+    """Wikipedia views per keyword's article and recent Stack Exchange questions.
+
+    Both are official, keyless APIs; a failed request is missing, never zero.
+    """
+    missing: list[str] = []
+    views: dict[str, Any] = {}
+    asked: list[dict[str, Any]] = []
+    async with aiohttp.ClientSession() as session:
+        resolved = await resolve_articles(session, sorted(set(articles.values())))
+        if resolved is None and articles:
+            missing.append("Wikipedia: article lookup")
+        start, end = last_months(today, 24)
+        site = await site_views(session, start, end) if articles else None
+        site_trend = yoy_ratio(site, quarter=3, year=12) if site else None
+        if articles and not site_trend:
+            missing.append("Wikipedia: total views, so no article trend")
+        for keyword, title in articles.items():
+            article = (resolved or {}).get(title)
+            if resolved is not None and article is None:
+                missing.append(f"Wikipedia: no article {title!r}")
+            if article is None:
+                views[keyword] = None
+                continue
+            await asyncio.sleep(WIKI_PAUSE_SEC)
+            series = await pageviews(session, article, start, end)
+            if series is None:
+                missing.append(f"Wikipedia: views of {article!r}")
+                views[keyword] = None
+                continue
+            views[keyword] = {"article": article, **views_reading(series, site_trend)}
+        since = int(time.time()) - stack.days * 86400
+        for src in stack.sources:
+            found = await questions(session, src.site, src.tagged, since, stack.pages)
+            name = f"{src.site}/{src.tagged}" if src.tagged else src.site
+            if found is None:
+                missing.append(f"Stack Exchange: {name}")
+            asked.append(
+                {
+                    "source": name,
+                    "questions": None
+                    if found is None
+                    else ranked_questions(found, time.time(), stack.top),
+                }
+            )
+    return views, asked, missing
+
+
 def run_demand(
     config: ResearchConfig,
     source: TrendsSource,
@@ -325,6 +440,14 @@ def run_demand(
     suggested = asyncio.run(
         _all_suggestions(config.topics.suggest_stems, config.countries)
     )
+    # Only articles for keywords still scraped.
+    articles = {
+        w.keyword: w.article for w in config.products.wikipedia if w.keyword in products
+    }
+    views, asked, gaps = asyncio.run(
+        _open_data(articles, config.topics.stack_exchange, date.today())
+    )
+    missing += gaps
     missing += [
         f"Suggest {geo}: {stem}"
         for stem, per_geo in suggested.items()
@@ -339,12 +462,14 @@ def run_demand(
             "terms": products,
             "drop_candidates": drop_candidates(products, config.products.drop_below),
             "add_candidates": measured_candidates(candidates, readings, medians),
+            "wikipedia": views,
         },
         "topics": {
             "anchor": config.topics.anchor,
             "terms": topics,
             "suggestions": suggested,
             "uncovered": uncovered(suggested, pool_titles),
+            "questions": asked,
         },
         "missing": missing,
     }
