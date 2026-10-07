@@ -1611,7 +1611,12 @@ another. Only sentences that are exactly the claim go, and a following
 sentence that leans on a deleted one ("That's why...") sends the repair to
 the reviser instead. A rewrite is also refused when a sentence it adds
 repeats the removed claim's own subject words, other than words another
-flag's correction brings in.
+flag's correction brings in, when a sentence it adds carries the fix's own
+wording ("instead of", "is located under"), or when it says a sentence twice
+where the original said it once. A fix that answers a claimed limit ("a limit on bulk actions", "more than
+50,000") with a universal ("regardless of how many", "no limit") is treated
+as a removal of the claim, and a rewrite that brings such a universal back,
+other than one another flag's fix uses, is refused.
 
 There is no round count to set. The script is checked once and repaired once,
 so the repaired sentence is never itself checked -- a real gap, and the reason

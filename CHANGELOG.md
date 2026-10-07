@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.182.1] - 2026-10-07
+
+### Fixed
+
+- The script fact check refuses a revision that pastes a fix's own wording ("instead of", "is located under") or repeats a sentence, and removes a claimed limit whose fix only answers it with a universal such as "regardless of how many", instead of swapping in an equally unsupported sentence.
+
 ## [0.182.0] - 2026-10-07
 
 ### Fixed

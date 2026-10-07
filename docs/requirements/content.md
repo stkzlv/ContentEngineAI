@@ -54,7 +54,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-146** `held` Where step lists are on, a topic script names the app or settings screen where the steps start, before the first step.
   - On when: `llm_settings.topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
 - **REQ-CNT-147** `partial` A topic script names the most common mistake at the step where it happens.
-  - Gap: only with step lists on (held) is the mistake named at its step; the free-form topic templates leave it out, or name it in the opening line as `topic_mistake_fix` does (#559).
+  - Gap: only with step lists on (held) is the mistake named at its step; the free-form topic templates leave it out, or name it in the opening line as `topic_mistake_fix` does. Turning step lists on closes it.
 
 ## Call to action and closing line
 
@@ -94,6 +94,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-050** `shipped` When the check flags claims, the producer revises at most `script_fact_check.max_flags_to_revise` sentences (default 3) and refuses a revision whose length differs from the original by more than `script_fact_check.max_length_drift` (default 25%).
 - **REQ-CNT-051** `shipped` If the fact check or the revision fails for any reason, the producer ships the original script.
 - **REQ-CNT-151** `shipped` When every flagged claim's fix asks for its removal, the producer deletes those sentences without a rewrite, provided they are exactly the claims and no following sentence leans on them; otherwise the reviser repairs them, and a rewrite that repeats a removed claim's subject words is refused.
+- **REQ-CNT-154** `shipped` The fact check refuses a revision that adds a sentence carrying fix wording a flagged claim's fix used ("instead of", "is located under", "is located in", "can be found under", "is found under") or that says a sentence twice where the original said it once; a fix that answers a claimed limit (a claim saying "limit" or "limited", or a number after "up to", "at most", "more than", "over", "fewer than", "less than" or "maximum of") with a universal ("regardless of", "no matter how", "no matter what", "any number of", "unlimited", "no limit") is carried out as a removal of the claim, and a revision that brings such a universal back, other than one another flag's fix uses, is refused.
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
 - **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
   - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.

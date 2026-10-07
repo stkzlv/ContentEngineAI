@@ -1383,3 +1383,322 @@ class TestRemovalEdges:
         assert remove_flagged(script, flag) == (
             f"The lamp lasts all evening. Great for camping trips with friends. {CTA}"
         )
+
+
+CHARGING = (
+    "Here's how to turn on the 80% charging limit on iPhone. Open Settings, "
+    "then Battery. Then select Optimized Battery Charging. You might see "
+    '"Manage Battery Longevity" or similar. This is available on most iPhones '
+    f"made since 2018. {CTA}"
+)
+CHARGING_FLAGS = [
+    FactCheckClaim(
+        claim="Then select Optimized Battery Charging.",
+        reason="Optimized Battery Charging still charges to 100%.",
+        fix="Tap Charging (or Charging Optimization) instead of Optimized "
+        "Battery Charging.",
+    ),
+    FactCheckClaim(
+        claim='You might see "Manage Battery Longevity" or similar.',
+        reason="That is a macOS feature.",
+        fix="On iPhone, the setting is located under Charging or Charging "
+        "Optimization.",
+    ),
+    FactCheckClaim(
+        claim="This is available on most iPhones made since 2018.",
+        reason="The limit is exclusive to iPhone 15 and later.",
+        fix="This feature is only available on iPhone 15 and newer models.",
+    ),
+]
+GMAIL = (
+    "To clear out one sender, search Gmail for from: and their address. "  # noqa: S608
+    "Select all, then select every conversation that matches. Click the trash "
+    "can. This won't work if you have more than 50,000 emails from that "
+    "sender, as Gmail has a limit on bulk actions. After that, your inbox is "
+    f"clear of those messages. {CTA}"
+)
+GMAIL_ANSWER = (
+    "VERDICT: FLAGGED\n"
+    "CLAIM: This won't work if you have more than 50,000 emails from that "
+    "sender, as Gmail has a limit on bulk actions.\n"
+    "RULING: wrong\n"
+    "REASON: Gmail does not impose a 50,000-email limit on bulk deletions.\n"
+    "FIX: This method works to select and delete all matching conversations "
+    "regardless of how many emails you have."
+)
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-154")
+class TestARevisionIsNarrationNotTheFix:
+    """A revision pasted the fixes in: "Tap Charging or Charging Optimization
+    instead of Optimized Battery Charging. On iPhone, the setting is located
+    under Charging or Charging Optimization." (#685).
+    """
+
+    def test_the_fixs_own_wording_is_refused(self) -> None:
+        revised = (
+            "Here's how to turn on the 80% charging limit on iPhone. Open "
+            "Settings, then Battery. Tap Charging or Charging Optimization "
+            "instead of Optimized Battery Charging. On iPhone, the setting is "
+            "located under Charging or Charging Optimization. This feature is "
+            f"only available on iPhone 15 and newer models. {CTA}"
+        )
+
+        accepted, reason = accept_revision(CHARGING, revised, CHARGING_FLAGS, **GUARDS)
+
+        assert accepted is None
+        assert reason == "the revision copies the fix's wording: instead of"
+
+    def test_the_location_wording_is_refused_on_its_own(self) -> None:
+        revised = CHARGING.replace(
+            'You might see "Manage Battery Longevity" or similar.',
+            "On iPhone, the setting is located under Charging.",
+        )
+
+        accepted, reason = accept_revision(
+            CHARGING, revised, CHARGING_FLAGS[1:2], **GUARDS
+        )
+
+        assert accepted is None
+        assert reason == "the revision copies the fix's wording: is located under"
+
+    def test_the_same_phrase_is_fine_when_the_fix_never_used_it(self) -> None:
+        flag = [
+            FactCheckClaim(
+                claim="Then select Optimized Battery Charging.",
+                reason="r",
+                fix="Tap Charging, then set the limit to 80%.",
+            )
+        ]
+        revised = CHARGING.replace(
+            "Then select Optimized Battery Charging.",
+            "Tap Charging and pick 80% instead of 100%.",
+        )
+
+        accepted, reason = accept_revision(CHARGING, revised, flag, **GUARDS)
+
+        assert accepted == revised, reason
+
+    def test_a_sentence_the_script_already_had_is_not_judged(self) -> None:
+        script = CHARGING.replace(
+            "Open Settings, then Battery.",
+            "Open Settings instead of Control Center.",
+        )
+        flag = [
+            FactCheckClaim(
+                claim="Then select Optimized Battery Charging.",
+                reason="r",
+                fix="Tap Charging instead of Optimized Battery Charging.",
+            )
+        ]
+        revised = script.replace(
+            "Then select Optimized Battery Charging.", "Then tap Charging."
+        )
+
+        accepted, reason = accept_revision(script, revised, flag, **GUARDS)
+
+        assert accepted == revised, reason
+
+    def test_a_narrated_repair_is_accepted(self) -> None:
+        revised = CHARGING.replace(
+            "Then select Optimized Battery Charging.",
+            "Then tap Charging and choose 80% Limit.",
+        )
+
+        accepted, reason = accept_revision(
+            CHARGING, revised, CHARGING_FLAGS[:1], **GUARDS
+        )
+
+        assert accepted == revised, reason
+
+    def test_a_sentence_said_twice_is_refused(self) -> None:
+        fixed = "This feature is only available on iPhone 15 and newer models."
+        revised = CHARGING.replace(
+            "This is available on most iPhones made since 2018.",
+            f"{fixed} {fixed}",
+        )
+
+        # Past the drift bound too; the repeat is the reason that names it.
+        accepted, reason = accept_revision(
+            CHARGING, revised, CHARGING_FLAGS[2:], **{**GUARDS, "max_length_drift": 1}
+        )
+
+        assert accepted is None
+        assert reason == "the revision repeats a sentence"
+
+    def test_a_line_the_original_already_repeated_may_stay(self) -> None:
+        twice = f"Open Settings. Open Settings. Then tap Battery and Charging. {CTA}"
+        script = twice.replace("Then tap Battery", "Then tap Display")
+        flag = [
+            FactCheckClaim(
+                claim="Then tap Display and Charging.",
+                reason="r",
+                fix="Then tap Battery and Charging.",
+            )
+        ]
+
+        accepted, reason = accept_revision(
+            script, twice, flag, **{**GUARDS, "min_words": 5}
+        )
+
+        assert accepted == twice, reason
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-154")
+class TestADenialIsARemoval:
+    """A fix replaced an invented 50,000-email limit with an equally
+    unsupported "regardless of how many emails you have" (#685).
+    """
+
+    @pytest.mark.parametrize(
+        ("fix", "denial"),
+        [
+            ("This method works regardless of how many emails you have.", True),
+            ("It works no matter how many photos are in the album.", True),
+            ("You can attach any number of files.", True),
+            ("Gmail has no limit on bulk deletions.", True),
+            ("This feature is only available on iPhone 15 and newer models.", False),
+            ("Gmail limits a bulk action to 50 conversations per page.", False),
+        ],
+    )
+    def test_a_universal_denial_is_recognised(self, fix: str, denial: bool) -> None:
+        from src.ai.script_fact_check import is_denial
+
+        assert is_denial(fix) is denial
+
+    def test_a_denial_becomes_a_removal_of_the_claim(self) -> None:
+        from src.ai.script_fact_check import as_removal, is_removal
+
+        claim = FactCheckClaim(
+            claim="It holds up to 50,000 items.",
+            reason="r",
+            fix=("It holds any number of items."),
+        )
+        removal = as_removal(claim)
+
+        assert is_removal(removal.fix) and removal.claim == claim.claim
+        assert as_removal(CHARGING_FLAGS[2]) is CHARGING_FLAGS[2]
+
+    def test_a_corrected_step_with_a_universal_is_still_a_repair(self) -> None:
+        from src.ai.script_fact_check import as_removal
+
+        step = FactCheckClaim(
+            claim="Then select Optimized Battery Charging.",
+            reason="r",
+            fix="Then tap Charging and choose 80% Limit, which applies no matter "
+            "what charger you use.",
+        )
+
+        assert as_removal(step) is step
+        # A number is not a limit on its own.
+        model = FactCheckClaim(
+            claim="On iPhone 15, plug in the Apple 20W adapter to fast charge.",
+            reason="r",
+            fix="Plug in any USB-C PD charger, no matter what brand.",
+        )
+        assert as_removal(model) is model
+
+    def test_another_flags_repair_may_share_the_removed_claims_words(self) -> None:
+        from src.ai.script_fact_check import as_removal
+
+        claim = (
+            "This won't work if you have more than 50,000 emails from that "
+            "sender, as Gmail has a limit on bulk actions."
+        )
+        flags = [
+            as_removal(
+                FactCheckClaim(
+                    claim=claim,
+                    reason="r",
+                    fix=("It works regardless of how many emails you have."),
+                )
+            ),
+            FactCheckClaim(
+                claim="Select all, then select every conversation that matches.",
+                reason="r",
+                fix="Tick Select all, then click the link to select every "
+                "conversation in the search.",
+            ),
+        ]
+        revised = GMAIL.replace(f"{claim} ", "").replace(
+            "Select all, then select every conversation that matches.",
+            "Tick the Select all box, then click the link to select every "
+            "conversation in the search, not just the first page of emails.",
+        )
+
+        accepted, reason = accept_revision(GMAIL, revised, flags, **GUARDS)
+
+        assert accepted == revised, reason
+
+    def test_another_flags_own_universal_is_its_repair(self) -> None:
+        from src.ai.script_fact_check import as_removal
+
+        claim = (
+            "This won't work if you have more than 50,000 emails from that "
+            "sender, as Gmail has a limit on bulk actions."
+        )
+        flags = [
+            as_removal(
+                FactCheckClaim(
+                    claim=claim,
+                    reason="r",
+                    fix=("It works regardless of how many emails you have."),
+                )
+            ),
+            FactCheckClaim(
+                claim="Click the trash can.",
+                reason="r",
+                fix="Click the trash can icon, which appears no matter what "
+                "view you use.",
+            ),
+        ]
+        revised = GMAIL.replace(f"{claim} ", "").replace(
+            "Click the trash can.",
+            "Click the trash can icon, which appears no matter what view you use.",
+        )
+
+        accepted, reason = accept_revision(GMAIL, revised, flags, **GUARDS)
+
+        assert accepted == revised, reason
+
+    def test_the_universal_may_not_come_back_in_a_rewrite(self) -> None:
+        from src.ai.script_fact_check import as_removal
+
+        claim = (
+            "This won't work if you have more than 50,000 emails from that "
+            "sender, as Gmail has a limit on bulk actions."
+        )
+        flags = [
+            as_removal(
+                FactCheckClaim(
+                    claim=claim,
+                    reason="r",
+                    fix=("It works regardless of how many emails you have."),
+                )
+            )
+        ]
+        revised = GMAIL.replace(claim, "It works for any number of emails.")
+
+        accepted, reason = accept_revision(GMAIL, revised, flags, **GUARDS)
+
+        assert accepted is None
+        assert reason == "the revision answers a removed limit with a universal"
+
+    @pytest.mark.asyncio
+    async def test_the_sentence_is_deleted_without_a_rewrite(self) -> None:
+        reviser = AsyncMock(return_value="It works for any number of emails.")
+        with (
+            patch("google.genai.Client", return_value=fake_client(GMAIL_ANSWER)),
+            patch("src.ai.platform_metadata.utilities.generate_with_llm", reviser),
+        ):
+            out = await run(GMAIL)
+
+        assert "50,000" not in out.script and "regardless" not in out.script
+        assert out.script.endswith(f"those messages. {CTA}")
+        assert out.record["revision"]["removed"] is True
+        assert out.record["revision"]["denials_removed"] == 1
+        # The record keeps what the checker said.
+        assert "regardless" in out.record["flagged"][0]["fix"]
+        reviser.assert_not_called()
