@@ -2,7 +2,7 @@
 
 - **Status:** Implemented
 - **Issue:** #686
-- **Requirements:** REQ-OPS-107, REQ-OPS-108, REQ-OPS-109, REQ-OPS-110, REQ-OPS-111, REQ-OPS-112
+- **Requirements:** REQ-OPS-107, REQ-OPS-108, REQ-OPS-109, REQ-OPS-110, REQ-OPS-111, REQ-OPS-112, REQ-OPS-113, REQ-OPS-114
 
 ## Context
 
@@ -28,7 +28,7 @@ None of that is repeatable. The answers go stale as operating systems change and
 - **Editing configuration.** The report recommends; a person changes the YAML.
 - **Background research.** Evidence grades and literature stay in the explanation pages, written by hand.
 - **Scraping or rendering.** Product samples come from products already scraped; nothing is rendered.
-- **Absolute search volumes.** Google Trends gives relative interest only, and no free source gives volumes with a stated method.
+- **Absolute search volumes.** Google Trends gives relative interest only, and no free source gives search volumes with a stated method. Wikipedia pageviews are absolute, but count readers of an article, not searches.
 
 ## Design
 
@@ -36,7 +36,7 @@ A package `src/research`, run as `python -m src.research <stage>` or `make resea
 
 | Stage | What it does | Calls |
 |---|---|---|
-| `demand` | Google Trends relative interest for the scraper keywords and the topic pool against one anchor term per side, 12 months and 5 years, in each configured country; autocomplete suggestions for configured stems | Trends (unofficial, rate-limited), Google suggest (unofficial) |
+| `demand` | Google Trends relative interest for the scraper keywords and the topic pool against one anchor term per side, 12 months and 5 years, in each configured country; autocomplete suggestions for configured stems; Wikipedia views of each keyword's article and recent Stack Exchange questions (added in 0.180.0) | Trends (unofficial, rate-limited), Google suggest (unofficial), Wikimedia and Stack Exchange APIs (official, keyless) |
 | `pool` | The topic filter (REQ-VID-151) over the pool and over candidates from autocomplete | One grounded call per topic |
 | `sample` | Text-only script generation, in process, for N topics and N scraped products under each variant, into a scratch outputs root | The pipeline's own: script, fact check, headline |
 | `check` | Measured checks per script, and one grounded verification per topic script that returns a verdict and a source URL per step or claim | One grounded call per topic script |
@@ -98,3 +98,15 @@ Built in three releases (v0.176.0 demand, v0.177.0 sample and checks, v0.178.0 v
 - **The lint check matches the producer:** the product's own name is exempt, and only a step-list script skips the word cap.
 
 Measured on the first runs: Google Trends rate-limited this machine's IP after a day of manual pulls, and every request answered 429 until the next day; the run recorded each as missing and the report rendered. A sample of 2 topics under the three variants and 1 product produced every record. The step-list variant dropped one topic (its steps forked by device), and verification found two outdated steps in the answer-first scripts, each with an Apple or Google support page. Two topics are too few to decide a variant; the full run decides.
+
+### Second sources (0.180.0)
+
+Google Trends is the only demand signal in the first releases, and it is fragile: pytrends, the client, is archived (last change August 2024), and the pages it calls are disallowed by `trends.google.com/robots.txt`, which Google's terms tie automated access to. Two official, keyless sources now sit beside it:
+
+- **Wikipedia pageviews** for products: monthly views of the article each keyword maps to (`products.wikipedia`), CC0 data. They are absolute and stable, but count all English readers with no country split, and readers of an article rather than buyers. Most mapped articles fell year on year, by 20-30% typically, while all of English Wikipedia fell 7%, so the trend is taken relative to the whole site.
+- **Stack Exchange questions** for topics: the most-viewed recent questions on configured sites and tags. The audience is more technical than the channel's, so they show what breaks and how people phrase it, not volume.
+
+Both are listed in the report; neither feeds the drop rule. A drop candidate whose article views are rising is marked, so the disagreement is read before the keyword goes.
+
+Considered and set aside: the Google Trends API (official, in alpha by application only; the replacement for pytrends once access is granted), Google Ads Keyword Planner and Bing Webmaster keyword data (absolute volumes, each needing an account and a verified site), the YouTube Data API (100 searches a day, and its terms forbid aggregating its data into usage insights), the Reddit Data API (commercial use needs an agreement) and the TikTok Research API (academic and not-for-profit only).
+

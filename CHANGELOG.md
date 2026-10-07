@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.180.0] - 2026-10-07
+
+### Added
+
+- The research demand stage adds two official, keyless sources beside Google Trends: monthly Wikipedia views of the article each scraper keyword maps to (`products.wikipedia`), with a trend measured against all of English Wikipedia, and the most-viewed recent questions on configured Stack Exchange sites (`topics.stack_exchange`); the report marks a drop candidate whose article views are rising.
+
 ## [0.179.0] - 2026-10-07
 
 ### Fixed
