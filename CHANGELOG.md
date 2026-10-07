@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.183.0] - 2026-10-07
+
+### Added
+
+- `llm_settings.script_validation.reject_copied_examples`, off until the reach-test readout, retries a generated script that borrows a quoted example from its own prompt the listing doesn't back, such as the closing claim "Steel beats plastic for any clamp-style mount." on a smartwatch, and ships it without that line if every attempt borrows it.
+
 ## [0.182.1] - 2026-10-07
 
 ### Fixed

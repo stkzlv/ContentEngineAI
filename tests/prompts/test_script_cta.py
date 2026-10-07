@@ -46,8 +46,8 @@ BODY = (
     "So I picked this up last month and figured I'd share. It is a small "
     "thing, fits in your jacket pocket, but the magnetic mount actually "
     "grips. Took it on a hike and never lost signal. The battery is fine, "
-    "not great, about six hours under load. Charged it Sunday, forgot "
-    "about it until Friday. Team magnetic or team plug-in?"
+    "not great, about six hours under load. Charged it Monday, still going "
+    "on Saturday. Team magnetic or team plug-in?"
 )
 
 

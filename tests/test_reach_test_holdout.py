@@ -90,3 +90,10 @@ def test_the_hook_rules_are_off() -> None:
     """They change the script, headline and caption prompts (design 0007)."""
     settings = load_video_config_modular().llm_settings
     assert settings.script_templates.hook_rules.enabled is False
+
+
+@pytest.mark.req("REQ-CNT-155")
+def test_rejecting_copied_examples_is_off() -> None:
+    """It retries and trims scripts, so it changes them (#672)."""
+    validation = load_video_config_modular().llm_settings.script_validation
+    assert validation.reject_copied_examples is False

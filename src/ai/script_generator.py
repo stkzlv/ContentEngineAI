@@ -831,6 +831,91 @@ def ends_with_cta(script: str, cta_options: list[str]) -> bool:
     return False
 
 
+def _quoted(prompt: str) -> list[str]:
+    """Quoted sentences in a prompt, paired line by line.
+
+    Pairing from the left across a line went wrong at a short quote ("before")
+    and swallowed the next example's opening quote. A quote of 20-200
+    characters is a sentence, not a unit or a label.
+    """
+    found = []
+    for line in prompt.splitlines():
+        parts = line.split('"')
+        found += [q for q in parts[1 : len(parts) - 1 : 2] if 20 <= len(q) <= 200]
+    return found
+
+
+# Words too common to say whether a sentence reuses an example.
+_COMMON_WORDS = frozenset(
+    "this that with your from have what when will just than them they then "
+    "every over into also more most only very".split()
+)
+
+
+def _content_words(text: str) -> set[str]:
+    """Words of four letters or more, singular, without the common ones."""
+    words = set()
+    for w in re.findall(r"[a-z0-9]+", text.lower()):
+        if len(w) < 4 or w in _COMMON_WORDS:
+            continue
+        words.add(w[:-1] if len(w) > 4 and w.endswith("s") else w)
+    return words
+
+
+def copied_example(
+    script: str, prompt: str, listing: str, cta_options: list[str]
+) -> str | None:
+    """A sentence that reuses a quoted prompt example the listing doesn't back.
+
+    The closing-claim rule quotes "Steel beats plastic for any clamp-style
+    mount." as an example, and a smartwatch script closed on it verbatim
+    while the fact check passed it. A sentence that carries most of an
+    example's words, some of which the listing never mentions, borrowed the
+    example rather than the product. The call to action is quoted in prompts
+    too, so a configured CTA is never one. Nor is a question: a two-option
+    question names the alternative by design ("Team magnetic or team
+    plug-in?"), and it claims nothing about the product.
+    """
+    # An option may span several sentences ("Link in bio. Seriously."): the
+    # option and each of its sentences are the CTA, never a copy.
+    ctas = {_normalise_line(c) for c in cta_options} | {
+        _normalise_line(s) for c in cta_options for s in _sentences(c)
+    }
+    examples = [
+        words for found in _quoted(prompt) if len(words := _content_words(found)) >= 3
+    ]
+    if not examples:
+        return None
+    backed = _content_words(listing)
+    for sentence in _sentences(script):
+        if _normalise_line(sentence) in ctas or sentence.rstrip().endswith("?"):
+            continue
+        words = _content_words(sentence)
+        for example in examples:
+            shared = example & words
+            if len(shared) >= max(3, -(-len(example) * 3 // 5)) and shared - backed:
+                return sentence
+    return None
+
+
+def drop_borrowed(script: str, borrowed: str) -> str:
+    """The script without a borrowed line, and without the question set it up.
+
+    A live script asked "And the battery?" and answered with the borrowed
+    anecdote; dropping only the answer left the question hanging.
+    """
+    parts = _sentences(script)
+    out = []
+    for i, sentence in enumerate(parts):
+        if sentence == borrowed:
+            continue
+        follower = parts[i + 1] if i + 1 < len(parts) else None
+        if follower == borrowed and sentence.rstrip().endswith("?"):
+            continue
+        out.append(sentence)
+    return " ".join(out)
+
+
 def _looks_like_cta_attempt(sentence: str, cta_options: list[str]) -> bool:
     """A last sentence the model meant as a CTA and got wrong.
 
@@ -1067,7 +1152,26 @@ async def generate_script(
 
     lint = settings.script_validation.lint
 
+    # What the script may be about: a quoted example the listing doesn't back
+    # was borrowed from the prompt (#672).
+    listing = " ".join(
+        str(getattr(product, k, "") or "") for k in ("title", "description", "keyword")
+    )
+
     def _validate(script: str) -> tuple[bool, str]:
+        # First, so a borrowed line can reach no last resort: the version
+        # without it is validated in its place and kept as whichever near
+        # miss it turns out to be.
+        borrowed = (
+            copied_example(script, prompt, listing, cta_options)
+            if settings.script_validation.reject_copied_examples
+            else None
+        )
+        if borrowed:
+            trimmed = drop_borrowed(script, borrowed)
+            if _validate(trimmed)[0]:
+                near_miss.setdefault("copied", trimmed)
+            return False, f"Script copies a prompt example: {borrowed!r}"
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
         )
@@ -1280,6 +1384,12 @@ async def generate_script(
                 "Fallback provider configured but API key %s not found",
                 fb.api_key_env_var,
             )
+
+    if "copied" in near_miss:
+        # Every attempt borrowed a prompt example; the version without that
+        # line passed every check, and an invented claim is worse than none.
+        logger.warning("No attempt avoided a prompt example; dropping that line")
+        return near_miss["copied"], template_name, cta_line
 
     if "lint" in near_miss:
         # Complete, closing on its call to action, and only the lint

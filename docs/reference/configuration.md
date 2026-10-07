@@ -1052,6 +1052,9 @@ llm_settings:
       max_sentence_words: 16
       max_words_per_sec: 2.8
       target_duration_sec: 40
+    # Retry a script that borrows a quoted prompt example the listing doesn't
+    # back, dropping the line if every attempt does; off until the readout.
+    reject_copied_examples: false
 
   # Description validation thresholds. max_chars is what separates a
   # description from a reasoning model's monologue about writing one.
@@ -2658,6 +2661,7 @@ llm_settings:
     min_words: 50     # Minimum word count for valid scripts
     lint:             # Script lint (design 0007), off by default
       enabled: false
+    reject_copied_examples: false  # Retry a borrowed prompt example (off)
 
   # Description validation thresholds (nested under description_validation)
   description_validation:
