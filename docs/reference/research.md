@@ -29,8 +29,8 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `request_pause_sec` | `10` | Seconds before each Trends request; it answers 429 to a faster client |
 | `max_retries` | `2` | Retries for a failed request, each after a longer pause |
 | `products.anchor` | required | The broad term every keyword's interest is a share of; keep it the same between runs |
-| `products.drop_below` | `0.25` | A keyword under this share of the keywords' median in every country, and not rising (last quarter at most 1.1 times the year), is a drop candidate |
-| `products.seeds` | `[]` | Broad searches whose rising related searches are add candidates |
+| `products.drop_below` | `0.25` | A keyword under this share of the keywords' median in every country, and not rising (last quarter at most 1.1 times the same quarter a year earlier), is a drop candidate |
+| `products.related_from` | `5` | Rising searches next to this many of the strongest keywords become add candidates: the 20 fastest-rising are measured (twelve months only) and kept when at or above the keywords' median share in some country |
 | `topics.anchor` | required | The term every topic's interest is a share of |
 | `topics.suggest_stems` | `[]` | Autocomplete stems; suggestions no pool topic covers are listed |
 | `sample.topics` | `16` | Pool topics to sample, in pool order |
@@ -47,7 +47,7 @@ Every block refuses an unknown key. Variants are applied in memory; no YAML is c
 
 In the run directory:
 
-- `demand.json`: per keyword and topic, per country, `share` of the anchor, `recent_ratio` (last quarter's mean over the year's; above 1.1 is a rise, below 1/1.1 a fall, in the report and the drop rule alike) and `peak_month` (from five years); the drop and add candidates; the suggestions; and `missing`, every request that failed, the five-year request included (a missing five-year reading shows its peak month as "-").
+- `demand.json`: per keyword and topic, per country, `share` of the anchor (median week over median week), `trend` (the last quarter's median over the same quarter a year earlier, from five years; above 1.1 is a rise, below 1/1.1 a fall, in the report and the drop rule alike) and `peak_month` (the month that peaked in at least two complete years, by at least 1.2 times that year's median month and at least 1 in Trends' units; a year whose median month is zero does not vote; "-" when none recurs); a keyword with no interest a year ago and none now reads a flat trend of 1.0; the drop and add candidates, each add candidate with its measured shares; the suggestions, the uncovered ones alternating between stems; and `missing`, every request that failed, the five-year request included (a missing five-year reading shows its peak month as "-").
 - `samples.json`: per sample, its variant and kind, the script, template, CTA, hook headline, sign-off, step count and fact-check record, or the error that failed or dropped it. The scripts themselves are under `samples/<variant>/`.
 - `checks.json`: the measured checks per sample and the per-variant summary.
 - `verification.json`: per topic sample, each claim's verdict (correct, wrong, outdated or unverified), source URL, quote and correction, and the tally; or the error of a failed call. A verdict without a source is unverified.
