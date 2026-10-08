@@ -183,7 +183,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 ## Run state and resume
 
 - **REQ-VID-137** `shipped` When the producer renders a product again, it skips each step recorded as done in `pipeline_state.json` whose artifacts still exist and belong to the same profile's run.
-- **REQ-VID-138** `shipped` If a recorded artifact is missing or belongs to another profile's run, the producer re-runs from that step and deletes the stale outputs that would make the later steps reuse an old result.
+- **REQ-VID-138** `shipped` If a recorded artifact is missing or belongs to another profile's run, the producer re-runs from that step and deletes the stale outputs that would make the later steps reuse an old result, only inside the product's own directory: a recorded path from a copied product directory maps onto this run's copy, and any other path outside it is left in place with a warning.
 - **REQ-VID-139** `shipped` When a step runs again, the producer forgets the completed steps that read its output, so the next full run redoes them.
 - **REQ-VID-140** `shipped` When `--step <name>` is passed, the producer runs only that step, after loading the artifacts of the steps it depends on.
 - **REQ-VID-141** `shipped` If a step that `--step` depends on is not complete, the producer refuses the run and names that step.

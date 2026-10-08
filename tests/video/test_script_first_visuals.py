@@ -434,7 +434,7 @@ class TestStaleArtifactRemoval:
         from src.video.producer.state import _discard_stale_artifacts
 
         visuals, script, state = self._state(tmp_path)
-        _discard_stale_artifacts(state, valid_steps=[])
+        _discard_stale_artifacts(state, valid_steps=[], run_root=tmp_path)
         assert not visuals.exists()
         assert not script.exists()
 
@@ -443,7 +443,9 @@ class TestStaleArtifactRemoval:
         from src.video.producer.state import _discard_stale_artifacts
 
         visuals, script, state = self._state(tmp_path)
-        _discard_stale_artifacts(state, valid_steps=["generate_script"])
+        _discard_stale_artifacts(
+            state, valid_steps=["generate_script"], run_root=tmp_path
+        )
         assert script.exists()
         assert not visuals.exists()
 
@@ -457,13 +459,67 @@ class TestStaleArtifactRemoval:
                 "artifacts": {"script_file": str(tmp_path / "gone.txt")},
             }
         }
-        _discard_stale_artifacts(state, valid_steps=[])
+        _discard_stale_artifacts(state, valid_steps=[], run_root=tmp_path)
+
+    @pytest.mark.req("REQ-VID-138")
+    def test_a_path_outside_this_runs_directory_is_never_deleted(self, tmp_path):
+        """A copied product's state still names the original's files."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        original = tmp_path / "outputs" / "B0X"
+        original.mkdir(parents=True)
+        visuals, script, state = self._state(original)
+        copy = tmp_path / "scratch" / "B0X"
+        copy.mkdir(parents=True)
+
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
+
+        _discard_stale_artifacts(state, valid_steps=[], run_root=copy)
+
+        assert visuals.exists() and script.exists()
+        # The copy's own stale file goes, or the step would reuse it.
+        assert not (copy / "gathered_visuals.json").exists()
+
+    @pytest.mark.req("REQ-VID-138")
+    def test_the_deepest_directory_of_the_products_name_is_the_one_mapped(
+        self, tmp_path
+    ):
+        """An outputs root named after the product sits above the product."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        original = tmp_path / "B0X" / "B0X"
+        original.mkdir(parents=True)
+        visuals, _, state = self._state(original)
+        copy = tmp_path / "scratch" / "B0X"
+        copy.mkdir(parents=True)
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
+
+        _discard_stale_artifacts(state, valid_steps=[], run_root=copy)
+
+        assert visuals.exists()
+        assert not (copy / "gathered_visuals.json").exists()
+
+    @pytest.mark.req("REQ-VID-138")
+    def test_a_path_under_another_product_is_left_alone(self, tmp_path):
+        from src.video.producer.state import _discard_stale_artifacts
+
+        other = tmp_path / "outputs" / "B0OTHER"
+        other.mkdir(parents=True)
+        visuals, script, state = self._state(other)
+        run = tmp_path / "outputs" / "B0X"
+        run.mkdir()
+
+        _discard_stale_artifacts(state, valid_steps=[], run_root=run)
+
+        assert visuals.exists() and script.exists()
 
     def test_non_dict_state_entries_are_skipped(self, tmp_path):
         """Top-level scalars such as `pillar` sit beside the step dicts."""
         from src.video.producer.state import _discard_stale_artifacts
 
-        _discard_stale_artifacts({"pillar": "utility"}, valid_steps=[])
+        _discard_stale_artifacts(
+            {"pillar": "utility"}, valid_steps=[], run_root=tmp_path
+        )
 
 
 @pytest.mark.unit
@@ -511,6 +567,35 @@ class TestTruncationRemovesBlockingArtifacts:
         )
         assert not visuals.exists()
         assert "gather_visuals" not in ctx.state
+
+    @pytest.mark.req("REQ-VID-138")
+    def test_a_copied_products_loader_leaves_the_original_alone(self, tmp_path):
+        """The state's absolute paths still name the directory it was copied from."""
+        original = tmp_path / "outputs" / "B0X" / "temp"
+        original.mkdir(parents=True)
+        visuals = original / "gathered_visuals.json"
+        visuals.write_text("{}", encoding="utf-8")
+        copy = tmp_path / "scratch" / "B0X" / "temp"
+        copy.mkdir(parents=True)
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
+
+        ctx = self._run(
+            copy,
+            {
+                "generate_script": {
+                    "status": "done",
+                    "artifacts": {"script_file": str(original / "gone.txt")},
+                },
+                "gather_visuals": {
+                    "status": "done",
+                    "artifacts": {"gathered_visuals_file": str(visuals)},
+                },
+            },
+        )
+
+        assert visuals.exists()
+        assert "gather_visuals" not in ctx.state
+        assert not (copy / "gathered_visuals.json").exists()
 
     def test_the_finished_video_survives(self, tmp_path):
         """It is the deliverable, and `assemble_video` re-renders regardless.
@@ -580,5 +665,6 @@ class TestTruncationRemovesBlockingArtifacts:
                 },
             },
             valid_steps=["generate_script"],
+            run_root=tmp_path,
         )
         assert shared.exists()
