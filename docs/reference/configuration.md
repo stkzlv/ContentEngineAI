@@ -1429,7 +1429,7 @@ llm_settings:
 | `pillars` | dict[str, list[str]] | Pillar name -> templates that fit it. A template can be in multiple pillars. Empty dict disables pillar filtering. |
 | `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
-| `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. Empty string disables narrator profile injection. |
+| `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. The bundled one asks for one concrete detail taken from the product description and forbids inventing a personal moment with the product (REQ-CNT-156). Empty string disables narrator profile injection. |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
 | `cta_options` | list[str] | The closing lines a product script may end on, verbatim. One is chosen per product by salted hash and rendered alone into that template's `{CTA_RULE}`, immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of the configured lines. Override the choice with `--cta`. |
