@@ -11,7 +11,7 @@ A topic script runs **problem -> answer -> method -> result**, the inverse of a 
 - give one instruction per sentence (REQ-CNT-028),
 - close on the result rather than on a claim (REQ-CNT-031), right before the one configured call to action (REQ-CNT-033).
 
-A topic render draws only from `script_templates.topic_templates` and uses the topic narrator profile (REQ-CNT-013, REQ-CNT-014); the topic narrator talks the viewer through the fix "over the phone", with "you" often and "I" sparingly.
+A topic render draws only from `script_templates.topic_templates` and uses the topic narrator profile (REQ-CNT-013, REQ-CNT-014); the topic narrator talks the viewer through the fix "over the phone", with "you" often and "I" sparingly. On a plain task ("How to back up your iPhone") the symptom-first and mistake-first templates invent a problem the task doesn't have; `topic_routing`, off until the reach-test readout, sends task titles to `topic_answer_first` only (REQ-CNT-161).
 
 Why: a viewer who arrives from search already has the problem, so restating it spends the retention window on something they know, and a tutorial that withholds the answer loses the viewer who came for it. A viewer from the feed needs the problem framed, in one line. One instruction per visual change is a comprehension rule rather than a pacing one: a step narrated over unrelated footage does not land ([Search Engine Journal](https://www.searchenginejournal.com/from-article-to-short-form-video-that-holds-attention/565238/), [Swarmify](https://swarmify.com/blog/how-to-make-a-how-to-video/), [Socialync](https://www.socialync.io/blog/short-form-video-structure-guide-2026)).
 

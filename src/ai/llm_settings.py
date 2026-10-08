@@ -115,6 +115,29 @@ class NaturalismConfig(BaseModel):
     intensity: int = Field(default=0, ge=0, le=2)
 
 
+class TopicRoutingConfig(BaseModel):
+    """Route a task topic to the templates written for a task (REQ-CNT-161).
+
+    Off by default: the symptom-first and mistake-first templates invent a
+    problem for a plain task ("you're probably backing up the wrong way"), but
+    turning this on changes which template a topic draws, so it waits for the
+    reach-test readout.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    # Templates a topic whose title starts "How to" may draw.
+    task_templates: list[str] = Field(
+        default_factory=lambda: ["topic_answer_first"], min_length=1
+    )
+
+
+def is_task_title(title: str | None) -> bool:
+    """Whether a topic's title asks how to do something."""
+    return bool(title) and str(title).strip().lower().startswith("how to ")
+
+
 class HookRulesConfig(BaseModel):
     """Hook and search-phrase prompt rules (design 0007), off by default.
 
@@ -219,6 +242,7 @@ class ScriptTemplateConfig(BaseModel):
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
     # Concrete hook, "but/therefore" chain and search-phrase lead. Off.
     hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)
+    topic_routing: TopicRoutingConfig = Field(default_factory=TopicRoutingConfig)
 
     @field_validator("cta_options", "cta_options_topic")
     @classmethod

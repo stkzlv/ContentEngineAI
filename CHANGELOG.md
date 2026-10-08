@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.188.0] - 2026-10-08
+
+### Added
+
+- An off-by-default `script_templates.topic_routing` sends a topic whose title starts "How to" to the answer-first template only, since the symptom-first and mistake-first templates invent a problem for a plain task.
+
 ## [0.187.0] - 2026-10-08
 
 ### Added
