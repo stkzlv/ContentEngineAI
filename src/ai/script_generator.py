@@ -404,16 +404,23 @@ def render_ending_rules(
     hook_rules: bool = False,
     lint: ScriptLintConfig | None = None,
     tutorial: bool = False,
+    recap: bool | None = None,
 ) -> str:
     """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature,
     the hook rules and the lint's limits.
+
+    `recap` says whether the script ends its steps on a path recap, which a
+    sign-off then follows; it defaults to `tutorial`. An explainer is a
+    tutorial for the lint but closes on a test, not a recap (REQ-VID-161).
     """
+    if recap is None:
+        recap = tutorial
     return "\n".join(
         rule
         for rule in (
             render_cta_rule(cta_line, is_topic=is_topic),
             render_naturalism_rule(naturalism),
-            render_signature_rules(signature or SignatureChoice(), tutorial),
+            render_signature_rules(signature or SignatureChoice(), recap),
             render_hook_rules(hook_rules),
             render_lint_rule(lint, word_cap=not tutorial),
         )
@@ -1059,7 +1066,9 @@ async def generate_script(
 
     With a `step_list` (a topic, step lists on, design 0017) the script is
     written from the sourced steps with `topic_from_steps.md`, its length set
-    by the step count; the template stem returned is `topic_from_steps`.
+    by the step count; the template stem returned is `topic_from_steps`. A
+    "Why ..." topic's list is an explainer, written with
+    `topic_explainer_from_steps.md` in 100-160 words (REQ-VID-161).
 
     A `target_length` (a video profile's override) sets the narrator profile's
     length placeholders and the script lint's word cap (REQ-CNT-163).
@@ -1121,9 +1130,9 @@ async def generate_script(
         _warn_unknown_pillar(pillar, settings)
 
     if step_list is not None:
-        from src.ai.step_list import SCRIPT_PROMPT_PATH
+        from src.ai.step_list import script_prompt_path
 
-        template_path = SCRIPT_PROMPT_PATH
+        template_path = script_prompt_path(step_list)
     else:
         template_path = select_script_template(
             settings,
@@ -1158,6 +1167,7 @@ async def generate_script(
                 hook_rules=settings.script_templates.hook_rules.enabled,
                 lint=settings.script_validation.lint,
                 tutorial=step_list is not None,
+                recap=step_list is not None and not step_list.explainer,
             ),
         )
         if step_list is not None:
@@ -1190,7 +1200,8 @@ async def generate_script(
         # band's tolerance is accepted rather than refused.
         from src.ai.step_list import LENGTH_TOLERANCE, word_range
 
-        band_floor = int(word_range(len(step_list.steps))[0] * LENGTH_TOLERANCE)
+        band = word_range(len(step_list.steps), step_list.explainer)
+        band_floor = int(band[0] * LENGTH_TOLERANCE)
         sv_min_words = min(sv_min_words, band_floor)
         sv_min_chars = min(sv_min_chars, band_floor * 4)
 
@@ -1226,7 +1237,9 @@ async def generate_script(
         )
         # A draft short of the step count's length is no near miss: the
         # CTA fallback would ship it with a closing line bolted on.
-        short = step_list is not None and _too_short(script, len(step_list.steps))
+        short = step_list is not None and _too_short(
+            script, len(step_list.steps), step_list.explainer
+        )
         if ok and short:
             near_miss.setdefault("short", script)
             return False, "Script is short for the number of steps"

@@ -119,6 +119,9 @@ async def sample_one(
             "steps": len(step_list.get("steps", []))
             if isinstance(step_list, dict)
             else None,
+            "explainer": bool(step_list.get("explainer"))
+            if isinstance(step_list, dict)
+            else False,
             "fact_check": _read_json(temp / "script_fact_check.json"),
             "step": STEP_GENERATE_SCRIPT,
         }

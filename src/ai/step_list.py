@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "topic_step_list.md"
 SCRIPT_PROMPT_PATH = Path(__file__).parent / "prompts" / "topic_from_steps.md"
+# A concept explainer ("Why ...") is a cause, then one or two checks, in about
+# 100-160 words (docs/explanation/tutorials.md, "Length"; REQ-VID-161).
+EXPLAINER_PROMPT_PATH = (
+    Path(__file__).parent / "prompts" / "topic_explainer_from_steps.md"
+)
+EXPLAINER_WORDS = (100, 160)
 # Words for a single setting or shortcut (one or two steps, 15-30 s) and a
 # multi-step fix (three to six, 40-75 s), from the tutorial research's length
 # table (docs/explanation/tutorials.md, "Length").
@@ -55,6 +61,8 @@ class StepList:
     refused: list[Step] = field(default_factory=list)
     # The topic filter's failed criteria; None when no check came back.
     topic_failures: list[str] | None = None
+    # A "Why ..." topic, written as a cause and its checks (REQ-VID-161).
+    explainer: bool = False
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, ensure_ascii=False)
@@ -158,17 +166,30 @@ def drop_reason(step_list: StepList | None, max_steps: int) -> str | None:
     return None
 
 
-def word_range(step_count: int) -> tuple[int, int]:
+def word_range(step_count: int, explainer: bool = False) -> tuple[int, int]:
+    if explainer:
+        return EXPLAINER_WORDS
     return SHORT_WORDS if step_count <= 2 else LONG_WORDS
+
+
+def is_explainer_title(title: str | None) -> bool:
+    """Whether a topic asks why something happens, not how to do a task."""
+    return bool(title) and str(title).strip().lower().startswith("why ")
+
+
+def script_prompt_path(step_list: StepList) -> Path:
+    """The prompt a script is written from for this step list."""
+    return EXPLAINER_PROMPT_PATH if step_list.explainer else SCRIPT_PROMPT_PATH
 
 
 # A draft this far under the floor is retried; the model tends to run short.
 LENGTH_TOLERANCE = 0.8
 
 
-def too_short(script: str, step_count: int) -> bool:
+def too_short(script: str, step_count: int, explainer: bool = False) -> bool:
     """Whether a script falls well short of the length its steps call for."""
-    return len(script.split()) < word_range(step_count)[0] * LENGTH_TOLERANCE
+    floor = word_range(step_count, explainer)[0]
+    return len(script.split()) < floor * LENGTH_TOLERANCE
 
 
 def render_steps(step_list: StepList) -> dict[str, str]:
@@ -190,7 +211,7 @@ def render_steps(step_list: StepList) -> dict[str, str]:
         )
     else:
         mistake = "Name no mistake the steps do not state."
-    low, high = word_range(count)
+    low, high = word_range(count, step_list.explainer)
     return {
         "STEP_LIST": "\n".join(lines),
         "PLATFORM": step_list.platform or "the device the steps were checked on",
