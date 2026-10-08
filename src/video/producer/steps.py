@@ -2079,6 +2079,9 @@ def record_video_duration(
     a Content ID claim, and the pipeline can't tell whether a track is
     registered. Measurement only; it never fails the render.
     """
+    # A re-render must not inherit the previous render's length or flag.
+    state.pop("video_duration_sec", None)
+    state.pop("over_music_claim_ceiling", None)
     probe = (results.get("details") or {}).get("probe_info") or {}
     raw = (probe.get("format") or {}).get("duration")
     try:

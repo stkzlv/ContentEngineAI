@@ -163,3 +163,21 @@ def _ctx(tmp_path: Path, state: dict) -> SimpleNamespace:
 )
 def test_the_render_row_carries_the_length(tmp_path: Path, state: dict) -> None:
     assert choices_from_context(_ctx(tmp_path, state))["video_duration_sec"] == 41.2
+
+
+@pytest.mark.req("REQ-VID-159", "REQ-VID-160")
+@pytest.mark.parametrize(
+    ("results", "expected"),
+    [
+        (_results("45"), {"video_duration_sec": 45.0}),  # shorter, no flag
+        ({"success": False}, {}),  # no probe: no stale length either
+    ],
+)
+def test_a_re_render_drops_the_previous_length_and_flag(
+    tmp_path: Path, results: dict, expected: dict
+) -> None:
+    state = {"video_duration_sec": 72.0, "over_music_claim_ceiling": True}
+
+    record_video_duration(state, results, _music(tmp_path), 60)
+
+    assert state == expected
