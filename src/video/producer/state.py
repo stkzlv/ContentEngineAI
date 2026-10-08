@@ -560,6 +560,11 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # mirrored for the same reason as the cold-open variant.
     if step_name == STEP_ASSEMBLE_VIDEO and ctx.state.get("assembly_choices"):
         step_state["assembly_choices"] = ctx.state["assembly_choices"]
+    # The final length and the music-ceiling flag (REQ-VID-159, REQ-VID-160).
+    if step_name == STEP_ASSEMBLE_VIDEO:
+        for key in ("video_duration_sec", "over_music_claim_ceiling"):
+            if ctx.state.get(key) is not None:
+                step_state[key] = ctx.state[key]
 
     ctx.state[step_name] = step_state
     logger.debug("Updated state for completed step: %s", step_name)

@@ -36,6 +36,14 @@ video_settings:
   # Used by: Quality checks in the assembler
   video_duration_tolerance_sec: 1.0
 
+  # Warn when a render with background music runs past this many seconds
+  # (0 turns the check off). YouTube blocks a Short over one minute that
+  # carries any Content ID claim, and the music providers' tracks may be
+  # registered. The warning is logged and recorded in the run state; the
+  # render still completes.
+  # Used by: the producer after assembly
+  music_claim_ceiling_sec: 60
+
   # Timeout for FFmpeg probe operations (seconds)
   # Maximum time to wait when analyzing media file properties
   # Used by: the assembler media duration detection

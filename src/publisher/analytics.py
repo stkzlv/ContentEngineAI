@@ -761,7 +761,26 @@ SEGMENT_CHOICES = (
     "voice_profile",
     "caption_template",
     "cold_open_variant",
+    "duration_band",
 )
+
+
+def duration_band(seconds: Any, edges: list[float]) -> str:
+    """The band a video's length falls in, by upper edges in seconds.
+
+    `[20, 30]` gives "<20s", "20-30s" and ">30s"; a missing or unreadable
+    length is "unknown", so posts without one stay visible in the report.
+    """
+    try:
+        value = float(seconds)
+    except (TypeError, ValueError):
+        return "unknown"
+    low = 0.0
+    for edge in edges:
+        if value < edge:
+            return f"<{edge:g}s" if low == 0 else f"{low:g}-{edge:g}s"
+        low = edge
+    return f">{low:g}s"
 
 
 def segment_quality(

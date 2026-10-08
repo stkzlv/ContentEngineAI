@@ -2055,10 +2055,56 @@ async def step_assemble_video(ctx: PipelineContext):
             script=ctx.script,
             subtitle_path=subtitle_path,
         )
+        record_video_duration(
+            ctx.state,
+            results,
+            music_info_path if music_path is not None else None,
+            ctx.config.video_settings.music_claim_ceiling_sec,
+        )
     logger.info("Verification results: %s", results["message"])
     if not results["success"]:
         logger.warning("Verification for %s reported issues.", final_video_path.name)
     logger.info("Video successfully created: %s", final_video_path)
+
+
+def record_video_duration(
+    state: dict[str, Any],
+    results: dict[str, Any],
+    music_info_path: Path | None,
+    ceiling_sec: float,
+) -> None:
+    """Record the final video's length, and warn past the music ceiling.
+
+    REQ-VID-159, REQ-VID-160: YouTube blocks a Short over a minute that carries
+    a Content ID claim, and the pipeline can't tell whether a track is
+    registered. Measurement only; it never fails the render.
+    """
+    probe = (results.get("details") or {}).get("probe_info") or {}
+    raw = (probe.get("format") or {}).get("duration")
+    try:
+        duration = float(raw) if raw is not None else 0.0
+    except (TypeError, ValueError):
+        duration = 0.0
+    if duration <= 0:
+        logger.warning("No final video duration to record")
+        return
+    state["video_duration_sec"] = round(duration, 2)
+    if music_info_path is None or ceiling_sec <= 0 or duration <= ceiling_sec:
+        return
+    try:
+        source = json.loads(music_info_path.read_text(encoding="utf-8")).get(
+            "source", "unknown"
+        )
+    except (OSError, ValueError, AttributeError):
+        source = "unknown"
+    logger.warning(
+        "Render with music runs %.1fs, past the %.0fs ceiling for a Short "
+        "that a Content ID claim would block (music source: %s)",
+        duration,
+        ceiling_sec,
+        source,
+    )
+    state["over_music_claim_ceiling"] = True
 
 
 def _build_gemini_adapter_for_pycaps(ctx: PipelineContext, pycaps_settings: Any) -> Any:

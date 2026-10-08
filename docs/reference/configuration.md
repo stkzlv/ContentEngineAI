@@ -519,6 +519,7 @@ Keys the sections below don't cover. Defaults are the bundled values.
 | `video_settings.image_curation` | mapping | off | Judge each scraped image for seller-added text and drop text-heavy ones while enough clean images remain: `enabled`, `max_text_share` (0.15), `min_clean_images` (3), `model` (`gemini-2.5-flash`). See [Image curation](video-producer.md#image-curation). |
 | `video_settings.pad_color` | string | `black` | Colour of the padding around a visual that doesn't fill the frame. |
 | `video_settings.subtitle_box_border_width` | int | 5 | Border width, in pixels, of the box behind FFmpeg-drawn captions. |
+| `video_settings.music_claim_ceiling_sec` | float | 60 | When a render with background music runs longer than this, the producer logs a warning naming the length, the ceiling and the music source, and records `over_music_claim_ceiling` in the run state. YouTube blocks a Short over one minute that carries a Content ID claim. 0 turns the check off; it never fails the render. |
 | `video_settings.verification_probe_timeout_sec` | int | 30 | Timeout of the `ffprobe` calls that inspect inputs and verify the output. |
 | `video_settings.inter_product_delay_min_sec`, `video_settings.inter_product_delay_max_sec` | float | 1.5, 4.0 | Range of the random pause between products in the producer's `--batch` mode. |
 
