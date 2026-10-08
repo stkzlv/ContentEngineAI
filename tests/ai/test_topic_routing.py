@@ -116,3 +116,17 @@ async def test_the_script_step_routes_by_the_topics_title() -> None:
         templates.add(template)
 
     assert templates == {"topic_answer_first"}
+
+
+@pytest.mark.req("REQ-CNT-161")
+def test_task_templates_missing_from_the_pool_fall_back_with_a_warning(
+    caplog,
+) -> None:
+    settings = _settings(routing=True)
+    settings.script_templates.topic_routing.task_templates = ["no_such_template"]
+
+    with caplog.at_level("WARNING"):
+        drawn = _drawn(settings, TASK)
+
+    assert len(drawn) == 3
+    assert "No task template" in caplog.text

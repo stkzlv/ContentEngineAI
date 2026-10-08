@@ -169,7 +169,8 @@ def test_answer_first_maps_to_a_key_only_when_every_topic_is_a_task() -> None:
 
     assert all_tasks["key"] == "llm_settings.script_templates.topic_templates"
     assert all_tasks["value"] == ["topic_answer_first"]
-    assert mixed["key"] is None and "pipeline change" in mixed["note"]
+    assert mixed["key"] == "llm_settings.script_templates.topic_routing.enabled"
+    assert mixed["value"] is True
 
 
 def test_no_verification_leaves_the_decision_open() -> None:

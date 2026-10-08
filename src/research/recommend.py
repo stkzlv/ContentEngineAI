@@ -12,9 +12,7 @@ AI_SERVICES = "config/ai_services.yaml"
 SCRAPER = "config/scraper.yaml"
 # How many add candidates a recommendation lists.
 TOP = 10
-NO_KEY = (
-    "no key does this yet: routing templates by topic shape needs a pipeline change"
-)
+NO_KEY = "no config key maps this variant"
 
 
 def wrong_or_outdated(verification: list[dict[str, Any]], variant: str) -> float | None:
@@ -61,6 +59,9 @@ def _variant_key(variant: str, all_tasks: bool) -> tuple[str, str, Any] | None:
             "llm_settings.script_templates.topic_templates",
             ["topic_answer_first"],
         )
+    if variant == "task_answer_first":
+        # A mixed pool: route the tasks only (REQ-CNT-161).
+        return AI_SERVICES, "llm_settings.script_templates.topic_routing.enabled", True
     return None
 
 
