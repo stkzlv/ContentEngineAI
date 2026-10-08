@@ -97,3 +97,10 @@ def test_rejecting_copied_examples_is_off() -> None:
     """It retries and trims scripts, so it changes them (#672)."""
     validation = load_video_config_modular().llm_settings.script_validation
     assert validation.reject_copied_examples is False
+
+
+@pytest.mark.req("REQ-PUB-008")
+def test_short_product_titles_are_off() -> None:
+    """They change the published YouTube title (design 0009)."""
+    settings = load_video_config_modular().description_settings
+    assert settings.short_product_titles is False

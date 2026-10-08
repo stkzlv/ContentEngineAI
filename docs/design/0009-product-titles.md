@@ -1,8 +1,8 @@
 # 0009. YouTube titles for products
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #550
-- **Requirements:** REQ-PUB-008
+- **Requirements:** REQ-PUB-008, REQ-CNT-149
 
 ## Context
 
@@ -39,4 +39,8 @@ Titles are held constant across both reach-test arms by the protocol. The title 
 
 ## Open questions
 
-- The spec names no setting that holds the title fix off until the readout.
+None.
+
+## As built
+
+Built and held off behind `description_settings.short_product_titles` (v0.184.0). The generated YouTube title in optimized mode already came from the model within `title_length_max`; the listing title reached YouTube through unified mode, the bundled default, which wrote `product.title` into `metadata.json`. With the switch on, unified mode writes `<Keyword>: <hook headline>`, the headline alone when it already names the keyword, or the listing title's first clause when there is no headline, whichever first fits `title_length_max`, cut on a word otherwise. Building it from the hook headline makes the title and the burned-in hook make the same promise (REQ-CNT-149) with no extra model call. The smartwatch render's title would read "Smartwatch that takes calls from your wrist" (43 characters) instead of its 120-character listing title.

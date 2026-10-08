@@ -1096,6 +1096,26 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         return False
 
 
+def _unified_title(ctx: PipelineContext) -> str | None:
+    """The listing title, or with `short_product_titles` a short written one.
+
+    A topic's title is already the short search it answers.
+    """
+    settings = ctx.config.description_settings
+    if not settings.short_product_titles or getattr(ctx.product, "topic", None):
+        return ctx.product.title
+    from src.video.product_title import short_title
+
+    platforms = settings.platform_metadata
+    max_len = platforms.youtube.title_length_max if platforms else 60
+    return short_title(
+        ctx.product.title or "",
+        getattr(ctx.product, "keyword", None),
+        ctx.state.get("hook_headline"),
+        max_len,
+    )
+
+
 async def _generate_unified_metadata(ctx: PipelineContext) -> None:
     """Generate unified metadata for all platforms.
 
@@ -1137,7 +1157,7 @@ async def _generate_unified_metadata(ctx: PipelineContext) -> None:
     # Generate unified metadata file
     product_root = ctx.run_paths["run_root"]
     metadata_dict = {
-        "title": ctx.product.title,
+        "title": _unified_title(ctx),
         "description": ctx.description,
         "hashtags": hashtags,
         "keywords": [],

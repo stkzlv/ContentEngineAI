@@ -181,7 +181,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 ## Captions and metadata
 
 - **REQ-CNT-135** `shipped` The producer generates each render's social title, description and hashtags in one of two modes set by `description_settings.metadata_mode` or `--metadata-mode`: `unified` (the bundled value), one set for every platform, or `optimized`, one set per platform.
-- **REQ-CNT-136** `shipped` In unified mode, the producer writes `metadata.json` with the listing title, an AI description with any hashtags removed, and hashtags derived from the title.
+- **REQ-CNT-136** `shipped` In unified mode, the producer writes `metadata.json` with the listing title (for a product with `short_product_titles` on, the short title of REQ-PUB-008), an AI description with any hashtags removed, and hashtags derived from the title.
 - **REQ-CNT-137** `shipped` In optimized mode, the producer writes `metadata_<platform>.json` for each platform enabled in `description_settings.platform_metadata` (`<platform>.enabled`), with an AI title, caption and hashtags within that platform's length and hashtag limits.
 - **REQ-CNT-138** `shipped` If optimized mode produces metadata for no platform, or `platform_metadata.enabled` is false, the producer falls back to unified mode.
 - **REQ-CNT-139** `shipped` In optimized mode, the producer also writes `UPLOAD_INSTRUCTIONS.txt` with each platform's metadata for manual upload; a failure to write it doesn't fail the step.
@@ -189,7 +189,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-141** `shipped` Where `description_settings.enabled` is false, the producer skips metadata generation.
 - **REQ-CNT-144** `shipped` In optimized metadata mode, a topic render's prompts ask for a YouTube title that front-loads the symptom, in the words a viewer would search, within its first 5-7 words, and for TikTok and Instagram captions that contain the search phrase.
 - **REQ-CNT-145** `shipped` A topic render's description prompts ask for a description that leads with the symptom, and in optimized metadata mode the YouTube prompt asks for the symptom in the first sentence.
-- **REQ-CNT-149** `planned #550` A product video's platform titles and its hook headline make the same promise.
+- **REQ-CNT-149** `held` Where `description_settings.short_product_titles` is on, a product video's title is built from its hook headline, so the two make the same promise.
+  - On when: with REQ-PUB-008, at the reach-test readout (#540).
 - **REQ-CNT-150** `planned #590` A product video's YouTube description carries no destination URL, and its call to action points at the profile link.
 
 ## Content pillars
