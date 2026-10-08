@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.185.1] - 2026-10-08
+
+### Fixed
+
+- A resumed render deletes stale artifacts only inside its own product directory, so a product copied elsewhere can no longer delete the original's script, voiceover or metadata through the absolute paths its state records.
+
 ## [0.185.0] - 2026-10-08
 
 ### Added

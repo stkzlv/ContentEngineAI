@@ -360,11 +360,12 @@ class TestDropDependents:
     """Re-running a step invalidates what reads its output."""
 
     @staticmethod
-    def _ctx(state):
+    def _ctx(state, root=None):
         from unittest.mock import MagicMock
 
         ctx = MagicMock()
         ctx.state = state
+        ctx.run_paths = {"run_root": root or "/"}
         ctx.profile = _profile(stock_only=False)
         return ctx
 

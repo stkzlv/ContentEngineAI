@@ -248,8 +248,17 @@ _RERUN_BLOCKING_ARTIFACTS = frozenset(
 _RERUN_BLOCKING_PREFIXES = ("unified_metadata_file", "platform_metadata_")
 
 
+def _run_root(ctx: PipelineContext) -> Path:
+    """The product directory this run owns.
+
+    `run_root`, else the directory holding `temp/pipeline_state.json`.
+    """
+    root = ctx.run_paths.get("run_root")
+    return Path(root) if root else Path(ctx.run_paths["state_file"]).parent.parent
+
+
 def _discard_stale_artifacts(
-    state_data: dict[str, Any], valid_steps: list[str]
+    state_data: dict[str, Any], valid_steps: list[str], run_root: Path
 ) -> None:
     """Delete the outputs that would stop a dropped step from re-running.
 
@@ -286,6 +295,17 @@ def _discard_stale_artifacts(
             if not blocks_rerun or path_str in kept_paths:
                 continue
             path = Path(path_str)
+            # The state records absolute paths, so a product directory copied
+            # elsewhere still names the original's files. Only this run's own
+            # directory is ours to clean.
+            if not path.resolve().is_relative_to(run_root.resolve()):
+                logger.warning(
+                    "Not deleting stale artifact '%s' outside this run's "
+                    "directory: %s",
+                    key,
+                    path,
+                )
+                continue
             try:
                 if path.exists():
                     path.unlink()
@@ -357,7 +377,7 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                     )
                     step_order = resolved_step_order(ctx.profile)
                     valid_steps = step_order[: step_order.index(step)]
-                    _discard_stale_artifacts(state_data, valid_steps)
+                    _discard_stale_artifacts(state_data, valid_steps, _run_root(ctx))
                     ctx.state = {
                         k: v for k, v in state_data.items() if k in valid_steps
                     }
@@ -382,7 +402,9 @@ async def _load_pipeline_state(ctx: PipelineContext) -> bool:
                         # than pair new narration with the old footage.
                         step_order = resolved_step_order(ctx.profile)
                         valid_steps = step_order[: step_order.index(step)]
-                        _discard_stale_artifacts(state_data, valid_steps)
+                        _discard_stale_artifacts(
+                            state_data, valid_steps, _run_root(ctx)
+                        )
                         ctx.state = {
                             k: v for k, v in state_data.items() if k in valid_steps
                         }
@@ -438,7 +460,7 @@ def _drop_dependents(ctx: PipelineContext, step_name: str) -> None:
     # only drop lets them return the superseded script's caption and audio
     # while the run reports every step complete.
     kept = [name for name in ctx.state if name not in stale]
-    _discard_stale_artifacts(ctx.state, kept)
+    _discard_stale_artifacts(ctx.state, kept, _run_root(ctx))
     for name in stale:
         del ctx.state[name]
     logger.info(
