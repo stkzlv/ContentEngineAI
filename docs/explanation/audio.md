@@ -30,7 +30,7 @@ Not supported: "trending sound boosts reach by X%" figures are vendor claims, no
 
 ## The spoken opening and the search phrase
 
-Every product template instructs the script writer to state a concrete fact, result or observation in the first line (`REQ-CNT-018`), and every topic template to speak the search phrase within the first five seconds (`REQ-CNT-027`). Before TTS, the producer strips speaker labels, stage directions, markdown, emojis and hashtags so none of them is spoken (`REQ-CNT-052`).
+Every product template instructs the script writer to state a concrete fact, result or observation in the first line (`REQ-CNT-018`), and every topic template to speak the search phrase within the first five seconds (`REQ-CNT-027`). Before TTS, the producer strips speaker labels, stage directions, markdown and backticks, emojis and hashtags, and unwraps bracketed placeholders, so none of them is spoken (`REQ-CNT-052`).
 
 Why: TikTok states that it transcribes the spoken track and indexes the transcript beside captions and hashtags ([Brandwatch](https://www.brandwatch.com/blog/tiktok-voiceovers/)), so the voiceover is a search surface as well as an accessibility layer. A borrowed song indexes as the song, not as the product. The weighting of that transcript is asserted by TikTok, not independently measured; clear spoken keywords can only help, so the opening favours diction over stylized delivery.
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.4] - 2026-10-08
+
+### Fixed
+
+- Backticks, markdown links and bracketed placeholders no longer reach the voice: the script loses the backticks and brackets but keeps their words, and a script with a bracketed placeholder is retried first.
+
 ## [0.184.3] - 2026-10-08
 
 ### Added

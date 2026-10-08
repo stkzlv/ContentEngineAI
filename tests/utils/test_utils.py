@@ -265,10 +265,8 @@ class TestScriptSanitizer:
 
         # Should remove markdown formatting
         assert "**bold**" not in result
-        assert "`code`" in result  # Backticks are not handled by this function
-        assert "code" in result  # Content remains
-        assert "This is a bold test script with" in result
-        # Note: The function doesn't remove square brackets, so [links] remains
+        assert "`" not in result
+        assert result == "This is a bold test script with code and links."
 
     def test_sanitize_script_empty(self):
         """Test sanitization of empty script."""

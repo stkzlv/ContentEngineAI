@@ -53,7 +53,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
 
 # Configure module logger
-from src.utils.script_sanitizer import split_sentences
+from src.utils.script_sanitizer import BRACKETED, split_sentences
 from src.video.config import config
 
 logger = logging.getLogger(__name__)
@@ -1158,6 +1158,11 @@ async def generate_script(
         str(getattr(product, k, "") or "") for k in ("title", "description", "keyword")
     )
 
+    bracket_source = " ".join(
+        [listing]
+        + [s.ui_path for s in (step_list.steps if step_list is not None else [])]
+    ).lower()
+
     def _validate(script: str) -> tuple[bool, str]:
         # First, so a borrowed line can reach no last resort: the version
         # without it is validated in its place and kept as whichever near
@@ -1194,6 +1199,26 @@ async def generate_script(
             if failure:
                 near_miss.setdefault("lint", script)
                 return False, f"Script lint: {failure}"
+        # Brackets the listing or the step list already carries ("[Apple MFi
+        # Certified]" in a title, "[App Name]" in a UI path) are the source's
+        # words, not a slot the model left; a retry could not avoid them.
+        placeholder = (
+            next(
+                (
+                    m
+                    for m in BRACKETED.finditer(script)
+                    if m.group(0).lower() not in bracket_source
+                ),
+                None,
+            )
+            if ok
+            else None
+        )
+        if placeholder:
+            # The sanitizer unwraps it before TTS; a retry may phrase it as
+            # speech instead (REQ-CNT-052).
+            near_miss.setdefault("placeholder", script)
+            return False, f"Script carries a placeholder: {placeholder.group(0)!r}"
         if (
             not ok
             and reason == NO_CTA_REASON
@@ -1390,6 +1415,11 @@ async def generate_script(
         # line passed every check, and an invented claim is worse than none.
         logger.warning("No attempt avoided a prompt example; dropping that line")
         return near_miss["copied"], template_name, cta_line
+
+    if "placeholder" in near_miss:
+        # Passed every other check; the sanitizer unwraps the brackets.
+        logger.warning("No attempt avoided a bracketed placeholder; using one")
+        return near_miss["placeholder"], template_name, cta_line
 
     if "lint" in near_miss:
         # Complete, closing on its call to action, and only the lint
