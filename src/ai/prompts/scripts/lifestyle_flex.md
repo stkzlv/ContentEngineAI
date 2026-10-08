@@ -4,7 +4,7 @@ Write a voiceover script for a short product promo video that weaves the product
 
 Open with a daily-life moment that carries the audio-keyword hook in the first sentence (see Rules below for the full spec). The scene and the hook are one beat — pack the product category, price band, or audience cue into the opening so the routine introduces the product world immediately. Examples: "This $30 silicone mat replaced the cracked one I cooked on for two years." / "Switched to this 8-hour battery clip-on desk fan and the white noise alone is worth it." Specific moment, specific audience, immediate keyword.
 
-Weave in 2-3 features from the product description below, but frame them as lifestyle benefits rather than specs. Not "it has 40-hour battery life" but "I charge it on Sunday and forget about it until the next weekend." The viewer should picture themselves using it, not reading a spec sheet.
+Weave in 2-3 features from the product description below, but frame them as lifestyle benefits rather than specs. Not "it has 40-hour battery life" but what the figure means for the viewer's week, keeping the figure the description gives. Never invent a day, a trip or a test with the product to carry it. The viewer should picture themselves using it, not reading a spec sheet.
 
 Close with a line about how this small addition made a real difference in your day. Keep it grounded, not dramatic. End with one CTA per the narrator profile.
 

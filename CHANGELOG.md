@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.1] - 2026-10-08
+
+### Fixed
+
+- Product scripts no longer invent a personal moment such as "charged it Sunday, forgot about it until Friday": the narrator profile takes its concrete detail from the product description, and the lifestyle and story templates no longer quote a made-up week with the product.
+
 ## [0.184.0] - 2026-10-08
 
 ### Added
