@@ -127,6 +127,42 @@ class HookRulesConfig(BaseModel):
     enabled: bool = False
 
 
+class TargetLength(BaseModel):
+    """A spoken-length target: seconds and words, each as a low-high range.
+
+    Rendered into the narrator profiles' `{TARGET_SECONDS}` and
+    `{TARGET_WORDS}` placeholders as "30-40" and "75-100" (REQ-CNT-163).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    seconds: tuple[int, int] = (30, 40)
+    words: tuple[int, int] = (75, 100)
+
+    @field_validator("seconds", "words")
+    @classmethod
+    def _a_rising_positive_range(cls, value: tuple[int, int]) -> tuple[int, int]:
+        low, high = value
+        if low <= 0 or high < low:
+            raise ValueError(f"a length range runs low-high above 0, got {value!r}")
+        return value
+
+    def fill(self, text: str) -> str:
+        """Put this target into a narrator profile's placeholders."""
+        return text.replace(
+            "{TARGET_SECONDS}", f"{self.seconds[0]}-{self.seconds[1]}"
+        ).replace("{TARGET_WORDS}", f"{self.words[0]}-{self.words[1]}")
+
+
+class TargetLengths(BaseModel):
+    """The spoken-length target per content type."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    product: TargetLength = Field(default_factory=TargetLength)
+    topic: TargetLength = Field(default_factory=TargetLength)
+
+
 class ScriptTemplateConfig(BaseModel):
     """Config for multi-template script generation."""
 
@@ -161,6 +197,10 @@ class ScriptTemplateConfig(BaseModel):
     # topic script inherits an affiliate call to action it has no basis for.
     # Empty string falls back to narrator_profile.
     narrator_profile_topic: str = ""
+    # The spoken-length target the narrator profiles' {TARGET_SECONDS} and
+    # {TARGET_WORDS} placeholders carry, per content type; a video profile's
+    # `target_length` overrides it (REQ-CNT-163).
+    target_length: TargetLengths = Field(default_factory=TargetLengths)
     # The closing calls to action, one of which every script must end on.
     # Structured rather than prose inside the narrator profile, because prose
     # forty lines from the task did not bind: five of five scheduled renders
@@ -200,7 +240,7 @@ class ScriptTemplateConfig(BaseModel):
             return self.cta_options_topic
         return self.cta_options
 
-    def narrator_for(self, is_topic: bool) -> str:
+    def narrator_for(self, is_topic: bool, target: TargetLength | None = None) -> str:
         """The narrator profile a render should use.
 
         Every consumer of the profile has to make this choice, not just the
@@ -211,10 +251,17 @@ class ScriptTemplateConfig(BaseModel):
 
         Falls back to the product profile when no topic one is configured, which
         is the pre-existing behaviour for anyone who has not set one.
+
+        The length placeholders are filled from `target`, a video profile's
+        override, else from `target_length` for the content type.
         """
+        if target is None:
+            target = (
+                self.target_length.topic if is_topic else self.target_length.product
+            )
         if is_topic and self.narrator_profile_topic:
-            return self.narrator_profile_topic
-        return self.narrator_profile
+            return target.fill(self.narrator_profile_topic)
+        return target.fill(self.narrator_profile)
 
     # Pillar -> target-audience override. When a pillar is set at runtime and
     # the map has an entry for it, the {AUDIENCE} placeholder uses this value

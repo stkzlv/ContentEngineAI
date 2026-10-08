@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from src.ai.description_generator import generate_description as generate_ai_description
+from src.ai.llm_settings import TargetLength
 from src.ai.script_fact_check import fact_check_and_revise
 from src.ai.script_generator import (
     generate_hook_headline,
@@ -140,6 +141,11 @@ def _load_artifacts_download_music(ctx: PipelineContext) -> None:
 TOPIC_KEYWORD_SEPARATOR = ","
 
 
+def _target_length(ctx: PipelineContext) -> TargetLength | None:
+    """The render profile's spoken-length override, if it sets one."""
+    return getattr(getattr(ctx, "profile", None), "target_length", None)
+
+
 def resolve_topic_keywords(product: Any) -> list[str]:
     """Stock search terms a topic record carries, if it is one.
 
@@ -226,7 +232,7 @@ async def _resolve_script_visual_phrases(ctx: PipelineContext) -> list[str]:
         ctx.debug_mode,
         video_script=ctx.script,
         narrator_profile=script_cfg.narrator_for(
-            bool(getattr(ctx.product, "topic", None))
+            bool(getattr(ctx.product, "topic", None)), _target_length(ctx)
         ),
         max_phrases=cfg.max_phrases,
         max_words=cfg.max_words_per_phrase,
@@ -635,6 +641,7 @@ async def step_generate_script(ctx: PipelineContext):
                     product_id=ctx.product.asin,
                     pillar=pillar,
                     step_list=step_list,
+                    target_length=_target_length(ctx),
                 )
             except (RuntimeError, ValueError, OSError) as e:
                 raise PipelineError(f"Script generation failed: {e}") from e
@@ -729,7 +736,7 @@ async def _ensure_fact_checked(ctx: PipelineContext, pillar: str | None) -> None
         ctx.secrets,
         ctx.session,
         ctx.config.api_settings,
-        narrator_profile=script_cfg.narrator_for(is_topic),
+        narrator_profile=script_cfg.narrator_for(is_topic, _target_length(ctx)),
         pillar=pillar,
         pillar_preambles=script_cfg.preambles_for(is_topic),
         debug_mode=ctx.debug_mode,
@@ -788,7 +795,7 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
         ctx.debug_mode,
         video_script=ctx.script,
         narrator_profile=script_cfg.narrator_for(
-            bool(getattr(ctx.product, "topic", None))
+            bool(getattr(ctx.product, "topic", None)), _target_length(ctx)
         ),
         pillar=pillar,
         # The map has to follow the family the narrator already follows. The
@@ -1023,7 +1030,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
             debug_mode=ctx.debug_mode,
             api_settings=ctx.config.api_settings,
             narrator_profile=script_cfg.narrator_for(
-                bool(getattr(ctx.product, "topic", None))
+                bool(getattr(ctx.product, "topic", None)), _target_length(ctx)
             ),
             pillar=active_pillar,
             # Same family as the narrator above: the requirements doc pins

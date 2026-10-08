@@ -163,13 +163,17 @@ class TestNarratorResolver:
         from src.video.config import config
 
         st = config.llm_settings.script_templates
-        assert st.narrator_for(True) == st.narrator_profile_topic
+        assert st.narrator_for(True) == st.target_length.topic.fill(
+            st.narrator_profile_topic
+        )
 
     def test_a_product_gets_the_product_profile(self):
         from src.video.config import config
 
         st = config.llm_settings.script_templates
-        assert st.narrator_for(False) == st.narrator_profile
+        assert st.narrator_for(False) == st.target_length.product.fill(
+            st.narrator_profile
+        )
 
     def test_every_consumer_resolves_rather_than_reading_the_field(self):
         """A new consumer that reads the field directly reintroduces the bug.

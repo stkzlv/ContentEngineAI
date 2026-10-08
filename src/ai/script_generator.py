@@ -39,6 +39,7 @@ from src.ai.llm_settings import (
     LLMSettings,
     ScriptLintConfig,
     SignatureConfig,
+    TargetLength,
 )
 from src.ai.model_pool import (
     configured_live,
@@ -1030,6 +1031,7 @@ async def generate_script(
     product_id: str | None = None,
     pillar: str | None = None,
     step_list: StepList | None = None,
+    target_length: TargetLength | None = None,
 ) -> tuple[str | None, str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
@@ -1042,7 +1044,15 @@ async def generate_script(
     With a `step_list` (a topic, step lists on, design 0017) the script is
     written from the sourced steps with `topic_from_steps.md`, its length set
     by the step count; the template stem returned is `topic_from_steps`.
+
+    A `target_length` (a video profile's override) sets the narrator profile's
+    length placeholders and the script lint's word cap (REQ-CNT-163).
     """
+    if target_length is not None:
+        settings = settings.model_copy(deep=True)
+        settings.script_validation.lint.target_duration_sec = float(
+            target_length.seconds[1]
+        )
     # Script validation thresholds from config
     sv = settings.script_validation
     sv_min_chars = sv.min_chars
@@ -1230,7 +1240,7 @@ async def generate_script(
 
     prompt = apply_prompt_preambles(
         prompt,
-        settings.script_templates.narrator_for(is_topic),
+        settings.script_templates.narrator_for(is_topic, target_length),
         pillar,
         settings.script_templates.preambles_for(is_topic),
     )
