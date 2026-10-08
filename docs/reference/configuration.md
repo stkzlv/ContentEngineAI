@@ -1031,7 +1031,10 @@ llm_settings:
   # Optional. The script call's own model, thinking budget and output limit,
   # in place of `models`, `thinking_budget` and `max_tokens`, which the other
   # text calls keep. Unset, the script call shares them. A thinking model
-  # counts its thinking against `max_tokens`, so give it room.
+  # counts its thinking against `max_tokens`, so give it room. Set, the shared
+  # `models` are not tried for scripts: a failing script model goes straight
+  # to `fallback_provider`, which keeps its own models (a `script_model` set
+  # inside it is ignored).
   # script_model:
   #   model: "gemini-3.8-flash"
   #   thinking_budget: null    # null leaves the model's default

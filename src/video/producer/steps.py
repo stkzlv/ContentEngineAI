@@ -597,11 +597,8 @@ async def step_generate_script(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "generate_script",
         product_title_length=len(ctx.product.title or ""),
-        llm_model=(
-            ctx.config.llm_settings.models[0]
-            if ctx.config.llm_settings.models
-            else "unknown"
-        ),
+        # The model the script call tries first, which `script_model` sets.
+        llm_model=next(iter(ctx.config.llm_settings.for_scripts().models), "unknown"),
         target_audience=ctx.config.llm_settings.target_audience,
     ):
         logger.info("Executing step: GENERATE_SCRIPT")

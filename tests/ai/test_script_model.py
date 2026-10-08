@@ -203,3 +203,50 @@ def test_the_render_row_carries_the_model(tmp_path: Path, state: dict) -> None:
     )
 
     assert choices_from_context(ctx)["script_model"] == "script-m"
+
+
+@pytest.mark.req("REQ-CNT-162")
+@pytest.mark.asyncio
+async def test_a_near_miss_is_credited_to_the_model_that_wrote_it() -> None:
+    first = _script("It shows [n] days.")  # shared-a's placeholder near miss
+    later = _script("It shows [m] days.")  # shared-b's, kept second
+
+    out, _, written_by = await _generate(_settings(), [first, first, later, later])
+
+    assert out == first
+    assert written_by == {"model": "shared-a"}
+
+
+@pytest.mark.req("REQ-CNT-162")
+@pytest.mark.asyncio
+async def test_a_fallback_provider_model_is_recorded() -> None:
+    from src.ai.script_generator import ScriptGenerationError
+
+    settings = _settings()
+    fallback = settings.model_copy(deep=True)
+    fallback.provider = "gemini"
+    fallback.models = ["fallback-m"]
+    fallback.api_key_env_var = "FALLBACK_KEY"
+    settings.fallback_provider = fallback
+    failure = ScriptGenerationError("down")
+
+    from src.ai import script_generator
+
+    written_by: dict[str, str] = {}
+    call = AsyncMock(side_effect=[failure] * 4 + [_script()])
+    with (
+        patch.object(script_generator, "_call_llm_api_with_retry", call),
+        patch.object(script_generator, "configured_live", lambda s: list(s.models)),
+    ):
+        await script_generator.generate_script(
+            _product(),
+            settings,
+            {settings.api_key_env_var: "k", "FALLBACK_KEY": "k2"},
+            AsyncMock(),
+            {},
+            False,
+            written_by=written_by,
+        )
+
+    assert call.await_args_list[-1].args[1] == "fallback-m"
+    assert written_by == {"model": "fallback-m"}
