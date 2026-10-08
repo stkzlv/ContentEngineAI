@@ -597,11 +597,8 @@ async def step_generate_script(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "generate_script",
         product_title_length=len(ctx.product.title or ""),
-        llm_model=(
-            ctx.config.llm_settings.models[0]
-            if ctx.config.llm_settings.models
-            else "unknown"
-        ),
+        # The model the script call tries first, which `script_model` sets.
+        llm_model=next(iter(ctx.config.llm_settings.for_scripts().models), "unknown"),
         target_audience=ctx.config.llm_settings.target_audience,
     ):
         logger.info("Executing step: GENERATE_SCRIPT")
@@ -626,6 +623,7 @@ async def step_generate_script(ctx: PipelineContext):
             )
         else:
             step_list = await _topic_step_list(ctx)
+            written_by: dict[str, str] = {}
             try:
                 script_text, template_name, cta_line = await generate_ai_script(
                     ctx.product,
@@ -642,6 +640,7 @@ async def step_generate_script(ctx: PipelineContext):
                     pillar=pillar,
                     step_list=step_list,
                     target_length=_target_length(ctx),
+                    written_by=written_by,
                 )
             except (RuntimeError, ValueError, OSError) as e:
                 raise PipelineError(f"Script generation failed: {e}") from e
@@ -653,6 +652,10 @@ async def step_generate_script(ctx: PipelineContext):
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
             if template_name:
                 ctx.state["script_template"] = template_name
+            if written_by.get("model"):
+                # A top-level string, mirrored into the step entry like `cta`:
+                # which model wrote the script, so a fallback shows (REQ-CNT-162).
+                ctx.state["script_model"] = written_by["model"]
             if cta_line:
                 # A top-level string, beside `script_template`: the state
                 # loader tells step entries from scalars by isinstance.

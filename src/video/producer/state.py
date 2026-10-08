@@ -573,6 +573,8 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # the loss is permanent for that product.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("cta"):
         step_state["cta"] = ctx.state["cta"]
+    if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("script_model"):
+        step_state["script_model"] = ctx.state["script_model"]
     # The drawn sign-off, for the same reason: the first-comment extractor
     # reads it to strip the sign-off before taking the closing beat.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("signoff"):

@@ -13,7 +13,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-128** `shipped` `llm_settings.thinking_budget` sets the Gemini reasoning budget for every text call except the script fact check, and the bundled value 0 turns reasoning off.
   - Why: the fact check is the one reasoning-shaped call, so aligning it with the global budget weakens it.
 - **REQ-CNT-129** `shipped` Where `random_model_selection` is on, the producer tries the discovered free OpenRouter models in random order; off (the bundled value), it tries the configured models first, in order, then the other discovered ones.
-- **REQ-CNT-162** `planned #703` Script generation uses its own configured model, thinking budget and output limit, apart from the model the other text calls use, and the run state records which model wrote the script.
+- **REQ-CNT-162** `shipped` Script generation uses its own configured model, thinking budget and output limit, apart from the model the other text calls use, and the run state records which model wrote the script.
 
 ## Script templates
 

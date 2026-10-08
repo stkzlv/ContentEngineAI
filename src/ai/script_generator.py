@@ -1032,6 +1032,7 @@ async def generate_script(
     pillar: str | None = None,
     step_list: StepList | None = None,
     target_length: TargetLength | None = None,
+    written_by: dict[str, str] | None = None,
 ) -> tuple[str | None, str | None, str | None]:
     """Generate a promotional script for a product using LLM.
 
@@ -1047,7 +1048,11 @@ async def generate_script(
 
     A `target_length` (a video profile's override) sets the narrator profile's
     length placeholders and the script lint's word cap (REQ-CNT-163).
+
+    `written_by`, when given, receives the model that wrote the returned
+    script under "model", so a fallback is visible (REQ-CNT-162).
     """
+    settings = settings.for_scripts()
     if target_length is not None:
         settings = settings.model_copy(deep=True)
         settings.script_validation.lint.target_duration_sec = float(
@@ -1149,6 +1154,16 @@ async def generate_script(
     # at one site and skipped at another. It also keeps the first script whose
     # only defect was the ending, for the last resort at the bottom.
     near_miss: dict[str, str] = {}
+    # The model that wrote each near miss, for `written_by`.
+    near_model: dict[str, str] = {}
+
+    def _note(model: str) -> None:
+        for kind in near_miss:
+            near_model.setdefault(kind, model)
+
+    def _record(model: str | None) -> None:
+        if written_by is not None and model:
+            written_by["model"] = model
 
     if step_list is not None:
         # A one-step tutorial is shorter than the general floor allows. Lower
@@ -1268,12 +1283,14 @@ async def generate_script(
 
                 # Validate script completeness
                 is_complete, validation_reason = _validate(clean_script)
+                _note(model)
                 if is_complete:
                     logger.info(
                         "Script successfully generated with model: %s - %s",
                         model,
                         validation_reason,
                     )
+                    _record(model)
                     return clean_script, template_name, cta_line
                 else:
                     logger.warning(
@@ -1338,10 +1355,12 @@ async def generate_script(
                 )
                 clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                 is_complete, validation_reason = _validate(clean_script)
+                _note(model)
                 if is_complete:
                     logger.info(
                         "Fallback success with %s - %s", model, validation_reason
                     )
+                    _record(model)
                     return clean_script, template_name, cta_line
                 else:
                     logger.warning(
@@ -1379,8 +1398,10 @@ async def generate_script(
                     )
                     clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                     is_complete, reason = _validate(clean_script)
+                    _note(model)
                     if is_complete:
                         logger.info("Fallback success with %s - %s", model, reason)
+                        _record(model)
                         return clean_script, template_name, cta_line
                     else:
                         logger.warning("Fallback %s incomplete: %s", model, reason)
@@ -1402,12 +1423,14 @@ async def generate_script(
                         )
                         clean_script = re.sub(r"```[\w\s]*", "", script_text).strip()
                         is_complete, reason = _validate(clean_script)
+                        _note(model)
                         if is_complete:
                             logger.info(
                                 "Fallback discovery success with %s - %s",
                                 model,
                                 reason,
                             )
+                            _record(model)
                             return clean_script, template_name, cta_line
                     except Exception as e:
                         logger.warning(
@@ -1424,17 +1447,20 @@ async def generate_script(
         # Every attempt borrowed a prompt example; the version without that
         # line passed every check, and an invented claim is worse than none.
         logger.warning("No attempt avoided a prompt example; dropping that line")
+        _record(near_model.get("copied"))
         return near_miss["copied"], template_name, cta_line
 
     if "placeholder" in near_miss:
         # Passed every other check; the sanitizer unwraps the brackets.
         logger.warning("No attempt avoided a bracketed placeholder; using one")
+        _record(near_model.get("placeholder"))
         return near_miss["placeholder"], template_name, cta_line
 
     if "lint" in near_miss:
         # Complete, closing on its call to action, and only the lint
         # objected: a render with a tell in it beats no render (design 0007).
         logger.warning("No attempt passed the script lint; using one that failed it")
+        _record(near_model.get("lint"))
         return near_miss["lint"], template_name, cta_line
 
     if "script" in near_miss and cta_options:
@@ -1462,12 +1488,14 @@ async def generate_script(
         # The line the rule asked for, not the pool's first entry. Appending a
         # different one would make the recorded choice a lie about what
         # shipped, and would put every fallback render back on one CTA.
+        _record(near_model.get("script"))
         return script.rstrip() + " " + cta_line, template_name, cta_line
 
     if "short" in near_miss:
         # Every attempt ran short of the step count's length but was
         # otherwise complete; a short tutorial beats no render.
         logger.warning("No attempt reached the step count's length; using one")
+        _record(near_model.get("short"))
         return near_miss["short"], template_name, cta_line
 
     logger.error("All models failed to generate a script.")

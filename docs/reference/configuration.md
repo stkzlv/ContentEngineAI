@@ -1028,6 +1028,17 @@ llm_settings:
   # for a handful of visible ones. The knob works on the 2.5 flash tier; 3.x
   # flash models ignore it.
   thinking_budget: 0
+  # Optional. The script call's own model, thinking budget and output limit,
+  # in place of `models`, `thinking_budget` and `max_tokens`, which the other
+  # text calls keep. Unset, the script call shares them. A thinking model
+  # counts its thinking against `max_tokens`, so give it room. Set, the shared
+  # `models` are not tried for scripts: a failing script model goes straight
+  # to `fallback_provider`, which keeps its own models (a `script_model` set
+  # inside it is ignored).
+  # script_model:
+  #   model: "gemini-3.8-flash"
+  #   thinking_budget: null    # null leaves the model's default
+  #   max_tokens: 2000
 
   # Retry configuration
   retry_attempts: 5

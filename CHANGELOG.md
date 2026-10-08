@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.187.0] - 2026-10-08
+
+### Added
+
+- An optional `llm_settings.script_model` gives script generation its own model, thinking budget and output limit while the other text calls keep theirs, and each run records the model that wrote its script in the run state and the render-choices record, so a fallback shows.
+
 ## [0.186.0] - 2026-10-08
 
 ### Added
