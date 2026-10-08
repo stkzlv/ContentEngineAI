@@ -468,6 +468,21 @@ class TopicScriptsConfig(BaseModel):
     )
 
 
+class ScriptModelConfig(BaseModel):
+    """The model the script call uses, apart from the other text calls.
+
+    A thinking model counts its thinking against `max_tokens`, so a script
+    model needs its own budget and limit: at the shared 600 tokens a thinking
+    model's scripts end mid-sentence (REQ-CNT-162).
+    """
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+    model: str = Field(..., min_length=1)
+    thinking_budget: int | None = None
+    max_tokens: int = Field(default=600, gt=0)
+
+
 class LLMSettings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -531,6 +546,24 @@ class LLMSettings(BaseModel):
     )
     topic_scripts: TopicScriptsConfig = Field(default_factory=TopicScriptsConfig)
     fallback_provider: LLMSettings | None = Field(None)
+    # When set, script generation uses this model, thinking budget and token
+    # limit instead of `models`, `thinking_budget` and `max_tokens`, which the
+    # other text calls keep. Unset, the script call shares them (REQ-CNT-162).
+    script_model: ScriptModelConfig | None = Field(None)
+
+    def for_scripts(self) -> LLMSettings:
+        """These settings as the script call uses them."""
+        if self.script_model is None:
+            return self
+        return self.model_copy(
+            update={
+                "models": [self.script_model.model],
+                "thinking_budget": self.script_model.thinking_budget,
+                "max_tokens": self.script_model.max_tokens,
+                # Discovered free models would otherwise be tried first.
+                "auto_select_free_model": False,
+            }
+        )
 
 
 LLMSettings.model_rebuild()

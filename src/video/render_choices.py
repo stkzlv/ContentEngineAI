@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 DIMENSIONS = (
     "profile",
     "script_template",
+    "script_model",
     "pillar",
     "cta",
     "voice_profile",
@@ -140,6 +141,8 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "product_id": Path(ctx.run_paths["run_root"]).name,
         "profile": ctx.profile_name,
         "script_template": state.get("script_template"),
+        "script_model": state.get("script_model")
+        or (state.get("generate_script") or {}).get("script_model"),
         "pillar": state.get("pillar"),
         "cta": state.get("cta"),
         "hook_headline": state.get("hook_headline"),
