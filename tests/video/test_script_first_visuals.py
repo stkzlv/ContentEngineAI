@@ -472,7 +472,25 @@ class TestStaleArtifactRemoval:
         copy = tmp_path / "scratch" / "B0X"
         copy.mkdir(parents=True)
 
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
+
         _discard_stale_artifacts(state, valid_steps=[], run_root=copy)
+
+        assert visuals.exists() and script.exists()
+        # The copy's own stale file goes, or the step would reuse it.
+        assert not (copy / "gathered_visuals.json").exists()
+
+    @pytest.mark.req("REQ-VID-138")
+    def test_a_path_under_another_product_is_left_alone(self, tmp_path):
+        from src.video.producer.state import _discard_stale_artifacts
+
+        other = tmp_path / "outputs" / "B0OTHER"
+        other.mkdir(parents=True)
+        visuals, script, state = self._state(other)
+        run = tmp_path / "outputs" / "B0X"
+        run.mkdir()
+
+        _discard_stale_artifacts(state, valid_steps=[], run_root=run)
 
         assert visuals.exists() and script.exists()
 
@@ -540,6 +558,7 @@ class TestTruncationRemovesBlockingArtifacts:
         visuals.write_text("{}", encoding="utf-8")
         copy = tmp_path / "scratch" / "B0X" / "temp"
         copy.mkdir(parents=True)
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
 
         ctx = self._run(
             copy,
@@ -557,6 +576,7 @@ class TestTruncationRemovesBlockingArtifacts:
 
         assert visuals.exists()
         assert "gather_visuals" not in ctx.state
+        assert not (copy / "gathered_visuals.json").exists()
 
     def test_the_finished_video_survives(self, tmp_path):
         """It is the deliverable, and `assemble_video` re-renders regardless.

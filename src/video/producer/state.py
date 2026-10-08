@@ -257,6 +257,25 @@ def _run_root(ctx: PipelineContext) -> Path:
     return Path(root) if root else Path(ctx.run_paths["state_file"]).parent.parent
 
 
+def _within_run(path: Path, run_root: Path) -> Path | None:
+    """The run's own copy of a recorded artifact path, or None.
+
+    The state records absolute paths, so a product directory copied elsewhere
+    still names the original's files. Deleting those would reach into another
+    run's tree, and leaving the copy's own file would let the step reuse it, so
+    a path under another directory of the same product name maps onto this one.
+    """
+    root = run_root.resolve()
+    resolved = path.resolve()
+    if resolved.is_relative_to(root):
+        return resolved
+    parts = resolved.parts
+    if root.name in parts:
+        rest = parts[len(parts) - parts[::-1].index(root.name) :]
+        return root.joinpath(*rest)
+    return None
+
+
 def _discard_stale_artifacts(
     state_data: dict[str, Any], valid_steps: list[str], run_root: Path
 ) -> None:
@@ -294,16 +313,13 @@ def _discard_stale_artifacts(
             )
             if not blocks_rerun or path_str in kept_paths:
                 continue
-            path = Path(path_str)
-            # The state records absolute paths, so a product directory copied
-            # elsewhere still names the original's files. Only this run's own
-            # directory is ours to clean.
-            if not path.resolve().is_relative_to(run_root.resolve()):
+            path = _within_run(Path(path_str), run_root)
+            if path is None:
                 logger.warning(
                     "Not deleting stale artifact '%s' outside this run's "
                     "directory: %s",
                     key,
-                    path,
+                    path_str,
                 )
                 continue
             try:
