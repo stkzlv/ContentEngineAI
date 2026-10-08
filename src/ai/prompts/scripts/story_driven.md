@@ -6,7 +6,7 @@ Open with a first-person anecdote that carries the audio-keyword hook in the fir
 
 Then bridge into the product discovery. How did you come across it, and what made you try it? This should feel natural, like you're telling a friend about something you bought. Not a testimonial, just a story.
 
-Weave in 2-3 product features from the description below, but embed them in the narrative. Don't pause the story to list specs. Instead of "it has 40-hour battery life", say something like "I charged it on Monday and forgot about it until Friday." Let the features live inside the experience.
+Weave in 2-3 product features from the description below, but embed them in the narrative. Don't pause the story to list specs. Instead of listing "it has 40-hour battery life", say what that figure means in use, keeping the figure the description gives. Never invent a day, a trip or a test with the product to carry it. Let the features live inside the experience.
 
 End with one CTA per the narrator profile. Quick and casual.
 

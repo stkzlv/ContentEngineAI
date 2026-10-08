@@ -252,7 +252,7 @@ llm_settings:
 
       Voice: calm, conversational, friendly. Slightly understated. Not slick, not loud, not announcer-perfect. The tone you'd use telling a friend about something you bought.
 
-      Specificity: drop one concrete detail per script. A real moment, a real number, a real reference. "Charged it Sunday, forgot about it until Friday" beats "great battery life."
+      Specificity: drop one concrete detail per script, taken from the product description: a number, a size, a material or a use it names. A stated figure beats "great battery life". Never invent a personal moment, a day, a trip or a test with the product; the description is the only source of facts.
 
       Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
 
