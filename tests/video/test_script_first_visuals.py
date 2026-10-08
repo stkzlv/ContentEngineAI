@@ -481,6 +481,25 @@ class TestStaleArtifactRemoval:
         assert not (copy / "gathered_visuals.json").exists()
 
     @pytest.mark.req("REQ-VID-138")
+    def test_the_deepest_directory_of_the_products_name_is_the_one_mapped(
+        self, tmp_path
+    ):
+        """An outputs root named after the product sits above the product."""
+        from src.video.producer.state import _discard_stale_artifacts
+
+        original = tmp_path / "B0X" / "B0X"
+        original.mkdir(parents=True)
+        visuals, _, state = self._state(original)
+        copy = tmp_path / "scratch" / "B0X"
+        copy.mkdir(parents=True)
+        (copy / "gathered_visuals.json").write_text("{}", encoding="utf-8")
+
+        _discard_stale_artifacts(state, valid_steps=[], run_root=copy)
+
+        assert visuals.exists()
+        assert not (copy / "gathered_visuals.json").exists()
+
+    @pytest.mark.req("REQ-VID-138")
     def test_a_path_under_another_product_is_left_alone(self, tmp_path):
         from src.video.producer.state import _discard_stale_artifacts
 
