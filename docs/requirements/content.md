@@ -13,6 +13,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-128** `shipped` `llm_settings.thinking_budget` sets the Gemini reasoning budget for every text call except the script fact check, and the bundled value 0 turns reasoning off.
   - Why: the fact check is the one reasoning-shaped call, so aligning it with the global budget weakens it.
 - **REQ-CNT-129** `shipped` Where `random_model_selection` is on, the producer tries the discovered free OpenRouter models in random order; off (the bundled value), it tries the configured models first, in order, then the other discovered ones.
+- **REQ-CNT-162** `planned #703` Script generation uses its own configured model, thinking budget and output limit, apart from the model the other text calls use, and the run state records which model wrote the script.
 
 ## Script templates
 
@@ -24,6 +25,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
 - **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
 - **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
+- **REQ-CNT-161** `planned #701` A topic whose title is a task ("How to ...") is written with a task-first template; the symptom-first and mistake-first templates are drawn only for a topic that names a symptom or a mistake.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
 
@@ -40,6 +42,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-023** `shipped` Every product template instructs the LLM to include one trade-off or limitation of the product, one sentence at most.
 - **REQ-CNT-024** `shipped` Scripts name the product the way a person says it aloud and never speak model or SKU designations.
 - **REQ-CNT-025** `shipped` The template offers the short product alias as a suggestion, and the script uses the plain category noun when the alias does not read as a spoken name.
+- **REQ-CNT-157** `planned #700` A product script never claims that the narrator owned, bought, received, used or tested the product, nor that other people talk about it; the first person speaks only for research and opinion.
+- **REQ-CNT-158** `planned #700` A product script speaks no price, and no template example or hook pattern models one.
+- **REQ-CNT-159** `planned #700` No script template or narrator profile quotes a whole example sentence a script could reuse; an example shows its shape with placeholders.
+- **REQ-CNT-160** `planned #700` A product script says in one sentence who the product suits or who should skip it, beside its one trade-off.
 
 ## Topic script rules
 
@@ -97,8 +103,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-154** `shipped` The fact check refuses a revision that adds a sentence carrying fix wording a flagged claim's fix used ("instead of", "is located under", "is located in", "can be found under", "is found under") or that says a sentence twice where the original said it once; a fix that answers a claimed limit (a claim saying "limit" or "limited", or a number after "up to", "at most", "more than", "over", "fewer than", "less than" or "maximum of") with a universal ("regardless of", "no matter how", "no matter what", "any number of", "unlimited", "no limit") is carried out as a removal of the claim, and a revision that brings such a universal back, other than one another flag's fix uses, is refused.
 - **REQ-CNT-155** `held` Where `llm_settings.script_validation.reject_copied_examples` is on, a generated script is retried when a sentence that is not a question, and not a configured call to action or one of its sentences, shares at least three, and at least three fifths, of the content words of a quoted example in its own prompt and some of those words appear nowhere in the product's title, description or keyword; when every attempt does so, the script ships without that sentence, and without a question just before it, if the rest passes validation.
   - On when: the reach-test readout (#540); measure first how often a quoted prompt example is still copied; the narrator profile's anecdote, the most copied one, was removed in 0.184.1 (REQ-CNT-156).
-- **REQ-CNT-156** `shipped` The narrator profile asks for one concrete detail taken from the product description and forbids inventing a personal moment, a day, a trip or a test with the product, and no script template models such a moment as an example.
-- **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
+- **REQ-CNT-156** `partial` The narrator profile asks for one concrete detail taken from the product description and forbids inventing a personal moment, a day, a trip or a test with the product, and no script template models such a moment as an example.
+  - Gap: the product narrator profile's voice example still models one ("So I picked this up last month ... Took it on a hike and never lost signal") (#700).
+- **REQ-CNT-052** `partial` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown, emojis and hashtags from the script.
+  - Gap: a bracketed placeholder copied from an interface message ("All [number] conversations on this page are selected") and backticks round a search operator (`from:`) reach the voice (#702).
 - **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
   - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
 - **REQ-CNT-054** `held` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.2] - 2026-10-08
+
+### Changed
+
+- Requirements and a design for product scripts in a researcher's voice, task-topic routing, placeholders reaching the voice and a separate script model, from a review of scripts from every template; the module notes record why a switch to a newer Gemini model fails today.
+
 ## [0.184.1] - 2026-10-08
 
 ### Fixed
