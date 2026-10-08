@@ -395,3 +395,7 @@ synthetic_media_disclosure: false
 # whose ratio window is about to close.
 analytics:
   limit: 50
+  # Upper edges, in seconds, of the duration bands the quality report groups
+  # posts by: under 20, 20-30, 30-45, 45-60 and over 60. A post whose render
+  # recorded no duration falls in an "unknown" band.
+  duration_bands_sec: [20, 30, 45, 60]

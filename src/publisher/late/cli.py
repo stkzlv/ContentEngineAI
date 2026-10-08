@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 from late import LateError
 
 from src.publisher.analytics import (
+    duration_band,
     load_metrics,
     publish_time,
     quality_metrics,
@@ -208,8 +209,8 @@ async def cmd_list_accounts(
         sys.exit(1)
 
 
-def _log_quality_segments(outputs_dir: Path) -> None:
-    """Every stored post's quality metrics by format and render choice."""
+def _log_quality_segments(outputs_dir: Path, duration_bands: list[float]) -> None:
+    """Every stored post's quality metrics by format, render choice and length."""
     from src.publisher.product_registry import load_registry
     from src.utils.render_choices_store import latest_per_product, load_recent
 
@@ -221,6 +222,10 @@ def _log_quality_segments(outputs_dir: Path) -> None:
     for entry in load_registry(outputs_dir):
         labels.setdefault(entry.product_id, {})["content_format"] = (
             entry.content_format or "unlabelled"
+        )
+    for label in labels.values():
+        label["duration_band"] = duration_band(
+            label.get("video_duration_sec"), duration_bands
         )
     lines = segment_quality(
         load_metrics(outputs_dir), _load_product_map(outputs_dir), labels
@@ -419,7 +424,7 @@ async def cmd_analytics(
             _record_regression(regressed, len(metrics))
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
-    _log_quality_segments(outputs_dir)
+    _log_quality_segments(outputs_dir, config.analytics_config.duration_bands_sec)
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")
     for m in rank_by_durability(metrics):

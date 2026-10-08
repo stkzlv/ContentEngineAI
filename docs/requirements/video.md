@@ -6,8 +6,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 - **REQ-VID-001** `shipped` The producer sets a render's duration from the voiceover length.
 - **REQ-VID-002** `shipped` After assembly, the producer logs a warning when the final video's duration differs from the voiceover by more than `video_duration_tolerance_sec` (default 1 second); the check never fails the render.
-- **REQ-VID-159** `planned #705` The producer records the final video's duration in seconds in the run state, and the publisher copies it into the publish history beside the post ids.
-- **REQ-VID-160** `planned #705` When a render carries background music and its duration exceeds `video_settings.music_claim_ceiling_sec` (default 60, 0 turns the check off), the producer logs a warning naming the duration, the ceiling and the music source and records it in the run state; the check never fails the render.
+- **REQ-VID-159** `shipped` The producer records the final video's duration in seconds in the run state and in the render's row of the render-choices record, which the analytics report reads.
+- **REQ-VID-160** `shipped` When a render carries background music and its duration exceeds `video_settings.music_claim_ceiling_sec` (default 60, 0 turns the check off), the producer logs a warning naming the duration, the ceiling and the music source and records it in the run state; the check never fails the render.
 - **REQ-VID-003** `shipped` When a render shows still images, it divides the voiceover duration evenly across them, so each image's time on screen follows the image count rather than a fixed length.
 - **REQ-VID-004** `shipped` When the visuals are shorter than the voiceover, the render stretches the images and loops the videos; it never repeats an image.
 - **REQ-VID-005** `shipped` The render joins consecutive media elements with a crossfade.

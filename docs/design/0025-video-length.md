@@ -54,6 +54,13 @@ The duration record, the warning and the report are measurement and ship on: the
 
 Remove the switch when: not applicable; the ceiling and the target are lasting operator settings.
 
+## As built
+
+- **Where the duration lands.** The producer writes `video_duration_sec` into the run state and into the render's row in the render-choices record (`state/render_choices.jsonl` under the outputs root), not into the publish history. The quality report already joins posts to render choices through that record, and it survives the product directory's cleanup after a publish, so the publisher needs no copy of its own.
+- **Measured after assembly.** The length is probed when assembly finishes, before the caption burn replaces the file; on a checked render the two differed by 0.02 s, under a frame. A re-render clears the previous length and flag before recording its own.
+- **Mean, not median.** The duration band is one more segment of the existing quality report, which shows the mean of each metric with its post count; a band uses the same figures as every other segment.
+- **Not built yet:** the configurable target (`REQ-CNT-163`), a separate change.
+
 ## Open questions
 
 - Whether Jamendo or Freesound tracks draw Content ID claims on the channel's Shorts. The channel's copyright tab answers it; if none appear, the ceiling can rise.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.185.0] - 2026-10-08
+
+### Added
+
+- Each render records its final length in the run state and the render-choices record, and the analytics quality report groups posts by duration band (`analytics.duration_bands_sec`, under 20, 20-30, 30-45, 45-60 and over 60 seconds by default).
+- A render with background music that runs past `video_settings.music_claim_ceiling_sec` (60 seconds by default) logs a warning naming the music source and is flagged in the run state, since YouTube blocks a Short over one minute that carries a Content ID claim.
+
 ## [0.184.4] - 2026-10-08
 
 ### Fixed

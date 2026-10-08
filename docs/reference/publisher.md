@@ -144,7 +144,7 @@ One of `--rebuild` and `--summary` is required.
 
 ### `analytics`
 
-Captures day-2 and day-7 views and a durability ratio for recent published posts, and each post's per-platform quality metrics; reports those metrics by content format and render choice, and ranks posts by durability.
+Captures day-2 and day-7 views and a durability ratio for recent published posts, and each post's per-platform quality metrics; reports those metrics by content format, render choice and duration band, and ranks posts by durability.
 
 ```bash
 python -m src.publisher.late analytics [options]
@@ -362,6 +362,7 @@ Shipped commented out. A section with an unknown key falls back to all defaults 
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `limit` | int | `50` | Posts each `analytics` sweep measures. A whole number of at least 1. A value that is not a mapping, or is refused, falls back to 50 with a warning. |
+| `duration_bands_sec` | list of numbers | `[20, 30, 45, 60]` | Upper edges, in seconds, of the duration bands the quality report groups posts by: under 20, 20-30, 30-45, 45-60 and over 60. Increasing and positive, or the section falls back to its defaults with a warning. A post whose render recorded no length is in an `unknown` band. |
 
 ### `profiles`
 

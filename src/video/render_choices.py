@@ -159,6 +159,8 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "beat_snap_moved": assembly.get("beat_snap_moved"),
         "sound_effects": assembly.get("sound_effects"),
         "search_phrase": _search_phrase_placement(ctx),
+        "video_duration_sec": state.get("video_duration_sec")
+        or (state.get("assemble_video") or {}).get("video_duration_sec"),
         "script": ctx.script,
     }
 

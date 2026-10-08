@@ -12,7 +12,7 @@ The short answer: no source shows that length by itself makes a video perform. L
 | TikTok | 3 minutes for every creator, 5 or 10 minutes for some; the posting API accepts up to 10 minutes | The ads page sets no recommended length (10 minutes, no limit for Spark Ads). [A] [TikTok developers](https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide), [TikTok Ads help](https://ads.tiktok.com/help/article/tiktok-auction-in-feed-ads) |
 | Instagram Reels | 3 minutes in the app since January 2025; the API takes 3 s to 15 minutes | Instagram said it would recommend reels up to 3 minutes, and a 2025 creator-event slide advised against going past that. [A] for the API, [B] for the rest. [Instagram API](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media), [Social Media Today](https://www.socialmediatoday.com/news/instagram-will-recommend-longer-reels/737913/) |
 
-The pipeline's renders stay well under every limit; the limit that binds is the one-minute Content ID rule on YouTube, because a render's background music comes from providers whose tracks may be registered for Content ID, and published renders have run past 60 s. Planned ([design 0025](../design/0025-video-length.md), `REQ-VID-160`): a warning when a render with music runs past 60 s.
+The pipeline's renders stay well under every limit; the limit that binds is the one-minute Content ID rule on YouTube, because a render's background music comes from providers whose tracks may be registered for Content ID, and published renders have run past 60 s. The producer warns, and records it in the run state, when a render with music runs past 60 s (`video_settings.music_claim_ceiling_sec`, `REQ-VID-160`).
 
 ## How views are counted
 
@@ -21,7 +21,7 @@ The pipeline's renders stay well under every limit; the limit that binds is the 
 - **Instagram views include replays.** The insights API counts every play, and separately reports average watch time and a skip rate (`reels_skip_rate`). The skip rate is described elsewhere as skips in the first 3 seconds; that definition was not confirmed on the rendered API page. [A] for the fields. [Instagram insights](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/)
 - **TikTok's view definition is not documented** on any official page reachable without a login.
 
-Planned ([design 0010](../design/0010-first-seconds-metrics.md), [design 0025](../design/0025-video-length.md), `REQ-PUB-084`): the analytics report segments these metrics by duration band, so length is judged on the channel's own engaged views and skip rate rather than raw views.
+Each render records its final length (`REQ-VID-159`), and the analytics report groups the stored metrics by duration band (`analytics.duration_bands_sec`, `REQ-PUB-084`), so length is judged on the channel's own figures rather than on cross-channel data. The provider doesn't expose engaged views, so YouTube bands read raw views ([design 0010](../design/0010-first-seconds-metrics.md)).
 
 ## What the platforms say they rank on
 

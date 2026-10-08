@@ -213,6 +213,12 @@ class AnalyticsConfig:
     """
 
     limit: int = 50
+    # Upper edges of the duration bands the quality report groups posts by
+    # (REQ-PUB-084): the default gives under 20 s, 20-30, 30-45, 45-60 and
+    # over 60.
+    duration_bands_sec: list[float] = field(
+        default_factory=lambda: [20.0, 30.0, 45.0, 60.0]
+    )
 
     def __post_init__(self):
         """Reject a limit that would measure nothing, or break the slice.
@@ -229,6 +235,18 @@ class AnalyticsConfig:
             )
         if self.limit < 1:
             raise ValueError(f"analytics.limit must be at least 1, got {self.limit}")
+        bands = self.duration_bands_sec
+        if (
+            not isinstance(bands, list)
+            or not bands
+            or any(isinstance(b, bool) or not isinstance(b, int | float) for b in bands)
+            or any(b <= 0 for b in bands)
+            or bands != sorted(set(bands))
+        ):
+            raise ValueError(
+                "analytics.duration_bands_sec must be increasing positive "
+                f"seconds, got {bands!r}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""

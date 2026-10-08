@@ -548,6 +548,9 @@ class VideoSettings(BaseModel):
     )
     transition_duration_sec: float = Field(0.5)
     video_duration_tolerance_sec: float = Field(1.0)
+    # A render with music past this length gets a warning: YouTube blocks a
+    # Short over a minute with a Content ID claim (REQ-VID-160). 0 turns it off.
+    music_claim_ceiling_sec: float = Field(default=60.0, ge=0)
     inter_product_delay_min_sec: float = Field(1.5)
     inter_product_delay_max_sec: float = Field(4.0)
     min_visual_segment_duration_sec: float = Field(0.1)
