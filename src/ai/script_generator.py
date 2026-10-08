@@ -40,6 +40,7 @@ from src.ai.llm_settings import (
     ScriptLintConfig,
     SignatureConfig,
     TargetLength,
+    is_task_title,
 )
 from src.ai.model_pool import (
     configured_live,
@@ -509,6 +510,7 @@ def select_script_template(
     product_id: str | None = None,
     pillar: str | None = None,
     is_topic: bool = False,
+    title: str | None = None,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
@@ -583,6 +585,19 @@ def select_script_template(
                 "No configured topic templates exist in '%s'; falling back to "
                 "the product pool, which will produce product-shaped copy",
                 templates_dir,
+            )
+
+    # A task topic draws only the templates written for a task; the others
+    # invent a symptom or a mistake the task doesn't have (REQ-CNT-161).
+    routing = templates_cfg.topic_routing
+    if is_topic and routing.enabled and is_task_title(title):
+        task_pool = [t for t in pool if t in routing.task_templates]
+        if task_pool:
+            pool = task_pool
+        else:
+            logger.warning(
+                "No task template from topic_routing.task_templates is in the "
+                "topic pool; using the whole pool"
             )
 
     # Apply pillar filter (when pillar is provided and known)
@@ -1111,7 +1126,11 @@ async def generate_script(
         template_path = SCRIPT_PROMPT_PATH
     else:
         template_path = select_script_template(
-            settings, product_id, pillar, is_topic=bool(getattr(product, "topic", None))
+            settings,
+            product_id,
+            pillar,
+            is_topic=bool(getattr(product, "topic", None)),
+            title=getattr(product, "topic", None) or product.title,
         )
     template_name = template_path.stem
     is_topic = bool(getattr(product, "topic", None))

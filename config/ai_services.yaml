@@ -404,6 +404,14 @@ llm_settings:
       - topic_answer_first
       - topic_symptom_cause
       - topic_mistake_fix
+    # Route a topic whose title starts "How to" to the templates written for a
+    # task; the symptom-first and mistake-first ones invent a problem for a
+    # plain task. Off until the reach-test readout: it changes which template
+    # a topic draws.
+    topic_routing:
+      enabled: false
+      task_templates:
+        - topic_answer_first
 
     # Narrator direction for topic scripts. The default profile below is
     # written for someone describing a thing they bought, down to its CTA list,

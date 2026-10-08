@@ -26,7 +26,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
 - **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
 - **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
-- **REQ-CNT-161** `planned #701` A topic whose title is a task ("How to ...") is written with a task-first template; the symptom-first and mistake-first templates are drawn only for a topic that names a symptom or a mistake.
+- **REQ-CNT-161** `held` Where `script_templates.topic_routing.enabled` is on, a topic whose title is a task (it starts "How to") draws its template only from `topic_routing.task_templates` (`topic_answer_first`), so the symptom-first and mistake-first templates are left to topics that are not tasks.
+  - On when: the reach-test readout (#540), after a sample of task topics written with routing on shows no template misfit in the research checks.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
 
