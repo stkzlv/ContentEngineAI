@@ -168,6 +168,7 @@ Every key except `description` is optional. A key left unset inherits the global
 | Key | Type | Meaning |
 |---|---|---|
 | `description` | string | Required. A one-line summary of the profile. |
+| `target_length` | mapping | Optional. `seconds` and `words` as `[low, high]`: the spoken-length target this profile's scripts ask for, in place of `script_templates.target_length`, and the script lint's word cap from the upper seconds. No bundled profile sets it. |
 | `use_scraped_images`, `use_scraped_videos` | bool | Draw the product's own images or videos (default `false`). A profile with both off renders script-first. |
 | `use_stock_images`, `use_stock_videos` | bool | Draw stock media (default `false`). |
 | `stock_image_count`, `stock_video_count` | int >= 0 | Stock items to fetch (default 0). |

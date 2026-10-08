@@ -37,7 +37,7 @@ def _ctx(*, state=None, hook_enabled=True, max_words=7):
                     # questions rather than exposing the fields the caller no
                     # longer reads. A stub missing one of these fails with an
                     # AttributeError that looks like a code bug.
-                    narrator_for=lambda is_topic: (
+                    narrator_for=lambda is_topic, target=None: (
                         "topic narrator" if is_topic else "narrator"
                     ),
                     preambles_for=lambda is_topic: (

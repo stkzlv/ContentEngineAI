@@ -304,7 +304,9 @@ def _phrase_ctx(*, script="A script.", stock_only=True, enabled=True, topic="A t
                 visual_search_terms=SimpleNamespace(
                     enabled=enabled, max_phrases=3, max_words_per_phrase=5
                 ),
-                script_templates=SimpleNamespace(narrator_for=lambda _is_topic: ""),
+                script_templates=SimpleNamespace(
+                    narrator_for=lambda _is_topic, _target=None: ""
+                ),
             ),
             api_settings=None,
         ),

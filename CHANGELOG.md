@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.186.0] - 2026-10-08
+
+### Added
+
+- The spoken-length target the script prompts ask for comes from `script_templates.target_length` per content type and can be overridden per video profile with `target_length`; the shipped values render the prompts unchanged.
+
 ## [0.185.1] - 2026-10-08
 
 ### Fixed

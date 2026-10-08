@@ -84,7 +84,7 @@ Across all product channels the median is 59 s and 47% run past a minute; across
 | Tutorial, one setting | 15-30 s | One task per video; length follows the steps ([tutorials](tutorials.md#length)). |
 | Tutorial, multi-step | 40-75 s | Tech-help creators run 33-97 s; past about 90 s, split into a series. |
 
-Planned ([design 0025](../design/0025-video-length.md), `REQ-CNT-163`): the spoken-length target comes from config per content type and profile, with today's text as the default, so a shorter product target can be tested after the reach-test readout without editing the prompts.
+The spoken-length target comes from config (`script_templates.target_length` per content type, `target_length` per video profile, `REQ-CNT-163`), with today's text as the default, so a shorter product target can be tested after the reach-test readout without editing the prompts.
 
 ## Gaps in the evidence
 

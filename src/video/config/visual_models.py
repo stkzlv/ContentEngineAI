@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.ai.llm_settings import TargetLength
 from src.video.config.constants import (
     ASSEMBLER_IMAGE_LOOP,
     ASSEMBLER_PAD_COLOR,
@@ -778,6 +779,9 @@ class VideoProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     description: str
+    # Overrides `script_templates.target_length` for this profile's scripts,
+    # and the script lint's word cap with its upper seconds (REQ-CNT-163).
+    target_length: TargetLength | None = None
     use_scraped_images: bool = Field(False)
     use_scraped_videos: bool = Field(False)
     use_stock_images: bool = Field(False)

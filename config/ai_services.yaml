@@ -240,6 +240,17 @@ llm_settings:
         - problem_solution
         - question_driven
         - challenge_dare
+    # Spoken-length target per content type, as low-high ranges filled into
+    # the narrator profiles' {TARGET_SECONDS} and {TARGET_WORDS} placeholders.
+    # A video profile's `target_length` overrides it for that profile, and
+    # then also sets the script lint's word cap from its upper seconds.
+    target_length:
+      product:
+        seconds: [30, 40]
+        words: [75, 100]
+      topic:
+        seconds: [30, 40]
+        words: [75, 100]
     # Channel-wide voice direction prepended to every script prompt above any
     # pillar preamble. Carries the rules every template would otherwise repeat
     # (banned words, word target, narrator persona, anti-AI-tells). Override
@@ -275,7 +286,7 @@ llm_settings:
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.
-      - Target 30-40 seconds at normal speaking pace (roughly 75-100 words).
+      - Target {TARGET_SECONDS} seconds at normal speaking pace (roughly {TARGET_WORDS} words).
       - No emojis, no hashtags, no greetings like "hey guys", no markdown in the output.
       - Name the product the way a person would say it out loud, not the way it is listed. Never speak a model or SKU designation (letter-number codes like "P1", "3DP13D", "Q30", "240D"). Prefer the plain category noun, optionally with the brand: "this 3D pen", "the Anker charger". Use the short alias from the product data block only when it already reads as a name a person would say; if it is a fragment or carries a model code, use the category noun instead. Never read the full official title.
       - Plain text only, suitable for direct text-to-speech.
@@ -412,7 +423,7 @@ llm_settings:
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.
-      - Target 30-40 seconds at normal speaking pace (roughly 75-100 words).
+      - Target {TARGET_SECONDS} seconds at normal speaking pace (roughly {TARGET_WORDS} words).
       - No emojis, no hashtags, no greetings, no markdown in the output.
       - Plain text only, suitable for direct text-to-speech.
       - Never imply the viewer should buy something unless the topic detail names a specific tool. No "this thing", no "I picked one up", no "if you want one".

@@ -20,7 +20,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-007** `shipped` The producer ships several script templates with distinct styles (curiosity hook, problem-solution, storytelling, comparison and others).
 - **REQ-CNT-008** `shipped` Templates instruct calm, conversational delivery, with no high-energy, hype or clickbait phrasing.
 - **REQ-CNT-142** `shipped` The product and topic narrator profiles instruct the LLM to target 30-40 seconds of speech at a normal pace, about 75-100 words.
-- **REQ-CNT-163** `planned #705` The narrator profiles take their spoken-length target (a seconds range and a words range) from `script_templates.target_length` per content type, overridable per video profile; the defaults render the profile text byte-identical to the shipped prompts.
+- **REQ-CNT-163** `shipped` The narrator profiles take their spoken-length target (a seconds range and a words range) from `script_templates.target_length` per content type, overridable per video profile; the defaults render the profile text byte-identical to the shipped prompts.
 - **REQ-CNT-009** `shipped` The producer selects a template per product deterministically, so a product gets the same template on every run.
 - **REQ-CNT-010** `shipped` Where `script_templates.template_pool` lists templates, the producer selects only from them; an empty pool means every template.
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
