@@ -125,6 +125,16 @@ class DescriptionSettings(BaseModel):
         ),
     )
 
+    short_product_titles: bool = Field(
+        False,
+        description=(
+            "Unified mode: give a product video a short written title from its "
+            "keyword and hook headline instead of the store listing title. It "
+            "changes published titles, so it stays off until the reach-test "
+            "readout (design 0009)."
+        ),
+    )
+
     platform_metadata: PlatformMetadataSettings | None = Field(
         None,
         description=(

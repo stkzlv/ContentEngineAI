@@ -11,7 +11,8 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-005** `shipped` Where `delivery_sweep.enabled` is on (default on), the publisher checks recent posts after each publish run and reports every post whose status is `partial` or that has a failed platform leg, naming the platform and its error.
 - **REQ-PUB-006** `shipped` The delivery sweep inspects the `delivery_sweep.limit` most recent posts (default 25).
 - **REQ-PUB-007** `shipped` The `verify-delivery` command runs the delivery check on demand over the `--limit` most recent posts (default 25).
-- **REQ-PUB-008** `planned #550` Product videos publish to YouTube with a short written title within the configured maximum, not the store listing title.
+- **REQ-PUB-008** `held` Where `description_settings.short_product_titles` is on, product videos publish to YouTube with a short written title within `platform_metadata.youtube.title_length_max`, keyword first, not the store listing title.
+  - On when: the reach-test readout (#540), product arm only; titles are held constant across both arms until then.
 - **REQ-PUB-112** `shipped` The `list-accounts` command lists each connected social account with its platform, account id and username.
 - **REQ-PUB-113** `shipped` If authentication with the provider fails, `list-accounts` exits non-zero.
 - **REQ-PUB-114** `shipped` The `delete POST_ID` command deletes that post from the provider.

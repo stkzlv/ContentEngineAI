@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.0] - 2026-10-08
+
+### Added
+
+- `description_settings.short_product_titles`, off until the reach-test readout, gives a product video a short title from its keyword and hook headline, within the YouTube title maximum, instead of the store listing title.
+
 ## [0.183.1] - 2026-10-07
 
 ### Changed
