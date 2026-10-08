@@ -46,7 +46,9 @@ def test_a_task_is_a_how_to_title() -> None:
     assert not is_task("Why your wifi keeps dropping")
 
 
-def _ctx_step(script: str, template: str, steps: int | None = None):
+def _ctx_step(
+    script: str, template: str, steps: int | None = None, explainer: bool = False
+):
     async def step(ctx) -> None:
         ctx.script = script
         ctx.state.update(
@@ -58,7 +60,9 @@ def _ctx_step(script: str, template: str, steps: int | None = None):
             json.dumps({"flagged": [{"claim": "x"}], "revision": {"accepted": True}})
         )
         if steps:
-            (temp / "step_list.json").write_text(json.dumps({"steps": [{}] * steps}))
+            (temp / "step_list.json").write_text(
+                json.dumps({"steps": [{}] * steps, "explainer": explainer})
+            )
 
     return step
 
@@ -301,3 +305,26 @@ def test_a_title_with_a_pipe_keeps_the_table_whole() -> None:
     )
     assert "Mount \\| Magnetic \\| 2 pack" in row
     assert row.count(" | ") == 5  # six cells
+
+
+@pytest.mark.req("REQ-VID-161")
+def test_an_explainer_is_held_to_the_explainer_band() -> None:
+    checked = check_one(_record(steps=2, explainer=True), (5, 30))
+    assert checked["band"] == [100, 160]
+
+
+@pytest.mark.req("REQ-VID-161")
+def test_a_sample_records_whether_the_list_was_an_explainer(tmp_path: Path) -> None:
+    from src.utils.outputs_paths import with_outputs_root
+
+    config = load_video_config_modular(cli_overrides=with_outputs_root({}, tmp_path))
+    product = build_topic_product(
+        TopicSpec(title="Why wifi drops at night", description="d")
+    )
+    with patch(
+        "src.video.producer.steps.step_generate_script",
+        _ctx_step(f"It changes channel. {CTA}", "x", steps=2, explainer=True),
+    ):
+        record = asyncio.run(sample_one(config, product, "slideshow_stock", {}, None))
+
+    assert record["explainer"] is True and record["steps"] == 2

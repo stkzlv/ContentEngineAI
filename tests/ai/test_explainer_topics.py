@@ -176,3 +176,31 @@ async def test_a_short_explainer_draft_is_retried() -> None:
         )
 
     assert script == full and call.await_count == 2
+
+
+@pytest.mark.req("REQ-VID-161")
+def test_an_explainers_sign_off_follows_its_closing_test_not_a_recap() -> None:
+    from src.ai.script_generator import SignatureChoice, render_ending_rules
+
+    choice = SignatureChoice(signoff="That's the real picture.")
+    cta = config.llm_settings.script_templates.cta_options_for(True)[0]
+
+    procedure = render_ending_rules(cta, True, 0, choice, tutorial=True)
+    explainer = render_ending_rules(cta, True, 0, choice, tutorial=True, recap=False)
+
+    assert "recap of the whole path" in procedure
+    assert "recap" not in explainer and "the closing beat" in explainer
+    # Still a tutorial for the lint: no duration word cap.
+    assert explainer.count("Keep the whole script") == procedure.count(
+        "Keep the whole script"
+    )
+
+
+@pytest.mark.req("REQ-VID-161")
+def test_the_script_call_passes_the_explainer_to_the_sign_off() -> None:
+    import inspect
+
+    from src.ai import script_generator
+
+    source = inspect.getsource(script_generator.generate_script)
+    assert "recap=step_list is not None and not step_list.explainer" in source

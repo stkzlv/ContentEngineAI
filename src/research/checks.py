@@ -39,7 +39,11 @@ def check_one(record: dict[str, Any], band: tuple[int, int]) -> dict[str, Any]:
         return {"error": record.get("error") or "no script"}
     script = record["script"]
     count = words(script)
-    low, high = word_range(record["steps"]) if record.get("steps") else band
+    low, high = (
+        word_range(record["steps"], bool(record.get("explainer")))
+        if record.get("steps")
+        else band
+    )
     sentences = split_sentences(script)
     first = sentences[0] if sentences else ""
     # What a viewer types: a topic's `search` where it has one, else its
