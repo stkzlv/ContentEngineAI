@@ -64,14 +64,14 @@ Planned: motion on every still, not only the first ([design 0001](../design/0001
 
 ## After the hook
 
-The narrator profile in `script_templates.narrator_profile` targets 30-40 seconds of speech (roughly 75-100 words). The `slideshow_short_20s` profile is a shorter canvas (about 50-60 words) for testing hooks against a fixed body.
+The narrator profile in `script_templates.narrator_profile` targets 30-40 seconds of speech (roughly 75-100 words). The `slideshow_short_20s` profile is a shorter canvas (about 50-60 words) for testing hooks against a fixed body. The evidence on length, platform limits and what top creators post is in [video length](video-length.md).
 
 Why:
 
 - Hook, retain, reward: the hook earns the watch, the middle pays small curiosity loops, the end fulfils the hook's promise. The testing method suits automation: one fixed body with several hooks, then iterate on the winners. [C] [Dickie Bush on Alex Hormozi](https://dickiebush.substack.com/p/i-invested-45000-in-alex-hormozis)
 - "But" and "then" beats and a visible progression ("three steps") keep viewers to the end. [C] [Creator Science podcast](https://podcast.creatorscience.com/jenny-hoyos/)
 - Storytelling outperformed other post types on views in a four-month field experiment across 202 TikTok posts (working paper, small study), which is one reason the template pool includes `story_driven`. [B] [MPRA](https://mpra.ub.uni-muenchen.de/123280/1/MPRA_paper_123280.pdf)
-- Length: one top creator targets 34 seconds, and in 2023, when Shorts were capped at 60 seconds, Shorts with an average view duration above 50 seconds averaged 4.1 million views. 30-45 seconds is defensible; lengthen only when the retention curve holds. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
+- Length: likes and shares per view fall as videos get longer [A], and median Shorts views peak at 11-20 s and fall past 20 s [B], while top product creators with large audiences post a median of 59 s. 20-40 seconds is defensible for a faceless product video; test shorter before longer, and stay under 60 seconds while the music can carry a Content ID claim. Detail and sources: [video length](video-length.md). In 2023, when Shorts were capped at 60 seconds, Shorts with an average view duration above 50 seconds averaged 4.1 million views, which says more about retention than length. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
 
 Planned: the "but/therefore" chain as a prompt rule ([design 0007](../design/0007-script-lint.md)).
 
