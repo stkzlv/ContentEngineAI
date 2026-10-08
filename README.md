@@ -112,6 +112,7 @@ See [Installation](docs/guides/installation.md) for complete setup instructions.
 | [Captions](docs/explanation/captions.md) | Why captions look the way they do: font, casing, contrast, highlighting, placement, timing |
 | [Promotional videos](docs/explanation/promotional-videos.md) | Why product videos are built this way: hook, cut cadence, closing line, CTA, disclosure, trust signals |
 | [Tutorials](docs/explanation/tutorials.md) | Why topic videos are built this way: answer-first structure, length, stock visuals, search discovery, durability metrics |
+| [Video length](docs/explanation/video-length.md) | How long videos run and why: platform limits, how views are counted, the evidence for product and tutorial lengths, top creators' lengths |
 | [Audio](docs/explanation/audio.md) | Why the mix sounds the way it does: original audio, voiceover and music levels, ducking, loudness |
 | [Versioning](docs/versioning.md) | Semantic versioning and releases |
 | [Contributing](CONTRIBUTING.md) | How to contribute |

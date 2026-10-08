@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.3] - 2026-10-08
+
+### Added
+
+- An explanation page on video length: platform limits, how views are counted, the evidence for product and tutorial lengths and what top tech creators post, with requirements and a design for recording each video's duration, warning past YouTube's one-minute Content ID limit and making the spoken-length target configurable.
+
 ## [0.184.2] - 2026-10-08
 
 ### Changed

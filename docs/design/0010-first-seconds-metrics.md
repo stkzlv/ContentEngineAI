@@ -15,6 +15,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - YouTube ranks Shorts on whether the viewer chose to watch or swiped away, the share who viewed, average view duration and percentage viewed, likes and survey responses. [A] [YouTube Help](https://support.google.com/youtube/answer/11914225)
 - YouTube Studio shows "viewed vs swiped away" per Short, the first gate. [A] [YouTube Help community](https://support.google.com/youtube/community-video/273390203/new-youtube-shorts-metric-viewed-vs-swiped-away)
 - Since 31 March 2025 every Shorts play and replay counts as a view and "engaged views" (which monetisation uses) exclude them, so raw counts are inflated by loops. [A] [YouTube Help community thread](https://support.google.com/youtube/thread/333869549)
+- "Beginning August 24, 2026, views are counted the moment a video starts to play across all formats"; engaged views stay the measure of viewers who "stayed to watch past the initial seconds". A raw view is now close to an impression. [A] [YouTube Help](https://support.google.com/youtube/answer/2991785), [YouTube Help](https://support.google.com/youtube/answer/12220281)
 - Across 5,400 Shorts on 33 channels, Shorts below 60% viewed-vs-swiped-away rarely performed well, and likes, comments and shares had no strong relationship with performance; the study is from 2023, before the view-count change. [B] [Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)
 - TikTok ranks on user interactions, video information and device settings, and finishing a longer video carries more weight than weak signals (2020 statement). [A] [TikTok newsroom](https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you)
 - Instagram's top signals are watch time, likes per reach and sends per reach, as quoted from Adam Mosseri. [B, secondary] [Hootsuite](https://blog.hootsuite.com/instagram-algorithm/)
@@ -24,7 +25,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 ## Goals
 
 - Store each first-seconds and quality metric a platform exposes, per post.
-- Segment each metric by `content_format` and by the render choices [0006](0006-render-choices-and-variety-report.md) records.
+- Segment each metric by `content_format`, by the render choices [0006](0006-render-choices-and-variety-report.md) records, and by duration band once each post records its duration ([0025](0025-video-length.md)).
 
 ## Non-goals
 

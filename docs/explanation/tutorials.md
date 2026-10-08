@@ -26,7 +26,7 @@ A workable split for a 40-second tutorial; if the answer first appears past 8 se
 
 ## Length
 
-The topic narrator profile targets 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: measured `slideshow_stock` renders land between 20 and 28 seconds, because a short topic description yields a short script.
+The topic narrator profile targets 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: published topic renders have run from 21 to 77 seconds, depending on how much the topic description gives the script. Platform limits, view counting and the cross-platform evidence are in [video length](video-length.md).
 
 Built and held off: length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
 
@@ -42,7 +42,9 @@ Why:
 - **Short holds attention [A, correlational].** Across 6.9 million edX sessions, median engagement time was at most about 6 minutes whatever the video's length, and in the shortest videos three quarters of sessions watched more than 75% ([edX study](https://dl.acm.org/doi/10.1145/2556325.2566239)).
 - **Tutorial viewers take what they need and leave [A].** In the same study, viewers watched 2-3 minutes of a tutorial regardless of its length and re-watched tutorials more than lectures. Length matters less than being able to find the step. These were motivated learners, not feed scrollers, so treat the numbers as an upper bound on patience.
 - **Fast speech is fine [A].** Engagement rose with speaking rate; viewers followed even 254 words per minute. Pauses belong between steps, not within them.
-- **Platform limits are not targets.** YouTube Shorts accept up to 3 minutes since October 2024 [A]; Reels and TikTok allow longer.
+- **Knowledge runs longer than entertainment, but not long [A].** On Kuaishou, knowledge videos have a 30 s median against 14-16 s for lifestyle videos, and likes per view fall as any video gets longer ([Chen et al. 2024](https://arxiv.org/abs/2410.16058)).
+- **Tech-help creators run 33-97 s [A, primary measurement].** Six tutorial channels' latest Shorts have a 76 s median, and 63% run past a minute ([video length](video-length.md#what-top-tech-creators-post)). They show a person and have audiences who chose them, so treat their lengths as a ceiling for a faceless channel.
+- **Platform limits are not targets.** YouTube Shorts accept up to 3 minutes since October 2024, but a Short over one minute with any Content ID claim is blocked worldwide, which matters for a multi-step render with music [A]; Reels and TikTok allow longer.
 
 A Short loops, which helps re-watching one step, but a viewer cannot jump to step 5, so a topic that forks by device is set aside for a series rather than rendered (REQ-VID-121).
 
@@ -211,7 +213,7 @@ The graphic types, in build order:
 
 Most published short-form guidance is vendor marketing for editing tools, and this page's sourcing is weaker than it looks.
 
-- **The length bands are conventional, not measured.** "25-40 s for tutorials" appears across several vendor blogs with no disclosed method and no primary data. Treat it as a starting point and measure view-through by length on your own content.
+- **The length bands are an inference.** "25-40 s for tutorials" appears across several vendor blogs with no disclosed method. The bands above rest on the segmenting research, the Kuaishou knowledge medians and what tech-help creators post, none of which measures feed-served tutorials by length. Measure engaged views and skip rate by duration band on your own content (`REQ-PUB-084`).
 - **No peer-reviewed study covers feed-served short tutorials by length**; the length guidance transfers from MOOC and marketing data.
 - **The evergreen threshold of 1.0 is a convention**, not a validated cutoff. The ratio is useful; the specific line is arbitrary.
 - **This page cites no decay percentages.** The figures in circulation are either platform-wide aggregates that hide content-type differences, or single-channel measurements whose content mix goes unstated. A channel publishing mostly one format cannot tell you how the other decays, and even your own curve cannot settle whether tutorials behave differently unless both formats are measured on the same account at the same time.
