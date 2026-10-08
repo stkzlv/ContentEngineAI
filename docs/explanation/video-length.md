@@ -32,7 +32,7 @@ Planned ([design 0010](../design/0010-first-seconds-metrics.md), [design 0025](.
 
 ## What the data says
 
-- **Per-view engagement falls with length.** Across 248 million Kuaishou videos, likes per view drop from 9.3% at 10 s to 3.3% at about 1,000 s, and shares from 0.67% to 0.39%, while absolute likes rise with length up to 500 s. Knowledge videos run twice as long as lifestyle ones: a 30 s median against 14-16 s. [A] [Chen et al. 2024](https://arxiv.org/abs/2410.16058)
+- **Per-view engagement falls with length.** Across 248 million Kuaishou videos, likes per view drop from 9.3% at 10 s to 3.3% at about 1,000 s, and shares from 0.67% to 0.39%, while absolute likes rise with length up to 500 s. Knowledge videos run twice as long as lifestyle ones: a 30 s median against 14-16 s. [B, preprint] [Chen et al. 2024](https://arxiv.org/abs/2410.16058)
 - **Most drop-off is early.** In 9.2 million donated TikTok views, 45% were watched to the end and 24% were skipped before a fifth of the video. [A] [Zannettou et al., CHI 2024](https://dl.acm.org/doi/10.1145/3613904.3642433)
 - **Shorts median views by length** (108,138 Shorts at least 14 days old, no split by category). [B] [Quso](https://quso.ai/research/youtube-shorts-length)
 
@@ -58,9 +58,11 @@ Median length of the latest Shorts on each channel, measured with yt-dlp in Octo
 
 | Channel | Kind | Shorts | Median | Over 60 s |
 |---|---|---|---|---|
+| Dave2D | Product | 7 | 37 s | 0% |
 | ShortCircuit | Product | 30 | 37 s | 0% |
 | Mrwhosetheboss | Product | 30 | 50 s | 7% |
 | MKBHD | Product | 30 | 55 s | 43% |
+| TechBurner | Product | 7 | 58 s | 29% |
 | Zone of Tech | Product | 30 | 79 s | 70% |
 | Unbox Therapy | Product | 30 | 108 s | 87% |
 | JerryRigEverything | Product | 30 | 121 s | 93% |
@@ -71,13 +73,13 @@ Median length of the latest Shorts on each channel, measured with yt-dlp in Octo
 | TechSpurt | Tutorial | 30 | 92 s | 83% |
 | AppleInsider | Tutorial | 30 | 97 s | 100% |
 
-Across all product channels the median is 59 s and 47% run past a minute; across tutorial channels, 76 s and 63%. Within 9 of the 12 channels, the most-viewed third of Shorts ran longer than the least-viewed third. All of these channels show a person and have large audiences who chose to follow them, so their length is evidence of what an established creator's viewers tolerate, not of what a faceless channel's feed viewers will watch.
+Across all product channels the median is 59 s and 47% run past a minute; across tutorial channels, 76 s and 63%. Within 9 of the 12 channels with at least 28 Shorts, the most-viewed third of Shorts ran longer than the least-viewed third. All of these channels show a person and have large audiences who chose to follow them, so their length is evidence of what an established creator's viewers tolerate, not of what a faceless channel's feed viewers will watch.
 
 ## What the pipeline targets
 
 | Video | Target | Why |
 |---|---|---|
-| Product | 30-40 s of speech, about 75-100 words (`REQ-CNT-142`) | Inside the range the evidence supports. The faceless-channel data peaks shorter (11-30 s on Shorts) and per-view engagement falls with length, so a 20-30 s product target is the first length to test. Keep under 60 s while the music can carry a claim. |
+| Product | 30-40 s of speech, about 75-100 words (`REQ-CNT-142`) | Inside the range the evidence supports. Shorts data across all channels peaks shorter (11-20 s) and per-view engagement falls with length, so a 20-30 s product target is the first length to test. Keep under 60 s while the music can carry a claim. |
 | Short profile | 15-30 s, about 50-60 words (`REQ-VID-095`) | A test canvas for hooks and the shorter target. |
 | Tutorial, one setting | 15-30 s | One task per video; length follows the steps ([tutorials](tutorials.md#length)). |
 | Tutorial, multi-step | 40-75 s | Tech-help creators run 33-97 s; past about 90 s, split into a series. |

@@ -9,15 +9,15 @@
 A render's length follows its voiceover (`REQ-VID-001`), and the voiceover follows a spoken-length target written into the narrator profiles: 30-40 seconds, about 75-100 words (`REQ-CNT-142`). Three things are missing:
 
 - **Nothing records the final duration** where the analytics can read it. Length can only be judged against raw views, which since August 2026 YouTube counts from the first frame.
-- **Nothing bounds a render with music.** Published topic renders have run to 77 s and product renders to 67 s, and step-list tutorials can reach about 75 s ([design 0017](0017-tutorial-step-lists.md)). Background music comes from Jamendo, Freesound or local files, and the pipeline doesn't know whether any track is registered for Content ID.
+- **Nothing bounds a render with music.** Published topic renders have run to 77 s and product renders to 67 s, and step-list tutorials can reach about 75 s ([design 0017](0017-tutorial-step-lists.md), [tutorials](../explanation/tutorials.md#length)). Background music comes from Jamendo, Freesound or local files, and the pipeline doesn't know whether any track is registered for Content ID.
 - **The target is fixed text.** The short profile can't size its script (`REQ-VID-095`), and testing a shorter product target means editing the profile text.
 
 Evidence ([evidence grades](README.md#evidence-grades), detail in [video length](../explanation/video-length.md)):
 
 - "Any Short that is over one minute in duration with an active Content ID claim of any type, including manual claims, will be blocked globally on YouTube." [A] [YouTube Help](https://support.google.com/youtube/answer/15424877)
 - "Beginning August 24, 2026, views are counted the moment a video starts to play across all formats"; engaged views remain. [A] [YouTube Help](https://support.google.com/youtube/answer/2991785)
-- Likes per view fall from 9.3% at 10 s to 3.3% at about 1,000 s across 248 million Kuaishou videos. [A] [Chen et al. 2024](https://arxiv.org/abs/2410.16058)
-- Median Shorts views peak at 11-20 s and fall past 30 s across 108,138 Shorts. [B] [Quso](https://quso.ai/research/youtube-shorts-length)
+- Likes per view fall from 9.3% at 10 s to 3.3% at about 1,000 s across 248 million Kuaishou videos. [B, preprint] [Chen et al. 2024](https://arxiv.org/abs/2410.16058)
+- Median Shorts views peak at 11-20 s and fall past 20 s across 108,138 Shorts. [B] [Quso](https://quso.ai/research/youtube-shorts-length)
 - Recommenders compare watch time within a duration group. [A] [KDD 2022](https://arxiv.org/abs/2206.06003)
 
 ## Goals
