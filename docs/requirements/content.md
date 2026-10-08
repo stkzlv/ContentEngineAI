@@ -181,7 +181,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 ## Captions and metadata
 
 - **REQ-CNT-135** `shipped` The producer generates each render's social title, description and hashtags in one of two modes set by `description_settings.metadata_mode` or `--metadata-mode`: `unified` (the bundled value), one set for every platform, or `optimized`, one set per platform.
-- **REQ-CNT-136** `shipped` In unified mode, the producer writes `metadata.json` with the listing title, an AI description with any hashtags removed, and hashtags derived from the title.
+- **REQ-CNT-136** `shipped` In unified mode, the producer writes `metadata.json` with the listing title (for a product with `short_product_titles` on, the short title of REQ-PUB-008), an AI description with any hashtags removed, and hashtags derived from the title.
 - **REQ-CNT-137** `shipped` In optimized mode, the producer writes `metadata_<platform>.json` for each platform enabled in `description_settings.platform_metadata` (`<platform>.enabled`), with an AI title, caption and hashtags within that platform's length and hashtag limits.
 - **REQ-CNT-138** `shipped` If optimized mode produces metadata for no platform, or `platform_metadata.enabled` is false, the producer falls back to unified mode.
 - **REQ-CNT-139** `shipped` In optimized mode, the producer also writes `UPLOAD_INSTRUCTIONS.txt` with each platform's metadata for manual upload; a failure to write it doesn't fail the step.
