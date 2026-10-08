@@ -37,6 +37,8 @@ Built and held off: length follows the number of steps, from a sourced step list
 | Concept explainer | "Why wifi drops at night" | a cause, then 1-2 checks | 35-60 s, ending in one testable action | 100-160 |
 | More than 6 steps, or forks by device | "Fix wifi drops" in general | - | a numbered series, one per device or cause | - |
 
+With step lists on, a topic titled "Why ..." is written to the explainer row's shape and band (REQ-VID-161, held); the step-list topic filter still drops most explainer titles as not specific, which #657 tracks.
+
 Why:
 
 - **Short holds attention [A, correlational].** Across 6.9 million edX sessions, median engagement time was at most about 6 minutes whatever the video's length, and in the shortest videos three quarters of sessions watched more than 75% ([edX study](https://dl.acm.org/doi/10.1145/2556325.2566239)).

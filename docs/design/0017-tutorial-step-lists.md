@@ -2,7 +2,7 @@
 
 - **Status:** Held
 - **Issue:** #559
-- **Requirements:** REQ-VID-121, REQ-VID-122, REQ-VID-151, REQ-CNT-146
+- **Requirements:** REQ-VID-121, REQ-VID-122, REQ-VID-151, REQ-VID-161, REQ-CNT-146
 
 ## Context
 
@@ -36,7 +36,7 @@ None recorded.
 - The script is written from the steps with `prompts/topic_from_steps.md`, a new prompt beside the existing templates, which stay untouched. Its length follows the tutorial research's length table (docs/explanation/tutorials.md, "Length"): 40-80 words for one or two steps and 110-200 for three to six. The script also names the device and version once and closes on a one-sentence path recap, which the same research ranks above demonstration alone. A draft at or above 80% of the band's floor is accepted. Below it, a draft is retried, and kept only when no attempt reaches it and it still clears `script_validation.min_words`; for one or two steps that minimum is lowered to 80% of the band's floor (32 words), so there such a draft is refused rather than kept. A short draft that also misses its closing line is never the CTA fallback.
 - The list is written to `temp/step_list.json`, and the state carries a one-line `step_list` summary.
 - On a live run (Background App Refresh on iPhone) the call returned three steps sourced to Apple's support page, and the script named the start screen and each step's result. The pool check passed that topic and dropped "screenshot anything on any device" (not specific) and a credit-card question (financial advice).
-- A concept explainer (a cause, then one or two checks, 100-160 words in the research) is not told apart from a procedure: it gets the band for its number of steps.
+- A concept explainer is told apart by its title: a topic that starts "Why" is written from `prompts/topic_explainer_from_steps.md`, its cause first and the sourced steps as checks, in the research's 100-160 words whatever the step count (REQ-VID-161). The step-list call itself is unchanged, so the explainer reuses the same sourced steps. Its topic filter asks for one outcome, though, and live it dropped two explainer titles ("not specific", and no list at all), so explainers reach this path only once the filter admits them (#657).
 
 ## Alternatives considered
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.189.0] - 2026-10-08
+
+### Added
+
+- With step lists on, a topic whose title starts "Why" is written as a concept explainer, its cause first and then the sourced checks, in 100-160 words whatever the step count; it stays behind the step-list switch.
+
 ## [0.188.0] - 2026-10-08
 
 ### Added

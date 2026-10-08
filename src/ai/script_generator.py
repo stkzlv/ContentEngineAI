@@ -1121,9 +1121,9 @@ async def generate_script(
         _warn_unknown_pillar(pillar, settings)
 
     if step_list is not None:
-        from src.ai.step_list import SCRIPT_PROMPT_PATH
+        from src.ai.step_list import script_prompt_path
 
-        template_path = SCRIPT_PROMPT_PATH
+        template_path = script_prompt_path(step_list)
     else:
         template_path = select_script_template(
             settings,
@@ -1190,7 +1190,8 @@ async def generate_script(
         # band's tolerance is accepted rather than refused.
         from src.ai.step_list import LENGTH_TOLERANCE, word_range
 
-        band_floor = int(word_range(len(step_list.steps))[0] * LENGTH_TOLERANCE)
+        band = word_range(len(step_list.steps), step_list.explainer)
+        band_floor = int(band[0] * LENGTH_TOLERANCE)
         sv_min_words = min(sv_min_words, band_floor)
         sv_min_chars = min(sv_min_chars, band_floor * 4)
 
@@ -1226,7 +1227,9 @@ async def generate_script(
         )
         # A draft short of the step count's length is no near miss: the
         # CTA fallback would ship it with a closing line bolted on.
-        short = step_list is not None and _too_short(script, len(step_list.steps))
+        short = step_list is not None and _too_short(
+            script, len(step_list.steps), step_list.explainer
+        )
         if ok and short:
             near_miss.setdefault("short", script)
             return False, "Script is short for the number of steps"

@@ -579,6 +579,9 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
     )
     record = Path(ctx.run_paths["script_file"]).with_name("step_list.json")
     if step_list is not None:
+        from src.ai.step_list import is_explainer_title
+
+        step_list.explainer = is_explainer_title(ctx.product.title)
         ensure_dirs_exist(record)
         record.write_text(step_list.to_json(), encoding="utf-8")
     reason = drop_reason(step_list, cfg.max_steps)
