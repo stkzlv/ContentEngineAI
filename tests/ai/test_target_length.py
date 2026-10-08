@@ -149,3 +149,17 @@ def test_the_script_step_passes_the_profiles_override() -> None:
     assert 'getattr(ctx, "profile", None), "target_length", None)' in inspect.getsource(
         steps._target_length
     )
+
+
+@pytest.mark.req("REQ-CNT-163")
+def test_every_narrator_prompt_in_the_steps_takes_the_override() -> None:
+    """The reviser, hook, phrase and caption prompts read the same target."""
+    from src.video.producer import steps
+
+    # The text after each call's opening parenthesis, up to the next keyword.
+    calls = [
+        part.split("=", 1)[0]
+        for part in inspect.getsource(steps).split("narrator_for(")[1:]
+    ]
+    assert len(calls) == 4
+    assert all("_target_length(ctx)" in call for call in calls)
