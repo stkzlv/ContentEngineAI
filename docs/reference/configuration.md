@@ -703,13 +703,14 @@ audio_settings:
     reveal: ["static/sfx/reveal/reveal-776016.mp3", ...]
     cta: ["static/sfx/cta/cta-644946.mp3", ...]
 
-  # Polish on the voiceover before the mix, off by default. The stages run
+  # Polish on the voiceover before the mix; the code default is off and the
+  # bundled config turns it on. The stages run
   # in this order; deess_intensity 0, air_shelf_db 0 or limiter false drop
   # theirs. The limiter's ceiling is -1 dBFS, with alimiter's auto-level
   # (a fixed +1 dB) off. Captions
   # are transcribed from the TTS file, so they don't hear it.
   voice_chain:
-    enabled: false
+    enabled: true
     highpass_hz: 80
     harsh_cut_hz: 3000          # a peaking cut, one octave wide (t=o:w=1)
     harsh_cut_db: -2
@@ -970,7 +971,7 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 | Key | Type | Default | Effect |
 |---|---|---|---|
 | `tts_config.voice_profiles_enabled` | bool | true | When false, no profile is used: the plain `google_cloud` voice criteria, rate and pitch apply, with no markup. |
-| `tts_config.default_voice_profile` | string | `charon` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
+| `tts_config.default_voice_profile` | string | `charon_varied` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
 | `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product. Unknown names are dropped, and if none remain no profile is used; `default_voice_profile` is not consulted. |
 | `tts_config.tts_normalisation.enabled` | bool | false | Rewrite the `units` and `lexicon` entries in the text sent to the voice only; the script file, state and captions keep the written form. |
 | `tts_config.tts_normalisation.units` | mapping | empty | Unit spelling to spoken form (`mAh: milliamp hours`), applied only straight after a digit, with an optional space or hyphen between, never inside a word. |
@@ -987,7 +988,7 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 | Profile | Provider | Voice and style |
 |---|---|---|
 | `charon` | gemini | Charon; calm and confident, a friend recommending something over coffee. The bundled default. |
-| `charon_varied` | gemini | Charon with the same style and a `pause_plan`; not selected during the reach test. |
+| `charon_varied` | gemini | Charon with the same style and a `pause_plan`; the bundled default. |
 | `calm_confident` | gemini | Warm but grounded, no voice pinned. |
 | `calm_authority` | gemini | Calm and authoritative, like a trusted tech reviewer; no voice pinned. |
 | `fenrir` | gemini | Fenrir; energy and conviction, a reviewer who uses the product. |

@@ -62,7 +62,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0001](0001-motion-on-every-still.md) | Motion on every still | #542 | Held |
 | [0002](0002-end-on-the-peak.md) | End on the peak, with an optional seamless loop | #543 | Held |
 | [0003](0003-sparse-sound-effects.md) | Sparse event sound effects | #544 | Held |
-| [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Held |
+| [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Implemented |
 | [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Held |
 | [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Implemented |
 | [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Implemented |

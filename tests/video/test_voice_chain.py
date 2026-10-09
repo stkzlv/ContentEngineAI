@@ -24,8 +24,8 @@ def _settings(**chain):
 
 
 @pytest.mark.req("REQ-CNT-073")
-def test_the_shipped_config_keeps_the_chain_off() -> None:
-    assert load_video_config_modular().audio_settings.voice_chain.enabled is False
+def test_the_shipped_config_turns_the_chain_on() -> None:
+    assert load_video_config_modular().audio_settings.voice_chain.enabled is True
 
 
 @pytest.mark.req("REQ-CNT-073")
@@ -56,9 +56,10 @@ def test_stages_set_to_nothing_drop_out() -> None:
 
 @pytest.mark.req("REQ-CNT-073")
 def test_off_is_the_plain_volume_stage() -> None:
-    filters, _ = AudioFilterBuilder(config).build_audio_filters(0, None, 10.0)
+    off = _settings(enabled=False)
+    filters, _ = AudioFilterBuilder(off).build_audio_filters(0, None, 10.0)
 
-    volume = config.audio_settings.voiceover_volume_db
+    volume = off.audio_settings.voiceover_volume_db
     assert f"[0:a]volume={volume}dB[a_voice_proc]" in filters
 
 
@@ -77,7 +78,7 @@ def test_each_render_records_the_chain_beside_the_voice(tmp_path: Path) -> None:
         )
 
     assert row(_settings())["voice_chain"] is True
-    assert row(config)["voice_chain"] is False
+    assert row(_settings(enabled=False))["voice_chain"] is False
     assert row(config)["voice_name"] == "Charon"
 
 
