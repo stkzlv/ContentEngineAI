@@ -25,18 +25,21 @@ CTA = "Drop a comment if this worked."
 @pytest.mark.req("REQ-OPS-109")
 def test_each_variant_changes_only_its_own_key() -> None:
     base = load_video_config_modular()
+    # Pinned on, as shipped, so the variants' change is visible.
+    base.llm_settings.topic_scripts.step_list.enabled = True
     template = base.llm_settings.script_templates.fixed_template
 
     shipped = variant_config(base, "shipped", "How to x")
-    steps = variant_config(base, "step_lists", "How to x")
+    free = variant_config(base, "free_form", "How to x")
     task = variant_config(base, "task_answer_first", "How to x")
     problem = variant_config(base, "task_answer_first", "Why x")
 
     assert shipped.model_dump() == base.model_dump()
-    assert steps.llm_settings.topic_scripts.step_list.enabled is True
+    assert free.llm_settings.topic_scripts.step_list.enabled is False
     assert task.llm_settings.script_templates.fixed_template == "topic_answer_first"
+    assert task.llm_settings.topic_scripts.step_list.enabled is False
     assert problem.llm_settings.script_templates.fixed_template == template
-    assert base.llm_settings.topic_scripts.step_list.enabled is False  # untouched
+    assert base.llm_settings.topic_scripts.step_list.enabled is True  # untouched
     with pytest.raises(ValueError, match="Unknown variant"):
         variant_config(base, "louder", None)
 
@@ -125,7 +128,7 @@ def test_products_are_sampled_under_shipped_only(tmp_path: Path, monkeypatch) ->
 
     records = asyncio.run(
         run_sample(
-            ["shipped", "step_lists", "task_answer_first"],
+            ["shipped", "free_form", "task_answer_first"],
             [TopicSpec(title="How to x", description="d")],
             [product],
             "slideshow_stock",
@@ -137,10 +140,10 @@ def test_products_are_sampled_under_shipped_only(tmp_path: Path, monkeypatch) ->
     assert kinds == [
         ("shipped", "topic"),
         ("shipped", "product"),
-        ("step_lists", "topic"),
+        ("free_form", "topic"),
         ("task_answer_first", "topic"),
     ]
-    assert seen[2][1] is True and seen[3][0] == "topic_answer_first"
+    assert seen[2][1] is False and seen[3] == ("topic_answer_first", False)
 
 
 def _record(**over: object) -> dict[str, object]:
@@ -212,14 +215,14 @@ def test_the_summary_counts_shares_and_repeated_openings() -> None:
 def test_the_report_compares_variants(tmp_path: Path) -> None:
     records = [
         _record(),
-        _record(variant="step_lists", steps=3, template="topic_from_steps"),
+        _record(variant="free_form", template="topic_answer_first"),
         _record(variant="task_answer_first", error="dropped", script=""),
     ]
     checks = run_checks(records, (5, 30))
     text = render_report(None, checks)
 
     assert (
-        "| Check | `shipped/topic` | `step_lists/topic` | `task_answer_first/topic` |"
+        "| Check | `free_form/topic` | `shipped/topic` | `task_answer_first/topic` |"
         in text
     )
     assert "| Failed or dropped | 0 | 0 | 1 |" in text
@@ -232,11 +235,11 @@ def test_the_report_compares_variants(tmp_path: Path) -> None:
 
 
 def test_the_variants_must_be_known_and_keep_the_baseline() -> None:
-    SampleResearch(variants=["shipped", "step_lists"])
+    SampleResearch(variants=["shipped", "free_form"])
     with pytest.raises(ValidationError, match="unknown variant"):
         SampleResearch(variants=["shipped", "louder"])
     with pytest.raises(ValidationError, match="must include shipped"):
-        SampleResearch(variants=["step_lists"])
+        SampleResearch(variants=["free_form"])
 
 
 @pytest.mark.req("REQ-OPS-109")

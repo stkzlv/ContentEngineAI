@@ -1668,10 +1668,11 @@ search round trip inside it.
 ```yaml
   topic_scripts:
     step_list:
-      enabled: false
+      enabled: true
       model: "gemini-3.7-flash"
       max_steps: 6
       timeout_seconds: 120  # a grounded call measured 45-55 s
+      attempts: 2           # a timed-out, dropped or 5xx call is tried again
 ```
 
 With `step_list.enabled`, a topic's script starts with one grounded call for
@@ -1681,7 +1682,10 @@ the topic with it, since a tutorial with a step missing cannot be followed; a
 topic whose steps fork by device or exceed `max_steps` is set aside for a
 series. The same call checks the topic is specific, searchable, demonstrable
 and non-default and asks for no health, financial or legal advice, and a
-topic that fails is dropped. All of these count as a skipped product;
+topic that fails is dropped. All of these count as a skipped product. A
+call that times out, drops its connection or gets a server error is tried
+again, up to `attempts` calls in all; a 4xx (a bad request, no API credit) is
+not, since it fails the same way again.
 `python -m tools.check_topic_pool` runs the check over the pool by hand. The
 script is then written from the steps with a length set by their count (40-80
 words for one or two steps, 110-200 for three to six), naming the device and

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.198.0] - 2026-10-09
+
+### Changed
+
+- Topic scripts are written from a sourced step list by default: each step carries its exact UI path and a source page, the script's length follows the step count, and a topic that can't be sourced, forks by device or fails the topic filter is skipped.
+- A step-list call that times out, drops its connection or gets a server error is tried once more (`attempts`), since about one call in five ran past the timeout; a 4xx such as exhausted API credit is not retried.
+- **Breaking**: the content research's `step_lists` sample variant is now `free_form`, which turns step lists off to compare against the shipped config, and `task_answer_first` compares its template with step lists off, since a step list replaces the template.
+
 ## [0.197.0] - 2026-10-09
 
 ### Changed

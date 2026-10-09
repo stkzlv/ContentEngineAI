@@ -75,7 +75,7 @@ sample:
   topics: 16          # pool topics, in pool order
   products: 8         # the most recently scraped products
   profile: slideshow_stock
-  variants: [shipped, step_lists, task_answer_first]
+  variants: [shipped, free_form, task_answer_first]
   band: [75, 100]     # words; a step-list script uses its own band
 
 # Grounded verification (`verify` stage): one Gemini call with Google Search

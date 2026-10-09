@@ -484,6 +484,8 @@ class StepListConfig(BaseModel):
     model: str = Field("gemini-2.5-flash")
     max_steps: int = Field(6, ge=1, le=12)
     timeout_seconds: int = Field(120, ge=1)
+    # Calls per topic when one times out or the connection or server fails.
+    attempts: int = Field(2, ge=1, le=5)
 
 
 class TopicScriptsConfig(BaseModel):

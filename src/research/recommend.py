@@ -49,8 +49,8 @@ def unjudged(verification: list[dict[str, Any]], variant: str) -> int:
 
 
 def _variant_key(variant: str, all_tasks: bool) -> tuple[str, str, Any] | None:
-    if variant == "step_lists":
-        return AI_SERVICES, "llm_settings.topic_scripts.step_list.enabled", True
+    if variant == "free_form":
+        return AI_SERVICES, "llm_settings.topic_scripts.step_list.enabled", False
     if variant == "task_answer_first" and all_tasks:
         # Every pool topic is a task, so one template for all topics is the
         # same thing as routing by shape.

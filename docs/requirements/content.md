@@ -58,10 +58,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-031** `shipped` A topic script closes on the result rather than on a debatable spec claim.
 - **REQ-CNT-032** `shipped` A topic script carries one honest limit, placed among the steps rather than after them.
   - Why: a limit read last becomes the final spoken line before the call to action and leaves the viewer unsure the fix worked.
-- **REQ-CNT-146** `held` Where step lists are on, a topic script names the app or settings screen where the steps start, before the first step.
-  - On when: `llm_settings.topic_scripts.step_list.enabled` is set, on the same condition as REQ-VID-121.
-- **REQ-CNT-147** `partial` A topic script names the most common mistake at the step where it happens.
-  - Gap: only with step lists on (held) is the mistake named at its step; the free-form topic templates leave it out, or name it in the opening line as `topic_mistake_fix` does. Turning step lists on closes it.
+- **REQ-CNT-146** `shipped` Where step lists are on, a topic script names the app or settings screen where the steps start, before the first step.
+- **REQ-CNT-147** `shipped` Where a source names one, a topic script names the most common mistake at the step where it happens.
 
 ## Call to action and closing line
 

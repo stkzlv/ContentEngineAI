@@ -28,7 +28,7 @@ A workable split for a 40-second tutorial; if the answer first appears past 8 se
 
 The topic narrator profile targets 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: published topic renders have run from 21 to 77 seconds, depending on how much the topic description gives the script. Platform limits, view counting and the cross-platform evidence are in [video length](video-length.md).
 
-Built and held off: length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
+Length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
 
 | Tutorial type | Example | Steps | Duration | Words |
 |---|---|---|---|---|
@@ -37,7 +37,7 @@ Built and held off: length follows the number of steps, from a sourced step list
 | Concept explainer | "Why wifi drops at night" | a cause, then 1-2 checks | 35-60 s, ending in one testable action | 100-160 |
 | More than 6 steps, or forks by device | "Fix wifi drops" in general | - | a numbered series, one per device or cause | - |
 
-With step lists on, a topic titled "Why ..." is written to the explainer row's shape and band (REQ-VID-161, held); the step-list topic filter accepts a "why" question that names one device family or app and one symptom, its steps being the checks for the usual causes.
+With step lists on, a topic titled "Why ..." is written to the explainer row's shape and band (REQ-VID-161); the step-list topic filter accepts a "why" question that names one device family or app and one symptom, its steps being the checks for the usual causes.
 
 Why:
 
@@ -143,7 +143,7 @@ A promo video that oversells a product costs credibility; a tutorial that gets a
 - It never invents a product to recommend (REQ-CNT-029).
 - After generation, `script_fact_check` (on by default) checks the script's falsifiable claims with one grounded web search, revises at most `max_flags_to_revise` sentences (default 3), refuses a revision that drifts more than `max_length_drift` (default 25%) in length, and ships the original if anything fails (REQ-CNT-049 to REQ-CNT-051). A claim the check says to remove is deleted rather than rewritten when nothing after it depends on it, and a rewrite may not restate it (REQ-CNT-151). A fabricated setting name or menu path is immediately checkable and immediately disqualifying.
 
-Built and held off: every step cites a source before the video renders, and a topic whose steps cannot be sourced is dropped (REQ-VID-122, [design 0017](../design/0017-tutorial-step-lists.md)).
+Every step cites a source before the video renders, and a topic whose steps cannot be sourced is dropped (REQ-VID-122, [design 0017](../design/0017-tutorial-step-lists.md)).
 
 ## What makes a short tutorial useful
 
@@ -170,7 +170,7 @@ Beyond the table:
 - **Be specific [C].** An exact menu path plus the device and OS version, said once and shown on screen, separates a tutorial from advice and makes it checkable. Shipped as REQ-CNT-030 for the script.
 - **Show the result, and name the common mistake [C].** "Don't hold Power too long, or you get the power menu" adds information stock footage cannot carry. The scripts close on the result (REQ-CNT-031); `topic_symptom_cause` names one thing the viewer might wrongly blame, and `topic_mistake_fix` is built around a common mistake.
 
-**Topic filter [C].** Built and held off with the step list (REQ-VID-151, [design 0017](../design/0017-tutorial-step-lists.md)): accept a topic only if it is specific (one device family or app, one outcome), searchable (phrased the way people type it), demonstrable (a visible path or result) and surprising or non-default (a hidden setting, a shortcut, a counter-intuitive cause). "Screenshot anything on any device" fails "specific" and becomes a series. "Why wifi drops at night" has many causes and cannot be shown with stock footage; pick one cause and one check. Keep health, finance and legal advice out of the topic pool: YouTube's July 2026 clarification of its inauthentic-content policy added AI personas giving that advice [A, [Tubefilter](https://www.tubefilter.com/2026/07/13/youtube-inauthentic-content-monetization-policy-update/)].
+**Topic filter [C].** Applied with the step list (REQ-VID-151, [design 0017](../design/0017-tutorial-step-lists.md)): accept a topic only if it is specific (one device family or app, one outcome), searchable (phrased the way people type it), demonstrable (a visible path or result) and surprising or non-default (a hidden setting, a shortcut, a counter-intuitive cause). "Screenshot anything on any device" fails "specific" and becomes a series. "Why wifi drops at night" has many causes and cannot be shown with stock footage; pick one cause and one check. Keep health, finance and legal advice out of the topic pool: YouTube's July 2026 clarification of its inauthentic-content policy added AI personas giving that advice [A, [Tubefilter](https://www.tubefilter.com/2026/07/13/youtube-inauthentic-content-monetization-policy-update/)].
 
 ## Visuals that show the spoken step
 

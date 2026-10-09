@@ -247,24 +247,41 @@ async def build_step_list(
     prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
         TOPIC_TITLE=topic, TOPIC_DETAIL=detail, MAX_STEPS=settings.max_steps
     )
+    # A timeout, a dropped connection or a server error is retried: about
+    # one grounded call in five ran past the timeout, and a topic day lost to
+    # it posts nothing. A 4xx (bad request, no credit) would fail again.
+    attempts = max(1, getattr(settings, "attempts", 1))
+    answer = None
     try:
-        async with asyncio.timeout(settings.timeout_seconds):
-            answer = await client.aio.models.generate_content(
-                model=settings.model, contents=prompt, config=config
-            )
-    except (
-        aiohttp.ClientError,
-        TimeoutError,
-        OSError,
-        ValueError,
-        RuntimeError,
-        genai_errors.APIError,
-    ) as e:
-        # A timeout's message is empty, so name the error's type.
-        logger.warning(
-            "Step list call failed for '%s': %s %s", topic, type(e).__name__, e
-        )
-        return None
+        for attempt in range(1, attempts + 1):
+            try:
+                async with asyncio.timeout(settings.timeout_seconds):
+                    answer = await client.aio.models.generate_content(
+                        model=settings.model, contents=prompt, config=config
+                    )
+                break
+            except (
+                aiohttp.ClientError,
+                TimeoutError,
+                OSError,
+                ValueError,
+                RuntimeError,
+                genai_errors.APIError,
+            ) as e:
+                retry = attempt < attempts and not isinstance(
+                    e, ValueError | genai_errors.ClientError
+                )
+                # A timeout's message is empty, so name the error's type.
+                logger.warning(
+                    "Step list call failed for '%s' (attempt %d of %d): %s %s",
+                    topic,
+                    attempt,
+                    attempts,
+                    type(e).__name__,
+                    e,
+                )
+                if not retry:
+                    return None
     finally:
         aclose = getattr(client.aio, "aclose", None)
         if aclose is not None:
@@ -272,4 +289,6 @@ async def build_step_list(
                 await aclose()
             except (OSError, RuntimeError) as e:  # closing is best effort
                 logger.debug("Closing the step list client failed: %s", e)
+    if answer is None:
+        return None
     return parse_step_list(answer.text)
