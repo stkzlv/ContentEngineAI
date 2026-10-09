@@ -477,13 +477,13 @@ class StepListConfig(BaseModel):
     result, source URL each); a step without a source is refused and its
     topic dropped, and a topic that forks by device or needs more
     than `max_steps` is set aside for a series. The script's length then
-    follows the step count. Ships off until the reach-test readout.
+    follows the step count. A grounded call measured 45-55 s.
     """
 
     enabled: bool = False
     model: str = Field("gemini-2.5-flash")
     max_steps: int = Field(6, ge=1, le=12)
-    timeout_seconds: int = Field(60, ge=1)
+    timeout_seconds: int = Field(120, ge=1)
 
 
 class TopicScriptsConfig(BaseModel):

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.191.0] - 2026-10-09
+
+### Changed
+
+- The topic filter accepts a "why" question that names one device family or app and one symptom, so with step lists on such a topic is written as a concept explainer.
+- The grounded step-list call may run 120 seconds instead of 60, and a failed call's warning names the error's type.
+
 ## [0.190.1] - 2026-10-09
 
 ### Fixed
