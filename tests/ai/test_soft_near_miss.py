@@ -108,3 +108,37 @@ async def test_a_hard_failure_still_reaches_the_fallback() -> None:
 
     assert call.await_args_list[-1].args[1] == "fallback-m"
     assert out == good and written_by == {"model": "fallback-m"}
+
+
+@pytest.mark.req("REQ-CNT-164")
+@pytest.mark.asyncio
+async def test_an_openrouter_primary_discovers_no_free_model_after_a_near_miss() -> (
+    None
+):
+    from src.ai import script_generator
+
+    settings = _settings()
+    settings.provider = "openrouter"
+    settings.fallback_discover_any_free = True
+    settings.fallback_provider = None
+    draft = _script(LONG)
+    discover = AsyncMock(return_value=["free-m"])
+    call = AsyncMock(side_effect=[draft, draft, _script("")])
+    with (
+        patch.object(script_generator, "_call_llm_api_with_retry", call),
+        patch.object(script_generator, "configured_live", lambda s: list(s.models)),
+        patch.object(
+            script_generator, "fetch_and_select_model", AsyncMock(return_value=[])
+        ),
+        patch.object(script_generator, "discover_any_free_model", discover),
+    ):
+        out, _, _ = await script_generator.generate_script(
+            _product(),
+            settings,
+            {settings.api_key_env_var: "k"},
+            AsyncMock(),
+            {},
+            False,
+        )
+
+    assert discover.await_count == 0 and call.await_count == 2 and out == draft
