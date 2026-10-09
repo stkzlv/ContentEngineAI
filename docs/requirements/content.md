@@ -26,8 +26,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-011** `shipped` When `--script-template <name>` is passed, the producer uses that template for the run.
 - **REQ-CNT-012** `shipped` The producer records the chosen template in `pipeline_state.json`.
 - **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
-- **REQ-CNT-161** `held` Where `script_templates.topic_routing.enabled` is on, a topic whose title is a task (it starts "How to") draws its template only from `topic_routing.task_templates` (`topic_answer_first`), so the symptom-first and mistake-first templates are left to topics that are not tasks.
-  - On when: the reach-test readout (#540), after a sample of task topics written with routing on shows no template misfit in the research checks.
+- **REQ-CNT-161** `shipped` Where `script_templates.topic_routing.enabled` is on, a topic whose title is a task (it starts "How to") draws its template only from `topic_routing.task_templates` (`topic_answer_first`), so the symptom-first and mistake-first templates are left to topics that are not tasks.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
 
@@ -81,18 +80,12 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 ## Script naturalism and signature
 
 - **REQ-CNT-042** `shipped` When `script_templates.naturalism.intensity` is 0, the script prompt is unchanged.
-- **REQ-CNT-043** `held` Where `script_templates.naturalism.intensity` is 1 or 2, scripts use contractions, spoken fillers and one emotional beat, and at 2 also one self-correction of wording.
-  - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
-- **REQ-CNT-044** `held` Where naturalism is on, filler never lands in the first sentence, inside a number, name or claim, or in or after the call to action, and uses words the captions carry rather than sounds speech recognition drops.
-  - On when: `script_templates.naturalism.intensity` is raised once naturalism is re-measured (#541) and after the reach-test readout, in stages (#540).
-- **REQ-CNT-045** `held` Where the author signature is enabled, a script carries an opener of at most five words that starts the first sentence and runs into it with no comma, one transition where the script turns, and a sign-off right before the call to action; a tutorial written from a step list signs off after the recap of the path.
-  - On when: `script_templates.signature.enabled` is set after the reach-test readout, topic arm first (#540, [design 0022](../design/0022-signature-lines.md)).
-- **REQ-CNT-046** `held` Each signature element is drawn per render, reproducibly, from the render's own pools (`signature.topic` for a topic, `signature.product` for a product) below that arm's `use_rate`, so the signature recurs without appearing in every render.
-  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
-- **REQ-CNT-047** `held` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
-  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
-- **REQ-CNT-153** `held` Where a signature pool lists `opener_templates`, an opener is drawn only for a script written from one of those templates; the bundled topic pool lists the templates that open on the task (`topic_from_steps`, `topic_answer_first`), so a symptom-first or mistake-first script keeps its opening.
-  - On when: `script_templates.signature.enabled` is set after the reach-test readout (#540).
+- **REQ-CNT-043** `shipped` Where `script_templates.naturalism.intensity` is 1 or 2, scripts use contractions, spoken fillers and one emotional beat, and at 2 also one self-correction of wording.
+- **REQ-CNT-044** `shipped` Where naturalism is on, filler never lands in the first sentence, inside a number, name or claim, or in or after the call to action, and uses words the captions carry rather than sounds speech recognition drops.
+- **REQ-CNT-045** `shipped` Where the author signature is enabled, a script carries an opener of at most five words that starts the first sentence and runs into it with no comma, one transition where the script turns, and a sign-off right before the call to action; a tutorial written from a step list signs off after the recap of the path.
+- **REQ-CNT-046** `shipped` Each signature element is drawn per render, reproducibly, from the render's own pools (`signature.topic` for a topic, `signature.product` for a product) below that arm's `use_rate`, so the signature recurs without appearing in every render.
+- **REQ-CNT-047** `shipped` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
+- **REQ-CNT-153** `shipped` Where a signature pool lists `opener_templates`, an opener is drawn only for a script written from one of those templates; the bundled topic pool lists the templates that open on the task (`topic_from_steps`, `topic_answer_first`), so a symptom-first or mistake-first script keeps its opening.
 - **REQ-CNT-152** `shipped` While `script_templates.signature.enabled` is false, no signature line is drawn and the script prompt is unchanged, whatever the pools hold.
 
 ## Script checks
@@ -103,15 +96,13 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-051** `shipped` If the fact check or the revision fails for any reason, the producer ships the original script.
 - **REQ-CNT-151** `shipped` When every flagged claim's fix asks for its removal, the producer deletes those sentences without a rewrite, provided they are exactly the claims and no following sentence leans on them; otherwise the reviser repairs them, and a rewrite that repeats a removed claim's subject words is refused.
 - **REQ-CNT-154** `shipped` The fact check refuses a revision that adds a sentence carrying fix wording a flagged claim's fix used ("instead of", "is located under", "is located in", "can be found under", "is found under") or that says a sentence twice where the original said it once; a fix that answers a claimed limit (a claim saying "limit" or "limited", or a number after "up to", "at most", "more than", "over", "fewer than", "less than" or "maximum of") with a universal ("regardless of", "no matter how", "no matter what", "any number of", "unlimited", "no limit") is carried out as a removal of the claim, and a revision that brings such a universal back, other than one another flag's fix uses, is refused.
-- **REQ-CNT-155** `held` Where `llm_settings.script_validation.reject_copied_examples` is on, a generated script is retried when a sentence that is not a question, and not a configured call to action or one of its sentences, shares at least three, and at least three fifths, of the content words of a quoted example in its own prompt and some of those words appear nowhere in the product's title, description or keyword; when every attempt does so, the script ships without that sentence, and without a question just before it, if the rest passes validation.
-  - On when: the reach-test readout (#540); measure first how often a quoted prompt example is still copied; the narrator profile's anecdote, the most copied one, was removed in 0.184.1 (REQ-CNT-156).
+- **REQ-CNT-155** `shipped` Where `llm_settings.script_validation.reject_copied_examples` is on, a generated script is retried when a sentence that is not a question, and not a configured call to action or one of its sentences, shares at least three, and at least three fifths, of the content words of a quoted example in its own prompt and some of those words appear nowhere in the product's title, description or keyword; when every attempt does so, the script ships without that sentence, and without a question just before it, if the rest passes validation.
 - **REQ-CNT-156** `partial` The narrator profile asks for one concrete detail taken from the product description and forbids inventing a personal moment, a day, a trip or a test with the product, and no script template models such a moment as an example.
   - Gap: the product narrator profile's voice example still models one ("So I picked this up last month ... Took it on a hike and never lost signal") (#700).
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown (code-span backticks and link targets included), emojis and hashtags from the script, and unwraps square brackets, keeping the words inside; a generated script carrying bracketed text that neither the listing nor a step's UI path contains is retried, and ships only when every attempt carries some.
-- **REQ-CNT-053** `held` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
-  - On when: `script_validation.lint.enabled` is set after the reach-test readout, once rejection rates on a batch stay low and the scripts read better on review.
-- **REQ-CNT-054** `held` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
-  - On when: `script_templates.hook_rules.enabled` is set after the reach-test readout (#540).
+- **REQ-CNT-053** `shipped` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
+- **REQ-CNT-164** `shipped` When every primary-model draft fails only a soft check (a borrowed prompt example, a placeholder or the script lint), the script step keeps the first such draft and tries no fallback model; a provider error still falls back.
+- **REQ-CNT-054** `shipped` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase.
 - **REQ-CNT-055** `shipped` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
 
 ## Voice profiles

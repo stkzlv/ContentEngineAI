@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.190.0] - 2026-10-09
+
+### Changed
+
+- The script lint, the hook rules, the author signature, naturalism at level 1, the copied-example guard and task-topic routing are on in the bundled config.
+- A script draft that fails only the lint, a placeholder check or the copied-example guard is kept as the last resort instead of being handed to a fallback model.
+- A sign-off the model speaks before its closing line is moved to directly before the call to action.
+
 ## [0.189.1] - 2026-10-09
 
 ### Changed

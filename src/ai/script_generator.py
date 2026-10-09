@@ -1041,6 +1041,11 @@ def validate_script_completeness(
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
 
+# Near misses that failed only a check a retry may pass: kept as a last
+# resort instead of handing the script to a fallback model (REQ-CNT-164).
+SOFT_NEAR_MISSES = ("copied", "placeholder", "lint")
+
+
 @llm_circuit_breaker
 async def generate_script(
     product: ProductData,
@@ -1372,8 +1377,23 @@ async def generate_script(
                 else:
                     break
 
+    # A draft that failed only a soft check (a borrowed line, a placeholder,
+    # the lint) is kept below as a last resort. A fallback model is weaker,
+    # and with the lint on most primary near misses would otherwise go to it.
+    soft_miss = next((k for k in SOFT_NEAR_MISSES if k in near_miss), None)
+    if soft_miss and (settings.fallback_provider or settings.provider == "openrouter"):
+        logger.info(
+            "Keeping the primary models' %s near miss rather than trying a "
+            "fallback model",
+            soft_miss,
+        )
+
     # Fallback: try discovering any free model not yet attempted (OpenRouter only)
-    if settings.provider == "openrouter" and settings.fallback_discover_any_free:
+    if (
+        not soft_miss
+        and settings.provider == "openrouter"
+        and settings.fallback_discover_any_free
+    ):
         already_tried = set(models_to_try)
         fallback_models = await discover_any_free_model(
             settings, api_key, session, api_settings, already_tried
@@ -1403,7 +1423,7 @@ async def generate_script(
                 continue
 
     # Provider fallback: try fallback_provider if primary exhausted all models
-    if settings.fallback_provider:
+    if settings.fallback_provider and not soft_miss:
         fb = settings.fallback_provider
         fb_api_key = secrets.get(fb.api_key_env_var)
         if fb_api_key:

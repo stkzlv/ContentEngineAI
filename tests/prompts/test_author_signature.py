@@ -306,10 +306,9 @@ class TestTheConfig:
         with pytest.raises(ValidationError, match="use_rate"):
             SignatureConfig.model_validate({"use_rate": 0.5, "openers": []})
 
-    @pytest.mark.req("REQ-CNT-152")
-    def test_the_bundled_lines_ship_switched_off(self) -> None:
+    def test_the_bundled_lines_ship_on(self) -> None:
         signature = load_video_config_modular().llm_settings.script_templates.signature
-        assert signature.enabled is False
+        assert signature.enabled is True
         for arm in (signature.product, signature.topic):
             assert len(arm.signoffs) >= 3 and len(arm.transitions) >= 3
         assert signature.topic.openers and not signature.product.openers

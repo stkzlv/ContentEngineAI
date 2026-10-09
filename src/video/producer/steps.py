@@ -25,7 +25,7 @@ from src.audio.registry import create_audio_provider
 from src.scraper.base.models import carries_affiliate_content
 from src.utils import ensure_dirs_exist
 from src.utils.script_sanitizer import sanitize_script
-from src.utils.script_signoff import signature_in_script
+from src.utils.script_signoff import place_signoff, signature_in_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.producer.artifact_registry import register_artifact_loader
@@ -650,7 +650,18 @@ async def step_generate_script(ctx: PipelineContext):
 
             if not script_text:
                 raise PipelineError("Script generation failed to produce text.")
-            ctx.script = sanitize_script(script_text)
+            # The same deterministic draw the prompt used. The sign-off sits
+            # where the first-comment extractor looks for the closing beat,
+            # so the extractor has to be told what to strip.
+            signature = select_signature(
+                ctx.config.llm_settings.script_templates.signature,
+                ctx.product.asin,
+                is_topic=bool(getattr(ctx.product, "topic", None)),
+                template=template_name,
+            )
+            ctx.script = place_signoff(
+                sanitize_script(script_text), signature.signoff, cta_line
+            )
             ensure_dirs_exist(ctx.run_paths["script_file"].parent)
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
             if template_name:
@@ -667,15 +678,6 @@ async def step_generate_script(ctx: PipelineContext):
                 # analytics layer can segment by closing line; nothing reads
                 # it yet.
                 ctx.state["cta"] = cta_line
-            # The same deterministic draw the prompt used. The sign-off sits
-            # where the first-comment extractor looks for the closing beat,
-            # so the extractor has to be told what to strip.
-            signature = select_signature(
-                ctx.config.llm_settings.script_templates.signature,
-                ctx.product.asin,
-                is_topic=bool(getattr(ctx.product, "topic", None)),
-                template=template_name,
-            )
             if signature.signoff:
                 ctx.state["signoff"] = signature.signoff
             for element, value in (

@@ -1,6 +1,6 @@
 # 0022. Signature lines per video type
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #440
 - **Requirements:** REQ-CNT-045, REQ-CNT-046, REQ-CNT-152, REQ-CNT-153
 
@@ -95,6 +95,8 @@ Remove the switch when: `enabled` has been on in the bundled config for 30 days 
 With a topic opener drawn, the symptom-first and mistake-first topic templates open on the task instead: live scripts for `topic_symptom_cause` and `topic_mistake_fix` began "Here's how to stop your iPhone battery draining overnight" and "Easy way to fix your iPhone battery draining overnight is to turn off Background App Refresh". They read well, but the opener overrode those templates' opening, which narrows the variety the templates exist for, so openers are limited to the task-first templates (below). A step-list tutorial can now draw a transition, from the topic pool.
 
 
-Built as designed and held off. With the bundled lines on and both use rates at 1.0, one live script per arm placed every drawn line where its rule puts it. The topic script opened "The fast way to turn off Background App Refresh on iPhone is to go into your Settings", with no comma and the search phrase in the first sentence. The product script drew no opener, used "Here's what matters." mid-script and signed off with "That's the real picture." before the call to action.
+Built as designed, and on since the end of the reach-test hold ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)). With the bundled lines on and both use rates at 1.0, one live script per arm placed every drawn line where its rule puts it. The topic script opened "The fast way to turn off Background App Refresh on iPhone is to go into your Settings", with no comma and the search phrase in the first sentence. The product script drew no opener, used "Here's what matters." mid-script and signed off with "That's the real picture." before the call to action.
 
 Openers are limited to the task-first templates (`opener_templates`). With the bundled config on and the opener rate at 1.0, live scripts per template opened: `topic_answer_first` "The fast way to stop your iPhone battery draining overnight is to turn off Background App Refresh"; `topic_symptom_cause` "Your iPhone battery drains overnight because of Background App Refresh"; `topic_mistake_fix` "You're likely leaving Background App Refresh on, and that's what's killing your iPhone battery overnight".
+
+A live sample with it on had a product script speak its sign-off before the closing line rather than before the call to action; the script step now moves a misplaced sign-off to directly before the CTA.

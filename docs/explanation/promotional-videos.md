@@ -29,7 +29,7 @@ Why:
 
 Not supported: the precise figures that circulate in vendor blogs (a "1.7 s window", a "1.5 s ranking trigger", "84.3% of viral TikToks used a hook trigger") trace to single posts with no method. Measure your own 2 s and 3 s view-through by hook style instead.
 
-Built and held off ([design 0007](../design/0007-script-lint.md)): a script lint behind `script_validation.lint.enabled` (`REQ-CNT-053`), and stricter hook rules (concreteness, a "but/therefore" chain) with the search phrase leading the headline and captions, behind `script_templates.hook_rules.enabled` (`REQ-CNT-054`).
+On ([design 0007](../design/0007-script-lint.md)): a script lint behind `script_validation.lint.enabled` (`REQ-CNT-053`), and stricter hook rules (concreteness, a "but/therefore" chain) with the search phrase leading the headline and captions, behind `script_templates.hook_rules.enabled` (`REQ-CNT-054`).
 
 ## Spoken search phrase
 
