@@ -426,3 +426,12 @@ class TestTheChainShape:
 
         assert label == ""
         assert not any("loudnorm" in f for f in filters)
+
+
+@pytest.mark.req("REQ-CNT-100")
+def test_the_bundled_ceiling_leaves_room_for_the_aac_encode() -> None:
+    """The encode adds about 0.2 dB; a -1.0 ceiling delivered -0.8 dBTP."""
+    from src.video.config import load_video_config_modular
+
+    ceiling = load_video_config_modular().audio_settings.loudness_true_peak_db
+    assert ceiling + 0.2 < -1.0

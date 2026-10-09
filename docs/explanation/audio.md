@@ -76,7 +76,7 @@ The assembler masters the finished mix with `loudnorm` (EBU R128), on by default
 |---|---|
 | `loudness_normalization_enabled` | `true` |
 | `loudness_target_lufs` | `-14.0` |
-| `loudness_true_peak_db` | `-1.0` |
+| `loudness_true_peak_db` | `-1.0` in code, `-1.5` in the bundled config |
 | `loudness_range_lu` | `7.0` |
 | `output_audio_sample_rate` | `48000` |
 
@@ -92,7 +92,7 @@ What a render measures: real renders land about 1 LU short of the target. The sa
 - The cause is the true-peak ceiling, not single-pass operation. Mixed narration arrives above 0 dBTP, so the gain that would reach -14 LUFS linearly would breach the ceiling; `loudnorm` refuses linear normalization, falls back to dynamic mode and reports the shortfall as `target_offset` (measured: 1.19 LU).
 - A second pass fed only the four `measured_*` values reports the same offset and produces a byte-identical file. The loudnorm author's two-pass also feeds back `offset=<target_offset>`, which closes about half the shortfall (measured -15.2 to -14.6 LUFS, true peak still -1.0). The pipeline does not use it because two-pass needs the mixed audio as a file, and that exists only inside the filtergraph.
 - A constant tone lands on -14.0 exactly, because its crest factor never brings the ceiling into play, so a synthetic measurement does not predict a render.
-- The 0.2 dB by which the delivered file exceeds the ceiling comes from the AAC encode: `loudnorm` reports `output_tp: -1.00` and the graph's WAV output measures -1.0 dBFS. To stay under -1 dBTP in the delivered file, lower `loudness_true_peak_db`.
+- The 0.2 dB by which the delivered file exceeds the ceiling comes from the AAC encode: `loudnorm` reports `output_tp: -1.00` and the graph's WAV output measures -1.0 dBFS. The bundled config sets `loudness_true_peak_db: -1.5` for that reason: a render then measured -1.3 dBTP delivered, at -14.7 LUFS with the voice chain on.
 - `loudnorm` outputs at 192 kHz whatever it is handed, so the chain resamples to `output_audio_sample_rate` afterwards, whether or not normalization runs.
 
 ## Voice and music choice

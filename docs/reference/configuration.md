@@ -674,7 +674,7 @@ audio_settings:
   # Final loudness normalization (EBU R128), on by default
   loudness_normalization_enabled: true
   loudness_target_lufs: -14.0
-  loudness_true_peak_db: -1.0
+  loudness_true_peak_db: -1.5   # the AAC encode adds about 0.2 dB
   loudness_range_lu: 7.0
 
   # Output rate, applied whether or not the loudness pass runs
