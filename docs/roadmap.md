@@ -4,7 +4,7 @@ Where ContentEngineAI is going, grouped into phases by horizon: **Now**, **Next*
 
 Issues and pull requests are welcome on any item. To pick one up, open an issue first so the scope can be agreed.
 
-Output-changing items ship off by default and are turned on only on measured results ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)).
+Output-changing items ship behind a switch ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)); the reach-test hold that kept them off ended once the test's posts were queued ([decision 0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)).
 
 ## Phase 0: Disclosure compliance baseline (Now, gates 1.0.0)
 

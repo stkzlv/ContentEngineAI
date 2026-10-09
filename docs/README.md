@@ -36,7 +36,7 @@ Requirements use `shipped`, `partial`, `planned #N`, `planned (decision NNNN)`, 
 
 Design docs use `Draft`, `Accepted`, `Held` (built, switched off), `Implemented` or `Superseded by NNNN`. Decision records use `Accepted`, `Amended by NNNN` (still in force, with a later record changing part of it) or `Superseded by NNNN`.
 
-A feature that changes rendered output ships off by default ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)). Its design doc's rollout section says what turns it on and when the switch can be removed.
+A feature that changes rendered output ships behind a switch ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)); since the reach-test hold ended ([decision 0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)) the switch may ship on. Its design doc's rollout section says what turns it on and when the switch can be removed.
 
 ## Private overlays
 

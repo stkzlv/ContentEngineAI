@@ -277,7 +277,7 @@ All artifacts live under one outputs root (`outputs/` by default). Each product 
 
 ### Off-by-default features and seeded choices
 
-A feature that changes rendered output ships behind a switch that keeps the existing behaviour ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)), and `tests/test_reach_test_holdout.py` checks the bundled config keeps each one off. Choices drawn per render use a salted hash of the product id, so a product renders identically on every run, and the choice is written to the run state.
+A feature that changes rendered output ships behind a switch ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)), and `tests/test_reach_test_holdout.py` checks the bundled config keeps each `held` one off; the reach-test hold itself ended once its posts were queued ([decision 0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)). Choices drawn per render use a salted hash of the product id, so a product renders identically on every run, and the choice is written to the run state.
 
 ### Disclosure
 
@@ -292,6 +292,7 @@ The material-connection decision is made once, by the producer, and recorded in 
 | [0003](decisions/0003-config-precedence.md) | Four configuration tiers; the environment holds machine settings and secrets. |
 | [0004](decisions/0004-caption-engine.md) | Pycaps with the CSS renderer is the caption engine. |
 | [0005](decisions/0005-duplicates-are-tolerated.md) | Duplicate posts from normal operation are tolerated. |
+| [0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md) | The reach-test hold ends once its posts are queued. |
 
 Decision records are append-only. How a single feature works is in a design doc under [design/](design/README.md), frozen once the feature ships.
 
