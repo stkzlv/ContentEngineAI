@@ -32,11 +32,11 @@ def _config(**profile_fields):
 
 
 @pytest.mark.req("REQ-VID-011")
-def test_the_shipped_config_keeps_the_outro() -> None:
-    assert config.video_settings.ending == "outro"
+def test_the_shipped_config_ends_on_the_peak() -> None:
+    assert config.video_settings.ending == "peak"
     for name in config.video_profiles:
         assert config.get_profile_merged_settings(name).video_settings.ending == (
-            "outro"
+            "peak"
         ), name
 
 
@@ -101,8 +101,10 @@ async def test_peak_ends_a_margin_after_the_last_word(
 @pytest.mark.asyncio
 async def test_outro_keeps_the_tail_and_measures_nothing(tmp_path: Path) -> None:
     measure = AsyncMock()
+    cfg = _config()
+    cfg.video_settings.ending = "outro"
     with patch.object(steps, "speech_end_sec", measure):
-        total, fade, speech = await steps._render_duration(_ctx(_config(), tmp_path))
+        total, fade, speech = await steps._render_duration(_ctx(cfg, tmp_path))
 
     measure.assert_not_called()
     assert total == pytest.approx(10.0 + config.outro_duration_sec)

@@ -18,11 +18,9 @@ video_settings:
   # Used by: the assembler for frame size, subtitle_utils.py for positioning
   resolution: [1080, 1920]
 
-  # Vertical alignment of video content for profiles that don't set it.
-  # The code default is "center"; pinned to "top" until the reach-test
-  # readout so a video profile that leaves it unset renders as before. Every
-  # bundled profile that draws video sets its own value.
-  video_vertical_align: top
+  # Vertical alignment of video content for profiles that don't set it:
+  # the code default, "center". Every bundled profile that draws video sets
+  # its own value.
 
   # Video frame rate (frames per second)
   # 30 fps = standard for social media, balances smoothness and file size
@@ -101,11 +99,10 @@ video_settings:
 
   # Slow motion on every still image: each still moves inside its own image
   # box (push in, pull out or pan), drawn per product and per image so
-  # consecutive stills differ. Off until the reach-test readout; a profile
-  # can set the whole block. The first image keeps its settle-zoom where
-  # first_frame_pre_motion is on.
+  # consecutive stills differ. A profile can set the whole block. The first
+  # image keeps its settle-zoom where first_frame_pre_motion is on.
   still_motion:
-    enabled: false
+    enabled: true
     moves: [push_in, pull_out, pan_left, pan_right, pan_up]
     max_zoom: 1.15
     min_zoom: 1.0
@@ -115,9 +112,8 @@ video_settings:
   # min_visual_segment_duration_sec and lengthens only a still. Beats come
   # from librosa (`poetry install --with beats`; without it this warns and
   # does nothing), cached beside the track. Captions keep their timing.
-  # Off by default.
   beat_snap:
-    enabled: false
+    enabled: true
     window_ms: 150
 
   # Prefer clean product images over text-heavy seller infographics. Each
@@ -127,9 +123,8 @@ video_settings:
   # min_clean_images remain, and never below what media validation asked
   # for (the image minimum, and the part of min_total_media the clips and
   # stock media leave to images); a failed judgement never drops an image.
-  # Off until the reach-test readout.
   image_curation:
-    enabled: false
+    enabled: true
     max_text_share: 0.15
     min_clean_images: 3
     # flash-lite counted on-product text (a watch screen) and could not tell
@@ -141,9 +136,8 @@ video_settings:
   # "peak" ends peak_margin_sec after the last spoken word and fades the
   # music within that margin. "loop" is "peak" plus a closing segment that
   # replays the first image's opening motion backwards, so the last frame
-  # matches the first (image-only renders). Stays "outro" until the
-  # reach-test readout; a profile can set both keys.
-  ending: outro
+  # matches the first (image-only renders). A profile can set both keys.
+  ending: peak
   peak_margin_sec: 0.25
   pad_color: "black"                  # Padding color, used when fill is "color"
 
@@ -303,9 +297,9 @@ audio_settings:
   # 100 ms. One pool of local
   # files per event, five or more each so no sound repeats as a template.
   # The bundled pools are CC0 effects under static/sfx (sources in
-  # static/sfx/SOURCES.md). Off until an A/B after the reach-test readout.
+  # static/sfx/SOURCES.md).
   sound_effects:
-    enabled: false
+    enabled: true
     level_db: -15            # relative to the voice
     max_per_10_sec: 2
     # hook plays on the first frame, under the hook headline
@@ -601,10 +595,9 @@ stock_media_settings:
   # Keep stock clips and images used in the last `window` renders out of the
   # candidate pool while enough others remain; when too few do, the least
   # recently used fill the gap. Every render records its stock ids in
-  # state/render_choices.jsonl whether or not this is on. Off until the
-  # reach-test readout.
+  # state/render_choices.jsonl whether or not this is on.
   stock_reuse_guard:
-    enabled: false
+    enabled: true
     window: 30
 
   # Note: Freesound integration removed - background music uses audio_settings instead

@@ -29,8 +29,8 @@ def _cuts(durations: list[float]) -> list[float]:
 
 
 @pytest.mark.req("REQ-VID-013")
-def test_the_shipped_config_keeps_beat_snap_off() -> None:
-    assert config.video_settings.beat_snap.enabled is False
+def test_the_shipped_config_turns_beat_snap_on() -> None:
+    assert config.video_settings.beat_snap.enabled is True
     assert config.video_settings.beat_snap.window_ms == 150
 
 

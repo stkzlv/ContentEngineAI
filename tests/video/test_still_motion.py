@@ -61,11 +61,11 @@ async def _chain(
 
 
 @pytest.mark.req("REQ-VID-010")
-def test_the_shipped_config_keeps_still_motion_off() -> None:
-    assert config.video_settings.still_motion.enabled is False
+def test_the_shipped_config_turns_still_motion_on() -> None:
+    assert config.video_settings.still_motion.enabled is True
     for name in config.video_profiles:
         merged = config.get_profile_merged_settings(name).video_settings
-        assert merged.still_motion.enabled is False, name
+        assert merged.still_motion.enabled is True, name
 
 
 @pytest.mark.req("REQ-VID-010")

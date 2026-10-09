@@ -12,7 +12,7 @@ On: a voice processing chain on the voiceover before the mix (`audio_settings.vo
 
 Planned: a signature sting at the start or end (`audio_settings.signature_sting`, `null` by default, `REQ-VID-027`, held).
 
-Built and held off: sparse event sound effects (`audio_settings.sound_effects`, [design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`). Effects mark the first frame under the hook headline, the start of the sentence after the hook and the start of the last sentence, as the research reserves them, at most two per 10 seconds by default with the call to action and the reveal kept first, and never in a spoken word's first 100 ms. Why sparse: a 2026 study of rated short videos found engagement rises with sensation value up to a point and then falls [B]. The project bundles five public-domain (CC0) effects per event under `static/sfx`, listed with their Freesound sources in `static/sfx/SOURCES.md`; they were picked by name, rating and length, not by listening, so an A/B should start with a listen.
+On: sparse event sound effects (`audio_settings.sound_effects`, [design 0003](../design/0003-sparse-sound-effects.md), `REQ-VID-012`). Effects mark the first frame under the hook headline, the start of the sentence after the hook and the start of the last sentence, as the research reserves them, at most two per 10 seconds by default with the call to action and the reveal kept first, and never in a spoken word's first 100 ms. Why sparse: a 2026 study of rated short videos found engagement rises with sensation value up to a point and then falls [B]. The project bundles five public-domain (CC0) effects per event under `static/sfx`, listed with their Freesound sources in `static/sfx/SOURCES.md`; they were picked by name, rating and length, not by listening, so an A/B should start with a listen.
 
 ## Original audio over trending sound
 
@@ -105,7 +105,7 @@ Why:
 - Fast music (108 BPM and up) raised arousal and purchase intent in short ad studies, while an EEG study found tempo did not change attention: tempo shifts mood, not attention [A] ([Frontiers in Psychology](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1236006/full)).
 - Cuts on accented downbeats feel better [A] ([design 0005](../design/0005-beat-snapped-cuts.md) has the source).
 
-On: a voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`). Built and held off: visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
+On: a voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`). On: visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
 
 ## Trimming is not a level
 

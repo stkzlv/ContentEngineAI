@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.193.0] - 2026-10-09
+
+### Changed
+
+- Renders end on the last spoken word, every still moves, sparse sound effects mark the hook, the reveal and the call to action, and visual cuts snap to music beats.
+- Product renders prefer clean product images over text-heavy seller infographics, and stock clips used in the last 30 renders are passed over while others remain.
+- Pycaps captions get a 6 px black outline, and video content in a profile that sets no alignment is centred.
+
 ## [0.192.0] - 2026-10-09
 
 ### Changed

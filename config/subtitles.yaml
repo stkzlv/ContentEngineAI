@@ -93,9 +93,8 @@ subtitle_settings:
     # A black outline round each caption word, in frame pixels, in place of
     # the template's text shadow (docs/explanation/captions.md, "Colour and
     # contrast"). 0 renders the template as shipped. 6 was chosen on a
-    # side-by-side render; it changes every render, so it stays 0 until the
-    # reach-test readout (REQ-VID-158).
-    outline_px: 0
+    # side-by-side render (REQ-VID-158).
+    outline_px: 6
 
     # Max caption width as a fraction of frame width. This is the
     # user-facing knob; the actual value passed to pycaps is clamped

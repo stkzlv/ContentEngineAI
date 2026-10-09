@@ -157,10 +157,10 @@ def test_a_missing_or_unreadable_visuals_file_records_no_ids(
 
 
 @pytest.mark.req("REQ-VID-110")
-def test_the_shipped_config_keeps_the_guard_off() -> None:
+def test_the_shipped_config_turns_the_guard_on() -> None:
     guard = config.stock_media_settings.stock_reuse_guard
 
-    assert guard.enabled is False
+    assert guard.enabled is True
     assert guard.window == 30
 
 
@@ -172,6 +172,7 @@ def test_the_producer_reads_recent_ids_only_when_the_guard_is_on(
 
     record_render_choices(tmp_path, _row("A", ["pexels:5"]))
     cfg = config.model_copy(deep=True)
+    cfg.stock_media_settings.stock_reuse_guard.enabled = False
     ctx = SimpleNamespace(config=cfg, run_paths={"run_root": tmp_path / "B0NEW"})
 
     assert steps._recent_stock_ids(ctx) is None

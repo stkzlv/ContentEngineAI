@@ -1,6 +1,6 @@
 # 0002. End on the peak, with an optional seamless loop
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #543
 - **Requirements:** REQ-VID-011
 

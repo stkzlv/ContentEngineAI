@@ -46,10 +46,10 @@ WORDS = _words(
 
 
 @pytest.mark.req("REQ-VID-012")
-def test_the_shipped_config_keeps_effects_off() -> None:
+def test_the_shipped_config_turns_effects_on() -> None:
     effects = load_video_config_modular().audio_settings.sound_effects
 
-    assert effects.enabled is False
+    assert effects.enabled is True
 
 
 def test_sentences_start_after_a_closing_mark() -> None:
@@ -147,7 +147,9 @@ def test_three_events_become_three_delayed_inputs_at_the_level(tmp_path) -> None
 def test_off_adds_nothing_to_the_command(tmp_path: Path) -> None:
     from src.video.assembler.core import VideoAssembler
 
-    assembler = VideoAssembler(config)
+    off = config.model_copy(deep=True)
+    off.audio_settings.sound_effects.enabled = False
+    assembler = VideoAssembler(off)
     assert assembler._sound_effects(6.0, WORDS) == []
 
 
@@ -266,6 +268,7 @@ def test_the_step_reads_word_timings_from_the_transcript(tmp_path: Path) -> None
         )
     )
     cfg = config.model_copy(deep=True)
+    cfg.audio_settings.sound_effects.enabled = False
     ctx = SimpleNamespace(config=cfg, run_paths={"whisper_transcript_file": transcript})
 
     assert steps._spoken_words(ctx) is None

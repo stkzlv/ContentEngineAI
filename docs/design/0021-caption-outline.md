@@ -1,6 +1,6 @@
 # 0021. A black outline round pycaps captions
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #591
 - **Requirements:** REQ-VID-158
 

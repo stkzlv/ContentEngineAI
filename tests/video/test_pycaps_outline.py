@@ -86,3 +86,20 @@ def test_the_scale_matches_the_installed_pycaps() -> None:
 
     expected = 2.0 * 1920 / CssSubtitleRenderer.REFERENCE_VIDEO_HEIGHT
     assert renderer._css_scale(1920) == pytest.approx(expected)
+
+
+@pytest.mark.req("REQ-VID-158")
+def test_the_shipped_config_draws_the_outline() -> None:
+    from typing import Any
+
+    from src.video.config import load_video_config_modular
+    from src.video.config.subtitle_models import PycapsSettings
+
+    config = load_video_config_modular()
+    for profile in config.video_profiles:
+        merged = config.get_profile_merged_settings(profile)
+        # A profile override can arrive as a mapping.
+        pycaps: Any = merged.subtitle_settings.pycaps
+        if pycaps is not None and not isinstance(pycaps, PycapsSettings):
+            pycaps = PycapsSettings(**pycaps)
+        assert pycaps is not None and pycaps.outline_px == 6, profile

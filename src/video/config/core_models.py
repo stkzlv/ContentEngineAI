@@ -598,7 +598,7 @@ class MemoryGuardSettings(BaseModel):
 
     enabled: bool = Field(default=True)
     # A stock render's process tree peaks at 4.1-4.3 GB with Whisper and the
-    # caption browser alive (docs/testing.md); image profiles near 2.8 GB.
+    # caption browser alive (docs/testing.md); image profiles near 4 GB.
     min_available_gb: float = Field(default=4.5, ge=0)
     # Added to min_available_gb when the two are checked together: other apps
     # need somewhere to go as the render, which cannot swap, grows.

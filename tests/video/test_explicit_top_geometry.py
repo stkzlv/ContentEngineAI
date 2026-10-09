@@ -153,3 +153,10 @@ class TestTheFrameItActuallyProduces:
         assert geometry is not None
         first, _ = self._content_rows(frame)
         assert first == pytest.approx(geometry.rendered_y, abs=1)
+
+
+@pytest.mark.req("REQ-VID-022")
+def test_the_shipped_config_centres_profiles_that_set_no_alignment() -> None:
+    from src.video.config import load_video_config_modular
+
+    assert load_video_config_modular().video_settings.video_vertical_align == "center"
