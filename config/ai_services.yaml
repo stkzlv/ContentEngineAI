@@ -86,18 +86,16 @@ llm_settings:
     min_words: 50
     # Machine-writing tells, a sentence cap and a word cap from the target
     # duration (design 0007), both stated in the script prompt when on. A
-    # failing script is retried, and kept as a last resort. It changes
-    # scripts, so it stays off until the reach-test readout. banned_phrases
+    # failing script is retried, and kept as a last resort. banned_phrases
     # is a list of regular expressions; leave it out to use the bundled list.
     lint:
-      enabled: false
+      enabled: true
       max_sentence_words: 16
       max_words_per_sec: 2.8
       target_duration_sec: 40
     # Retry a script whose sentence borrows a quoted example from its prompt
     # that the listing doesn't back, and drop the line if every attempt does.
-    # It changes scripts, so it stays off until the reach-test readout.
-    reject_copied_examples: false
+    reject_copied_examples: true
 
   # Description validation thresholds. The floors alone cannot tell a
   # description from a reasoning model's monologue about writing one: that
@@ -337,19 +335,19 @@ llm_settings:
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one
     # self-correction. Never in the first sentence, a number, name or claim,
-    # or the CTA. 0 = off, and the prompt is unchanged. Held at 0 while the
-    # reach test runs: it changes the treatment arm's script.
+    # or the CTA. 0 = off, and the prompt is unchanged. Level 2's
+    # self-correction appeared in none of twelve measured scripts.
     naturalism:
-      intensity: 0
+      intensity: 1
     # Recurring author signature (design 0022). A product render draws from
     # `product`, a topic render from `topic`; each pool independently, at
     # that arm's use_rate. The opener starts the first sentence and runs on
     # into it with no comma (at most 5 words); the transition is used once
     # where the script turns from problem to fix; the sign-off is spoken
-    # right before the CTA, after a tutorial's recap. Held off while the
-    # reach test runs: `enabled: false` leaves every prompt unchanged.
+    # right before the CTA, after a tutorial's recap. `enabled: false`
+    # leaves every prompt unchanged.
     signature:
-      enabled: false
+      enabled: true
       product:
         use_rate: 0.5
         # None: the product's name is the hook.
@@ -392,9 +390,9 @@ llm_settings:
     # A concrete hook and sentences linked by cause or complication in the
     # script, and the search phrase leading the hook headline, the
     # description and every platform caption (design 0007). Off leaves every
-    # prompt unchanged; held off while the reach test runs.
+    # prompt unchanged.
     hook_rules:
-      enabled: false
+      enabled: true
 
     # Templates used when the record came from a topic rather than a scraped
     # product. These replace the pool rather than narrowing it: every other
@@ -406,10 +404,9 @@ llm_settings:
       - topic_mistake_fix
     # Route a topic whose title starts "How to" to the templates written for a
     # task; the symptom-first and mistake-first ones invent a problem for a
-    # plain task. Off until the reach-test readout: it changes which template
-    # a topic draws.
+    # plain task.
     topic_routing:
-      enabled: false
+      enabled: true
       task_templates:
         - topic_answer_first
 

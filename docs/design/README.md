@@ -65,7 +65,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0004](0004-voice-processing-chain.md) | Optional voice processing chain | #545 | Held |
 | [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Held |
 | [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Implemented |
-| [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Held |
+| [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Implemented |
 | [0008](0008-bait-free-closing-lines.md) | Remove engagement-bait lines from the CTA pools | #549 | Accepted |
 | [0009](0009-product-titles.md) | YouTube titles for products | #550 | Held |
 | [0010](0010-first-seconds-metrics.md) | First-seconds metrics in the analytics sweep | #551 | Accepted |
@@ -80,7 +80,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |
 | [0021](0021-caption-outline.md) | A black outline round pycaps captions | #591 | Held |
-| [0022](0022-signature-lines.md) | Signature lines per video type | #440 | Held |
+| [0022](0022-signature-lines.md) | Signature lines per video type | #440 | Implemented |
 | [0023](0023-content-research.md) | Repeatable content research | #686 | Implemented |
 | [0024](0024-researcher-voice.md) | Product scripts in the researcher's voice | #700 | Accepted |
 | [0025](0025-video-length.md) | Video length: recorded, bounded and configurable | #705 | Implemented |

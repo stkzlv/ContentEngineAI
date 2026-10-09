@@ -78,3 +78,30 @@ def drop_signoff(script: str, signoff: str | None) -> str:
     if before.endswith("\n") or after.startswith("\n") or not before:
         return (before + after).strip()
     return f"{before} {after}".strip()
+
+
+def place_signoff(script: str, signoff: str | None, cta: str | None) -> str:
+    """The script with its sign-off moved to directly before the CTA.
+
+    The prompt asks for that place, and the model sometimes says the sign-off
+    a beat early, before its closing line (REQ-CNT-045). A script without the
+    sign-off, or not ending on the CTA, is returned unchanged.
+    """
+    if not signoff or not cta:
+        return script
+    sentences = split_sentences(script)
+    if len(sentences) < 3 or normalise(sentences[-1]) != normalise(cta):
+        return script
+    target = normalise(signoff)
+    if normalise(sentences[-2]) == target:
+        return script
+    if not any(normalise(s) == target for s in sentences[:-2]):
+        return script
+    spoken = next(s for s in sentences[:-2] if normalise(s) == target)
+    trimmed = drop_signoff(script, signoff)
+    at = trimmed.rfind(sentences[-1])
+    if at < 0:
+        return script
+    head = trimmed[:at].rstrip(" \t")
+    joiner = "" if head.endswith("\n") or not head else " "
+    return f"{head}{joiner}{spoken} {trimmed[at:]}"

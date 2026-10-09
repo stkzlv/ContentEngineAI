@@ -1058,17 +1058,17 @@ llm_settings:
     # Machine-writing tells, a sentence cap and a word cap of
     # max_words_per_sec x target_duration_sec (design 0007), both stated in
     # the script prompt when on (a tutorial gets the sentence cap only). A
-    # failing script is retried and kept as a last resort; off until the
-    # reach-test readout.
+    # failing script is retried and kept as a last resort, without trying a
+    # fallback model.
     # banned_phrases (regular expressions) defaults to the bundled list.
     lint:
-      enabled: false
+      enabled: true
       max_sentence_words: 16
       max_words_per_sec: 2.8
       target_duration_sec: 40
     # Retry a script that borrows a quoted prompt example the listing doesn't
-    # back, dropping the line if every attempt does; off until the readout.
-    reject_copied_examples: false
+    # back, dropping the line if every attempt does.
+    reject_copied_examples: true
 
   # Description validation thresholds. max_chars is what separates a
   # description from a reasoning model's monologue about writing one.
@@ -1444,13 +1444,13 @@ llm_settings:
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. The bundled one asks for one concrete detail taken from the product description and forbids inventing a personal moment with the product (REQ-CNT-156). Empty string disables narrator profile injection. |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
-| `topic_routing` | mapping | Off by default. With `enabled`, a topic whose title starts "How to" draws its template only from `task_templates` (`[topic_answer_first]`), since the symptom-first and mistake-first templates invent a problem for a plain task; other topics keep the whole `topic_templates` pool (REQ-CNT-161). |
+| `topic_routing` | mapping | On in the bundled config. With `enabled`, a topic whose title starts "How to" draws its template only from `task_templates` (`[topic_answer_first]`), since the symptom-first and mistake-first templates invent a problem for a plain task; other topics keep the whole `topic_templates` pool (REQ-CNT-161). |
 | `target_length` | mapping | The spoken-length target per content type, `product` and `topic`, each with `seconds` and `words` as `[low, high]` (both `[30, 40]` and `[75, 100]`). Filled into the narrator profiles' `{TARGET_SECONDS}` and `{TARGET_WORDS}` placeholders as "30-40" and "75-100". A video profile's `target_length` overrides it (REQ-CNT-163). The script lint's word cap does not follow this setting: a target past 40 s also needs `script_validation.lint.target_duration_sec` raised. |
 | `cta_options` | list[str] | The closing lines a product script may end on, verbatim. One is chosen per product by salted hash and rendered alone into that template's `{CTA_RULE}`, immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of the configured lines. Override the choice with `--cta`. |
 | `cta_options_topic` | list[str] | Topic counterpart, none of which implies something to buy. Empty list falls back to `cta_options`. |
-| `naturalism.intensity` | int, 0-2 | Conversational delivery written into the script. 0 (the default) leaves the prompt unchanged. 1 asks for contractions, one or two spoken fillers and one emotional beat; 2 asks for two or three fillers and one self-correction that rephrases wording, never a fact. The rule is rendered into `{CTA_RULE}` after the CTA rule and keeps filler out of the first sentence, any number, name or claim, and the call to action. The captions are transcribed from the audio, so they carry the filler with no caption-side change. |
-| `hook_rules.enabled` | bool | Default false, held off for the reach test. On, the script prompt's `{CTA_RULE}` adds a concrete-hook rule and a rule linking sentences by cause or complication, and the hook headline, the description and every platform caption prompt end with a rule to lead with the search phrase (the product keyword, or a topic's title). Off, every prompt is unchanged (design 0007). |
-| `signature` | object | A recurring author signature ([design 0022](../design/0022-signature-lines.md)). `enabled` (default `false`) switches it on; while false, no line is drawn and the prompt is unchanged. `product` and `topic` each hold `use_rate` (0-1, default 0.5), the pools `openers`, `transitions` and `signoffs`, and `opener_templates`, the script templates that may draw an opener (empty means every one; the bundled topic pool lists the task-first templates); a topic render draws from `topic`, a product render from `product`, each element independently by salted hash. The opener starts the first sentence and runs into it with no comma (at most five words); the transition is used once where the script turns from problem to fix; the sign-off is a whole sentence spoken right before the CTA, after the recap in a step-list tutorial. The drawn sign-off is recorded in the pipeline state, and both the first-comment extractor and the platform caption prompts remove it before reading the closing line. The bundled config carries researched lines, switched off. |
+| `naturalism.intensity` | int, 0-2 | Conversational delivery written into the script. 0 leaves the prompt unchanged; the bundled config sets 1. 1 asks for contractions, one or two spoken fillers and one emotional beat; 2 asks for two or three fillers and one self-correction that rephrases wording, never a fact. The rule is rendered into `{CTA_RULE}` after the CTA rule and keeps filler out of the first sentence, any number, name or claim, and the call to action. The captions are transcribed from the audio, so they carry the filler with no caption-side change. |
+| `hook_rules.enabled` | bool | Default false; the bundled config sets true. On, the script prompt's `{CTA_RULE}` adds a concrete-hook rule and a rule linking sentences by cause or complication, and the hook headline, the description and every platform caption prompt end with a rule to lead with the search phrase (the product keyword, or a topic's title). Off, every prompt is unchanged (design 0007). |
+| `signature` | object | A recurring author signature ([design 0022](../design/0022-signature-lines.md)). `enabled` (default `false`, set in the bundled config) switches it on; while false, no line is drawn and the prompt is unchanged. `product` and `topic` each hold `use_rate` (0-1, default 0.5), the pools `openers`, `transitions` and `signoffs`, and `opener_templates`, the script templates that may draw an opener (empty means every one; the bundled topic pool lists the task-first templates); a topic render draws from `topic`, a product render from `product`, each element independently by salted hash. The opener starts the first sentence and runs into it with no comma (at most five words); the transition is used once where the script turns from problem to fix; the sign-off is a whole sentence spoken right before the CTA, after the recap in a step-list tutorial, and the script step moves it there when the model says it earlier. The drawn sign-off is recorded in the pipeline state, and both the first-comment extractor and the platform caption prompts remove it before reading the closing line. The bundled config carries researched lines, switched on. |
 | `pillar_preambles_topic` | dict[str, str] | Topic counterpart to `pillar_preambles`, using the same pillar keys. Read instead of the product map on a topic render. **Empty dict falls back to the product map**, which describes a product fixing an annoyance and lands above the topic prompt's rule against naming one. |
 | `pillar_audiences_topic` | dict[str, str] | Topic counterpart to `pillar_audiences`, same keys. Empty dict falls back to the product map, which describes buyers and shoppers. |
 
@@ -2676,9 +2676,9 @@ llm_settings:
   script_validation:
     min_chars: 200    # Minimum character count for valid scripts
     min_words: 50     # Minimum word count for valid scripts
-    lint:             # Script lint (design 0007), off by default
-      enabled: false
-    reject_copied_examples: false  # Retry a borrowed prompt example (off)
+    lint:             # Script lint (design 0007)
+      enabled: true
+    reject_copied_examples: true  # Retry a borrowed prompt example
 
   # Description validation thresholds (nested under description_validation)
   description_validation:
