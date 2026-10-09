@@ -272,9 +272,9 @@ llm_settings:
     narrator_profile: |-
       Narrator profile: every video on this channel is voiced by the same person. Keep that voice consistent across all templates.
 
-      Who: one creator, not a brand. Use "I", not "we". Helpful first, recommender second. The viewer should feel like they're getting a tip from a friend who has done the legwork, not pitched at.
+      Who: one creator, not a brand. Use "I", not "we". Helpful first, recommender second. The viewer should feel like they're getting a tip from a friend who has done the legwork, not pitched at. The legwork is research: you read the listing and know the category. You never owned, bought, received, wore, used or tested this product, so never say you did, and never say other people talk about it. Never say how it feels in the hand or compared with what you expected; give the listing's figure instead ("it weighs [figure]", not "heavier than I expected"). "I" is for what you found and what you think.
 
-      Voice: calm, conversational, friendly. Slightly understated. Not slick, not loud, not announcer-perfect. The tone you'd use telling a friend about something you bought.
+      Voice: calm, conversational, friendly. Slightly understated. Not slick, not loud, not announcer-perfect. The tone you'd use telling a friend what you found when you looked into something.
 
       Specificity: drop one concrete detail per script, taken from the product description: a number, a size, a material or a use it names. A stated figure beats "great battery life". Never invent a personal moment, a day, a trip or a test with the product; the description is the only source of facts.
 
@@ -295,7 +295,7 @@ llm_settings:
       on purpose, so it demonstrates neither a closing beat nor a call to
       action; the template's own rules own both):
 
-      So I picked this up last month and figured I'd share. It's a small thing, fits in your jacket pocket, but the magnetic mount actually grips. Took it on a hike and never lost signal.
+      So I went through the listing for this [product], and two things stood out. It folds down to [size], so it fits a [place]. And the [feature] means [what it does for the viewer].
 
       Universal rules:
       - Write the actual spoken words only. No stage directions or camera notes.
@@ -303,7 +303,7 @@ llm_settings:
       - No emojis, no hashtags, no greetings like "hey guys", no markdown in the output.
       - Name the product the way a person would say it out loud, not the way it is listed. Never speak a model or SKU designation (letter-number codes like "P1", "3DP13D", "Q30", "240D"). Prefer the plain category noun, optionally with the brand: "this 3D pen", "the Anker charger". Use the short alias from the product data block only when it already reads as a name a person would say; if it is a fragment or carries a model code, use the category noun instead. Never read the full official title.
       - Plain text only, suitable for direct text-to-speech.
-      - Do not mention the product price.
+      - Never speak a price or a price band.
       - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary", "immerse yourself".
       - If the product description contains any banned phrase or marketing fluff, paraphrase the underlying feature in your own words. Don't quote it.
     # The closing calls to action. Every script ends on exactly one of these,
@@ -454,7 +454,7 @@ llm_settings:
     # the LLM toward the pillar's framing angle. Empty dict disables it.
     pillar_preambles:
       value: |-
-        Pillar context: this video runs under the value pillar. Lean into the deal-pitch angle, where the product feels accessible and packs more punch than its price suggests. If the product fits another angle better, follow the product.
+        Pillar context: this video runs under the value pillar. Lean into the deal-pitch angle, where the product feels accessible and does more than its category usually does. If the product fits another angle better, follow the product.
       novelty: |-
         Pillar context: this video runs under the novelty pillar. Lean into the discovery angle, framing the product as something the viewer hasn't seen before. If the product fits another angle better, follow the product.
       utility: |-
@@ -463,7 +463,7 @@ llm_settings:
     # the {AUDIENCE} placeholder in templates uses this value instead of the
     # global target_audience. Lets each pillar speak to its actual buyer.
     pillar_audiences:
-      value: "Budget-conscious shoppers looking for products that punch above their price."
+      value: "Budget-conscious shoppers looking for products that do more than their category usually does."
       novelty: "Curious people who enjoy discovering lesser-known products before everyone else."
       utility: "Practical buyers solving a real, recurring problem with the right tool."
 

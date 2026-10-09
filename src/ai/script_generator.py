@@ -22,6 +22,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from aiohttp.client_exceptions import (
@@ -463,8 +464,9 @@ def format_prompt(
         ValueError: If the template contains placeholders that can't be filled
 
     Placeholders available to a template: FULL_PRODUCT_NAME, SHORT_PRODUCT_NAME,
-    PRODUCT_DESCRIPTION, AUDIENCE, and the neutral TOPIC_TITLE / TOPIC_DETAIL
-    that topic templates use. All are passed on every call, so a template uses
+    PRODUCT_DESCRIPTION, AUDIENCE, the neutral TOPIC_TITLE / TOPIC_DETAIL that
+    topic templates use, CTA_RULE, and PRODUCT_RATING / REVIEW_COUNT ("not
+    given" when missing). All are passed on every call, so a template uses
     whichever it names and ignoring the rest is safe.
 
     """
@@ -478,6 +480,7 @@ def format_prompt(
         short_name = full_name
     else:
         short_name = _short_product_name(full_name)
+    reviews = listing_reviews(product)
     try:
         return template.format(
             FULL_PRODUCT_NAME=full_name,
@@ -489,6 +492,8 @@ def format_prompt(
             TOPIC_TITLE=full_name,
             TOPIC_DETAIL=description,
             CTA_RULE=cta_rule,
+            PRODUCT_RATING=reviews[0] if reviews else "not given",
+            REVIEW_COUNT=reviews[1] if reviews else "not given",
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
@@ -512,12 +517,31 @@ def save_debug_prompt(prompt: str, path: Path):
         logger.exception("Failed to save debug prompt to %s: %s", path, e)
 
 
+# Templates written from the listing's rating and review count; a product
+# whose data carries neither has nothing for them to cite (REQ-CNT-157).
+RATING_TEMPLATES = frozenset({"social_proof"})
+
+
+def listing_reviews(product: Any) -> tuple[str, str] | None:
+    """The listing's rating and ratings count, or None when either is missing.
+
+    The count keeps its page form ("1,234", "2.1K") without the brackets or
+    the word the page puts around it.
+    """
+    rating = str(getattr(product, "rating", None) or "").strip()
+    raw = str(getattr(product, "reviews_count", None) or "")
+    match = re.search(r"\d[\d,.]*\s*[KkMm]?\b", raw)
+    count = match.group(0).replace(" ", "") if match else ""
+    return (rating, count) if rating and count else None
+
+
 def select_script_template(
     settings: LLMSettings,
     product_id: str | None = None,
     pillar: str | None = None,
     is_topic: bool = False,
     title: str | None = None,
+    has_reviews: bool = True,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
@@ -545,6 +569,13 @@ def select_script_template(
             fixed,
             "product" if is_topic else "topic",
             "topic" if is_topic else "product",
+        )
+        fixed = None
+    if fixed in RATING_TEMPLATES and not is_topic and not has_reviews:
+        logger.warning(
+            "Ignoring fixed script template '%s': it is written from the "
+            "listing's rating and ratings count, and this listing lacks one",
+            fixed,
         )
         fixed = None
     if fixed:
@@ -579,6 +610,14 @@ def select_script_template(
         without_topic = [t for t in pool if t not in templates_cfg.topic_templates]
         if without_topic:
             pool = without_topic
+
+    if not is_topic and not has_reviews:
+        without_reviews = [t for t in pool if t not in RATING_TEMPLATES]
+        if without_reviews:
+            pool = without_reviews
+        else:
+            # A pool of rating templates only: the default template instead.
+            return Path(settings.prompt_template_path)
 
     # A topic replaces the pool rather than narrowing it. Every other template
     # is written to pitch a product, so leaving one in the pool means a topic
@@ -1145,6 +1184,7 @@ async def generate_script(
             pillar,
             is_topic=bool(getattr(product, "topic", None)),
             title=getattr(product, "topic", None) or product.title,
+            has_reviews=listing_reviews(product) is not None,
         )
     template_name = template_path.stem
     is_topic = bool(getattr(product, "topic", None))

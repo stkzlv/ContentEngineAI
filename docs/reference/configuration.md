@@ -1469,7 +1469,9 @@ llm_settings:
                            {TOPIC_TITLE} and {TOPIC_DETAIL}; {CTA_RULE} is
                            the rendered closing-CTA rule, followed by the
                            naturalism rule when its intensity is above 0.
-                           All seven are always passed, and a template uses
+                           {PRODUCT_RATING} and {REVIEW_COUNT} carry the
+                           listing's rating and ratings count ("not given" when missing).
+                           All nine are always passed, and a template uses
                            what it names.
 ```
 
@@ -1481,6 +1483,10 @@ llm_settings:
    families share one directory and the default pool is a glob over it.
    For a topic render, the pool is replaced by `topic_templates` outright, since
    a product template left reachable renders the topic as an advertisement.
+   A product whose listing lacks a rating or a ratings count loses
+   `social_proof`, which is written from those figures; a fixed
+   `social_proof` is ignored for it with a warning, and a pool holding only
+   rating templates falls back to `prompt_template_path`.
 3. On a topic render with `topic_routing.enabled`, a title starting "How to" narrows the pool to `topic_routing.task_templates`; when none of them is in the pool, a warning is logged and the whole pool stays. A fixed template (rule 1) still wins over routing.
 4. When `--pillar <name>` is set and `pillars[name]` exists, the active pool is intersected with `pillars[name]`. If the intersection is empty, the unfiltered pool is used and a warning is logged. On a topic render the intersection is always empty by design, because `pillars` lists product templates and the pool is the topic family, so that case logs at debug and the pillar acts through its preamble and audience only.
 5. Selection within the pool is deterministic per product (salted MD5 hash of `<product_id>:script_template`).

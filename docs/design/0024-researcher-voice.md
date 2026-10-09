@@ -1,6 +1,6 @@
 # 0024. Product scripts in the researcher's voice
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #700
 - **Requirements:** REQ-CNT-156, REQ-CNT-157, REQ-CNT-158, REQ-CNT-159, REQ-CNT-160
 
@@ -43,6 +43,10 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - **A check.** The research module's measured checks gain an ownership-claim count and a price count per script, so the next sample shows the rate before and after.
 
 **Tests.** No template or profile carries an ownership phrase, a price or a quoted whole-sentence example; the research checks count ownership claims and prices on recorded scripts.
+
+## As built
+
+Built as designed after the reach-test hold ended ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)). The research checks count claims of use (owning, buying, receiving, using or testing the product, handling remarks such as "heavier than I expected", and claims that others talk about it) and spoken prices. One script per product template for two scraped products, 30 in all: 20 claimed use and 1 spoke a price before; after the rewrite 4 still said a weight was "heavier than I expected", and a profile line asking for the listing's figure instead brought it to 0 claims and 0 prices, with every script naming who the product suits or should skip it. `social_proof` is written from the listing's rating and ratings count (the page's count is of ratings, not written reviews), and a product missing either never draws it, as a fixed template either. The value pillar's preamble no longer leans on price.
 
 ## Alternatives considered
 

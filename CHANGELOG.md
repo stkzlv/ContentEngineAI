@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.196.0] - 2026-10-09
+
+### Changed
+
+- Product scripts speak as the one who researched the product: the narrator profile and the templates never claim the narrator owned, bought, received or used it, or that other people talk about it.
+- No product template or hook pattern speaks or models a price, and the closing examples are shapes with placeholders rather than sentences a script could reuse.
+- Every product script names who the product suits or who should skip it, beside its trade-off.
+- `social_proof` is written from the listing's rating and ratings count, and a product without them never draws it, even as a fixed template.
+- The research sample counts claims of use and spoken prices per script.
+
 ## [0.195.0] - 2026-10-09
 
 ### Changed

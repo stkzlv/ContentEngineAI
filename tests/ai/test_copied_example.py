@@ -120,10 +120,19 @@ async def _generate(replies: list[str], on: bool = True):
 
     settings = config.llm_settings.model_copy(deep=True)
     settings.script_validation.reject_copied_examples = on
-    # The template whose closing-claim rule quotes the example.
     settings.script_templates.template_pool = ["before_after"]
     call = AsyncMock(side_effect=replies * 10)
-    with patch.object(script_generator, "_call_llm_api_with_retry", call):
+    # The bundled templates quote shapes, not sentences (REQ-CNT-159), so the
+    # template gains a quoted example for the guard to find.
+    load = script_generator.load_prompt_template
+
+    def quoting(path):
+        return f'{load(path)}\n- Close with a claim. Example: "{CLAIM}"'
+
+    with (
+        patch.object(script_generator, "_call_llm_api_with_retry", call),
+        patch.object(script_generator, "load_prompt_template", quoting),
+    ):
         out, _, _ = await script_generator.generate_script(
             _product(),
             settings,
