@@ -1,6 +1,6 @@
 # 0008. Remove engagement-bait lines from the CTA pools
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #549
 - **Requirements:** REQ-CNT-041
 
@@ -29,6 +29,10 @@ None recorded.
 - Replace the flagged lines with genuine opinion or save prompts (for example "Save this for your next setup."). The first-comment extractor's `_CTA_MARKERS` has to gain the replacement openers, and its existing test asserts every configured CTA starts with one.
 
 **Tests.** The bait test fails on a pool containing a share request; the marker test passes with the edited pool.
+
+## As built
+
+The pool edit replaced the product share line with "Save this for when you need one." and dropped the topic one, leaving three topic lines; the profile line became "Check the link in bio if you want one.", so every configured call to action opens on an imperative (REQ-CNT-148). The first-comment extractor keeps the old openers among its markers, since scripts written before the edit still end on them.
 
 ## Alternatives considered
 

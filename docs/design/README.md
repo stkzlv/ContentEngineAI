@@ -66,7 +66,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0005](0005-beat-snapped-cuts.md) | Snap visual cuts to music beats | #546 | Implemented |
 | [0006](0006-render-choices-and-variety-report.md) | Record render choices and report output variety | #547 | Implemented |
 | [0007](0007-script-lint.md) | Script lint and search-phrase placement | #548 | Implemented |
-| [0008](0008-bait-free-closing-lines.md) | Remove engagement-bait lines from the CTA pools | #549 | Accepted |
+| [0008](0008-bait-free-closing-lines.md) | Remove engagement-bait lines from the CTA pools | #549 | Implemented |
 | [0009](0009-product-titles.md) | YouTube titles for products | #550 | Implemented |
 | [0010](0010-first-seconds-metrics.md) | First-seconds metrics in the analytics sweep | #551 | Accepted |
 | [0011](0011-cover-frames.md) | Cover frames, including YouTube Shorts thumbnails | #552 | Accepted |

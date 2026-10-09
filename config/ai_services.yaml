@@ -323,15 +323,14 @@ llm_settings:
     # still accepts any line in the list, since a script that reached for a
     # sibling has still closed on a CTA. `--cta` overrides the choice.
     cta_options:
-      - "Link in bio if you want one."
+      - "Check the link in bio if you want one."
       - "Follow for more finds like this."
       - "Drop a comment if you've tried it."
-      - "Share with someone who needs this."
+      - "Save this for when you need one."
     # For topic renders, which have nothing to buy.
     cta_options_topic:
       - "Follow for more fixes like this."
       - "Drop a comment if this worked."
-      - "Share it with whoever needs it."
       - "Save this for the next time it happens."
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one

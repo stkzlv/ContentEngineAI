@@ -113,7 +113,7 @@ Why:
 - Comments are a weak ranking signal on Shorts (2023) [B] ([Galloway thread](https://threadreaderapp.com/thread/1646898356419981315.html)), so the line is for conversation and profile visits, not rank.
 - Meta documents the demotion of comment, share, tag and vote baiting [A] ([Meta](https://transparency.meta.com/features/approach-to-ranking/content-distribution-guidelines/engagement-bait/)), and TikTok's For You feed standards exclude engagement manipulation, including false incentives for following [A] ([TikTok](https://www.tiktok.com/community-guidelines/en/fyf-standards)). Genuine requests for opinions or experiences are exempt, which is the line this beat stays on. [Design 0008](../design/0008-bait-free-closing-lines.md) carries the rest of the evidence.
 
-Planned: the CTA pools carry share requests ("Share with someone who needs this."), which Meta lists as bait; [design 0008](../design/0008-bait-free-closing-lines.md) replaces them, so that no configured call to action or closing example asks viewers to share, tag, vote or reply with a specific word (`REQ-CNT-041`).
+No configured call to action or closing example asks viewers to share, tag, vote or reply with a specific word, which Meta lists as bait ([design 0008](../design/0008-bait-free-closing-lines.md), `REQ-CNT-041`); every call to action opens on an imperative and names where it leads (`REQ-CNT-148`).
 
 ## Calls to action
 
@@ -130,7 +130,7 @@ On (`ending: peak` in the bundled config): ending on the last spoken word, with 
 
 ## Where a call to action can point
 
-One product CTA points at the profile ("Link in bio if you want one."); the others ask for a follow, a comment or a share until the pool is reworked (#549). The publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
+One product CTA points at the profile ("Check the link in bio if you want one."); the others ask for a follow, a comment or a save. The publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
 
 | Surface | Clickable destination? |
 |---|---|

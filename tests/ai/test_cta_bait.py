@@ -2,9 +2,7 @@
 
 Design 0008. Meta demotes asking for shares, tags, votes or a specific word or
 emoji, and TikTok's feed standards exclude false incentives for following.
-Asking for a choice or an experience is genuine and passes. The pools are
-edited after the reach-test readout (#540), so the lines found today are
-listed as known exceptions, and the edit removes them from here.
+Asking for a choice or an experience is genuine and passes.
 """
 
 from __future__ import annotations
@@ -37,12 +35,6 @@ BAIT = [
     re.compile(r"^(drop|leave|comment)( an?)? (emoji|[^\w\s\x00-\x7f])", _I),
     re.compile(r"^follow (for|to (see|get|unlock)) (part|the rest|the answer)", _I),
 ]
-
-# Removed by the pool edit after the readout (#549).
-KNOWN_EXCEPTIONS = {
-    "Share with someone who needs this.",
-    "Share it with whoever needs it.",
-}
 
 
 def is_bait(line: str) -> bool:
@@ -108,12 +100,24 @@ def test_a_genuine_line_passes(line: str) -> None:
     assert not is_bait(line)
 
 
-def test_no_configured_line_is_bait_beyond_the_known_ones() -> None:
+@pytest.mark.req("REQ-CNT-148")
+def test_no_configured_line_is_bait() -> None:
     templates = config.llm_settings.script_templates
     lines = [*templates.cta_options, *templates.cta_options_topic, *closing_examples()]
     assert closing_examples(), "no closing-line examples found in the templates"
 
     flagged = {line for line in lines if is_bait(line)}
 
-    # Equal, not a subset: a known exception that is gone must leave the list.
-    assert flagged == KNOWN_EXCEPTIONS
+    assert flagged == set()
+
+
+# Verbs a call to action may open on; each names where the viewer goes or what
+# they get (the link, the comments, the next video, the saved post).
+IMPERATIVES = {"check", "follow", "drop", "save", "comment", "try", "grab"}
+
+
+@pytest.mark.req("REQ-CNT-148")
+def test_every_configured_cta_opens_on_an_imperative() -> None:
+    templates = config.llm_settings.script_templates
+    for line in [*templates.cta_options, *templates.cta_options_topic]:
+        assert line.split()[0].lower() in IMPERATIVES, line

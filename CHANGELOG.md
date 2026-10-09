@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.195.0] - 2026-10-09
+
+### Changed
+
+- The call-to-action pools no longer ask viewers to share, and every call to action opens on an imperative: the profile line is "Check the link in bio if you want one." and the product pool gains "Save this for when you need one."
+
 ## [0.194.0] - 2026-10-09
 
 ### Changed

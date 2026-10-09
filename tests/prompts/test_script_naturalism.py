@@ -25,7 +25,7 @@ from src.ai.script_generator import (
 from src.scraper.amazon.models import ProductData
 from src.video.config import load_video_config_modular
 
-CTA = "Link in bio if you want one."
+CTA = "Check the link in bio if you want one."
 RULE_HEAD = "Sound like someone talking, not reading."
 
 NATURALISED = (
