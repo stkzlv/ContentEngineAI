@@ -172,6 +172,9 @@ def test_a_claim_of_use_is_counted(claim: str) -> None:
         "If you've used one before, you'll get it.",
         "I went through the listing.",
         "I have to say it holds up.",
+        "I'd use it on short trips.",
+        "I'd have one in the car.",
+        "I have this question: does it fit?",
     ],
 )
 def test_researcher_phrasing_is_not_counted(line: str) -> None:
@@ -219,3 +222,14 @@ async def test_the_script_step_passes_whether_the_listing_has_ratings() -> None:
         seen.append("Social Proof" in prompt)
 
     assert not any(seen)
+
+
+@pytest.mark.req("REQ-CNT-157")
+def test_a_pool_of_rating_templates_only_falls_back_to_the_default() -> None:
+    settings = config.llm_settings.model_copy(deep=True)
+    settings.script_templates.fixed_template = None
+    settings.script_templates.template_pool = sorted(RATING_TEMPLATES)
+
+    path = select_script_template(settings, "B0X", has_reviews=False)
+
+    assert path == Path(settings.prompt_template_path)

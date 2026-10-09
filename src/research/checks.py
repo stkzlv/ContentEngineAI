@@ -32,10 +32,10 @@ OWNERSHIP = re.compile(
     r"actually\s+|already\s+|been\s+|ended\s+up\s+)?"
     # "used to think", "tried to find", "got to say", "got curious" are opinion.
     r"(?:(?:bought|buying|grabbed|picked\s+(?:\w+\s+)?up|ordered|own|owned|"
-    r"received|unboxed|tested|wore|wear|spent|switched|use|"
+    r"received|unboxed|tested|wore|wear|spent|switched|(?<!I'd\s)use|"
     r"love\s+(?:that|how))\b"
     r"|(?:got|tried|used|using)\b(?!\s+(?:to|curious)\b)"
-    r"|(?:have|had)\s+(?:one|mine|it|this)\b)"
+    r"|(?<!I'd\s)(?:have|had)\s+(?:one|mine)\b)"
     r"|\bregret\s+buying\b"
     r"|\bjust\s+(?:got|unboxed|received|picked\s+(?:\w+\s+)?up)\b"
     r"|\bthan\s+I\s+(?:expected|thought)\b"
