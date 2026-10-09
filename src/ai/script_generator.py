@@ -464,8 +464,9 @@ def format_prompt(
         ValueError: If the template contains placeholders that can't be filled
 
     Placeholders available to a template: FULL_PRODUCT_NAME, SHORT_PRODUCT_NAME,
-    PRODUCT_DESCRIPTION, AUDIENCE, and the neutral TOPIC_TITLE / TOPIC_DETAIL
-    that topic templates use. All are passed on every call, so a template uses
+    PRODUCT_DESCRIPTION, AUDIENCE, the neutral TOPIC_TITLE / TOPIC_DETAIL that
+    topic templates use, CTA_RULE, and PRODUCT_RATING / REVIEW_COUNT ("not
+    given" when missing). All are passed on every call, so a template uses
     whichever it names and ignoring the rest is safe.
 
     """
@@ -522,10 +523,16 @@ RATING_TEMPLATES = frozenset({"social_proof"})
 
 
 def listing_reviews(product: Any) -> tuple[str, str] | None:
-    """The listing's rating and review count, or None when either is missing."""
+    """The listing's rating and ratings count, or None when either is missing.
+
+    The count keeps its page form ("1,234", "2.1K") without the brackets or
+    the word the page puts around it.
+    """
     rating = str(getattr(product, "rating", None) or "").strip()
-    count = re.sub(r"[^\d,]", "", str(getattr(product, "reviews_count", None) or ""))
-    return (rating, count) if rating and count.strip(",") else None
+    raw = str(getattr(product, "reviews_count", None) or "")
+    match = re.search(r"\d[\d,.]*\s*[KkMm]?\b", raw)
+    count = match.group(0).replace(" ", "") if match else ""
+    return (rating, count) if rating and count else None
 
 
 def select_script_template(
@@ -562,6 +569,13 @@ def select_script_template(
             fixed,
             "product" if is_topic else "topic",
             "topic" if is_topic else "product",
+        )
+        fixed = None
+    if fixed in RATING_TEMPLATES and not is_topic and not has_reviews:
+        logger.warning(
+            "Ignoring fixed script template '%s': it is written from the "
+            "listing's rating and ratings count, and this listing lacks one",
+            fixed,
         )
         fixed = None
     if fixed:
@@ -601,6 +615,9 @@ def select_script_template(
         without_reviews = [t for t in pool if t not in RATING_TEMPLATES]
         if without_reviews:
             pool = without_reviews
+        else:
+            # A pool of rating templates only: the default template instead.
+            return Path(settings.prompt_template_path)
 
     # A topic replaces the pool rather than narrowing it. Every other template
     # is written to pitch a product, so leaving one in the pool means a topic

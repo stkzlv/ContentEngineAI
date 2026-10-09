@@ -463,7 +463,7 @@ llm_settings:
     # the {AUDIENCE} placeholder in templates uses this value instead of the
     # global target_audience. Lets each pillar speak to its actual buyer.
     pillar_audiences:
-      value: "Budget-conscious shoppers looking for products that punch above their price."
+      value: "Budget-conscious shoppers looking for products that do more than their category usually does."
       novelty: "Curious people who enjoy discovering lesser-known products before everyone else."
       utility: "Practical buyers solving a real, recurring problem with the right tool."
 

@@ -74,7 +74,13 @@ def test_each_template_asks_who_it_suits(path: Path) -> None:
 @pytest.mark.req("REQ-CNT-157")
 @pytest.mark.parametrize(
     ("rating", "reviews", "found"),
-    [("4.6", "(298)", ("4.6", "298")), (None, "(298)", None), ("4.6", "", None)],
+    [
+        ("4.6", "(298)", ("4.6", "298")),
+        ("4.5", "1,234 ratings", ("4.5", "1,234")),
+        ("4.4", "(2.1K)", ("4.4", "2.1K")),
+        (None, "(298)", None),
+        ("4.6", "", None),
+    ],
 )
 def test_listing_reviews_need_both_figures(rating, reviews, found) -> None:
     assert listing_reviews(_product(rating, reviews)) == found
@@ -105,7 +111,7 @@ def test_the_rating_template_quotes_the_listing_figures() -> None:
 
     prompt = format_prompt(template, _product(), "anyone")
 
-    assert "a rating of 4.6 from 298 reviews" in prompt
+    assert "a rating of 4.6 from 298 ratings" in prompt
 
 
 @pytest.mark.req("REQ-CNT-157", "REQ-CNT-158")
@@ -130,3 +136,86 @@ def test_the_research_checks_count_claims_and_prices() -> None:
     )
     clean = check_one(record, (10, 100))
     assert clean["ownership"] == 0 and clean["price"] is False
+
+
+@pytest.mark.req("REQ-CNT-157")
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "I use it every day.",
+        "I've had mine for a month.",
+        "I have one on my desk.",
+        "I ended up buying it.",
+        "Mine came with two straps.",
+        "My kids love it.",
+        "I picked this up last month.",
+        "Just got this cable.",
+        "It's heavier than I expected.",
+        "I tried five tripods.",
+        "I regret buying the cheap one.",
+        "Three friends recommended this.",
+    ],
+)
+def test_a_claim_of_use_is_counted(claim: str) -> None:
+    assert OWNERSHIP.search(claim)
+
+
+@pytest.mark.req("REQ-CNT-157")
+@pytest.mark.parametrize(
+    "line",
+    [
+        "I tried to find a catch.",
+        "I used to think these were gimmicks.",
+        "I've got to say the specs hold up.",
+        "I got curious about this one.",
+        "I'd skip it if you travel light.",
+        "If you've used one before, you'll get it.",
+        "I went through the listing.",
+        "I have to say it holds up.",
+    ],
+)
+def test_researcher_phrasing_is_not_counted(line: str) -> None:
+    assert not OWNERSHIP.search(line)
+
+
+@pytest.mark.req("REQ-CNT-157")
+def test_a_fixed_rating_template_is_ignored_without_ratings() -> None:
+    settings = config.llm_settings.model_copy(deep=True)
+    settings.script_templates.fixed_template = "social_proof"
+
+    assert select_script_template(settings, "B0X", has_reviews=True).stem == (
+        "social_proof"
+    )
+    assert select_script_template(settings, "B0X", has_reviews=False).stem != (
+        "social_proof"
+    )
+
+
+@pytest.mark.req("REQ-CNT-157")
+@pytest.mark.asyncio
+async def test_the_script_step_passes_whether_the_listing_has_ratings() -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from src.ai import script_generator
+
+    settings = config.llm_settings.model_copy(deep=True)
+    settings.script_templates.fixed_template = None
+    settings.script_templates.template_pool = ["social_proof", "rapid_fire"]
+    settings.script_validation.lint.enabled = False
+    seen = []
+    for n in range(12):
+        call = AsyncMock(return_value="")
+        with patch.object(script_generator, "_call_llm_api_with_retry", call):
+            await script_generator.generate_script(
+                _product(None, None),
+                settings,
+                {settings.api_key_env_var: "k"},
+                AsyncMock(),
+                {},
+                False,
+                product_id=f"B0{n:08d}",
+            )
+        prompt = call.await_args_list[0].args[0]
+        seen.append("Social Proof" in prompt)
+
+    assert not any(seen)

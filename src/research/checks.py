@@ -29,13 +29,20 @@ REPEATED_OPENING = 3
 # A handling claim counts too: "heavier than I expected", "holds my phone".
 OWNERSHIP = re.compile(
     r"\b(?:I|I've|I'd|I'm|we|we've)\s+(?:just\s+|finally\s+|recently\s+|"
-    r"actually\s+|already\s+|have\s+|had\s+|been\s+)?"
-    r"(?:bought|got|grabbed|picked\s+(?:\w+\s+)?up|ordered|own|owned|received|"
-    r"unboxed|tried|tested|used|using|wore|wear|spent|switched|love\s+(?:that|how))\b"
+    r"actually\s+|already\s+|been\s+|ended\s+up\s+)?"
+    # "used to think", "tried to find", "got to say", "got curious" are opinion.
+    r"(?:(?:bought|buying|grabbed|picked\s+(?:\w+\s+)?up|ordered|own|owned|"
+    r"received|unboxed|tested|wore|wear|spent|switched|use|"
+    r"love\s+(?:that|how))\b"
+    r"|(?:got|tried|used|using)\b(?!\s+(?:to|curious)\b)"
+    r"|(?:have|had)\s+(?:one|mine|it|this)\b)"
+    r"|\bregret\s+buying\b"
     r"|\bjust\s+(?:got|unboxed|received|picked\s+(?:\w+\s+)?up)\b"
     r"|\bthan\s+I\s+(?:expected|thought)\b"
-    r"|\b(?:holds|charges|fits|keeps)\s+my\b"
+    r"|\b(?:holds|charges|keeps)\s+my\b"
+    r"|\bmine\s+(?:came|has|is|was)\b"
     r"|\bmy\s+(?:last|old|previous)\s+one\b"
+    r"|\bmy\s+(?:kids|wife|husband|partner|family)\s+(?:love|use)\b"
     r"|\bspent\s+\$"
     r"|\b(?:friends|everyone|people)\s+(?:keep|kept|recommended|swear|rave)\b"
     r"|\ball\s+over\s+my\s+feed\b",
