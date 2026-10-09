@@ -536,7 +536,8 @@ class PublishMetadata:
         budget is the cap less that wrapper. A description clamped to exactly
         2200 still composes to more than 2200.
 
-        The wrapper does not depend on the description, so one pass is enough.
+        The wrapper does not depend on the description, so one pass is enough
+        once the hashtags are within their caps.
 
         Returns the names of the fields that were trimmed.
         """
@@ -554,6 +555,12 @@ class PublishMetadata:
             desc_lim = PLATFORM_LIMITS[platform].get("description")
             if isinstance(desc_lim, int):
                 desc_lims.append(desc_lim)
+
+        # Hashtags first: the description's budget is measured on the
+        # wrapper, which the dropped tags shrink.
+        caps = [HASHTAG_CAPS[p] for p in targets if p in HASHTAG_CAPS]
+        if caps and self._drop_hashtags_over(min(caps)):
+            trimmed.append("hashtags")
 
         if title_lims and self.title and len(self.title) > min(title_lims):
             self.title = _trim_on_word_boundary(self.title, min(title_lims))
@@ -576,10 +583,6 @@ class PublishMetadata:
             if len(self.description) > budget:
                 self.description = _trim_on_word_boundary(self.description, budget)
                 trimmed.append("description")
-
-        caps = [HASHTAG_CAPS[p] for p in targets if p in HASHTAG_CAPS]
-        if caps and self._drop_hashtags_over(min(caps)):
-            trimmed.append("hashtags")
 
         if trimmed:
             self.character_counts["description"] = len(self.description)

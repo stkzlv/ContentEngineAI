@@ -25,10 +25,7 @@ You are an Instagram Reels growth specialist. Your task is to create a platform-
 
 ## Hashtag Requirements (SAME FOR BOTH STYLES):
 - Provide exactly 3-4 hashtags, #ad included. Instagram allows 5 per post, and the publisher adds the product id as the fifth
-- Mix of hashtag types:
-  - 5-10 high-volume popular tags (100k-1M posts)
-  - 10-15 niche community tags (10k-100k posts)
-  - 5-10 specific/branded tags (<10k posts)
+- Mix of hashtag types: one or two niche community tags and one specific tag, plus #ad
 - **CRITICAL: Hashtags MUST be in the caption, NOT in comments**
 - Instagram algorithm prioritizes hashtags in captions (2024+ update)
 - Separate hashtags with spaces

@@ -172,7 +172,7 @@ Planned: record every drawn choice and report output variety, with an alert when
 
 - TikTok's US operation was divested to a US joint venture in January 2026, and its recommendation algorithm is retrained on US-only data, so US-reach assumptions are provisional.
 - Instagram removed the longer-Reels penalty (it recommends up to about 3 minutes to non-followers) and names watch time, likes per reach and sends per reach as its top signals. [B] [Hootsuite](https://blog.hootsuite.com/instagram-algorithm/)
-- Instagram has capped hashtags at 5 since December 2025. [A] [Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/) The shipped Instagram caption settings in `config/ai_services.yaml` ask for 15-30 hashtags; keeping each platform within its own limit is planned (#567, `REQ-PUB-108`).
+- Instagram has capped hashtags at 5 since December 2025. [A] [Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/) A caption sent to Instagram keeps five at most, `#ad` and the product id included, and optimized mode asks for 3-4 (`REQ-PUB-108`).
 
 ## Claims without support
 

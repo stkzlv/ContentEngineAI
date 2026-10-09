@@ -64,3 +64,27 @@ def test_the_topic_prefix_matches_the_producer() -> None:
     from src.video.producer.topic_input import TOPIC_ID_PREFIX
 
     assert models._TOPIC_ID_PREFIX == TOPIC_ID_PREFIX
+
+
+@pytest.mark.req("REQ-PUB-108")
+def test_dropped_tags_leave_their_room_to_the_description() -> None:
+    meta = _meta([f"Tag{i}" for i in range(10)])
+    meta.description = "word " * 422  # 2110 characters
+    full = meta.description.strip()
+
+    meta.clamp_for_platforms(ALL)
+
+    assert len(_tags(meta)) == 5
+    assert meta.description.strip() == full
+    assert len(meta.format_content()) <= 2200
+
+
+@pytest.mark.req("REQ-PUB-107")
+def test_the_repair_path_still_ends_a_product_caption_on_its_id() -> None:
+    from src.publisher.schedule import metadata_from_file
+
+    meta = metadata_from_file(
+        {"description": "", "hashtags": ["Tripod"]}, "B0REPAIR01", Platform.YOUTUBE
+    )
+
+    assert meta.format_content().endswith("#Tripod #B0REPAIR01")
