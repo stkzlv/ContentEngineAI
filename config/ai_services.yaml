@@ -506,9 +506,8 @@ description_settings:
   metadata_mode: "unified"
   # Unified mode: a product video's title is built from its keyword and hook
   # headline, within platform_metadata.youtube.title_length_max, instead of
-  # the store listing title. It changes published titles, so it stays off
-  # until the reach-test readout (design 0009).
-  short_product_titles: false
+  # the store listing title (design 0009).
+  short_product_titles: true
 
   # Platform-specific metadata settings
   # If null, uses legacy unified description mode for backward compatibility

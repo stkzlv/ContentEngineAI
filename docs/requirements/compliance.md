@@ -32,9 +32,8 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
   - On when: `synthetic_media_disclosure` is set to true for output that meets YouTube's bar, such as AI-generated music or AI-generated footage of a real place.
 - **REQ-CMP-016** `shipped` TikTok posts carry the AI-generated-content label by default, and `tiktok_settings.video_made_with_ai: false` turns it off.
 - **REQ-CMP-021** `shipped` If the `tiktok_settings` section is invalid, every TikTok setting falls back to its default with a warning, so the AI-generated-content label stays on.
-- **REQ-CMP-017** `held` AI disclosure on each platform follows that platform's current rule, recorded with its source.
-  - On when: `tiktok_settings.video_made_with_ai` is set to false after the reach-test readout (#540), per [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md).
-- **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice ([decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md) keeps the TikTok label until the readout).
+- **REQ-CMP-017** `shipped` AI disclosure on each platform follows that platform's current rule, recorded with its source.
+- **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice (the TikTok label went off with [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md); a render that meets TikTok's bar turns it back on).
 - **REQ-CMP-019** `planned #558` An optional statement says what AI did and what a person did.
 
 ## Manual steps

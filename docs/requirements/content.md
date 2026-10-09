@@ -188,8 +188,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-141** `shipped` Where `description_settings.enabled` is false, the producer skips metadata generation.
 - **REQ-CNT-144** `shipped` In optimized metadata mode, a topic render's prompts ask for a YouTube title that front-loads the symptom, in the words a viewer would search, within its first 5-7 words, and for TikTok and Instagram captions that contain the search phrase.
 - **REQ-CNT-145** `shipped` A topic render's description prompts ask for a description that leads with the symptom, and in optimized metadata mode the YouTube prompt asks for the symptom in the first sentence.
-- **REQ-CNT-149** `held` Where `description_settings.short_product_titles` is on, a product video's title is built from its hook headline, so the two make the same promise.
-  - On when: with REQ-PUB-008, at the reach-test readout (#540).
+- **REQ-CNT-149** `shipped` Where `description_settings.short_product_titles` is on, a product video's title is built from its hook headline, so the two make the same promise.
 - **REQ-CNT-150** `planned #590` A product video's YouTube description carries no destination URL, and its call to action points at the profile link.
 
 ## Content pillars

@@ -763,6 +763,19 @@ async def _ensure_fact_checked(ctx: PipelineContext, pillar: str | None) -> None
         logger.warning("Could not write the fact-check record: %s", e)
 
 
+def _hook_headline(ctx: PipelineContext) -> str | None:
+    """The authored hook headline, from the state or the script step's entry.
+
+    A truncating resume keeps only step entries, so the top-level key is gone
+    on a run that starts after the script step.
+    """
+    headline = ctx.state.get("hook_headline")
+    if not headline:
+        entry = ctx.state.get(STEP_GENERATE_SCRIPT)
+        headline = entry.get("hook_headline") if isinstance(entry, dict) else None
+    return headline if isinstance(headline, str) and headline else None
+
+
 async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> None:
     """Generate the authored hook headline if the run doesn't already have one.
 
@@ -780,7 +793,9 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
     Best-effort: an empty result leaves the fallback in place. Skipped entirely
     when the overlay is off, so a disabled overlay costs no LLM round-trip.
     """
-    if ctx.state.get("hook_headline"):
+    recorded = _hook_headline(ctx)
+    if recorded:
+        ctx.state["hook_headline"] = recorded
         return
     if not ctx.config.video_settings.hook_overlay.enabled:
         logger.debug("Hook headline skipped: hook overlay disabled")
@@ -1119,7 +1134,7 @@ def _unified_title(ctx: PipelineContext) -> str | None:
     return short_title(
         ctx.product.title or "",
         getattr(ctx.product, "keyword", None),
-        ctx.state.get("hook_headline"),
+        _hook_headline(ctx),
         max_len,
     )
 
@@ -2039,7 +2054,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 # existence, so an unvetted read would draw a stale file.
                 subtitle_upper_path=_recorded_upper_subtitle(ctx),
                 hook_text=hook_text,
-                hook_headline=ctx.state.get("hook_headline"),
+                hook_headline=_hook_headline(ctx),
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end,
                 spoken_words=_spoken_words(ctx),

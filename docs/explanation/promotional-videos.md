@@ -147,7 +147,7 @@ Why: a video classified as a Short cannot carry a clickable link on any surface 
 
 A render with a material connection carries a persistent `#ad` overlay in a fixed corner for the full clip (`video_settings.disclosure_overlay`, top-right at 0.45 times the subtitle font by default, `REQ-CMP-001`, `REQ-CMP-002`; the FTC asks for clear and conspicuous, not a size ratio), and its caption leads with the disclosure on its own line (`REQ-CMP-006`). The overlay and the caption follow the same recorded decision (`REQ-CMP-007`). The hook overlay sits centre-upper, so the two don't compete for the same zone in the first seconds.
 
-AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on by default (`REQ-CMP-016`) and under review ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
+AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on by default in code (`REQ-CMP-016`) and off in the bundled config, since TikTok's rule does not require it for generic TTS ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
 
 The regulators, the rules, the platform flags, the manual steps and the penalty surface are in [the compliance guide](compliance.md).
 

@@ -1,6 +1,6 @@
 # 0009. YouTube titles for products
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #550
 - **Requirements:** REQ-PUB-008, REQ-CNT-149
 

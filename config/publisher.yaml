@@ -346,8 +346,9 @@ synthetic_media_disclosure: false
 # `video_made_with_ai` is TikTok's AI-generated-content label, and it is ON by
 # default. TikTok's 2026-H2 guidelines require it for realistic AI people or
 # scenes and for audio mimicking a real person, and exempt generic TTS
-# narration, which is all this pipeline uses, so the label is voluntary here.
-# Whether to keep it on is #558; it stays on until that is decided.
+# narration, which is all this pipeline uses, so the label is off here
+# (decision 0013). Turn it back on for a render that adds realistic AI people
+# or scenes, or a voice that mimics a real person.
 #
 # Disclosing is also the cheaper error: TikTok reads C2PA credentials and
 # auto-labels undisclosed AI content, and enforcement escalates from a warning
@@ -355,8 +356,8 @@ synthetic_media_disclosure: false
 #
 # A single unknown key discards the whole block back to defaults, with a
 # warning. Keep it minimal.
-#tiktok_settings:
-#  video_made_with_ai: true
+tiktok_settings:
+  video_made_with_ai: false
 #  privacy_level: "PUBLIC_TO_EVERYONE"
 #  allow_comment: true
 #  allow_duet: false
