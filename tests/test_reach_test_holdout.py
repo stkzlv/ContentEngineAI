@@ -26,10 +26,3 @@ def test_topic_step_lists_are_off() -> None:
     """Step lists rewrite the topic arm's scripts (design 0017)."""
     settings = load_video_config_modular().llm_settings
     assert settings.topic_scripts.step_list.enabled is False
-
-
-@pytest.mark.req("REQ-PUB-008")
-def test_short_product_titles_are_off() -> None:
-    """They change the published YouTube title (design 0009)."""
-    settings = load_video_config_modular().description_settings
-    assert settings.short_product_titles is False

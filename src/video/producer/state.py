@@ -579,6 +579,10 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # reads it to strip the sign-off before taking the closing beat.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("signoff"):
         step_state["signoff"] = ctx.state["signoff"]
+    # The hook headline, which a short product title and the hook overlay
+    # read in later steps that a resume can run on their own.
+    if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("hook_headline"):
+        step_state["hook_headline"] = ctx.state["hook_headline"]
     # Why a subtitle step legitimately produced nothing: subtitles switched
     # off in config, or the engine was unavailable and the policy is to skip.
     # Without it, verification cannot tell either from a step that produced

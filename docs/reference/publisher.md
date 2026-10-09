@@ -355,7 +355,7 @@ Shipped commented out. A section with an unknown key falls back to all defaults 
 | `is_brand_organic_post` | bool | `true` | A render with no material connection always sends `false`. |
 | `content_preview_confirmed` | bool | `true` | Sent on every post. |
 | `express_consent_given` | bool | `true` | Sent on every post. |
-| `video_made_with_ai` | bool | `true` | TikTok's AI-generated-content label, sent as `videoMadeWithAi` beside `tiktokSettings` rather than inside it. |
+| `video_made_with_ai` | bool | `true` (the bundled config sets `false`) | TikTok's AI-generated-content label, sent as `videoMadeWithAi` beside `tiktokSettings` rather than inside it. |
 
 ### `analytics`
 

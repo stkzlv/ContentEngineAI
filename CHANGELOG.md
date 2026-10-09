@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.194.0] - 2026-10-09
+
+### Changed
+
+- A product video publishes to YouTube with a short title built from its keyword and hook headline, instead of the store listing title.
+- TikTok posts no longer carry the AI-generated-content label, which TikTok's rules don't require for generic TTS narration.
+
+### Fixed
+
+- A resumed render keeps the hook headline for the title and the hook overlay, instead of falling back to the listing title or the script's first sentence.
+
 ## [0.193.0] - 2026-10-09
 
 ### Changed
