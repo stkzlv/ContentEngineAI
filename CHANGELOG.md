@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.196.3] - 2026-10-09
+
+### Fixed
+
+- A YouTube Shorts description in optimized metadata mode ends on "Link in bio." instead of a product URL that can't be clicked there, and a URL the model writes anyway is removed.
+
 ## [0.196.2] - 2026-10-09
 
 ### Fixed

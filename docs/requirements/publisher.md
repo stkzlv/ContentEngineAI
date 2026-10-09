@@ -194,3 +194,4 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
   - Why: without one the platform titles the video from the caption's first line, which is the disclosure.
 - **REQ-PUB-111** `shipped` The title sent to each platform is the trimmed title.
 - **REQ-PUB-147** `shipped` The TikTok privacy level and whether comments, duets and stitches are allowed are set under `tiktok_settings`, defaulting to public with comments on and duets and stitches off.
+- **REQ-PUB-148** `shipped` A YouTube Shorts description carries no URL, since one there can't be clicked; in optimized metadata mode it ends on a pointer to the profile link, and a URL the model writes anyway is removed.
