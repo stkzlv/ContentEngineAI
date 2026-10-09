@@ -166,10 +166,10 @@ class TikTokPlatformSettings(BaseModel):
         2200, ge=1, le=2200, description="Maximum caption length (TikTok limit)"
     )
     hashtag_count_min: int = Field(
-        3, ge=0, le=10, description="Minimum number of hashtags"
+        2, ge=0, le=10, description="Minimum number of hashtags"
     )
     hashtag_count_max: int = Field(
-        5, ge=1, le=10, description="Maximum number of hashtags"
+        4, ge=1, le=10, description="Maximum number of hashtags (two or three, and #ad)"
     )
     seo_focused: bool = Field(
         True,
@@ -206,11 +206,13 @@ class InstagramPlatformSettings(BaseModel):
             "(room for body + mirrored closing line)"
         ),
     )
+    # Instagram allows 5 hashtags per post since 18 December 2025; #ad is one
+    # of them and the publisher adds the product id (REQ-PUB-108).
     hashtag_count_min: int = Field(
-        15, ge=5, le=20, description="Minimum number of hashtags"
+        3, ge=0, le=5, description="Minimum number of hashtags"
     )
     hashtag_count_max: int = Field(
-        30, ge=15, le=30, description="Maximum number of hashtags (Instagram limit)"
+        4, ge=1, le=5, description="Maximum number of hashtags (Instagram allows 5)"
     )
     emoji_enabled: bool = Field(
         True, description="Allow emoji usage in captions and hashtags"

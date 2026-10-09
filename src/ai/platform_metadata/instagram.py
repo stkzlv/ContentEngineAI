@@ -31,12 +31,12 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
 
     Generates Instagram-optimized metadata with:
     - Caption: Ultra-short (3-5 words) OR SEO-descriptive (100-200 chars)
-    - Hashtags: 15-30 hashtags in caption (not comments)
+    - Hashtags: 3-4 in the caption (not comments); Instagram allows 5 per post
     - Keywords: 5-10 search-friendly keywords
 
     Based on Instagram 2025 Reels algorithm best practices:
     - Hashtags in caption perform better than comments (algorithm change)
-    - Mix high-volume + niche + specific hashtags (15-30 total)
+    - Niche and specific hashtags, #ad included
     - Two caption strategies: short hooks for viral reach, SEO for search discovery
     - Emoji support for visual appeal and engagement
     """
@@ -79,7 +79,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
         """Generate Instagram-optimized metadata using LLM.
 
         Produces caption in short (3-5 words) or SEO (100-200 chars) style based on
-        settings, with 15-30 hashtags in caption and search-friendly keywords.
+        settings, with 3-4 hashtags in caption and search-friendly keywords.
 
         Args:
         ----
@@ -264,7 +264,7 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
 
         Checks:
         - Caption style compliance (short: 3-5 words, SEO: 100-200 chars)
-        - Hashtag count: 15-30 (Instagram allows 30, recommends 15-30)
+        - Hashtag count: 3-4 (Instagram allows 5 per post, the id included)
         - Hashtags in caption: Must be embedded in caption text
         - #ad tag: Required for sponsored content
 
@@ -309,14 +309,14 @@ class InstagramMetadataGenerator(BasePlatformMetadataGenerator):
                     caption_len_target,
                 )
 
-        # Validate hashtag count (15-30)
+        # Validate hashtag count; Instagram allows 5 per post (REQ-PUB-108)
         hashtag_count = len(metadata.hashtags)
         min_count = self.settings["hashtag_count_min"]
         max_count = self.settings["hashtag_count_max"]
         if hashtag_count < min_count:
             errors.append(
                 f"Too few hashtags: {hashtag_count} (min {min_count}). "
-                f"Instagram Reels need 15-30 hashtags for optimal reach."
+                "Instagram Reels carry 3-4 generated hashtags."
             )
         elif hashtag_count > max_count:
             errors.append(f"Too many hashtags: {hashtag_count} (max {max_count})")

@@ -541,13 +541,16 @@ description_settings:
       enabled: true
       caption_length_optimal: 150
       caption_length_max: 2200
-      hashtag_count_min: 3
-      hashtag_count_max: 5
+      # TikTok advises two or three hashtags; a product adds #ad.
+      hashtag_count_min: 2
+      hashtag_count_max: 4
     instagram:
       enabled: true
       caption_style: "seo"
-      hashtag_count_min: 15
-      hashtag_count_max: 30
+      # Instagram allows 5 hashtags per post since 18 December 2025; #ad
+      # is one of these, and the publisher adds the product id.
+      hashtag_count_min: 3
+      hashtag_count_max: 4
       emoji_enabled: true
 
 # ============================================================================

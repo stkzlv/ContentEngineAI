@@ -46,9 +46,21 @@ DEFAULT_PLATFORMS = [Platform.YOUTUBE, Platform.TIKTOK, Platform.INSTAGRAM]
 # Platform-specific content limits for validation
 PLATFORM_LIMITS: dict[Platform, dict[str, int | tuple[int, int]]] = {
     Platform.YOUTUBE: {"title": 100, "description": 5000, "hashtags": (3, 15)},
-    Platform.TIKTOK: {"description": 2200, "hashtags": (3, 5)},
-    Platform.INSTAGRAM: {"description": 2200, "hashtags": (5, 30)},
+    Platform.TIKTOK: {"description": 2200, "hashtags": (2, 5)},
+    # Instagram allows 5 hashtags per post or reel since 18 December 2025
+    # (@creators announcement); a caption with more does not post.
+    Platform.INSTAGRAM: {"description": 2200, "hashtags": (1, 5)},
 }
+
+# Hashtags a composed caption may carry on each platform, the disclosure tag
+# and the record id included (REQ-PUB-108). YouTube ignores every hashtag
+# once a video has more than 60.
+HASHTAG_CAPS: dict[Platform, int] = {Platform.INSTAGRAM: 5, Platform.YOUTUBE: 60}
+
+# Topic record ids start with this (`src/video/producer/topic_input.py`); a
+# slug like `topic-why-...` is cut at its first hyphen as a hashtag.
+_TOPIC_ID_PREFIX = "topic-"
+_HASHTAG = re.compile(r"(?<![\w#])#\w+")
 
 
 def description_budget(platforms: Iterable[Platform], wrapper_chars: int) -> int | None:
@@ -480,6 +492,32 @@ class PublishMetadata:
         copy.clamp_for_platforms(platforms)
         return copy
 
+    def _drop_hashtags_over(self, cap: int) -> bool:
+        """Drop generated tags from the end until the caption carries `cap`.
+
+        Every hashtag in the composed caption counts, the disclosure and the
+        id included; those two stay, and the generated tags go last first.
+        Returns whether any tag was dropped.
+        """
+        dropped = False
+        while len(_HASHTAG.findall(self.format_content())) > cap:
+            keep = {self.disclosure.lstrip("#").lower(), "ad"}
+            droppable = [
+                i
+                for i, tag in enumerate(self.hashtags)
+                if tag.lstrip("#").lower() not in keep
+            ]
+            if not droppable:
+                logger.warning(
+                    "Caption still carries more than %d hashtags after dropping "
+                    "every generated one",
+                    cap,
+                )
+                break
+            del self.hashtags[droppable[-1]]
+            dropped = True
+        return dropped
+
     def clamp_for_platforms(self, platforms: Iterable[Platform]) -> tuple[str, ...]:
         """Trim so the composed caption fits every platform it is sent to.
 
@@ -498,7 +536,8 @@ class PublishMetadata:
         budget is the cap less that wrapper. A description clamped to exactly
         2200 still composes to more than 2200.
 
-        The wrapper does not depend on the description, so one pass is enough.
+        The wrapper does not depend on the description, so one pass is enough
+        once the hashtags are within their caps.
 
         Returns the names of the fields that were trimmed.
         """
@@ -516,6 +555,12 @@ class PublishMetadata:
             desc_lim = PLATFORM_LIMITS[platform].get("description")
             if isinstance(desc_lim, int):
                 desc_lims.append(desc_lim)
+
+        # Hashtags first: the description's budget is measured on the
+        # wrapper, which the dropped tags shrink.
+        caps = [HASHTAG_CAPS[p] for p in targets if p in HASHTAG_CAPS]
+        if caps and self._drop_hashtags_over(min(caps)):
+            trimmed.append("hashtags")
 
         if title_lims and self.title and len(self.title) > min(title_lims):
             self.title = _trim_on_word_boundary(self.title, min(title_lims))
@@ -577,9 +622,14 @@ class PublishMetadata:
         # Description only - title is handled separately by platform APIs
         parts.append(self.description)
 
-        # Collect all hashtags including product_id
+        # Collect all hashtags, and a product's id (REQ-PUB-107); a topic's
+        # slug id is no valid hashtag.
         all_hashtags = list(self.hashtags) if self.hashtags else []
-        if self.product_id and self.product_id not in all_hashtags:
+        if (
+            self.product_id
+            and not self.product_id.startswith(_TOPIC_ID_PREFIX)
+            and self.product_id not in all_hashtags
+        ):
             all_hashtags.append(self.product_id)
 
         if all_hashtags:

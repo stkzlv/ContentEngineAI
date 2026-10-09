@@ -206,7 +206,7 @@ class TestInstagramTemplateStructure:
         assert "Hashtag Requirements" in self.template
 
         # Check for Instagram-specific requirements
-        assert "15-30 hashtags" in self.template
+        assert "3-4 hashtags" in self.template
         assert "#ad" in self.template
 
         # Check for dual caption style support
@@ -223,7 +223,7 @@ class TestInstagramTemplateStructure:
         """Test that template specifies hashtag requirements."""
         # Critical Instagram requirement: hashtags in caption, not comments
         assert "caption" in self.template.lower() and "comment" in self.template.lower()
-        assert "15-30" in self.template
+        assert "3-4" in self.template
 
     def test_contains_examples(self):
         """Test that template includes examples."""

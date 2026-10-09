@@ -186,9 +186,9 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-103** `shipped` The cap applied to a caption is the smallest cap among the platforms the caption reaches.
 - **REQ-PUB-104** `shipped` The cap applies to the composed caption: the disclosure line, the affiliate phrase, the description, the hashtag block and the blank lines between them.
 - **REQ-PUB-105** `shipped` Every publish path (`single`, `schedule`, `schedule --immediate` and the batch) applies the caption cap rules.
-- **REQ-PUB-106** `shipped` If a caption's hashtag count is outside the platform's range, the publisher logs a warning and keeps the tags as written.
-- **REQ-PUB-107** `shipped` The publisher appends the product id as the last hashtag of each product caption.
-- **REQ-PUB-108** `planned #567` Each platform's hashtag count stays within that platform's own limit.
+- **REQ-PUB-106** `shipped` If a caption's hashtag count is outside the platform's range, the publisher logs a warning; it drops tags only past a platform's hard cap (REQ-PUB-108).
+- **REQ-PUB-107** `shipped` The publisher appends the product id as the last hashtag of each product caption, and no id to a topic caption, whose slug is no valid hashtag.
+- **REQ-PUB-108** `shipped` A composed caption's hashtags, the disclosure tag and the id included, stay within each target platform's hard cap (Instagram 5, YouTube 60), the generated tags dropped last first.
 - **REQ-PUB-109** `shipped` The publisher sends a distinct video title to every platform that accepts one.
 - **REQ-PUB-110** `shipped` If a YouTube post has no title, the publisher refuses to publish it.
   - Why: without one the platform titles the video from the caption's first line, which is the disclosure.

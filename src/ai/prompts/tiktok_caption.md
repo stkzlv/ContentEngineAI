@@ -18,7 +18,7 @@ TikTok's algorithm (as of 2024-2025) prioritizes **search-optimized content** ov
    - Include #ad for advertising disclosure
 
 2. **Hashtags:**
-   - Provide exactly 3-5 hashtags
+   - Provide 2-3 niche hashtags, plus #ad. TikTok's own advice is two or three
    - Use **NICHE-SPECIFIC** hashtags related to product category
    - Mix: 2-3 niche community tags + 1-2 product category tags
    - **AVOID GENERIC VIRAL TAGS** - These provide NO discovery value:
@@ -70,7 +70,7 @@ Return your response in the following exact format:
 
 CAPTION: [Your 100-300 character search-optimized caption with #ad]
 
-HASHTAGS: [3-5 niche-specific hashtags separated by spaces, NO generic tags]
+HASHTAGS: [2-3 niche-specific hashtags plus #ad, separated by spaces, NO generic tags]
 
 KEYWORDS: [5-10 search phrases separated by commas]
 
@@ -90,7 +90,7 @@ KEYWORDS: [5-10 search phrases separated by commas]
 
 CAPTION: Best wireless earbuds under $50 with amazing sound quality. Perfect for workouts and commuting - comfortable fit, noise isolation, 8hr battery. Bass-heavy or balanced sound - which do you reach for? #ad
 
-HASHTAGS: #WirelessEarbuds #BudgetTech #TechReview #AudioGear #ad
+HASHTAGS: #WirelessEarbuds #BudgetTech #TechReview #ad
 
 KEYWORDS: wireless earbuds under 50, best budget earbuds, affordable wireless headphones, workout earbuds, cheap earbuds good quality, wireless earbuds 2025, budget tech gadgets
 
@@ -98,7 +98,7 @@ KEYWORDS: wireless earbuds under 50, best budget earbuds, affordable wireless he
 
 CAPTION: 20000mAh portable charger that charges your phone 5 times - fast charging for iPhone and Android. Perfect for travel and emergencies. Team big battery or team lightweight - which side are you on? #ad
 
-HASHTAGS: #PortableCharger #TravelTech #PhoneAccessories #TechEssentials #ad
+HASHTAGS: #PortableCharger #TravelTech #PhoneAccessories #ad
 
 KEYWORDS: portable charger 20000mah, phone power bank, fast charging power bank, travel phone charger, emergency battery pack, iPhone portable charger, best power bank 2025
 
@@ -106,7 +106,7 @@ KEYWORDS: portable charger 20000mah, phone power bank, fast charging power bank,
 
 CAPTION: Fitness smartwatch with heart rate monitor and sleep tracking for under $100. Tracks 100+ workouts, 10 day battery life, waterproof design. Sleep tracking or step counting - which one actually changes your habits? #ad
 
-HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #WorkoutGear #ad
+HASHTAGS: #Smartwatch #FitnessTracker #HealthTech #ad
 
 KEYWORDS: fitness smartwatch under 100, budget fitness tracker, heart rate monitor watch, sleep tracking watch, waterproof smartwatch, workout tracker watch, affordable health tech
 

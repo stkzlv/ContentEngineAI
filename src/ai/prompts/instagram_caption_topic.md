@@ -16,7 +16,7 @@ You are an Instagram Reels strategist. Your task is to create a caption and hash
 
 ## Hashtag Requirements (SAME FOR BOTH STYLES):
 
-- Provide 15-30 hashtags
+- Provide 3-4 hashtags. Instagram allows 5 per post
 - Name the problem area and the platform or device involved, not a product category
 - Mix specific tags with a few broader tech-help tags
 - **CRITICAL: Hashtags MUST be in the caption, NOT in comments**
@@ -58,7 +58,7 @@ Every example below already obeys every rule. Match their shape: no link, no adv
 **SEO STYLE:**
 CAPTION: Wifi keeps dropping in one room? Usually channel congestion, not a dying router 📶 Switch to channel 1, 6 or 11 and get the router off the floor. Which room in your house has the worst signal?
 
-HASHTAGS: #WifiTips #HomeNetwork #TechHelp #Troubleshooting #RouterSetup #WifiFix #InternetTips #SmartHome #TechSupport #NetworkTips #WifiSignal #HomeInternet #TechTricks #ConnectivityTips #DigitalLife #TechExplained #HomeOffice #WifiHelp
+HASHTAGS: #WifiTips #HomeNetwork #TechHelp #Troubleshooting
 
 KEYWORDS: wifi keeps dropping, wifi channel congestion, router placement, fix wifi one room, home network tips
 
@@ -70,7 +70,7 @@ CAPTION: Fix your dropping wifi 📶
 **SEO STYLE:**
 CAPTION: Laptop slow on startup is almost never low memory 💻 It is the queue of startup apps you never chose. Task Manager, Startup tab, sort by impact, disable what you do not need. How long does yours take before you can use it?
 
-HASHTAGS: #LaptopTips #WindowsHelp #TechHelp #SpeedUpYourPC #StartupApps #TaskManager #PCTips #ComputerHelp #TechSupport #WindowsTips #LaptopSpeed #TechTricks #ProductivityTips #TechExplained #DigitalLife #PCMaintenance #SlowLaptop #TechAdvice
+HASHTAGS: #LaptopTips #WindowsHelp #TechHelp #SpeedUpYourPC
 
 KEYWORDS: laptop slow startup, disable startup apps, task manager startup, speed up laptop boot
 
@@ -79,7 +79,7 @@ KEYWORDS: laptop slow startup, disable startup apps, task manager startup, speed
 **SEO STYLE:**
 CAPTION: That email is phishing - three tells you can check before clicking ⚠️ The real sender address behind the display name, whether the link goes where it says, and manufactured urgency. Which one nearly caught you out?
 
-HASHTAGS: #PhishingAwareness #OnlineSafety #TechHelp #ScamAlert #EmailSecurity #CyberSecurity #StaySafeOnline #DigitalSafety #TechSupport #SecurityTips #ScamPrevention #InternetSafety #TechExplained #PhishingScam #EmailTips #CyberAware #TechAdvice #OnlineSecurity
+HASHTAGS: #PhishingAwareness #OnlineSafety #TechHelp #ScamAlert
 
 KEYWORDS: spot phishing email, phishing tells, check sender address, fake link destination, email scam signs
 
