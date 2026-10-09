@@ -50,12 +50,13 @@ final CTA ("Link in bio", etc.). It is either a two-option opinion question
 (e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
 spec claim (e.g. "Most people only need two ports, but three is usually
 better."). End the description with that same line, verbatim or
-near-verbatim, on its own line before the product URL. **Preserve the
+near-verbatim, on its own line before the profile pointer. **Preserve the
 script's exact punctuation, including any hyphen between the two options;
 do not convert a hyphen to an em-dash or en-dash.** The closing line is
 additive to the description content (front-loaded SEO + benefits), not a
 replacement; the description still has to satisfy the rules above and end
-with the product URL. If the Generated Spoken Script section above is
+with the profile pointer. A link in a Shorts description is plain text that
+no one can click, so never write a URL; the clickable link is on the profile. If the Generated Spoken Script section above is
 empty, skip the mirror — produce the description as you would otherwise.
 
 ---
@@ -66,7 +67,7 @@ Return your response in the following exact format:
 
 TITLE: [Your 50-60 character title here]
 
-DESCRIPTION: [First 150 chars SEO-optimized; then benefits/features; then a blank line; then the closing engagement-bait line from the script on its own line; then a blank line; then the product URL on the final line. If the script section is empty, skip the closing line and end with the URL.]
+DESCRIPTION: [First 150 chars SEO-optimized; then benefits/features; then a blank line; then the closing engagement-bait line from the script on its own line; then a blank line; then "Link in bio." on the final line. If the script section is empty, skip the closing line and end with "Link in bio."]
 
 HASHTAGS: [3-5 hashtags separated by spaces, starting with #Shorts]
 
@@ -74,15 +75,15 @@ KEYWORDS: [5-10 keywords/phrases separated by commas]
 
 **Examples of High-Quality YouTube Metadata:**
 
-**Example 1: Wireless Earbuds ($50 price point)**
+**Example 1: Wireless Earbuds (Budget Audio)**
 
-TITLE: Best Wireless Earbuds Under $50 - Amazing Sound Quality
+TITLE: Wireless Earbuds With 8-Hour Battery and Noise Isolation
 
 DESCRIPTION: Looking for affordable wireless earbuds with premium sound? These budget-friendly earbuds deliver crystal-clear audio, 8-hour battery life, and comfortable all-day wear. Perfect for workouts, commutes, and everyday listening. Features include noise isolation, touch controls, and IPX5 water resistance. Great value for the price.
 
 Bass-heavy or balanced sound - which do you reach for?
 
-Shop now: https://example.com/product
+Link in bio.
 
 HASHTAGS: #Shorts #WirelessEarbuds #BudgetTech #AudioGear #ad
 
@@ -96,7 +97,7 @@ DESCRIPTION: Never run out of battery again with this ultra-high capacity 20000m
 
 Team big battery or team lightweight - which side are you on?
 
-Shop now: https://example.com/product
+Link in bio.
 
 HASHTAGS: #Shorts #PortableCharger #TechEssentials #TravelGadgets #ad
 
@@ -110,7 +111,7 @@ DESCRIPTION: Track your health 24/7 with this advanced fitness smartwatch featur
 
 Sleep tracking or step counting - which one actually changes your habits?
 
-Shop now: https://example.com/product
+Link in bio.
 
 HASHTAGS: #Shorts #Smartwatch #FitnessTracker #HealthTech #ad
 
@@ -123,6 +124,7 @@ KEYWORDS: fitness smartwatch, health tracker watch, heart rate monitor watch, sl
 - MUST include #Shorts as the first hashtag
 - MUST include #ad hashtag
 - First 150 characters of description are critical for SEO
-- Description ends with: closing engagement-bait line on its own line, blank line, product URL on the final line (see Closing-line Mirror rule above). Skip the closing line only if the script section is empty.
+- Description ends with: closing engagement-bait line on its own line, blank line, "Link in bio." on the final line (see Closing-line Mirror rule above). Skip the closing line only if the script section is empty.
+- Never write a URL: a Shorts description cannot be clicked.
 
 Generate the YouTube metadata below this line:

@@ -20,6 +20,27 @@ from src.scraper.amazon.models import ProductData
 logger = logging.getLogger(__name__)
 
 
+_URL_LINE = re.compile(r"^[^\n]*?(?:https?://|www\.)\S+[^\n]*$", re.MULTILINE)
+_URL = re.compile(r"(?:https?://|www\.)\S+")
+
+
+def drop_urls(description: str) -> str:
+    """The description without URLs (REQ-PUB-148).
+
+    A line that is only a lead-in and a URL goes whole; a URL inside a
+    sentence goes alone.
+    """
+
+    def line(match: re.Match[str]) -> str:
+        rest = _URL.sub("", match.group(0)).strip(" :-")
+        if len(rest.split()) <= 3:
+            return ""
+        return re.sub(r" {2,}", " ", _URL.sub("", match.group(0))).rstrip()
+
+    cleaned = _URL_LINE.sub(line, description)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+
 class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
     """YouTube Shorts metadata generator.
 
@@ -348,8 +369,10 @@ class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):
             # Extract and clean title
             title = strip_inline_markdown(title_match.group(1))
 
-            # Extract and clean description
-            description = strip_inline_markdown(desc_match.group(1))
+            # Extract and clean description. A link in a Shorts description
+            # can't be clicked, so a URL the model wrote anyway is dropped
+            # with its line's lead-in ("Shop now:").
+            description = drop_urls(strip_inline_markdown(desc_match.group(1)))
 
             # Extract hashtags
             hashtags = []
