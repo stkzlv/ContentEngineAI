@@ -6,16 +6,15 @@ Each finding carries a grade, `[A]`, `[B]` or `[C]`, defined in [the evidence gr
 
 ## Hook patterns
 
-Every product template tells the model to open with a conversational hook that carries the search keyword (product category, price band, audience cue or pain point) within the first five seconds of speech (`REQ-CNT-016`). The rule lists six shapes and names the literal search-query shape ("Best [X] under $[N] for [Y]") as an anti-pattern (`REQ-CNT-017`). Line one states a concrete fact, result or observation, and setup framings such as "Today I'll show you" or "In this video" are named as anti-patterns (`REQ-CNT-018`).
+Every product template tells the model to open with a conversational hook that carries the search keyword (product category, audience cue or pain point) within the first five seconds of speech (`REQ-CNT-016`). The rule lists five shapes, speaks no price, and names the literal search-query shape ("Best [X] for [Y]") as an anti-pattern (`REQ-CNT-017`). Line one states a concrete fact, result or observation, and setup framings such as "Today I'll show you" or "In this video" are named as anti-patterns (`REQ-CNT-018`).
 
 | Pattern | Example | Why it works |
 |---|---|---|
-| Price-first reveal | "The $15 [thing] that..." | A specific number gives credibility and a curiosity gap |
-| Regret or contrarian | "I regret buying this", "Don't buy X until you see this" | Negative framing beats positive in cold audiences |
+| Regret or contrarian | "Don't buy a [thing] until you check this" | Negative framing beats positive in cold audiences |
 | POV | "POV: you finally found a [thing] that doesn't [pain]" | The viewer becomes the protagonist, with instant context |
-| Outcome-first | "This fixed my [pain] in 30 seconds" | A result hook; works on warm audiences |
-| Numbered teardown | "3 reasons I'm returning this" | A list promises structure, at a lower cognitive cost |
-| Comparison | "$15 vs $200, same thing?" | A pattern interrupt with value framing |
+| Outcome-first | "This fixes [pain] in one step" | A result hook; works on warm audiences |
+| Numbered teardown | "3 things to check before you buy a [thing]" | A list promises structure, at a lower cognitive cost |
+| Comparison | "[basic kind] vs [premium kind], same thing?" | A pattern interrupt with value framing |
 
 Why:
 

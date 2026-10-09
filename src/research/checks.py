@@ -23,6 +23,27 @@ PROBLEM_TEMPLATES = frozenset({"topic_symptom_cause", "topic_mistake_fix"})
 # An opening used this often across one variant's sample reads as a formula.
 REPEATED_OPENING = 3
 
+# A product script that claims the narrator had the product, or that other
+# people talk about it (REQ-CNT-157): "I picked up", "just got this", "spent
+# $40", "my friends recommended". Anchored on the claim, not on a bare "I".
+# A handling claim counts too: "heavier than I expected", "holds my phone".
+OWNERSHIP = re.compile(
+    r"\b(?:I|I've|I'd|I'm|we|we've)\s+(?:just\s+|finally\s+|recently\s+|"
+    r"actually\s+|already\s+|have\s+|had\s+|been\s+)?"
+    r"(?:bought|got|grabbed|picked\s+(?:\w+\s+)?up|ordered|own|owned|received|"
+    r"unboxed|tried|tested|used|using|wore|wear|spent|switched|love\s+(?:that|how))\b"
+    r"|\bjust\s+(?:got|unboxed|received|picked\s+(?:\w+\s+)?up)\b"
+    r"|\bthan\s+I\s+(?:expected|thought)\b"
+    r"|\b(?:holds|charges|fits|keeps)\s+my\b"
+    r"|\bmy\s+(?:last|old|previous)\s+one\b"
+    r"|\bspent\s+\$"
+    r"|\b(?:friends|everyone|people)\s+(?:keep|kept|recommended|swear|rave)\b"
+    r"|\ball\s+over\s+my\s+feed\b",
+    re.IGNORECASE,
+)
+# A spoken price (REQ-CNT-158): a currency figure or a number of dollars.
+PRICE = re.compile(r"[$£€]\s?\d|\b\d+(?:\.\d+)?\s?(?:dollars|bucks|quid)\b", re.I)
+
 
 def words(text: str) -> int:
     return len(re.findall(r"[\w'’-]+", text))
@@ -79,6 +100,10 @@ def check_one(record: dict[str, Any], band: tuple[int, int]) -> dict[str, Any]:
         and is_task(record["title"])
         and record.get("template") in PROBLEM_TEMPLATES,
         "opening": opening(script),
+        "ownership": len(OWNERSHIP.findall(script))
+        if record["kind"] == "product"
+        else 0,
+        "price": record["kind"] == "product" and bool(PRICE.search(script)),
     }
 
 
@@ -102,6 +127,8 @@ def summarise(checked: list[dict[str, Any]]) -> dict[str, Any]:
         "template_misfit": share("template_misfit"),
         "flagged_claims": sum(c["flagged"] for c in ok),
         "rewritten": sum(c["rewritten"] for c in ok),
+        "ownership_claims": sum(c.get("ownership", 0) for c in ok),
+        "with_price": share("price") if all("price" in c for c in ok) else None,
         "repeated_openings": {
             o: k for o, k in openings.most_common() if k >= REPEATED_OPENING
         },

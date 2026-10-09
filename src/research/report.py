@@ -197,6 +197,8 @@ SUMMARY_ROWS = (
     ("template_misfit", "Task topic on a symptom or mistake template"),
     ("flagged_claims", "Claims the fact check flagged"),
     ("rewritten", "Scripts the fact check rewrote"),
+    ("ownership_claims", "Claims of owning or using the product"),
+    ("with_price", "Product scripts speaking a price"),
 )
 # Shares print as percentages; counts and medians as numbers.
 SHARE_ROWS = frozenset(
@@ -206,6 +208,7 @@ SHARE_ROWS = frozenset(
         "cta_last",
         "with_lint_tell",
         "template_misfit",
+        "with_price",
     }
 )
 
@@ -230,6 +233,8 @@ def _notes(c: dict[str, Any]) -> str:
         (bool(c["flagged"]), f"{c['flagged']} flagged"),
         (c["rewritten"], "rewritten"),
         (c["template_misfit"], "template misfit"),
+        (bool(c.get("ownership")), "claims use"),
+        (bool(c.get("price")), "speaks a price"),
     ]
     return ", ".join(text for on, text in found if on) or "ok"
 

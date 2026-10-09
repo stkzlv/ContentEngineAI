@@ -22,6 +22,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from aiohttp.client_exceptions import (
@@ -478,6 +479,7 @@ def format_prompt(
         short_name = full_name
     else:
         short_name = _short_product_name(full_name)
+    reviews = listing_reviews(product)
     try:
         return template.format(
             FULL_PRODUCT_NAME=full_name,
@@ -489,6 +491,8 @@ def format_prompt(
             TOPIC_TITLE=full_name,
             TOPIC_DETAIL=description,
             CTA_RULE=cta_rule,
+            PRODUCT_RATING=reviews[0] if reviews else "not given",
+            REVIEW_COUNT=reviews[1] if reviews else "not given",
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e
@@ -512,12 +516,25 @@ def save_debug_prompt(prompt: str, path: Path):
         logger.exception("Failed to save debug prompt to %s: %s", path, e)
 
 
+# Templates written from the listing's rating and review count; a product
+# whose data carries neither has nothing for them to cite (REQ-CNT-157).
+RATING_TEMPLATES = frozenset({"social_proof"})
+
+
+def listing_reviews(product: Any) -> tuple[str, str] | None:
+    """The listing's rating and review count, or None when either is missing."""
+    rating = str(getattr(product, "rating", None) or "").strip()
+    count = re.sub(r"[^\d,]", "", str(getattr(product, "reviews_count", None) or ""))
+    return (rating, count) if rating and count.strip(",") else None
+
+
 def select_script_template(
     settings: LLMSettings,
     product_id: str | None = None,
     pillar: str | None = None,
     is_topic: bool = False,
     title: str | None = None,
+    has_reviews: bool = True,
 ) -> Path:
     """Select a script template, deterministically by product ID.
 
@@ -579,6 +596,11 @@ def select_script_template(
         without_topic = [t for t in pool if t not in templates_cfg.topic_templates]
         if without_topic:
             pool = without_topic
+
+    if not is_topic and not has_reviews:
+        without_reviews = [t for t in pool if t not in RATING_TEMPLATES]
+        if without_reviews:
+            pool = without_reviews
 
     # A topic replaces the pool rather than narrowing it. Every other template
     # is written to pitch a product, so leaving one in the pool means a topic
@@ -1145,6 +1167,7 @@ async def generate_script(
             pillar,
             is_topic=bool(getattr(product, "topic", None)),
             title=getattr(product, "topic", None) or product.title,
+            has_reviews=listing_reviews(product) is not None,
         )
     template_name = template_path.stem
     is_topic = bool(getattr(product, "topic", None))

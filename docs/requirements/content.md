@@ -32,8 +32,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 
 ## Product script rules
 
-- **REQ-CNT-016** `shipped` Every product template instructs the LLM to open with a conversational hook that carries the long-tail search keyword (product category, price band, audience cue or pain point) within the first five seconds of speech.
-- **REQ-CNT-017** `shipped` The product hook rule lists six hook patterns (price-first reveal, regret or contrarian, POV, outcome-first, numbered teardown, comparison) and names the literal search-query shape as an anti-pattern.
+- **REQ-CNT-016** `shipped` Every product template instructs the LLM to open with a conversational hook that carries the long-tail search keyword (product category, audience cue or pain point) within the first five seconds of speech.
+- **REQ-CNT-017** `shipped` The product hook rule lists five hook patterns (regret or contrarian, POV, outcome-first, numbered teardown, comparison) and names the literal search-query shape as an anti-pattern.
 - **REQ-CNT-018** `shipped` Every product template instructs the LLM to state a concrete fact, result or observation about the product in the first line, and names setup framings ("Today I'll show you", "In this video") as anti-patterns.
 - **REQ-CNT-019** `shipped` Every product template instructs the LLM to end the script with one short closing question or claim right before the call to action.
 - **REQ-CNT-020** `shipped` Personal and storytelling templates close on a two-option opinion question; analytical and comparison templates close on a debatable but defensible spec claim.
@@ -43,10 +43,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-023** `shipped` Every product template instructs the LLM to include one trade-off or limitation of the product, one sentence at most.
 - **REQ-CNT-024** `shipped` Scripts name the product the way a person says it aloud and never speak model or SKU designations.
 - **REQ-CNT-025** `shipped` The template offers the short product alias as a suggestion, and the script uses the plain category noun when the alias does not read as a spoken name.
-- **REQ-CNT-157** `planned #700` A product script never claims that the narrator owned, bought, received, used or tested the product, nor that other people talk about it; the first person speaks only for research and opinion.
-- **REQ-CNT-158** `planned #700` A product script speaks no price, and no template example or hook pattern models one.
-- **REQ-CNT-159** `planned #700` No script template or narrator profile quotes a whole example sentence a script could reuse; an example shows its shape with placeholders.
-- **REQ-CNT-160** `planned #700` A product script says in one sentence who the product suits or who should skip it, beside its one trade-off.
+- **REQ-CNT-157** `shipped` A product script never claims that the narrator owned, bought, received, used or tested the product, nor that other people talk about it; the first person speaks only for research and opinion.
+- **REQ-CNT-158** `shipped` A product script speaks no price, and no template example or hook pattern models one.
+- **REQ-CNT-159** `shipped` No script template or narrator profile quotes a whole example sentence a script could reuse; an example shows its shape with placeholders.
+- **REQ-CNT-160** `shipped` A product script says in one sentence who the product suits or who should skip it, beside its one trade-off.
 
 ## Topic script rules
 
@@ -96,8 +96,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-151** `shipped` When every flagged claim's fix asks for its removal, the producer deletes those sentences without a rewrite, provided they are exactly the claims and no following sentence leans on them; otherwise the reviser repairs them, and a rewrite that repeats a removed claim's subject words is refused.
 - **REQ-CNT-154** `shipped` The fact check refuses a revision that adds a sentence carrying fix wording a flagged claim's fix used ("instead of", "is located under", "is located in", "can be found under", "is found under") or that says a sentence twice where the original said it once; a fix that answers a claimed limit (a claim saying "limit" or "limited", or a number after "up to", "at most", "more than", "over", "fewer than", "less than" or "maximum of") with a universal ("regardless of", "no matter how", "no matter what", "any number of", "unlimited", "no limit") is carried out as a removal of the claim, and a revision that brings such a universal back, other than one another flag's fix uses, is refused.
 - **REQ-CNT-155** `shipped` Where `llm_settings.script_validation.reject_copied_examples` is on, a generated script is retried when a sentence that is not a question, and not a configured call to action or one of its sentences, shares at least three, and at least three fifths, of the content words of a quoted example in its own prompt and some of those words appear nowhere in the product's title, description or keyword; when every attempt does so, the script ships without that sentence, and without a question just before it, if the rest passes validation.
-- **REQ-CNT-156** `partial` The narrator profile asks for one concrete detail taken from the product description and forbids inventing a personal moment, a day, a trip or a test with the product, and no script template models such a moment as an example.
-  - Gap: the product narrator profile's voice example still models one ("So I picked this up last month ... Took it on a hike and never lost signal") (#700).
+- **REQ-CNT-156** `shipped` The narrator profile asks for one concrete detail taken from the product description and forbids inventing a personal moment, a day, a trip or a test with the product, and no script template models such a moment as an example.
 - **REQ-CNT-052** `shipped` Before TTS, the producer removes speaker labels, parenthetical stage directions, markdown (code-span backticks and link targets included), emojis and hashtags from the script, and unwraps square brackets, keeping the words inside; a generated script carrying bracketed text that neither the listing nor a step's UI path contains is retried, and ships only when every attempt carries some.
 - **REQ-CNT-053** `shipped` Where script lint is enabled, the producer rejects a script that uses common machine-writing phrases, exceeds a sentence-length cap or exceeds a word count derived from the target duration, and retries; the script prompt states the sentence cap and, outside a tutorial, the word count.
 - **REQ-CNT-164** `shipped` When any primary-model draft fails only a soft check (a borrowed prompt example, a placeholder or the script lint) and none passes, the script step tries no fallback model and keeps one such draft, in the order borrowed example, placeholder, lint; with no such draft, a failure still falls back.

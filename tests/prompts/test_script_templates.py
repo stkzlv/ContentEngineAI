@@ -144,8 +144,9 @@ def test_analytical_close_has_passive_product_branch(template: Path) -> None:
     # Anchored against both production canaries.
     assert "a tracker tag has no ports" in text
     assert "a phone holder has no battery life" in text
-    # The passive branch keeps worked examples; they are non-numeric.
-    assert "Steel beats plastic for any clamp-style mount" in text
+    # The passive branch keeps its examples as shapes, with nothing to copy
+    # whole (REQ-CNT-159).
+    assert '"[material] beats [material] for [use]."' in text
 
 
 @pytest.mark.parametrize(
