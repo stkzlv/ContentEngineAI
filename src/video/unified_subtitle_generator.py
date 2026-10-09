@@ -14,6 +14,7 @@ from typing import Any
 import pysrt
 
 from src.utils import ensure_dirs_exist
+from src.utils.seeding import product_rng
 from src.video.config import config
 from src.video.config.subtitle_models import SubtitleSettings
 from src.video.result_types import SubtitleResult
@@ -870,15 +871,19 @@ class UnifiedSubtitleGenerator:
 
         if self.config.randomize_effects:
             # Random preset: Select exactly 1 effect from available effects
-            if self.product_id:
-                random.seed(hash(self.product_id + "effects"))
+            # The same effect for a product in every run (REQ-VID-072).
+            rng = (
+                product_rng(self.product_id, "effects")
+                if self.product_id
+                else random.Random()  # noqa: S311
+            )
 
             available_effects = [
                 effect for effect in selected_effects if effect in preset_effects
             ]
 
             if available_effects:
-                chosen_effect = random.choice(available_effects)  # noqa: S311
+                chosen_effect = rng.choice(available_effects)
                 selected_effects[chosen_effect] = True
                 logger.debug("Selected random effect for video: %s", chosen_effect)
         else:

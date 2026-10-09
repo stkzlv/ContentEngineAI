@@ -139,15 +139,15 @@ def get_style_config(
 
     # Handle RANDOM preset - force randomization and select one random effect
     if preset == StylePreset.RANDOM and product_id:
-        import random
+        from src.utils.seeding import product_rng
 
-        # Seed random generator with product_id for consistent selection per video
-        random.seed(hash(product_id + "random_preset"))
+        # The same effect for a product in every run.
+        rng = product_rng(product_id, "random_preset")
 
         # Select one random effect from all available effects
         all_effects = base_config["effects"]
         if all_effects:
-            selected_effect = random.choice(all_effects)  # noqa: S311
+            selected_effect = rng.choice(all_effects)
             base_config["effects"] = [selected_effect]
             logger.debug("RANDOM preset selected effect: %s", selected_effect)
 
