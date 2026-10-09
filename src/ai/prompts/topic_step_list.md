@@ -33,7 +33,9 @@ Rules:
 - Set `common_mistake` to null when no source names a common mistake.
 - Judge the task itself in `topic_check`:
   - `specific`: one device family or app, and one outcome. "On any device"
-    or "why X happens" with many causes is not specific.
+    is not specific. A "why X happens" question is specific when it names
+    one device family or app and one symptom: its steps are the checks for
+    the usual causes, each something the viewer can test.
   - `searchable`: phrased the way people type it into a search box.
   - `demonstrable`: it ends in a visible path or result on screen.
   - `non_default`: a hidden setting, a shortcut or a counter-intuitive cause,

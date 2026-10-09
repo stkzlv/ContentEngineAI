@@ -260,7 +260,10 @@ async def build_step_list(
         RuntimeError,
         genai_errors.APIError,
     ) as e:
-        logger.warning("Step list call failed for '%s': %s", topic, e)
+        # A timeout's message is empty, so name the error's type.
+        logger.warning(
+            "Step list call failed for '%s': %s %s", topic, type(e).__name__, e
+        )
         return None
     finally:
         aclose = getattr(client.aio, "aclose", None)

@@ -37,7 +37,7 @@ Built and held off: length follows the number of steps, from a sourced step list
 | Concept explainer | "Why wifi drops at night" | a cause, then 1-2 checks | 35-60 s, ending in one testable action | 100-160 |
 | More than 6 steps, or forks by device | "Fix wifi drops" in general | - | a numbered series, one per device or cause | - |
 
-With step lists on, a topic titled "Why ..." is written to the explainer row's shape and band (REQ-VID-161, held); the step-list topic filter still drops most explainer titles as not specific, which #657 tracks.
+With step lists on, a topic titled "Why ..." is written to the explainer row's shape and band (REQ-VID-161, held); the step-list topic filter accepts a "why" question that names one device family or app and one symptom, its steps being the checks for the usual causes.
 
 Why:
 

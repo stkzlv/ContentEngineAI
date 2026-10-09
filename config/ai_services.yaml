@@ -181,14 +181,15 @@ llm_settings:
   # result and source URL; a step without a source is refused and its topic
   # dropped (a missing step leaves a tutorial no one can follow), and a topic
   # that forks by device or needs more than max_steps is set aside for a
-  # series. The script's length follows the step count. Off until the
-  # reach-test readout.
+  # series. The script's length follows the step count. Off: with the
+  # bundled filter it drops most of a typical topic pool (design 0017).
   topic_scripts:
     step_list:
       enabled: false
       model: "gemini-3.7-flash"
       max_steps: 6
-      timeout_seconds: 60
+      # A grounded call measured 45-55 s; at 60 most calls timed out.
+      timeout_seconds: 120
 
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:

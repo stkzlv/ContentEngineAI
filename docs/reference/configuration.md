@@ -1661,10 +1661,10 @@ search round trip inside it.
 ```yaml
   topic_scripts:
     step_list:
-      enabled: false     # held until the reach-test readout
+      enabled: false
       model: "gemini-3.7-flash"
       max_steps: 6
-      timeout_seconds: 60
+      timeout_seconds: 120  # a grounded call measured 45-55 s
 ```
 
 With `step_list.enabled`, a topic's script starts with one grounded call for
@@ -1679,7 +1679,7 @@ topic that fails is dropped. All of these count as a skipped product;
 script is then written from the steps with a length set by their count (40-80
 words for one or two steps, 110-200 for three to six), naming the device and
 version, the screen where the steps start and the source's common mistake at
-its step, and closing on the result and a one-sentence path recap. The list is kept in
+its step, and closing on the result and a one-sentence path recap. A topic titled "Why ..." is written as a concept explainer instead: its usual cause, then the steps as checks, in 100-160 words whatever the count. The list is kept in
 `temp/step_list.json`.
 
 Every topic run that generates a script writes
