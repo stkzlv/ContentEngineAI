@@ -25,6 +25,8 @@ CTA = "Drop a comment if this worked."
 @pytest.mark.req("REQ-OPS-109")
 def test_each_variant_changes_only_its_own_key() -> None:
     base = load_video_config_modular()
+    # Pinned off, so the variant's change is visible whatever ships.
+    base.llm_settings.topic_scripts.step_list.enabled = False
     template = base.llm_settings.script_templates.fixed_template
 
     shipped = variant_config(base, "shipped", "How to x")

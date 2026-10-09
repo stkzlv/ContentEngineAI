@@ -185,11 +185,13 @@ llm_settings:
   # bundled filter it drops most of a typical topic pool (design 0017).
   topic_scripts:
     step_list:
-      enabled: false
+      enabled: true
       model: "gemini-3.7-flash"
       max_steps: 6
       # A grounded call measured 45-55 s; at 60 most calls timed out.
       timeout_seconds: 120
+      # A timed-out or dropped call is tried again; a 4xx is not.
+      attempts: 2
 
   # Fallback provider: used when primary provider exhausts all models
   fallback_provider:

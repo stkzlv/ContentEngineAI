@@ -75,7 +75,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Held |
 | [0015](0015-narrator-voice-evaluation.md) | Evaluate a distinctive or owned narrator voice | #557 | Draft |
 | [0016](0016-tiktok-ai-label.md) | Revisit the TikTok AI label | #558 | Accepted |
-| [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Held |
+| [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Implemented |
 | [0018](0018-tutorial-step-visuals.md) | A visual per step | #560 | Accepted |
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |

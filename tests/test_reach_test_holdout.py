@@ -19,10 +19,3 @@ from src.video.config import load_video_config_modular
 def test_the_signature_sting_is_off() -> None:
     """No sting file ships, so the sting stays held."""
     assert load_video_config_modular().audio_settings.signature_sting is None
-
-
-@pytest.mark.req("REQ-VID-121", "REQ-VID-122", "REQ-VID-151")
-def test_topic_step_lists_are_off() -> None:
-    """Step lists rewrite the topic arm's scripts (design 0017)."""
-    settings = load_video_config_modular().llm_settings
-    assert settings.topic_scripts.step_list.enabled is False
