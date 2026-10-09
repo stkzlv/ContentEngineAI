@@ -291,6 +291,34 @@ async def _fetch_stock_across_queries(
     return pooled
 
 
+def _scraped_media(
+    ctx: PipelineContext,
+    recorded: list[str] | None,
+    subdir: str,
+    patterns: tuple[str, ...],
+) -> list[Path]:
+    """The scraped media files a render can use, under the run's outputs root.
+
+    The scraper records paths relative to its outputs root, which is the
+    render's own (`--outputs-dir`, REQ-OPS-031); a path relative to the
+    repository is still accepted. With no recorded path on disk, the
+    product's media directory is scanned.
+    """
+    outputs_root = Path(ctx.run_paths["run_root"]).parent
+    project_root = ctx.config.project_root
+    found = []
+    for rel in recorded or []:
+        for base in (outputs_root, project_root):
+            if (base / rel).exists():
+                found.append(base / rel)
+                break
+    asin = getattr(ctx.product, "asin", None)
+    if found or not asin:
+        return found
+    media_dir = outputs_root / asin / subdir
+    return [p for pattern in patterns for p in media_dir.glob(pattern) if p.is_file()]
+
+
 async def step_gather_visuals(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "gather_visuals",
@@ -337,52 +365,17 @@ async def step_gather_visuals(ctx: PipelineContext):
                 len(preload_task_ids),
             )
 
-        project_root = ctx.config.project_root
         scraped_images = []
         scraped_videos = []
 
         if ctx.profile.use_scraped_images:
-            # First try using the downloaded_images array from product data
-            scraped_images = [
-                project_root / p
-                for p in (ctx.product.downloaded_images or [])
-                if (project_root / p).exists()
-            ]
-
-            # Fallback: scan the images directory if downloaded_images is empty
-            if not scraped_images and hasattr(ctx.product, "asin") and ctx.product.asin:
-                images_dir = project_root / "outputs" / ctx.product.asin / "images"
-                if images_dir.exists():
-                    scraped_images = [
-                        img_path
-                        for img_path in images_dir.glob("*.jpg")
-                        if img_path.is_file()
-                    ]
-                    scraped_images.extend(
-                        [
-                            img_path
-                            for img_path in images_dir.glob("*.png")
-                            if img_path.is_file()
-                        ]
-                    )
-
+            scraped_images = _scraped_media(
+                ctx, ctx.product.downloaded_images, "images", ("*.jpg", "*.png")
+            )
         if ctx.profile.use_scraped_videos:
-            # First try using the downloaded_videos array from product data
-            scraped_videos = [
-                project_root / p
-                for p in (ctx.product.downloaded_videos or [])
-                if (project_root / p).exists()
-            ]
-
-            # Fallback: scan the videos directory if downloaded_videos is empty
-            if not scraped_videos and hasattr(ctx.product, "asin") and ctx.product.asin:
-                videos_dir = project_root / "outputs" / ctx.product.asin / "videos"
-                if videos_dir.exists():
-                    scraped_videos = [
-                        vid_path
-                        for vid_path in videos_dir.glob("*.mp4")
-                        if vid_path.is_file()
-                    ]
+            scraped_videos = _scraped_media(
+                ctx, ctx.product.downloaded_videos, "videos", ("*.mp4",)
+            )
         stock_media_fetched: list[Any] = []
         # Declared beside `stock_media_fetched`, not inside the arm that fills
         # it. `save_visuals_info` below reads it on every path, so a profile
