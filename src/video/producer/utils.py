@@ -9,6 +9,7 @@ from typing import Any
 
 from src.utils import ensure_dirs_exist
 from src.utils.logging_setup import dated_log_path, setup_debug_logging
+from src.utils.seeding import product_rng
 from src.video.config import VideoConfig
 
 logger = logging.getLogger(__name__)
@@ -384,9 +385,8 @@ def select_profile_for_product(
     # Validate all profiles exist in config
     validate_profiles(profile_pool, config)
 
-    # Use hash of product ID for deterministic seeding
-    seed = hash(product_id)
-    rng = random.Random(seed)  # noqa: S311
+    # The same profile for a product in every run (REQ-BAT-040).
+    rng = product_rng(product_id, "profile")
 
     # Select profile deterministically
     selected = rng.choice(profile_pool)

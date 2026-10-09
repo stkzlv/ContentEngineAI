@@ -134,8 +134,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 - **REQ-VID-070** `shipped` The FFmpeg engine offers the style presets minimal, modern (default), bold, animated and random.
 - **REQ-VID-071** `shipped` The caption effects are karaoke (word-by-word highlight), fade and typewriter.
-- **REQ-VID-072** `partial` A render uses one caption effect, chosen deterministically from the product id.
-  - Gap: the choice for the same product differs from one run to the next.
+- **REQ-VID-072** `shipped` A render uses one caption effect, chosen deterministically from the product id.
 - **REQ-VID-073** `shipped` Where randomisation is on, the caption font and colour pair are drawn from curated pools.
 - **REQ-VID-148** `shipped` No bundled caption template or style preset flashes, and none scales a word beyond 1.1x: the `explosive` template's word zoom peaks at 1.10x, and `word-focus` has no animation.
 - **REQ-VID-149** `shipped` A render's captions use at most three highlight colours, since one caption template or one colour pair styles the whole render.

@@ -76,8 +76,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-037** `shipped` With random profiles, the batch picks a profile for each product from the configured pool.
 - **REQ-BAT-038** `shipped` When no pool is configured, the batch picks from all profiles except `base` and `slideshow_stock`.
 - **REQ-BAT-039** `shipped` `base` and `slideshow_stock` stay usable as an explicit profile choice.
-- **REQ-BAT-040** `partial` The batch picks the same random profile for the same product on every run.
-  - Gap: the choice is stable within one run but differs from one run to the next.
+- **REQ-BAT-040** `shipped` The batch picks the same random profile for the same product on every run.
 - **REQ-BAT-041** `shipped` If a product lacks the media its profile needs, the batch skips it during rendering and counts it as skipped.
 - **REQ-BAT-042** `shipped` If a topic run would draw a profile that sources no stock media, the batch refuses to start.
 - **REQ-BAT-071** `shipped` When `--profile` is passed, or `global_batch.profile` is set, the batch renders every product with that profile.

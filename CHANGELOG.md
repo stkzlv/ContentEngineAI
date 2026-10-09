@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.196.1] - 2026-10-09
+
+### Fixed
+
+- A product gets the same random profile, caption effect and random caption preset on every run, and drawing them no longer reseeds the global random generator.
+
 ## [0.196.0] - 2026-10-09
 
 ### Changed
