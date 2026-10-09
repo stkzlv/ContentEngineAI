@@ -32,11 +32,11 @@ The pull request that builds a feature behind an off switch sets its design doc 
 
 A feature that changes rendered output ships off by default ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)). The designs below follow these rules on top of it:
 
-- **Off by default when it changes output.** The format-vs-format reach test needs the script, voice and sound held constant until its readout (#540). Anything that changes what a render looks or sounds like ships behind a switch that defaults to today's behaviour, and `tests/test_reach_test_holdout.py` gains a check for it. Measurement-only work ([0006](0006-render-choices-and-variety-report.md), [0010](0010-first-seconds-metrics.md)) can land at any time.
+- **A switch when it changes output.** Anything that changes what a render looks or sounds like ships behind a config switch, so it can be turned off. The reach-test hold that kept such switches off ended once the test's posts were queued ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)); a switch still off is `held`, and `tests/test_reach_test_holdout.py` checks it.
 - **Byte-identical when off.** Each design's off state must leave the FFmpeg command, the prompt or the payload exactly as it is today, pinned by a test.
 - **Seeded variation.** A choice drawn per render uses a salted MD5 of the product id (`<product_id>:<purpose>`), the pattern the CTAs and pauses already use (fonts and voices hash the bare product id with different slices). A product renders the same way every time, and a batch varies.
 - **Record what was chosen.** Every drawn choice goes into `pipeline_state.json` beside `script_template` and `cta`, and is mirrored into the step entry so a truncating resume keeps it. [0006](0006-render-choices-and-variety-report.md) turns these records into a variety report, and [0010](0010-first-seconds-metrics.md) segments metrics by them.
-- **Measure before enabling.** Each production design lists, under Rollout, the check that decides whether to enable it after the readout. Most of the evidence is creator opinion or ad research, so the pipeline's own analytics decide.
+- **Measure before enabling.** Each production design lists, under Rollout, the check that decides whether to enable it. Most of the evidence is creator opinion or ad research, so the pipeline's own analytics decide.
 
 ## Evidence grades
 

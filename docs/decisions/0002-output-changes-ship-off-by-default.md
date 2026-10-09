@@ -1,6 +1,6 @@
 # 0002. Output-changing features ship off by default
 
-- **Status:** Accepted
+- **Status:** Amended by [0014](0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)
 - **Date:** 2026-10-01
 
 ## Context and problem

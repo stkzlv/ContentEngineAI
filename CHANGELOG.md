@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.189.1] - 2026-10-09
+
+### Changed
+
+- The reach-test hold ends because the test's posts are all rendered and queued: held features may be turned on and prompt templates may change, and a queued test post is never re-rendered.
+
 ## [0.189.0] - 2026-10-08
 
 ### Added
