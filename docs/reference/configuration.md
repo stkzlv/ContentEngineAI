@@ -688,7 +688,7 @@ audio_settings:
   # signature_sting: {path: "assets/audio/sting.wav", position: "start",
   #                   offset_sec: 0.0, volume_db: -6.0}
 
-  # Sparse sound effects, off by default: the first frame under the hook
+  # Sparse sound effects, on in the bundled config: the first frame under the hook
   # headline (hook), the sentence after the hook (reveal) and the last
   # sentence (cta), at most max_per_10_sec keeping cta, then reveal, then
   # hook, never in a word's first 100 ms. reveal and cta need the Whisper

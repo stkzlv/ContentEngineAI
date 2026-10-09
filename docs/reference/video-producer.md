@@ -242,18 +242,18 @@ Five visual-layer keys live on `video_settings`. `first_frame_pre_motion`, `pre_
 | Key | Effect |
 |---|---|
 | `first_frame_pre_motion`, `pre_motion_peak_zoom` | When on, the first image segment starts at `pre_motion_peak_zoom` (default 1.10) and settles to 1.0 over the segment, so frame 0 is mid-motion rather than static. No effect when the first segment is a video clip. Off on the 30-45 s profiles, on for `slideshow_short_20s`. |
-| `still_motion` | Off by default. When `enabled`, every still image moves inside its own image box, so the image band and the caption zone don't change: a move is drawn from `moves` (`push_in`, `pull_out`, `pan_left`, `pan_right`, `pan_up`) per product and per image, the same on every run, and two consecutive stills never share one unless the pool holds a single move (a repeated entry counts once). Zooms run between `min_zoom` (default 1.0) and `max_zoom` (default 1.15); pans travel across the `max_zoom` margin. The first image keeps its settle-zoom where `first_frame_pre_motion` is on. |
+| `still_motion` | Off by default; on in the bundled config. When `enabled`, every still image moves inside its own image box, so the image band and the caption zone don't change: a move is drawn from `moves` (`push_in`, `pull_out`, `pan_left`, `pan_right`, `pan_up`) per product and per image, the same on every run, and two consecutive stills never share one unless the pool holds a single move (a repeated entry counts once). Zooms run between `min_zoom` (default 1.0) and `max_zoom` (default 1.15); pans travel across the `max_zoom` margin. The first image keeps its settle-zoom where `first_frame_pre_motion` is on. |
 | `hook_overlay` | Burns a short headline as centre-upper static text on the first `duration_sec` seconds (default 1.5), with no per-word reveal. The headline is stored in `pipeline_state.json::hook_headline`. Every field, the wrapping and the fallback are in [Configuration](configuration.md#31-overlay-settings). |
 | `upper_line` | A static line held above the visual for the whole clip: the affiliate link, the public link-in-bio page, or fixed text. Off by default; see [Configuration](configuration.md#31-overlay-settings). |
 | `cold_open_variant_pool` | Named cold-open variants (`mid_zoom_title_card`, `static_title_card`, `pre_motion_only`), one picked per product by salted MD5. The choice is stored in `pipeline_state.json::assemble_video.cold_open_variant`. An empty list turns rotation off. |
 
 ## Beat snapping
 
-`video_settings.beat_snap` (off by default) moves each visual cut, the middle of a crossfade, to the nearest beat of the render's music within `window_ms` (default 150). The neighbouring segments trade the difference, so the video's length, the voiceover and the captions don't move. A move is skipped when it would shorten a segment below `min_visual_segment_duration_sec`, reach the end of the video, or lengthen a video clip. Beats come from `librosa.beat.beat_track`, once per track, cached beside it as `<track>.beats.json` keyed to the file's size and modification time. librosa is in the optional `beats` dependency group (`poetry install --with beats`); without it the setting logs a warning and the cuts stay where they were.
+`video_settings.beat_snap` (off by default, on in the bundled config) moves each visual cut, the middle of a crossfade, to the nearest beat of the render's music within `window_ms` (default 150). The neighbouring segments trade the difference, so the video's length, the voiceover and the captions don't move. A move is skipped when it would shorten a segment below `min_visual_segment_duration_sec`, reach the end of the video, or lengthen a video clip. Beats come from `librosa.beat.beat_track`, once per track, cached beside it as `<track>.beats.json` keyed to the file's size and modification time. librosa is in the optional `beats` dependency group (`poetry install --with beats`); without it the setting logs a warning and the cuts stay where they were.
 
 ## Image curation
 
-`video_settings.image_curation` (off by default) prefers clean product images over text-heavy seller infographics.
+`video_settings.image_curation` (off by default, on in the bundled config) prefers clean product images over text-heavy seller infographics.
 
 | Key | Default | Effect |
 |---|---|---|
@@ -270,7 +270,7 @@ Each image is judged once and the score is cached beside it as `<image>.text_sco
 
 | Value | Effect |
 |---|---|
-| `outro` (default) | The video runs `outro_duration_sec` (`config/core.yaml`, 1.0 s) past the end of the voiceover file, and the music fades over `music_fade_out_duration`. |
+| `outro` (code default; the bundled config sets `peak`) | The video runs `outro_duration_sec` (`config/core.yaml`, 1.0 s) past the end of the voiceover file, and the music fades over `music_fade_out_duration`. |
 | `peak` | The video ends `peak_margin_sec` (default 0.25 s) after the last spoken word, found by `silencedetect` as the start of the silence that runs to the end of the voiceover. The music fades within the margin. If the measurement fails, the whole voiceover file counts as speech. |
 | `loop` | `peak`, plus a closing segment of the first image that replays its opening motion backwards (the settle-zoom where `first_frame_pre_motion` is on, else the reverse of its still motion), so the last frame matches the first apart from the captions and the hook overlay. Stills are dropped from the end of the timeline when needed to keep every segment at `min_visual_segment_duration_sec`. A render with video clips ends as `peak`, with a warning. |
 
