@@ -116,8 +116,8 @@ async def test_cached_images_cost_no_judgement(tmp_path: Path) -> None:
 
 
 @pytest.mark.req("REQ-VID-015")
-def test_the_shipped_config_keeps_curation_off() -> None:
-    assert config.video_settings.image_curation.enabled is False
+def test_the_shipped_config_turns_curation_on() -> None:
+    assert config.video_settings.image_curation.enabled is True
 
 
 def _ctx(enabled: bool, secrets: dict) -> SimpleNamespace:

@@ -21,38 +21,11 @@ def test_the_signature_sting_is_off() -> None:
     assert load_video_config_modular().audio_settings.signature_sting is None
 
 
-@pytest.mark.req("REQ-VID-022")
-def test_video_content_stays_top_aligned() -> None:
-    """The code default is centre; the shipped config pins top for the
-    profiles that don't set it, so their renders don't move mid-test.
-    """
-    from src.video.config.visual_models import VideoSettings
-
-    assert VideoSettings.model_fields["video_vertical_align"].default == "center"
-    config = load_video_config_modular()
-    assert config.video_settings.video_vertical_align == "top"
-
-
 @pytest.mark.req("REQ-VID-121", "REQ-VID-122", "REQ-VID-151")
 def test_topic_step_lists_are_off() -> None:
     """Step lists rewrite the topic arm's scripts (design 0017)."""
     settings = load_video_config_modular().llm_settings
     assert settings.topic_scripts.step_list.enabled is False
-
-
-@pytest.mark.req("REQ-VID-158")
-def test_the_caption_outline_is_off() -> None:
-    """The outline restyles every caption (6 px chosen, held for the readout)."""
-    from src.video.config.subtitle_models import PycapsSettings
-
-    config = load_video_config_modular()
-    for profile in config.video_profiles:
-        merged = config.get_profile_merged_settings(profile)
-        # A profile override can arrive as a mapping.
-        pycaps: Any = merged.subtitle_settings.pycaps
-        if pycaps is not None and not isinstance(pycaps, PycapsSettings):
-            pycaps = PycapsSettings(**pycaps)
-        assert pycaps is None or pycaps.outline_px == 0, profile
 
 
 @pytest.mark.req("REQ-PUB-008")

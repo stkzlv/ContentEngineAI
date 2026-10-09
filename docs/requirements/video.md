@@ -16,18 +16,13 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Why: a full-resolution photo can exceed the render's memory cap in decoding alone.
 - **REQ-VID-008** `shipped` If a render exceeds its total time budget (`pipeline_timeout_sec`), the producer stops it and reports the product as timed out.
 - **REQ-VID-009** `shipped` Final assembly has its own timeout (`final_assembly_timeout_sec`), which sits inside the render's total time budget.
-- **REQ-VID-010** `held` Where still motion is on, every still image carries slow, jitter-free motion whose direction varies per image and per product, so no render contains a static still.
-  - On when: `video_settings.still_motion.enabled` is set after the reach-test readout (#540), once swipe-away and completion (#551) on a batch with motion are no worse than without.
-- **REQ-VID-011** `held` Where a profile's ending is `peak`, a render ends on its last spoken word with no silent or fading tail; with `loop`, an image-only render's last frame also matches its first.
-  - On when: a profile sets `ending` to `peak` or `loop` after the reach-test readout (#540), once average percentage viewed rises and the last spoken word stays intact.
-- **REQ-VID-012** `held` Where sound effects are on, sparse effects mark three beats (the hook on the first frame, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
-  - On when: `audio_settings.sound_effects.enabled` is set after the reach-test readout (#540), once completion on an A/B batch is no worse with effects.
-- **REQ-VID-013** `held` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
-  - On when: `video_settings.beat_snap.enabled` is set once a blind listening comparison prefers it or completion improves.
+- **REQ-VID-010** `shipped` Where still motion is on, every still image carries slow, jitter-free motion whose direction varies per image and per product, so no render contains a static still.
+- **REQ-VID-011** `shipped` Where a profile's ending is `peak`, a render ends on its last spoken word with no silent or fading tail; with `loop`, an image-only render's last frame also matches its first.
+- **REQ-VID-012** `shipped` Where sound effects are on, sparse effects mark three beats (the hook on the first frame, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
+- **REQ-VID-013** `shipped` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
 - **REQ-VID-014** `planned #552` Every render produces a cover image (the hero visual plus the hook headline inside the centred 3:4 area), set on each platform that accepts one.
   - Why: it ships without a switch, since it doesn't change the feed video, once the publish payload change is verified on one post.
-- **REQ-VID-015** `held` Where image curation is on, a product render prefers clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist.
-  - On when: `video_settings.image_curation.enabled` is set after the reach-test readout (#540), once a side-by-side review prefers the curated set and swipe-away is no worse.
+- **REQ-VID-015** `shipped` Where image curation is on, a product render prefers clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist.
 - **REQ-VID-016** `planned #554` Where image curation is on and the profile accepts video, a product render prefers the listing's product video over stills.
   - Gap: not built. Profiles that take scraped video already build their timeline from the clips through their assembly mode, and the assembly step shuffles the visuals, so what "prefer" should change needs deciding first.
   - On when: `video_settings.image_curation.enabled` is set, on the same condition as REQ-VID-015.
@@ -46,8 +41,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 ## Video positioning
 
-- **REQ-VID-022** `held` The render centres video content vertically by default; a profile can align it to the top with an offset (default 10%).
-  - On when: `video_settings.video_vertical_align: top` is removed from `config/video_production.yaml` after the reach-test readout (#540), so the profiles that don't set it centre.
+- **REQ-VID-022** `shipped` The render centres video content vertically by default; a profile can align it to the top with an offset (default 10%).
 - **REQ-VID-023** `shipped` Video content takes a configurable share of the frame height (`video_content_height_percent`, default 75%).
 - **REQ-VID-024** `shipped` A profile selects how a video whose aspect differs from the frame is fitted: letterbox, crop-to-fit, blur-fill, or smart-scale (crop when the aspect ratios are within 10%, blur-fill otherwise).
 - **REQ-VID-025** `shipped` A profile selects the assembly mode: sequential, single-best, mixed-media or video-first-fallback.
@@ -112,8 +106,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#591).
 - **REQ-VID-057** `partial` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
   - Gap: FFmpeg karaoke draws black text with a white outline that fills yellow, the pycaps `explosive` template has a yellow base fill with an orange glow and no outline, and `word-focus` has a white fill with a 2 px black shadow and an orange box behind the active word (#591).
-- **REQ-VID-158** `held` Where the caption outline is on, the pycaps engine draws an opaque black outline of the configured width round each caption word, in place of the template's text shadow.
-  - On when: `subtitle_settings.pycaps.outline_px` is set to 6 after the reach-test readout (#540).
+- **REQ-VID-158** `shipped` Where the caption outline is on, the pycaps engine draws an opaque black outline of the configured width round each caption word, in place of the template's text shadow.
 - **REQ-VID-058** `shipped` A caption holds at most 2 lines, each at most 80% of the frame width; on the FFmpeg engine a line also holds at most `max_words_per_line` words (bundled 3), while the pycaps engine splits lines by the template's character count.
 - **REQ-VID-136** `shipped` On the FFmpeg engine, a caption line also holds at most `max_line_length` characters (bundled 30, `--max-line-length`).
 - **REQ-VID-059** `shipped` A caption segment lasts between 0.6 s and 2.5 s.
@@ -212,8 +205,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-107** `shipped` A profile that also draws scraped media still renders without the stock provider key.
 - **REQ-VID-108** `shipped` Where the stock relevance judge is on (the bundled default), the producer scores stock candidates against the script from their thumbnails and uses the best; candidates below `min_score` are used only to fill a shortfall.
 - **REQ-VID-109** `shipped` If the relevance judge returns no scores, the producer uses a random sample of the candidates.
-- **REQ-VID-110** `held` Where the reuse guard is on, a stock clip or image used in a recent render loses to a fresh one (with the relevance judge on, among candidates at or above `min_score`; without it, it is excluded while alternatives exist), and the ids each render uses are recorded so the rule survives cleanup.
-  - On when: `stock_media_settings.stock_reuse_guard.enabled` is set after the reach-test readout (#540).
+- **REQ-VID-110** `shipped` Where the reuse guard is on, a stock clip or image used in a recent render loses to a fresh one (with the relevance judge on, among candidates at or above `min_score`; without it, it is excluded while alternatives exist), and the ids each render uses are recorded so the rule survives cleanup.
 
 ## Topic input
 

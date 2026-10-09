@@ -56,7 +56,7 @@ Planned: a cover image carrying the hero visual and the hook headline ([design 0
 
 ## Cold open
 
-Where `first_frame_pre_motion` is on, the first image starts at a slight zoom and settles to 1.0 over its segment, so frame 0 is already in motion (`REQ-VID-074`). It is off by default and on in `slideshow_short_20s` (`REQ-VID-075`); `pre_motion_peak_zoom` defaults to 1.10 (`REQ-VID-076`). Where `still_motion` is on, every still after it moves too, with a push, pull or pan drawn per product and per image (`REQ-VID-010`, held off until the reach-test readout). Each render also picks a named variant from `cold_open_variant_pool` per product and records it for analytics, but the variants render identically, so the pool adds no visual variety (`REQ-VID-090`, partial).
+Where `first_frame_pre_motion` is on, the first image starts at a slight zoom and settles to 1.0 over its segment, so frame 0 is already in motion (`REQ-VID-074`). It is off by default and on in `slideshow_short_20s` (`REQ-VID-075`); `pre_motion_peak_zoom` defaults to 1.10 (`REQ-VID-076`). Where `still_motion` is on, every still after it moves too, with a push, pull or pan drawn per product and per image (`REQ-VID-010`, on in the bundled config). Each render also picks a named variant from `cold_open_variant_pool` per product and records it for analytics, but the variants render identically, so the pool adds no visual variety (`REQ-VID-090`, partial).
 
 Why: identical pattern-interrupt openings over weeks are reported to lose effect [C], and templated sameness is what the platforms' originality rules target (see [Originality and variety](#originality-and-variety)).
 
@@ -126,7 +126,7 @@ Why:
 
 Not supported: Wistia's State of Video 2025 report does not contain the "well-placed CTAs reach about 40%" figure or the claim that a soft-early plus hard-late call to action beats a single end card. The 40% is an unattributed secondary citation, and the two-stage pattern is a playbook tactic, not a finding. [Wistia](https://wistia.com/learn/marketing/using-video-ctas)
 
-Built and held off until the reach-test readout: ending on the last spoken word, with no silent tail after the call to action, and optionally closing on the opening frame so a replay reads as continuous (`ending: peak` or `loop`, [design 0002](../design/0002-end-on-the-peak.md), `REQ-VID-011`). The call to action stays the last sentence.
+On (`ending: peak` in the bundled config): ending on the last spoken word, with no silent tail after the call to action, and optionally closing on the opening frame so a replay reads as continuous (`ending: peak` or `loop`, [design 0002](../design/0002-end-on-the-peak.md), `REQ-VID-011`). The call to action stays the last sentence.
 
 ## Where a call to action can point
 

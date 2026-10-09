@@ -1,6 +1,6 @@
 # 0013. Do not reuse stock clips across recent renders
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #555
 - **Requirements:** REQ-VID-110
 

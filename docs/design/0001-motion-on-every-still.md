@@ -1,6 +1,6 @@
 # 0001. Motion on every still
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #542
 - **Requirements:** REQ-VID-010
 

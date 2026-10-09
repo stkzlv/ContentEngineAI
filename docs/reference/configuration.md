@@ -57,7 +57,7 @@ subtitle_settings:
     template_pool: ["explosive", "word-focus"]
     renderer: "css"
     force_sentence_case: true           # override a template's text-transform: uppercase
-    outline_px: 0                       # black outline in frame px; 0 = template as shipped, 6 after the readout
+    outline_px: 6                       # black outline in frame px; 0 = template as shipped
     fallback_policy: "fallback_ffmpeg"  # forks without --with pycaps land here
 ```
 
@@ -397,7 +397,7 @@ outro_duration_sec: 1.0
 
 **Options:**
 - `pipeline_timeout_sec`: Maximum time for entire pipeline (default: 2700s). Steps that derive their own limits, Whisper among them, are bounded by whatever remains of it.
-- `memory_guard`: before each render, wait until the machine has the render's budget free, and give up after `wait_sec` rather than start into an out-of-memory kill of another app. `enabled` (default `true`); `min_available_gb` (default `4.5`, `MemAvailable`; a stock render's process tree peaks at 4.1-4.3 GB, an image render near 2.8 GB); `min_swap_free_gb` (default `1.0`; where there is swap, available memory and free swap together must reach `min_available_gb + min_swap_free_gb`, since swapped pages stay swapped after RAM frees and full swap beside plenty available is no risk); `wait_sec` (default `900`); `poll_sec` (default `30`). Waiting does not count against `pipeline_timeout_sec`. A refusal fails that render; the producer batch and the global batch stop, and the producer exits 75, on which `make topics-batch` stops too. Inside a capped scope the producer logs `Memory peak after <id>`, the scope's high-water mark so far (in a batch, the largest of every render up to then). `ALLOW_LOW_MEMORY=1` skips the wait.
+- `memory_guard`: before each render, wait until the machine has the render's budget free, and give up after `wait_sec` rather than start into an out-of-memory kill of another app. `enabled` (default `true`); `min_available_gb` (default `4.5`, `MemAvailable`; a stock render's process tree peaks at 4.1-4.3 GB, an image render near 4 GB); `min_swap_free_gb` (default `1.0`; where there is swap, available memory and free swap together must reach `min_available_gb + min_swap_free_gb`, since swapped pages stay swapped after RAM frees and full swap beside plenty available is no risk); `wait_sec` (default `900`); `poll_sec` (default `30`). Waiting does not count against `pipeline_timeout_sec`. A refusal fails that render; the producer batch and the global batch stop, and the producer exits 75, on which `make topics-batch` stops too. Inside a capped scope the producer logs `Memory peak after <id>`, the scope's high-water mark so far (in a batch, the largest of every render up to then). `ALLOW_LOW_MEMORY=1` skips the wait.
 - `outro_duration_sec` (default `1.0`): Seconds the video runs past the end of the voiceover, so the music fades out and AAC frame alignment doesn't cut the last word. Applies to the `outro` ending only; `peak` and `loop` use `video_settings.peak_margin_sec` ([Ending](video-producer.md#ending)).
 
 </details>
@@ -515,8 +515,8 @@ Keys the sections below don't cover. Defaults are the bundled values.
 | `video_settings.fallback_image_width_percent` | float | 1 | Image width used in that same case. |
 | `video_settings.image_loop` | int | 1 | FFmpeg `-loop` value for each still image input. |
 | `video_settings.max_image_input_edge` | int | 2560 | Longest edge, in pixels, an image or video input may enter assembly with; larger inputs are scaled down first, which bounds memory. 0 turns the bound off. |
-| `video_settings.beat_snap` | mapping | off | Move each visual cut to the nearest music beat within `window_ms` (150), keeping every segment at `min_visual_segment_duration_sec` and lengthening only stills. Needs librosa, from the optional `beats` group (`poetry install --with beats`); without it this warns and does nothing. See [Beat snapping](video-producer.md#beat-snapping). |
-| `video_settings.image_curation` | mapping | off | Judge each scraped image for seller-added text and drop text-heavy ones while enough clean images remain: `enabled`, `max_text_share` (0.15), `min_clean_images` (3), `model` (`gemini-2.5-flash`). See [Image curation](video-producer.md#image-curation). |
+| `video_settings.beat_snap` | mapping | off; on in the bundled config | Move each visual cut to the nearest music beat within `window_ms` (150), keeping every segment at `min_visual_segment_duration_sec` and lengthening only stills. Needs librosa, from the optional `beats` group (`poetry install --with beats`); without it this warns and does nothing. See [Beat snapping](video-producer.md#beat-snapping). |
+| `video_settings.image_curation` | mapping | off; on in the bundled config | Judge each scraped image for seller-added text and drop text-heavy ones while enough clean images remain: `enabled`, `max_text_share` (0.15), `min_clean_images` (3), `model` (`gemini-2.5-flash`). See [Image curation](video-producer.md#image-curation). |
 | `video_settings.pad_color` | string | `black` | Colour of the padding around a visual that doesn't fill the frame. |
 | `video_settings.subtitle_box_border_width` | int | 5 | Border width, in pixels, of the box behind FFmpeg-drawn captions. |
 | `video_settings.music_claim_ceiling_sec` | float | 60 | When a render with background music runs longer than this, the producer logs a warning naming the length, the ceiling and the music source, and records `over_music_claim_ceiling` in the run state. YouTube blocks a Short over one minute that carries a Content ID claim. 0 turns the check off; it never fails the render. |
@@ -696,7 +696,7 @@ audio_settings:
   # local files, drawn per product; a missing file is skipped with a warning.
   # The bundled pools are CC0 effects under static/sfx (static/sfx/SOURCES.md).
   sound_effects:
-    enabled: false
+    enabled: true
     level_db: -15            # relative to the voice
     max_per_10_sec: 2
     hook: ["static/sfx/hook/hook-614084.mp3", ...]   # five per pool bundled
@@ -1501,7 +1501,7 @@ stock_media_settings:
   pexels_api_key_env_var: "PEXELS_API_KEY"   # required
   source: "pexels"
   stock_reuse_guard:
-    enabled: false   # held until the reach-test readout
+    enabled: true
     window: 30       # recent renders whose stock stays out
 ```
 
