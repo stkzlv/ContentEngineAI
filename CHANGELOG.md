@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.190.1] - 2026-10-09
+
+### Fixed
+
+- A render under `--outputs-dir` finds the product's scraped images and videos there, instead of failing with no visual inputs.
+
 ## [0.190.0] - 2026-10-09
 
 ### Changed
