@@ -292,8 +292,8 @@ class TestTikTokPlatformSettings:
         assert settings.enabled is True
         assert settings.caption_length_optimal == 150
         assert settings.caption_length_max == 2200
-        assert settings.hashtag_count_min == 3
-        assert settings.hashtag_count_max == 5
+        assert settings.hashtag_count_min == 2
+        assert settings.hashtag_count_max == 4
         assert settings.seo_focused is True
         assert "foryoupage" in settings.avoid_generic_tags
         assert "fyp" in settings.avoid_generic_tags
@@ -383,8 +383,8 @@ class TestInstagramPlatformSettings:
             caption_style="seo",
             caption_length_short=15,
             caption_length_seo=200,
-            hashtag_count_min=15,
-            hashtag_count_max=30,
+            hashtag_count_min=3,
+            hashtag_count_max=4,
             emoji_enabled=True,
         )
 
@@ -392,8 +392,8 @@ class TestInstagramPlatformSettings:
         assert settings.caption_style == "seo"
         assert settings.caption_length_short == 15
         assert settings.caption_length_seo == 200
-        assert settings.hashtag_count_min == 15
-        assert settings.hashtag_count_max == 30
+        assert settings.hashtag_count_min == 3
+        assert settings.hashtag_count_max == 4
         assert settings.emoji_enabled is True
 
     def test_instagram_settings_defaults(self):
@@ -404,8 +404,8 @@ class TestInstagramPlatformSettings:
         assert settings.caption_style == "seo"
         assert settings.caption_length_short == 15
         assert settings.caption_length_seo == 240
-        assert settings.hashtag_count_min == 15
-        assert settings.hashtag_count_max == 30
+        assert settings.hashtag_count_min == 3
+        assert settings.hashtag_count_max == 4
         assert settings.emoji_enabled is True
 
     def test_instagram_settings_caption_style_short(self):
@@ -452,14 +452,14 @@ class TestInstagramPlatformSettings:
     def test_instagram_settings_invalid_hashtag_count_min(self):
         """Test Instagram settings with invalid hashtag minimum."""
         with pytest.raises(ValidationError) as exc_info:
-            models.InstagramPlatformSettings(hashtag_count_min=4)
+            models.InstagramPlatformSettings(hashtag_count_min=6)
 
         assert "hashtag_count_min" in str(exc_info.value)
 
     def test_instagram_settings_invalid_hashtag_count_max(self):
         """Test Instagram settings with invalid hashtag maximum."""
         with pytest.raises(ValidationError) as exc_info:
-            models.InstagramPlatformSettings(hashtag_count_max=31)
+            models.InstagramPlatformSettings(hashtag_count_max=6)
 
         assert "hashtag_count_max" in str(exc_info.value)
 
@@ -468,28 +468,28 @@ class TestInstagramPlatformSettings:
         settings = models.InstagramPlatformSettings(
             caption_length_short=5,
             caption_length_seo=50,
-            hashtag_count_min=5,
-            hashtag_count_max=15,
+            hashtag_count_min=0,
+            hashtag_count_max=1,
         )
 
         assert settings.caption_length_short == 5
         assert settings.caption_length_seo == 50
-        assert settings.hashtag_count_min == 5
-        assert settings.hashtag_count_max == 15
+        assert settings.hashtag_count_min == 0
+        assert settings.hashtag_count_max == 1
 
     def test_instagram_settings_edge_case_max_values(self):
         """Test Instagram settings with maximum allowed values."""
         settings = models.InstagramPlatformSettings(
             caption_length_short=30,
             caption_length_seo=300,
-            hashtag_count_min=20,
-            hashtag_count_max=30,
+            hashtag_count_min=5,
+            hashtag_count_max=5,
         )
 
         assert settings.caption_length_short == 30
         assert settings.caption_length_seo == 300
-        assert settings.hashtag_count_min == 20
-        assert settings.hashtag_count_max == 30
+        assert settings.hashtag_count_min == 5
+        assert settings.hashtag_count_max == 5
 
 
 class TestPlatformMetadataSettings:

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.197.0] - 2026-10-09
+
+### Changed
+
+- A caption sent to Instagram carries at most five hashtags, the `#ad` disclosure and the product id included, since Instagram refuses a post with more; generated tags are dropped last first.
+- Optimized-mode metadata asks for 3-4 Instagram hashtags and 2-4 TikTok hashtags (TikTok advises two or three, plus `#ad` on a product), instead of 15-30 and 3-5.
+
+### Fixed
+
+- A topic caption no longer ends on its slug as a hashtag, which platforms cut at the first hyphen.
+
 ## [0.196.3] - 2026-10-09
 
 ### Fixed

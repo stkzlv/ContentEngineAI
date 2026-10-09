@@ -16,7 +16,7 @@ TikTok's algorithm prioritizes **search-optimized content** over creative hooks.
    - NO creative hooks or mystery in the body - be direct (the closing line is the one exception)
 
 2. **Hashtags:**
-   - Provide exactly 3-5 hashtags
+   - Provide 2-3 hashtags. TikTok's own advice is two or three
    - Name the problem area, not a product category
    - **AVOID GENERIC VIRAL TAGS** - these provide NO discovery value: #fyp, #foryoupage, #foryou, #viral
    - Separate with spaces
@@ -51,19 +51,19 @@ Every example below already obeys every rule. Match their shape: no link, no adv
 
 CAPTION: Wifi keeps dropping in one room? It is usually channel congestion, not a dying router. Switch to channel 1, 6 or 11 and get the router off the floor. Which room in your house has the worst signal?
 
-HASHTAGS: #WifiTips #HomeNetwork #TechHelp #Troubleshooting
+HASHTAGS: #WifiTips #HomeNetwork #TechHelp
 
 **Example 2: Laptop slow at startup**
 
 CAPTION: Laptop slow on startup is almost never low memory - it is the queue of startup apps you never chose. Task Manager, Startup tab, sort by impact, disable what you do not need. How long does yours take before you can use it?
 
-HASHTAGS: #LaptopTips #WindowsHelp #TechHelp #SpeedUpYourPC
+HASHTAGS: #LaptopTips #WindowsHelp #TechHelp
 
 **Example 3: Phishing email**
 
 CAPTION: That email is phishing - three tells you can check before clicking. The real sender address behind the display name, whether the link goes where it says, and manufactured urgency. Any one failing is enough to stop. Which one nearly caught you out?
 
-HASHTAGS: #PhishingAwareness #OnlineSafety #TechHelp #ScamAlert
+HASHTAGS: #PhishingAwareness #OnlineSafety #TechHelp
 
 **Output Format:**
 

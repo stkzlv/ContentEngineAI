@@ -25,7 +25,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
 
     Generates TikTok-optimized metadata with:
     - Caption: 100-300 characters optimal (up to 2200 max) with exact search phrases
-    - Hashtags: 3-5 niche-specific hashtags, avoiding generic viral tags
+    - Hashtags: 2-3 niche-specific hashtags (plus #ad), avoiding generic viral tags
     - Keywords: 5-10 search-friendly phrases
 
     Based on TikTok 2025 algorithm shift to search-engine model:
@@ -72,7 +72,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
     ) -> PlatformMetadata | None:
         """Generate TikTok-optimized metadata using LLM.
 
-        Produces SEO-focused caption (100-300 chars optimal, up to 2200 max), 3-5
+        Produces SEO-focused caption (100-300 chars optimal, up to 2200 max), 2-3
         niche hashtags avoiding generic tags, and search-friendly keywords.
 
         Args:
@@ -199,7 +199,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
 
         Checks:
         - Caption length: 100-300 optimal (warning if exceeded), 2200 max (error)
-        - Hashtag count: 3-5 niche-specific tags
+        - Hashtag count: 2-3 niche-specific tags, plus #ad on a product
         - Blacklisted hashtags: No generic viral tags from avoid_generic_tags setting
         - #ad tag: Required for sponsored content
 
@@ -239,7 +239,7 @@ class TikTokMetadataGenerator(BasePlatformMetadataGenerator):
             warnings.append(warning_msg)
             logger.warning(warning_msg)
 
-        # Validate hashtag count (3-5)
+        # Validate hashtag count (TikTok advises two or three)
         hashtag_count = len(metadata.hashtags)
         min_count = self.settings["hashtag_count_min"]
         max_count = self.settings["hashtag_count_max"]

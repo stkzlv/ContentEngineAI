@@ -114,9 +114,8 @@ def metadata_from_file(
             e,
         )
         fallback = f"Product video for {product_id}" if product_id else "Product video"
+        # `format_content` appends a product's id itself (REQ-PUB-107).
         tags = list(hashtags)
-        if product_id and product_id not in tags:
-            tags.append(product_id)
         return PublishMetadata(
             platform=platform,
             title=str(meta.get("title") or "") or fallback,

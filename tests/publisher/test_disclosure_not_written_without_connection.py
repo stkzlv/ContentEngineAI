@@ -226,7 +226,7 @@ class TestTheScheduleAutoPathStripsItToo:
         )
 
         assert "#ad" not in caption
-        assert caption == "Fix your wifi. Which fix worked?\n\n#WifiFix #topic-wifi"
+        assert caption == "Fix your wifi. Which fix worked?\n\n#WifiFix"
 
     def test_an_affiliate_caption_leads_with_it(self):
         """Placement, not presence.
@@ -410,9 +410,8 @@ class TestTheFallbackPathIsCompliantToo:
         )
 
         assert "#ad" not in caption
-        # The hashtag block survives the fallback: dropping it lost the
-        # `#{product_id}` tag every other branch emits.
-        assert caption == "Fix your wifi by changing the channel.\n\n#topic-wifi"
+        # A topic's slug is no valid hashtag, on this branch as on the others.
+        assert caption == "Fix your wifi by changing the channel."
 
 
 class TestTheTokenTheModelWroteIsNotDoubled:

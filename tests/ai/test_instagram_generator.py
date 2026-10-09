@@ -45,8 +45,8 @@ def instagram_settings_short():
     return {
         "caption_style": "short",
         "caption_length_seo": 200,
-        "hashtag_count_min": 15,
-        "hashtag_count_max": 30,
+        "hashtag_count_min": 3,
+        "hashtag_count_max": 4,
         "emoji_enabled": True,
     }
 
@@ -57,8 +57,8 @@ def instagram_settings_seo():
     return {
         "caption_style": "seo",
         "caption_length_seo": 200,
-        "hashtag_count_min": 15,
-        "hashtag_count_max": 30,
+        "hashtag_count_min": 3,
+        "hashtag_count_max": 4,
         "emoji_enabled": True,
     }
 
@@ -69,8 +69,8 @@ def instagram_settings_no_emoji():
     return {
         "caption_style": "seo",
         "caption_length_seo": 200,
-        "hashtag_count_min": 15,
-        "hashtag_count_max": 30,
+        "hashtag_count_min": 3,
+        "hashtag_count_max": 4,
         "emoji_enabled": False,
     }
 
@@ -124,7 +124,7 @@ class TestInstagramMetadataGenerator:
         # Mock LLM response with short caption
         mock_llm_response = """CAPTION: Never die again 🔋⚡
 
-HASHTAGS: #PortableCharger #PowerBank #TravelEssentials #TechGadgets #PhoneAccessories #TravelTech #TechMustHaves #OnTheGo #BatteryPack #FastCharging #TravelGear #TechReview #GadgetLover #ProductReview #PhoneTech #TechFinds #EmergencyPower
+HASHTAGS: #PortableCharger #PowerBank #TravelEssentials
 
 KEYWORDS: portable charger, power bank, travel essentials, phone accessories"""
 
@@ -160,7 +160,7 @@ KEYWORDS: portable charger, power bank, travel essentials, phone accessories"""
         assert "#ad" in metadata.hashtags
 
         # Verify hashtag count (17 original + #ad = 18 total, within 15-30 range)
-        assert 15 <= len(metadata.hashtags) <= 30
+        assert 3 <= len(metadata.hashtags) <= 4
 
     @pytest.mark.asyncio
     async def test_successful_generation_seo_style(
@@ -395,8 +395,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="Portable charger 20000mAh with fast charging and 3 USB ports - perfect for travel and emergencies 📱⚡",  # 110 chars
-            hashtags=[f"#Tag{i}" for i in range(15)]
-            + ["#ad"],  # 15 tags + #ad = 16 total
+            hashtags=["#Tag0", "#Tag1", "#Tag2", "#ad"],
             keywords=["portable charger", "power bank"],
             character_counts={"title": 0, "description": 110},
             generated_at="2025-01-15T12:00:00Z",
@@ -418,7 +417,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="Never die again 🔋",  # 4 words
-            hashtags=[f"#Tag{i}" for i in range(15)] + ["#ad"],
+            hashtags=["#Tag0", "#Tag1", "#ad"],
             keywords=["portable charger"],
             character_counts={"title": 0, "description": 19},
             generated_at="2025-01-15T12:00:00Z",
@@ -440,7 +439,7 @@ KEYWORDS: portable charger, power bank"""
             platform="youtube",  # Wrong platform!
             title="Test",
             description="Test description",
-            hashtags=[f"#Tag{i}" for i in range(15)] + ["#ad"],
+            hashtags=["#Tag0", "#Tag1", "#ad"],
             keywords=["test"],
             character_counts={"title": 4, "description": 16},
             generated_at="2025-01-15T12:00:00Z",
@@ -462,7 +461,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="This is way too many words for short style",  # 9 words
-            hashtags=[f"#Tag{i}" for i in range(15)] + ["#ad"],
+            hashtags=["#Tag0", "#Tag1", "#ad"],
             keywords=["test"],
             character_counts={"title": 0, "description": 48},
             generated_at="2025-01-15T12:00:00Z",
@@ -477,14 +476,14 @@ KEYWORDS: portable charger, power bank"""
         assert "too many words" in error_msg
 
     def test_validate_too_few_hashtags(self, instagram_settings_seo):
-        """Test validation fails with fewer than 15 hashtags."""
+        """Test validation fails with fewer than the minimum hashtags."""
         generator = InstagramMetadataGenerator(instagram_settings_seo)
 
         metadata = models.PlatformMetadata(
             platform="instagram",
             title=None,
             description="Test caption",
-            hashtags=["#Tag1", "#Tag2", "#Tag3", "#ad"],  # Only 4 hashtags
+            hashtags=["#ad"],  # Only 1 hashtag
             keywords=["test"],
             character_counts={"title": 0, "description": 12},
             generated_at="2025-01-15T12:00:00Z",
@@ -497,7 +496,6 @@ KEYWORDS: portable charger, power bank"""
 
         assert not is_valid
         assert "Too few hashtags" in error_msg
-        assert "15-30 hashtags" in error_msg
 
     def test_validate_too_many_hashtags(self, instagram_settings_seo):
         """Test validation fails with more than 30 hashtags."""
@@ -507,7 +505,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="Test caption",
-            hashtags=[f"#Tag{i}" for i in range(35)],  # 35 hashtags (> 30 max)
+            hashtags=[f"#Tag{i}" for i in range(6)],  # 6 hashtags (> 4 max)
             keywords=["test"],
             character_counts={"title": 0, "description": 12},
             generated_at="2025-01-15T12:00:00Z",
@@ -529,7 +527,7 @@ KEYWORDS: portable charger, power bank"""
             platform="instagram",
             title=None,
             description="Test caption",
-            hashtags=[f"#Tag{i}" for i in range(15)],  # 15 tags but missing #ad
+            hashtags=["#Tag0", "#Tag1", "#Tag2"],  # 3 tags but missing #ad
             keywords=["test"],
             character_counts={"title": 0, "description": 12},
             generated_at="2025-01-15T12:00:00Z",

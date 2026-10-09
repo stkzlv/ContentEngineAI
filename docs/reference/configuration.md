@@ -1119,7 +1119,7 @@ Platform metadata generation creates platform-specific titles, descriptions/capt
 **Supported Platforms:**
 - **YouTube Shorts**: SEO-optimized titles (50-60 chars), descriptions with first 150 chars critical, 3-5 hashtags including #Shorts
 - **TikTok**: Search-friendly captions (100-300 chars optimal), 3-5 niche hashtags, avoids generic viral tags
-- **Instagram Reels**: Dual caption styles (ultra-short 3-5 words OR SEO 100-200 chars), 15-30 hashtags in caption
+- **Instagram Reels**: Dual caption styles (ultra-short 3-5 words OR SEO 100-200 chars), 3-4 hashtags in caption
 
 **Configuration:**
 
@@ -1143,8 +1143,8 @@ platform_metadata:
   tiktok:
     caption_length_optimal: 300
     caption_length_max: 2200              # Hard limit
-    hashtag_count_min: 3
-    hashtag_count_max: 5
+    hashtag_count_min: 2                  # TikTok advises two or three, plus #ad
+    hashtag_count_max: 4
     # The tags to avoid, as a list. A bool here fails validation.
     avoid_generic_tags: ["foryoupage", "fyp", "viral", "foryou"]
 
@@ -1152,8 +1152,8 @@ platform_metadata:
   instagram:
     caption_style: "seo"                  # Options: "short" or "seo"
     caption_length_seo: 200               # Character budget for the SEO style
-    hashtag_count_min: 15
-    hashtag_count_max: 30
+    hashtag_count_min: 3                  # Instagram allows 5, #ad and the id included
+    hashtag_count_max: 4
     emoji_enabled: true                   # Allow emojis in captions
 ```
 
@@ -1176,7 +1176,7 @@ With `metadata_mode: optimized`, the producer generates metadata in parallel for
 
 **Instagram Reels:**
 - **Caption Style**: Choose between ultra-short (3-5 words, punchy hooks) OR SEO-descriptive (100-200 chars, searchable)
-- **Hashtags**: 15-30 hashtags IN THE CAPTION (not comments) - algorithm prioritizes caption hashtags
+- **Hashtags**: 3-4 hashtags IN THE CAPTION (not comments), #ad included; Instagram allows 5 per post, and the publisher adds the product id
 - **Mix**: Use 5-10 popular tags (100k-1M posts) + 10-15 niche (10k-100k) + 5-10 specific (<10k)
 
 **Understanding Keywords vs Hashtags:**
@@ -1288,7 +1288,7 @@ Each platform metadata file follows this structure:
 Platform metadata is automatically validated against platform-specific requirements:
 - **YouTube**: Title length (50-60 chars), #Shorts tag presence, hashtag count (3-5)
 - **TikTok**: Caption length (optimal 100-300, max 2200), no generic hashtags, hashtag count (3-5)
-- **Instagram**: Caption style compliance, hashtag count (15-30), hashtags in caption
+- **Instagram**: Caption style compliance, hashtag count (3-4), hashtags in caption
 
 Validation failures are logged but don't block generation - invalid metadata is saved with `validation_status: "invalid"` and detailed `validation_messages`.
 
