@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.196.2] - 2026-10-09
+
+### Fixed
+
+- Delivered videos stay under -1 dBTP: the bundled true-peak ceiling is -1.5 dBTP, since the AAC encode adds about 0.2 dB after loudness normalisation.
+
 ## [0.196.1] - 2026-10-09
 
 ### Fixed

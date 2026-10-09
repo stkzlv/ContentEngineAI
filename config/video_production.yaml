@@ -396,7 +396,7 @@ audio_settings:
   # See docs/explanation/audio.md, "Loudness normalization".
   loudness_normalization_enabled: true
   loudness_target_lufs: -14.0      # Cross-platform compromise, not a spec
-  loudness_true_peak_db: -1.0      # Headroom for platform transcoding
+  loudness_true_peak_db: -1.5      # The AAC encode adds about 0.2 dB, so the file lands under -1 dBTP
   loudness_range_lu: 7.0           # Don't over-compress to chase loudness
 
   # Output sample rate for the render, applied whether or not the loudness
