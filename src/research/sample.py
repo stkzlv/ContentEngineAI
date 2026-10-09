@@ -48,9 +48,12 @@ def variant_config(base: VideoConfig, name: str, title: str | None) -> VideoConf
     scripts only, so a product is sampled under `shipped` alone.
     """
     config = base.model_copy(deep=True)
-    if name == "step_lists":
-        config.llm_settings.topic_scripts.step_list.enabled = True
+    if name == "free_form":
+        config.llm_settings.topic_scripts.step_list.enabled = False
     elif name == "task_answer_first" and title and is_task(title):
+        # A step list replaces the template, so the template is compared on
+        # the free-form path.
+        config.llm_settings.topic_scripts.step_list.enabled = False
         config.llm_settings.script_templates.fixed_template = TASK_TEMPLATE
     elif name not in ("shipped", "task_answer_first"):
         raise ValueError(f"Unknown variant: {name}")

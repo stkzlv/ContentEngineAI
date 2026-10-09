@@ -41,7 +41,7 @@ Exit codes: 0 on success; 2 when pytrends is not installed (`poetry install --wi
 | `sample.topics` | `16` | Pool topics to sample, in pool order |
 | `sample.products` | `8` | The most recently scraped products to sample (under `shipped` only) |
 | `sample.profile` | `slideshow_stock` | The profile whose name the run paths use; the script step reads nothing else from it |
-| `sample.variants` | all three | `shipped` (required, the baseline), `step_lists` (step lists on), `task_answer_first` (a "How to" topic on `topic_answer_first` only) |
+| `sample.variants` | all three | `shipped` (required, the baseline), `free_form` (step lists off), `task_answer_first` (a "How to" topic on `topic_answer_first` only, step lists off, since a step list replaces the template) |
 | `sample.band` | `[75, 100]` | The word band a script is checked against; a step-list script uses its step count's band |
 | `verify.model` | `gemini-3.7-flash` | The model the verification call uses, with Google Search grounding |
 | `verify.timeout_seconds` | `90` | Seconds before a verification call is recorded as failed |

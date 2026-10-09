@@ -126,3 +126,27 @@ def test_step_lists_ship_on_with_a_retry() -> None:
     shipped = config.llm_settings.topic_scripts.step_list
     assert shipped.enabled is True
     assert shipped.attempts >= 2
+
+
+@pytest.mark.req("REQ-VID-121")
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param("server", id="5xx"),
+        pytest.param("disconnect", id="dropped-connection"),
+    ],
+)
+async def test_a_server_error_or_dropped_connection_is_retried(error: str) -> None:
+    import aiohttp
+    from google.genai import errors
+
+    first: BaseException = (
+        errors.ServerError(503, {"error": {"message": "unavailable"}})
+        if error == "server"
+        else aiohttp.ServerDisconnectedError()
+    )
+    client = _client([first, _ANSWER])
+
+    assert await _build(client, attempts=2) is not None
+    assert len(client.calls) == 2

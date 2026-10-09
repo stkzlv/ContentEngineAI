@@ -132,8 +132,8 @@ def _verified(variant, bad_flags):
 def test_the_share_of_scripts_with_errors_not_the_total_decides() -> None:
     # Two of four shipped scripts are wrong; one of two step-list scripts is
     # wrong. Same share, so no recommendation, though the total is lower.
-    verification = _verified("shipped", [1, 1, 0, 0]) + _verified("step_lists", [1, 0])
-    summary = {"shipped/topic": _summary(), "step_lists/topic": _summary(errors=2)}
+    verification = _verified("shipped", [1, 1, 0, 0]) + _verified("free_form", [1, 0])
+    summary = {"shipped/topic": _summary(), "free_form/topic": _summary(errors=2)}
 
     assert wrong_or_outdated(verification, "shipped") == 0.5
     (rec,) = variant_recommendations(summary, verification, all_tasks=True)
@@ -150,14 +150,14 @@ def test_the_share_of_scripts_with_errors_not_the_total_decides() -> None:
     ],
 )
 def test_a_variant_must_not_worsen_length_or_fit(variant_stats, decision) -> None:
-    verification = _verified("shipped", [1, 1]) + _verified("step_lists", [0, 0])
-    summary = {"shipped/topic": _summary(), "step_lists/topic": variant_stats}
+    verification = _verified("shipped", [1, 1]) + _verified("free_form", [0, 0])
+    summary = {"shipped/topic": _summary(), "free_form/topic": variant_stats}
 
     (rec,) = variant_recommendations(summary, verification, all_tasks=True)
 
     assert rec["decision"] == decision
     assert rec["key"] == "llm_settings.topic_scripts.step_list.enabled"
-    assert rec["value"] is True
+    assert rec["value"] is False
 
 
 def test_answer_first_maps_to_a_key_only_when_every_topic_is_a_task() -> None:
@@ -174,7 +174,7 @@ def test_answer_first_maps_to_a_key_only_when_every_topic_is_a_task() -> None:
 
 
 def test_no_verification_leaves_the_decision_open() -> None:
-    summary = {"shipped/topic": _summary(), "step_lists/topic": _summary()}
+    summary = {"shipped/topic": _summary(), "free_form/topic": _summary()}
     (rec,) = variant_recommendations(summary, [], all_tasks=True)
     assert rec["decision"] == "undecided"
 
@@ -284,14 +284,14 @@ def test_bracketed_prose_around_the_json_is_skipped(answer) -> None:
 def test_a_script_with_only_unverified_verdicts_is_not_clean() -> None:
     unjudged_rows = [
         {
-            "variant": "step_lists",
+            "variant": "free_form",
             "tally": {"correct": 0, "wrong": 0, "outdated": 0, "unverified": 3},
         }
     ]
     verification = _verified("shipped", [1, 0]) + unjudged_rows
-    summary = {"shipped/topic": _summary(), "step_lists/topic": _summary()}
+    summary = {"shipped/topic": _summary(), "free_form/topic": _summary()}
 
-    assert wrong_or_outdated(verification, "step_lists") is None
+    assert wrong_or_outdated(verification, "free_form") is None
     (rec,) = variant_recommendations(summary, verification, all_tasks=True)
     assert rec["decision"] == "undecided"
     assert rec["evidence"]["unjudged"] == [0, 1]

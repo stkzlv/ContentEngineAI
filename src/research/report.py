@@ -295,8 +295,7 @@ def render_recommendations(
     lines = [
         "## Recommended changes",
         "",
-        "Nothing here has been applied. A change to a switch that is held off "
-        "until the reach-test readout stays off until then (decision 0002).",
+        "Nothing here has been applied.",
         "",
     ]
     header = len(lines)

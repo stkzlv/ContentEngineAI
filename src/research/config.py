@@ -57,7 +57,7 @@ class TopicResearch(BaseModel):
     stack_exchange: StackExchangeResearch = Field(default_factory=StackExchangeResearch)
 
 
-VARIANTS = ("shipped", "step_lists", "task_answer_first")
+VARIANTS = ("shipped", "free_form", "task_answer_first")
 
 
 class SampleResearch(BaseModel):
