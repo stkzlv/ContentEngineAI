@@ -73,9 +73,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-038** `shipped` The producer records the chosen call to action and any spoken sign-off in `pipeline_state.json`.
 - **REQ-CNT-039** `shipped` The per-platform caption generator places the script's closing line in the caption body, before the hashtag block.
 - **REQ-CNT-040** `shipped` When no script is available, the caption falls back to the platform's standard search-optimised content with no closing line.
-- **REQ-CNT-041** `planned #549` No configured call to action or closing-line example asks viewers to share, tag, vote, reply with a specific word or emoji, or follow for a promised payoff; closing questions ask for a choice or an experience.
-  - On when: the call-to-action pools are edited after the reach-test readout (#540).
-- **REQ-CNT-148** `planned #549` Every configured call to action uses an imperative verb and names an outcome or a destination.
+- **REQ-CNT-041** `shipped` No configured call to action or closing-line example asks viewers to share, tag, vote, reply with a specific word or emoji, or follow for a promised payoff; closing questions ask for a choice or an experience.
+- **REQ-CNT-148** `shipped` Every configured call to action uses an imperative verb and names an outcome or a destination.
 
 ## Script naturalism and signature
 
