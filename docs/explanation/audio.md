@@ -8,7 +8,7 @@ A render's audio is the TTS voiceover and one background music track; the source
 
 Why: the audio track reaches most TikTok viewers. 93% of US users spend time with sound on, in TikTok Marketing Science's 2020 data [B] ([TikTok Creative Center](https://ads.tiktok.com/business/creativecenter/quicktok/online/Power_Creative_Elements/pc/en)); muted viewing is more common on other platforms, which is why captions carry the same words.
 
-Built and held off: a voice processing chain on the voiceover before the mix (`audio_settings.voice_chain`, `REQ-CNT-073`): high-pass, a small cut at the harsh 2-4 kHz peak, gentle compression, de-essing, an air shelf and a -1 dBFS limiter. On a bundled voiceover with music, the mastered mix measured -14.2 LUFS with it and -14.8 without, against the -14 target: the limited voice peaks let `loudnorm` stay nearer linear. Each render records whether it was on, beside the voice name (`REQ-CNT-074`).
+On: a voice processing chain on the voiceover before the mix (`audio_settings.voice_chain`, `REQ-CNT-073`): high-pass, a small cut at the harsh 2-4 kHz peak, gentle compression, de-essing, an air shelf and a -1 dBFS limiter. On a bundled voiceover with music, the mastered mix measured -14.2 LUFS with it and -14.8 without, against the -14 target: the limited voice peaks let `loudnorm` stay nearer linear. Each render records whether it was on, beside the voice name (`REQ-CNT-074`).
 
 Planned: a signature sting at the start or end (`audio_settings.signature_sting`, `null` by default, `REQ-VID-027`, held).
 
@@ -105,7 +105,7 @@ Why:
 - Fast music (108 BPM and up) raised arousal and purchase intent in short ad studies, while an EEG study found tempo did not change attention: tempo shifts mood, not attention [A] ([Frontiers in Psychology](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1236006/full)).
 - Cuts on accented downbeats feel better [A] ([design 0005](../design/0005-beat-snapped-cuts.md) has the source).
 
-Built and held off: an optional voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`) and visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
+On: a voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`). Built and held off: visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
 
 ## Trimming is not a level
 

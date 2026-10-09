@@ -539,8 +539,7 @@ tts_config:
         - { pattern: '\?\s+', insert_after: '[short pause] ' }
 
     # Charon with context-varied pauses instead of one [short pause] per
-    # sentence (docs/notes/audio.md has the measurements). Not selected while
-    # the reach test runs; try it with --voice-profile charon_varied.
+    # sentence (docs/notes/audio.md has the measurements). The default voice.
     charon_varied:
       provider: gemini
       gemini_model_name: "gemini-2.5-flash-tts"
@@ -588,7 +587,7 @@ tts_config:
   # Set voice_profile_pool to a non-empty list to opt back into random selection
   # (e.g., for A/B testing voice candidates).
   voice_profile_pool: []
-  default_voice_profile: charon
+  default_voice_profile: charon_varied
 
   # Rewrite numbers, units and model names the voice misreads, in the text
   # sent to TTS only; the script, state and captions keep the written form.

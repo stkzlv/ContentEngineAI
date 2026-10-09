@@ -40,7 +40,7 @@ Selection spreads renders across the variant dimensions (hook, template, voice, 
 
 ### 1.11 Humanization layer
 
-Conversational naturalism and an author signature are on; context-varied pauses are built and held off. Enabling the rest is #540.
+Conversational naturalism, context-varied pauses and an author signature are on (#540).
 
 **Done when:** each piece is enabled with a measured setting or left off with the reason recorded.
 

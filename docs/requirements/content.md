@@ -115,8 +115,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-061** `shipped` Where a profile has markup rules, the producer inserts pause tags at sentence boundaries (periods, exclamation marks and question marks).
 - **REQ-CNT-143** `shipped` Where `silence_removal_enabled` is on (the bundled default), the producer trims only the leading and trailing silence below `silence_threshold_db` (bundled -50 dB) from the voiceover before transcription, and `silence_min_duration_sec` defaults to 0.1 s.
   - Why: the trim discards the audio inside that window, so a longer value cuts off a short final word.
-- **REQ-CNT-062** `held` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
-  - On when: `default_voice_profile` or `voice_profile_pool` selects a profile with a `pause_plan` (such as `charon_varied`) after the reach-test readout, in stages (#540).
+- **REQ-CNT-062** `shipped` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
 - **REQ-CNT-063** `shipped` The config rejects a pause plan that uses a tag not measured as silent, so no tag text reaches the captions.
 - **REQ-CNT-130** `shipped` A probe tool measures which inline TTS tags a voice honours silently: one TTS call and one WAV file per tag, and a printed table of the gap each tag adds and any tag text the transcript carries.
 - **REQ-CNT-064** `shipped` The producer selects a voice profile per product deterministically, so a product gets the same voice on every run.
@@ -129,8 +128,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-071** `shipped` When a Gemini voice fails, the producer strips the inline markup tags before it sends the text to a fallback provider, so no tag is spoken.
 - **REQ-CNT-072** `shipped` Google Cloud voice choice falls back through ranked voice families (by default Chirp3, then Chirp, then Neural2, then any en-US voice).
 - **REQ-CNT-131** `shipped` Where the Coqui TTS package is installed and `coqui` is listed in `tts_config.provider_order`, the producer can synthesise speech locally with Coqui TTS; the bundled order leaves it out.
-- **REQ-CNT-073** `held` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
-  - On when: `audio_settings.voice_chain.enabled` is set after the reach-test readout (#540), once a voice-by-chain comparison over at least 20 posts per cell shows no loss.
+- **REQ-CNT-073** `shipped` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
 - **REQ-CNT-074** `shipped` The producer records per render whether the voice chain was on, beside the voice name.
 - **REQ-CNT-075** `held` Where TTS normalisation is enabled, numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only.
   - On when: `tts_config.tts_normalisation.enabled` is set, with table entries, once `tools/tts_normalisation_probe.py` shows the voice misreading a string; on the pinned voice it found none.

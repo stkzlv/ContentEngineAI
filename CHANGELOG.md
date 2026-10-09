@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.192.0] - 2026-10-09
+
+### Changed
+
+- The default voice is `charon_varied`, which places pauses by context: none after the hook, longer at paragraph breaks and before the closing line.
+- The voice processing chain is on in the bundled config.
+
 ## [0.191.0] - 2026-10-09
 
 ### Changed

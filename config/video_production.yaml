@@ -332,10 +332,9 @@ audio_settings:
   # harsh 2-4 kHz peak, gentle compression, de-essing (0 intensity = off), an
   # air shelf and a -1 dBFS limiter. Captions are transcribed from the TTS
   # file, so they don't hear it, and loudness normalization still sets the
-  # programme level. Off until a voice-by-chain comparison after the
-  # reach-test readout shows no loss.
+  # programme level.
   voice_chain:
-    enabled: false
+    enabled: true
     highpass_hz: 80
     harsh_cut_hz: 3000
     harsh_cut_db: -2
