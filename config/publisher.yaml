@@ -400,3 +400,8 @@ analytics:
   # posts by: under 20, 20-30, 30-45, 45-60 and over 60. A post whose render
   # recorded no duration falls in an "unknown" band.
   duration_bands_sec: [20, 30, 45, 60]
+  # The `analytics --by-arm` readout. Its gate counts these platforms only;
+  # a post at breakout_multiple times the pooled median day-7 views or more
+  # counts as a breakout in the secondary lines.
+  readout_platforms: [youtube, tiktok]
+  breakout_multiple: 2.0

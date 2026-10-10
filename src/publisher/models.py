@@ -231,6 +231,11 @@ class AnalyticsConfig:
     duration_bands_sec: list[float] = field(
         default_factory=lambda: [20.0, 30.0, 45.0, 60.0]
     )
+    # The platforms the `--by-arm` readout's gate counts, and the multiple of
+    # the pooled median day-7 views a post must reach to count as a breakout
+    # (REQ-PUB-150, REQ-PUB-152).
+    readout_platforms: list[str] = field(default_factory=lambda: ["youtube", "tiktok"])
+    breakout_multiple: float = 2.0
 
     def __post_init__(self):
         """Reject a limit that would measure nothing, or break the slice.
@@ -258,6 +263,25 @@ class AnalyticsConfig:
             raise ValueError(
                 "analytics.duration_bands_sec must be increasing positive "
                 f"seconds, got {bands!r}"
+            )
+        platforms = self.readout_platforms
+        if (
+            not isinstance(platforms, list)
+            or not platforms
+            or not all(isinstance(p, str) and p for p in platforms)
+        ):
+            raise ValueError(
+                "analytics.readout_platforms must be a non-empty list of "
+                f"platform names, got {platforms!r}"
+            )
+        multiple = self.breakout_multiple
+        if (
+            isinstance(multiple, bool)
+            or not isinstance(multiple, int | float)
+            or multiple <= 1
+        ):
+            raise ValueError(
+                f"analytics.breakout_multiple must be above 1, got {multiple!r}"
             )
 
     def to_dict(self) -> dict[str, Any]:

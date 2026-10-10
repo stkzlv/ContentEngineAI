@@ -154,6 +154,8 @@ python -m src.publisher.late analytics [options]
 |---|---|---|
 | `--limit N` | `analytics.limit` (50) | How many recent published posts to measure. |
 | `--rank-only` | off | Rank stored figures without contacting the provider. Publisher config still loads first, so an API key must be configured. |
+| `--by-arm` | off | Also print the reach readout: median day-2 and day-7 views per format arm over `analytics.readout_platforms`, the topic-over-product ratio with its verdict, the posts with no arm, and secondary per-platform and breakout lines. |
+| `--since DATE` | none | With `--by-arm`, only posts published on or after `DATE` (`YYYY-MM-DD`). |
 | `--outputs-dir PATH` | the outputs root | Outputs root; `post_metrics.json` lives under its `state/` directory. |
 
 `make analytics` runs the same command with no `--limit`. A sweep that measured posts and captured none of them exits with status 1.
@@ -363,6 +365,8 @@ Shipped commented out. A section with an unknown key falls back to all defaults 
 |---|---|---|---|
 | `limit` | int | `50` | Posts each `analytics` sweep measures. A whole number of at least 1. A value that is not a mapping, or is refused, falls back to 50 with a warning. |
 | `duration_bands_sec` | list of numbers | `[20, 30, 45, 60]` | Upper edges, in seconds, of the duration bands the quality report groups posts by: under 20, 20-30, 30-45, 45-60 and over 60. Increasing and positive, or the section falls back to its defaults with a warning. A post whose render recorded no length is in an `unknown` band. |
+| `readout_platforms` | list of strings | `[youtube, tiktok]` | The platforms the `--by-arm` readout's medians and verdict count. A post missing any of them is left out of the medians. A non-empty list, or the section falls back to its defaults with a warning. |
+| `breakout_multiple` | number | `2.0` | In the `--by-arm` readout, a post at this multiple of the pooled median day-7 views or more counts as a breakout. Above 1, or the section falls back to its defaults with a warning. |
 
 ### `profiles`
 
