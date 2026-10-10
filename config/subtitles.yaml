@@ -160,6 +160,11 @@ subtitle_settings:
     # and the two share one tag only by accident. Set to false to hear them.
     mute_template_sound_effects: true
 
+    # End each caption segment at a phrase boundary (REQ-VID-157): pycaps'
+    # character splitter otherwise ends a segment wherever its limit falls,
+    # on "slow because it" or between "iPhone" and "15". Same limits.
+    phrase_breaks: true
+
     # Caption motion (REQ-VID-155): an entrance runs at most 0.25 s, and a
     # caption leaves with a hard cut or a fade of at most 0.08 s, per
     # docs/explanation/captions.md. `explosive` ships a 0.4 s slide-in and a

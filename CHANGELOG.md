@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.200.0] - 2026-10-10
+
+### Changed
+
+- Pycaps caption segments end at a phrase boundary within the template's character limits (`pycaps.phrase_breaks`, on by default): after punctuation or before a word that opens a phrase, never after an article, preposition or auxiliary, and never inside a name such as "iPhone 15".
+
 ## [0.199.0] - 2026-10-10
 
 ### Changed

@@ -34,6 +34,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from src.video.pycaps_engine.phrase_breaks import segment_end
+
 if TYPE_CHECKING:
     from src.video.config.subtitle_models import PycapsSettings
     from src.video.subtitle_positioning import VisualBounds
@@ -262,6 +264,63 @@ def _mute_template_sound_effects(builder: Any) -> None:
         return
     logger.debug("muting %d template sound effect(s)", len(effects))
     effects.clear()
+
+
+class _PhraseBoundarySplitter:
+    """pycaps' `limit_by_chars` splitter, ending segments at phrase boundaries.
+
+    Same limits and the same shape of loop as the library's splitter (each
+    segment still holds one line when splitters run); only the choice of
+    where a segment ends goes through `phrase_breaks.segment_end`.
+    """
+
+    def __init__(self, max_limit: int, min_limit: int) -> None:
+        self._max_limit = max_limit
+        self._min_limit = min_limit
+
+    def split(self, document: Any) -> None:
+        from pycaps.common import Line, Segment, TimeFragment
+
+        new_segments = []
+        for segment in document.segments:
+            words = list(segment.lines[0].words)
+            texts = [word.text for word in words]
+            start = 0
+            while start < len(words):
+                end = segment_end(texts, start, self._max_limit, self._min_limit)
+                chunk = words[start:end]
+                time = TimeFragment(start=chunk[0].time.start, end=chunk[-1].time.end)
+                new_segment = Segment(time=time)
+                line = Line(time=time)
+                line.words.set_all(chunk)
+                new_segment.lines.add(line)
+                new_segments.append(new_segment)
+                start = end
+        document.segments.set_all(new_segments)
+
+
+def _use_phrase_breaks(builder: Any) -> None:
+    """Swap the template's `limit_by_chars` splitters for phrase-aware ones.
+
+    REQ-VID-157. A splitter that also sets
+    `avoid_finishing_segment_with_word_shorter_than` is left alone, since
+    the replacement doesn't implement that rule; no bundled template sets it.
+    """
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    splitters = getattr(pipeline, "_segment_splitters", None)
+    if not splitters:
+        logger.debug("template registers no splitters; phrase breaks unused")
+        return
+    for index, splitter in enumerate(splitters):
+        if type(splitter).__name__ != "LimitByCharsSplitter":
+            continue
+        if getattr(splitter, "_avoid_finishing_segment_with_word_shorter_than", 0):
+            continue
+        max_limit = getattr(splitter, "_max_limit", None)
+        min_limit = getattr(splitter, "_min_limit", None)
+        if max_limit is None or min_limit is None:
+            continue
+        splitters[index] = _PhraseBoundarySplitter(max_limit, min_limit)
 
 
 _ENTRANCE_EVENT = "narration-starts"
@@ -686,6 +745,8 @@ class PycapsRenderer:
             _override_ai_tag_prompt(builder, settings.ai_tag_prompt_override)
         if settings.mute_template_sound_effects:
             _mute_template_sound_effects(builder)
+        if settings.phrase_breaks:
+            _use_phrase_breaks(builder)
         if settings.max_entrance_sec is not None or settings.max_exit_sec is not None:
             _limit_template_motion(
                 builder, settings.max_entrance_sec, settings.max_exit_sec

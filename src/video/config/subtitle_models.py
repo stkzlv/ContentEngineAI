@@ -442,6 +442,16 @@ class PycapsSettings(BaseModel):
             "no AI rule, such as `word-focus`."
         ),
     )
+    phrase_breaks: bool = Field(
+        default=False,
+        description=(
+            "End each caption segment at a phrase boundary within the "
+            "template's `limit_by_chars` limits: after punctuation or before "
+            "a word that opens a phrase, never after an article, preposition "
+            "or auxiliary, and never inside a name such as `iPhone 15`. Off "
+            "keeps pycaps' greedy split."
+        ),
+    )
     max_entrance_sec: float | None = Field(
         default=None,
         ge=0,
