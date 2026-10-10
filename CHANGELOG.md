@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.201.0] - 2026-10-10
+
+### Changed
+
+- The `slideshow_short_20s` profile asks for a 15-30 s script of about 50-60 words through its own `target_length`, in place of the 30-40 s product target.
+
 ## [0.200.2] - 2026-10-10
 
 ### Changed

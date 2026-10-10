@@ -173,8 +173,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-092** `shipped` A profile overrides caption settings in one nested `subtitle_settings` block, setting only the fields that differ; the nested `pycaps`, `two_part_subtitles` and `safe_zone` blocks merge field by field.
 - **REQ-VID-093** `shipped` If the subtitle config or a profile override carries an unknown key, the config fails to load with an error naming it.
 - **REQ-VID-094** `shipped` If a profile uses a legacy flat caption key (`subtitle_anchor`, `pycaps_template`, `two_part_subtitles` and the like), the config load is refused with an error naming the nested field to move it to.
-- **REQ-VID-095** `partial` The short profile renders 15-30 s videos with a script of about 50-60 words.
-  - Gap: the short profile sets no `target_length`, so its scripts take the 30-40 s product target; giving it 15-30 s and 50-60 words (REQ-CNT-163) changes output and waits for the reach-test readout.
+- **REQ-VID-095** `shipped` The short profile renders 15-30 s videos with a script of about 50-60 words.
 
 ## Run state and resume
 

@@ -627,6 +627,11 @@ video_profiles:
   # complement when CRP thresholds clear.
   slideshow_short_20s:
     description: "Short 15-30s slideshow tuned for hook iteration. ~50-60 word script budget at 150-180 wpm TTS pacing. Static hook title card on segment 0 by default."
+    # The script's spoken-length target (REQ-VID-095), in place of the
+    # 30-40 s product default; it also sets the script lint's word cap.
+    target_length:
+      seconds: [15, 30]
+      words: [50, 60]
     use_scraped_images: true
     use_scraped_videos: false
     use_stock_images: false
