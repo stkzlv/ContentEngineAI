@@ -58,6 +58,29 @@ class TestWhereASegmentEnds:
         assert not any(s.split()[-1] in {"the", "a", "your"} for s in segments)
         assert "the power for 30 seconds," in segments
 
+    @pytest.mark.parametrize(
+        ("text", "together"),
+        [
+            (
+                "Simply plug it in and press the button to start the cleaning cycle",
+                "plug it in",
+            ),
+            (
+                "Next you need to turn on the power switch located at the back",
+                "turn on",
+            ),
+            ("Then log out of every account you share with others", "log out"),
+        ],
+    )
+    def test_a_phrasal_verb_keeps_its_particle(self, text: str, together: str) -> None:
+        for limits in ((25, 10), (20, 15)):
+            segments = _segments(text, *limits)
+            assert any(together in s for s in segments), (limits, segments)
+
+    @pytest.mark.parametrize("word", ["under", "through", "has", "been"])
+    def test_more_binding_words(self, word: str) -> None:
+        assert break_score([word, "the"], 1) < 0
+
     def test_a_comma_is_the_best_break(self) -> None:
         assert _segments("To fix this, first close unnecessary browser tabs.")[0] == (
             "To fix this,"

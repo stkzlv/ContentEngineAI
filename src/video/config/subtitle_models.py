@@ -446,10 +446,11 @@ class PycapsSettings(BaseModel):
         default=False,
         description=(
             "End each caption segment at a phrase boundary within the "
-            "template's `limit_by_chars` limits: after punctuation or before "
-            "a word that opens a phrase, never after an article, preposition "
-            "or auxiliary, and never inside a name such as `iPhone 15`. Off "
-            "keeps pycaps' greedy split."
+            "template's `limit_by_chars` limits: it prefers a break after "
+            "punctuation or before a word that opens a phrase, and avoids one "
+            "after an article, preposition or auxiliary, inside a phrasal "
+            "verb or inside a name such as `iPhone 15`, unless no break "
+            "within the limits allows it. Off keeps pycaps' greedy split."
         ),
     )
     max_entrance_sec: float | None = Field(

@@ -5,7 +5,8 @@ character limit and ends it wherever that falls, so a caption can end on
 "because it" or split "iPhone | 15" across two screens (REQ-VID-157). This
 module picks the end among the same candidates the greedy fill allows,
 preferring a break after punctuation or before a word that opens a phrase,
-and never after a word that needs the next one or inside a name. It has no
+and avoiding one after a word that needs the next one, before the particle
+of a phrasal verb, or inside a name. It has no
 pycaps import, so it is tested without the optional group; the renderer
 wraps it in a splitter class at render time.
 """
@@ -24,8 +25,18 @@ _PHRASE_OPENERS = frozenset(
 _BINDERS = frozenset(
     "a an the your my our their his her its this these those to of in on "
     "at for with from by into onto and or but than as is are was were "
-    "be can will would should could do does did not no very more most".split()
+    "be been being has have had can will would should could do does did not "
+    "no very more most under over about through between across".split()
 )
+# "turn on", "plug it in", "log out": after one of these verbs (or its
+# pronoun object) a particle belongs to the verb, so a segment may end on it
+# and must not start with it.
+_PARTICLE_VERBS = frozenset(
+    "turn switch plug log sign check set put pick power zoom opt back hold "
+    "swipe scroll slide pull push shut start top clean fill wipe tap".split()
+)
+_PARTICLES = frozenset("on in off up out down".split())
+_PRONOUN_OBJECTS = frozenset("it them this that everything".split())
 _PUNCTUATED = re.compile(r"[,.;:!?)\]\"']$")
 _SENTENCE_END = re.compile(r"[.!?]$")
 
@@ -48,12 +59,28 @@ def _is_name_part(words: list[str], index: int) -> bool:
     return index > 0 and not _SENTENCE_END.search(words[index - 1])
 
 
+def _is_particle(words: list[str], index: int) -> bool:
+    """`words[index]` is the particle of a phrasal verb such as "turn on"."""
+    if _bare(words[index]) not in _PARTICLES or index == 0:
+        return False
+    previous = _bare(words[index - 1])
+    if previous in _PARTICLE_VERBS:
+        return True
+    return (
+        previous in _PRONOUN_OBJECTS
+        and index > 1
+        and _bare(words[index - 2]) in _PARTICLE_VERBS
+    )
+
+
 def break_score(words: list[str], end: int) -> int:
-    """Score ending a segment before `words[end]`; negative is never chosen."""
+    """Score ending a segment before `words[end]`; negative is avoided."""
     before, after = words[end - 1], words[end]
     if _PUNCTUATED.search(before):
         return _PUNCTUATION_SCORE
-    if _bare(before) in _BINDERS:
+    if _is_particle(words, end):
+        return _FORBIDDEN
+    if _bare(before) in _BINDERS and not _is_particle(words, end - 1):
         return _FORBIDDEN
     if _is_name_part(words, end - 1) and _is_name_part(words, end):
         return _FORBIDDEN
@@ -69,8 +96,8 @@ def segment_end(words: list[str], start: int, max_chars: int, min_chars: int) ->
     greedy end (the most words within `max_chars`) is pycaps' own choice,
     and its rule that a remainder under `min_chars` joins this segment is
     kept. Any earlier end that leaves the segment at `min_chars` or more is
-    a candidate; the best-scoring one wins, the later on a tie, and with no
-    acceptable candidate the greedy end stands.
+    a candidate; the best-scoring one wins, the later on a tie, and when
+    every candidate is one to avoid the greedy end stands.
     """
     greedy = start
     chars = 0
