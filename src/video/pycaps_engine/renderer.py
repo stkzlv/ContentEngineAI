@@ -276,7 +276,8 @@ def _limit_template_motion(
     `CapsPipeline._animators` holds one `ElementAnimator` per template
     animation, and every animation reads its `_duration` when it runs, so
     lowering that attribute after the template loads is the whole lever.
-    An entrance longer than `max_entrance_sec` is shortened to it. An exit
+    An entrance longer than `max_entrance_sec` is shortened to it, and 0
+    drops every entrance, since pycaps refuses a zero-length one. An exit
     leaves with a hard cut unless it is a fade of at most `max_exit_sec`:
     a longer fade is shortened, and any other exit (a slide, a zoom, a pop)
     is dropped, since a shortened slide is still a slide. `None` leaves
@@ -296,6 +297,10 @@ def _limit_template_motion(
             kept.append(animator)
             continue
         if when == _ENTRANCE_EVENT and max_entrance_sec is not None:
+            if max_entrance_sec <= 0:
+                # pycaps raises on a zero-length animation, so 0 drops it.
+                logger.debug("dropped entrance animation %s", type(animation).__name__)
+                continue
             animation._duration = min(duration, max_entrance_sec)
         elif when == _EXIT_EVENT and max_exit_sec is not None:
             if type(animation).__name__ != "FadeOut" or max_exit_sec <= 0:

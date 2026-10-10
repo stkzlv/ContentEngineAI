@@ -152,6 +152,15 @@ class TestPycapsMotion:
 
         assert all(a._when.value == "narration-starts" for a in animators)
 
+    def test_zero_drops_every_entrance(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A zero-length animation raises in pycaps, so 0 can't shorten."""
+        animators = _build(monkeypatch, tmp_path, _explosive_like(), max_entrance_sec=0)
+
+        assert all(a._when.value == "narration-ends" for a in animators)
+        assert all(a._animation._duration > 0 for a in animators)
+
     def test_unset_leaves_the_template_alone(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
@@ -240,12 +249,33 @@ class TestFfmpegMotion:
 
         assert "\\fad(300,300)" in _dialogue(monkeypatch, "fade", effects)
 
-    def test_the_typewriter_reveal_is_capped(self, monkeypatch) -> None:
-        capped = SubtitleEffectsSettings(typewriter_max_reveal_ms=250)
-        uncapped = SubtitleEffectsSettings()
+    def test_the_capped_typewriter_is_one_short_fade_in(self, monkeypatch) -> None:
+        r"""Invisible at the start, fully shown by 250 ms, nothing after.
 
-        assert "\\t(0,250," in _dialogue(monkeypatch, "typewriter", capped)
-        assert "\\t(0,250," not in _dialogue(monkeypatch, "typewriter", uncapped)
+        The uncapped pair fades the line out and then back in up to the
+        event's end (`\t(R,0,...)` runs to the end in libass), so capping
+        its first half lengthened the motion.
+        """
+        capped = SubtitleEffectsSettings(typewriter_max_reveal_ms=250)
+        line = _dialogue(monkeypatch, "typewriter", capped)
+
+        assert "\\alpha&HFF&\\t(0,250,\\alpha&H00&)" in line
+        assert line.count("\\t(") == 1
+
+    def test_zero_shows_the_line_at_once(self, monkeypatch) -> None:
+        line = _dialogue(
+            monkeypatch,
+            "typewriter",
+            SubtitleEffectsSettings(typewriter_max_reveal_ms=0),
+        )
+
+        assert "\\t(" not in line
+        assert "\\alpha&HFF&" not in line
+
+    def test_uncapped_keeps_the_old_effect(self, monkeypatch) -> None:
+        line = _dialogue(monkeypatch, "typewriter", SubtitleEffectsSettings())
+
+        assert ",0,\\alpha&H00&)" in line
 
     def test_the_shipped_config_limits_both(self) -> None:
         import yaml

@@ -163,7 +163,8 @@ subtitle_settings:
     # Caption motion (REQ-VID-155): an entrance runs at most 0.25 s, and a
     # caption leaves with a hard cut or a fade of at most 0.08 s, per
     # docs/explanation/captions.md. `explosive` ships a 0.4 s slide-in and a
-    # 0.3 s slide-out. Set both to null to keep a template's own timing.
+    # 0.3 s slide-out. 0 drops every entrance or exit; null keeps a
+    # template's own timing.
     max_entrance_sec: 0.25
     max_exit_sec: 0.08
 
@@ -680,8 +681,9 @@ subtitle_effects:
   # Fade-out length; null uses fade_duration_ms. At most 80 ms, or 0 for a
   # hard cut.
   fade_out_duration_ms: 80
-  # Longest a typewriter reveal may run; null leaves it to the per-character
-  # time above, which can take seconds on a long segment.
+  # Makes the typewriter effect a fade-in from invisible of at most this many
+  # ms; 0 shows the line at once. null keeps the uncapped effect, which fades
+  # the line out and back in over the whole segment.
   typewriter_max_reveal_ms: 250
 
 # ============================================================================

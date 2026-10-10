@@ -157,8 +157,9 @@ class SubtitleEffectsSettings(BaseModel):
         default=None,
         ge=0,
         description=(
-            "Longest a typewriter reveal may run, in milliseconds. `None` "
-            "leaves it to the per-character time."
+            "Turns the typewriter effect into a fade-in from invisible of at "
+            "most this many milliseconds; 0 shows the line at once. `None` "
+            "keeps the uncapped fade-out-and-back effect."
         ),
     )
 
@@ -446,8 +447,8 @@ class PycapsSettings(BaseModel):
         ge=0,
         description=(
             "Longest a template's entrance animation may run, in seconds; a "
-            "longer one is shortened to it. `None` leaves the template's "
-            "timing alone."
+            "longer one is shortened to it. 0 drops every entrance. `None` "
+            "leaves the template's timing alone."
         ),
     )
     max_exit_sec: float | None = Field(

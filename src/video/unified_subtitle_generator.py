@@ -1145,12 +1145,22 @@ class UnifiedSubtitleGenerator:
                         if subtitle_effects
                         else None
                     )
-                    if max_reveal is not None:
-                        reveal_duration = min(reveal_duration, max_reveal)
-                    effects.append(
-                        f"\\t(0,{reveal_duration},\\alpha&HFF&)"
-                        f"\\t({reveal_duration},0,\\alpha&H00&)"
-                    )
+                    if max_reveal is None:
+                        effects.append(
+                            f"\\t(0,{reveal_duration},\\alpha&HFF&)"
+                            f"\\t({reveal_duration},0,\\alpha&H00&)"
+                        )
+                    else:
+                        # A capped reveal is a fade-in from invisible: the
+                        # uncapped pair fades out first and then back in up
+                        # to the event's end, so capping it lengthened the
+                        # motion instead (REQ-VID-155).
+                        reveal = min(reveal_duration, max_reveal)
+                        effects.append(
+                            f"\\alpha&HFF&\\t(0,{reveal},\\alpha&H00&)"
+                            if reveal > 0
+                            else "\\alpha&H00&"
+                        )
 
             # Karaoke effects
             if self._selected_effects.get("karaoke", False):

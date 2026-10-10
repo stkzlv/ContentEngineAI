@@ -42,9 +42,9 @@ Not supported: "yellow beats brand colours in A/B tests" and "highest-converting
 
 ## Highlighting and animation
 
-The pycaps templates highlight the word being narrated (`REQ-VID-035`); the bundled `template_pool` is `["explosive", "word-focus"]`, chosen per product, and each template owns its own animation timing in its CSS and template file. The FFmpeg effects are karaoke, fade and typewriter (`REQ-VID-071`), one per render (`REQ-VID-072`). The `animated` preset uses karaoke rather than per-word movement, and the `random` preset's effect pool was narrowed to those three after rotation, glow and movement effects were judged fatiguing.
+The pycaps templates highlight the word being narrated (`REQ-VID-035`); the bundled `template_pool` is `["explosive", "word-focus"]`, chosen per product, and each template owns its own animation timing in its CSS and template file, within the motion limits below. The FFmpeg effects are karaoke, fade and typewriter (`REQ-VID-071`), one per render (`REQ-VID-072`). The `animated` preset uses karaoke rather than per-word movement, and the `random` preset's effect pool was narrowed to those three after rotation, glow and movement effects were judged fatiguing.
 
-A caption enters in at most 250 ms and leaves with a hard cut or a fade of at most 80 ms (`REQ-VID-155`). On pycaps, `pycaps.max_entrance_sec: 0.25` shortens a template's entrances (`explosive` ships a 0.4 s slide-in) and `pycaps.max_exit_sec: 0.08` shortens a fade-out and drops any other exit (its 0.3 s slide-out). On FFmpeg, the `fade` effect fades in over `subtitle_effects.fade_duration_ms: 250` and out over `fade_out_duration_ms: 80`, and the typewriter reveal stops at `typewriter_max_reveal_ms: 250`.
+A caption enters in at most 250 ms and leaves with a hard cut or a fade of at most 80 ms (`REQ-VID-155`). On pycaps, `pycaps.max_entrance_sec: 0.25` shortens a template's entrances (`explosive` ships a 0.4 s slide-in) and `pycaps.max_exit_sec: 0.08` shortens a fade-out and drops any other exit (its 0.3 s slide-out). On FFmpeg, the `fade` effect fades in over `subtitle_effects.fade_duration_ms: 250` and out over `fade_out_duration_ms: 80`, and `typewriter_max_reveal_ms: 250` makes the typewriter effect a fade-in of at most 250 ms.
 
 Why:
 
