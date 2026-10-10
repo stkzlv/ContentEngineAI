@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.200.2] - 2026-10-10
+
+### Changed
+
+- Design 0016 records that rendered videos carry no C2PA provenance data from the text-to-speech voice.
+
 ## [0.200.1] - 2026-10-10
 
 ### Changed
