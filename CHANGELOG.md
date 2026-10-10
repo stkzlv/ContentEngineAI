@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.0] - 2026-10-10
+
+### Changed
+
+- Step cards are on in the bundled config: a tutorial render with a step list shows "Step N of M" over the step's menu path while the narration covers that step.
+- TTS normalisation is on in the bundled config; its tables are empty, so the text sent to the voice is unchanged until an entry is added.
+
 ## [0.203.0] - 2026-10-10
 
 ### Added

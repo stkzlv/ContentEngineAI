@@ -390,3 +390,10 @@ def test_the_render_passes_its_cards_to_the_assembler() -> None:
     assert "apply_step_card_overlay(" in assemble
     assert "step_cards or []" in assemble
     assert "step_cards=_step_cards(ctx)" in inspect.getsource(steps)
+
+
+@pytest.mark.req("REQ-VID-124")
+def test_the_shipped_config_turns_step_cards_on() -> None:
+    from src.video.config import load_video_config_modular
+
+    assert load_video_config_modular().video_settings.graphics.enabled is True

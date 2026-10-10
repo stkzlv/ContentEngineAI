@@ -113,4 +113,4 @@ Captions never split or alter a number: thousands separators, decimals and hyphe
 
 Not supported: stripping terminal punctuation from captions. Karaoke segment breaks do act as visual punctuation, but no template effect can tell a full stop from a decimal point, and a caption stating a different number costs more than one that keeps a full stop.
 
-Planned: TTS normalisation of numbers, units and model names, with captions showing what the voice said ([design 0014](../design/0014-tts-text-normalisation.md), `REQ-CNT-076`).
+TTS normalisation rewrites numbers, units and model names the voice misreads in the text sent to the voice only, and the captions show what the voice said ([design 0014](../design/0014-tts-text-normalisation.md), `REQ-CNT-076`). It is on in the bundled config with empty tables, so nothing is rewritten until an entry is added.
