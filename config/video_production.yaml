@@ -255,7 +255,7 @@ video_settings:
   # the frame after the hook ends. A step whose words can't be found in the
   # transcript gets no card.
   graphics:
-    enabled: false
+    enabled: true
     min_sec: 1.5
     max_sec: 6.0
     max_path_words: 4

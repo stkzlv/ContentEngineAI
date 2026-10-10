@@ -62,10 +62,10 @@ def test_off_leaves_the_text_alone() -> None:
 
 
 @pytest.mark.req("REQ-CNT-075")
-def test_the_shipped_config_is_off_with_empty_tables() -> None:
+def test_the_shipped_config_is_on_with_empty_tables() -> None:
     settings = load_video_config_modular().tts_config.tts_normalisation
 
-    assert settings.enabled is False
+    assert settings.enabled is True
     assert settings.units == {} and settings.lexicon == {}
 
 

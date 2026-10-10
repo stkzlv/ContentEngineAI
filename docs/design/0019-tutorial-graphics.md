@@ -1,6 +1,6 @@
 # 0019. Explanatory graphics
 
-- **Status:** Held
+- **Status:** Accepted
 - **Issue:** #561
 - **Requirements:** REQ-VID-124
 

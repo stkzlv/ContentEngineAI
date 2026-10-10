@@ -606,9 +606,10 @@ tts_config:
   # units: {mAh: "milliamp hours"} applies only straight after a number;
   # lexicon: {A2337: "A two three three seven"} replaces a whole term. Add only
   # what tools/tts_normalisation_probe.py shows misread: on the pinned voice
-  # it found nothing, so both tables are empty and the switch stays off.
+  # it found nothing, so both tables are empty: the switch is on and
+  # rewrites nothing until an entry is added.
   tts_normalisation:
-    enabled: false
+    enabled: true
     units: {}
     lexicon: {}
 

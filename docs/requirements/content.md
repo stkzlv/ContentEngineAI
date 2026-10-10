@@ -126,10 +126,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-131** `shipped` Where the Coqui TTS package is installed and `coqui` is listed in `tts_config.provider_order`, the producer can synthesise speech locally with Coqui TTS; the bundled order leaves it out.
 - **REQ-CNT-073** `shipped` Where `audio_settings.voice_chain.enabled` is true, the producer treats the voiceover with filtering, gentle compression, de-essing and limiting before the mix, without changing its loudness target or its transcript.
 - **REQ-CNT-074** `shipped` The producer records per render whether the voice chain was on, beside the voice name.
-- **REQ-CNT-075** `held` Where TTS normalisation is enabled, numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only.
-  - On when: `tts_config.tts_normalisation.enabled` is set, with table entries, once `tools/tts_normalisation_probe.py` shows the voice misreading a string; on the pinned voice it found none.
-- **REQ-CNT-076** `held` Where TTS normalisation is enabled, the script file and state keep the written form, and the captions show what the voice said.
-  - On when: with REQ-CNT-075.
+- **REQ-CNT-075** `shipped` Where TTS normalisation is enabled, numbers, units and model names the voice misreads are rewritten to speakable words in the text sent to TTS only.
+  - Check: the bundled `units` and `lexicon` tables are empty, because `tools/tts_normalisation_probe.py` found nothing the pinned voice misreads, so the switch is on and rewrites nothing until an entry is added.
+- **REQ-CNT-076** `shipped` Where TTS normalisation is enabled, the script file and state keep the written form, and the captions show what the voice said.
 
 ## Background music
 

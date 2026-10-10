@@ -72,12 +72,12 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0011](0011-cover-frames.md) | Cover frames, including YouTube Shorts thumbnails | #552 | Accepted |
 | [0012](0012-clean-product-images.md) | Prefer clean product images over seller infographics | #554 | Accepted |
 | [0013](0013-stock-clip-reuse-guard.md) | Do not reuse stock clips across recent renders | #555 | Implemented |
-| [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Held |
+| [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Implemented |
 | [0015](0015-narrator-voice-evaluation.md) | Evaluate a distinctive or owned narrator voice | #557 | Draft |
 | [0016](0016-tiktok-ai-label.md) | Revisit the TikTok AI label | #558 | Accepted |
 | [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Implemented |
 | [0018](0018-tutorial-step-visuals.md) | A visual per step | #560 | Accepted |
-| [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Held |
+| [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Accepted |
 | [0020](0020-analytics-history.md) | Analytics history | none | Accepted |
 | [0021](0021-caption-outline.md) | A black outline round pycaps captions | #591 | Implemented |
 | [0022](0022-signature-lines.md) | Signature lines per video type | #440 | Implemented |
