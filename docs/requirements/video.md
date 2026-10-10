@@ -139,7 +139,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-148** `shipped` No bundled caption template or style preset flashes, and none scales a word beyond 1.1x: the `explosive` template's word zoom peaks at 1.10x, and `word-focus` has no animation.
 - **REQ-VID-149** `shipped` A render's captions use at most three highlight colours, since one caption template or one colour pair styles the whole render.
   - Check: `explosive` uses three fills (a word before, during and after its narration), `word-focus` one box colour, and FFmpeg karaoke one sweep colour.
-- **REQ-VID-155** `planned #591` A caption entrance animation lasts at most 250 ms, and a segment leaves with a hard cut or a fade of at most 80 ms.
+- **REQ-VID-155** `shipped` A caption entrance animation lasts at most 250 ms, and a segment leaves with a hard cut or a fade of at most 80 ms.
 
 ## Cold open
 

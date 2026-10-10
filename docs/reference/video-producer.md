@@ -334,8 +334,8 @@ The tags `src/video/unified_subtitle_generator.py` writes for each effect.
 | Effect | Tag | Description |
 |---|---|---|
 | Karaoke | `{\kf50}Hello {\kf40}world` | Word-by-word fill in time with speech. `\kf` fills smoothly; `\k` marks timing only. |
-| Fade | `{\fad(200,200)}Subtitle text` | Fade in and out, in milliseconds. The last caption has no fade-out. |
-| Typewriter | alpha transitions | Character-by-character reveal. |
+| Fade | `{\fad(250,80)}Subtitle text` | Fade in and out, in milliseconds (`fade_duration_ms`, `fade_out_duration_ms`). The last caption has no fade-out. |
+| Typewriter | `{\fad(250,0)}Subtitle text` | A fade-in of at most `typewriter_max_reveal_ms`. With that set to null, the line fades out and back in over the segment instead; it is not a per-character reveal. |
 | Scale pulse | `\t(\fscx,\fscy)` | Text grows and shrinks. No bundled preset uses it. |
 | Glow | `\t(\3c&H...)` | Outline colour pulses. No bundled preset uses it. |
 

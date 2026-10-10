@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.199.0] - 2026-10-10
+
+### Changed
+
+- Captions enter in at most 250 ms and leave with a hard cut or a fade of at most 80 ms: on pycaps, `max_entrance_sec` shortens a template's entrances and `max_exit_sec` drops its slide-outs, and on FFmpeg the fade-out has its own `fade_out_duration_ms` and `typewriter_max_reveal_ms` turns the typewriter effect into a short fade-in.
+
 ## [0.198.1] - 2026-10-10
 
 ### Changed
