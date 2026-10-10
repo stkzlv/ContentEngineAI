@@ -1050,8 +1050,14 @@ class UnifiedSubtitleGenerator:
                 fade_duration = (
                     subtitle_effects.fade_duration_ms if subtitle_effects else 300
                 )
+                fade_out_setting = (
+                    subtitle_effects.fade_out_duration_ms if subtitle_effects else None
+                )
+                fade_out_duration = (
+                    fade_duration if fade_out_setting is None else fade_out_setting
+                )
                 # Disable fade-out for last segment to prevent truncation appearance
-                fade_out = 0 if is_last_segment else fade_duration
+                fade_out = 0 if is_last_segment else fade_out_duration
                 effects.append(f"\\fad({fade_duration},{fade_out})")
 
             # Other effects (scale_pulse, rotation_bounce, glow, typewriter,
@@ -1134,6 +1140,13 @@ class UnifiedSubtitleGenerator:
                 )
                 if char_reveal_time > min_timing:  # Only apply if reasonable timing
                     reveal_duration = int(char_reveal_time * len(text))
+                    max_reveal = (
+                        subtitle_effects.typewriter_max_reveal_ms
+                        if subtitle_effects
+                        else None
+                    )
+                    if max_reveal is not None:
+                        reveal_duration = min(reveal_duration, max_reveal)
                     effects.append(
                         f"\\t(0,{reveal_duration},\\alpha&HFF&)"
                         f"\\t({reveal_duration},0,\\alpha&H00&)"

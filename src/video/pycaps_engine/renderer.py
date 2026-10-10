@@ -264,6 +264,48 @@ def _mute_template_sound_effects(builder: Any) -> None:
     effects.clear()
 
 
+_ENTRANCE_EVENT = "narration-starts"
+_EXIT_EVENT = "narration-ends"
+
+
+def _limit_template_motion(
+    builder: Any, max_entrance_sec: float | None, max_exit_sec: float | None
+) -> None:
+    """Shorten a template's entrances and cut its exits (REQ-VID-155).
+
+    `CapsPipeline._animators` holds one `ElementAnimator` per template
+    animation, and every animation reads its `_duration` when it runs, so
+    lowering that attribute after the template loads is the whole lever.
+    An entrance longer than `max_entrance_sec` is shortened to it. An exit
+    leaves with a hard cut unless it is a fade of at most `max_exit_sec`:
+    a longer fade is shortened, and any other exit (a slide, a zoom, a pop)
+    is dropped, since a shortened slide is still a slide. `None` leaves
+    that side as the template shipped it.
+    """
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    animators = getattr(pipeline, "_animators", None)
+    if not animators:
+        logger.debug("template registers no animations; nothing to limit")
+        return
+    kept = []
+    for animator in animators:
+        animation = getattr(animator, "_animation", None)
+        when = getattr(getattr(animator, "_when", None), "value", None)
+        duration = getattr(animation, "_duration", None)
+        if animation is None or duration is None:
+            kept.append(animator)
+            continue
+        if when == _ENTRANCE_EVENT and max_entrance_sec is not None:
+            animation._duration = min(duration, max_entrance_sec)
+        elif when == _EXIT_EVENT and max_exit_sec is not None:
+            if type(animation).__name__ != "FadeOut" or max_exit_sec <= 0:
+                logger.debug("dropped exit animation %s", type(animation).__name__)
+                continue
+            animation._duration = min(duration, max_exit_sec)
+        kept.append(animator)
+    animators[:] = kept
+
+
 def _override_ai_tag_prompt(builder: Any, instruction: str) -> None:
     """Replace the instruction every AI tagging rule carries.
 
@@ -639,4 +681,8 @@ class PycapsRenderer:
             _override_ai_tag_prompt(builder, settings.ai_tag_prompt_override)
         if settings.mute_template_sound_effects:
             _mute_template_sound_effects(builder)
+        if settings.max_entrance_sec is not None or settings.max_exit_sec is not None:
+            _limit_template_motion(
+                builder, settings.max_entrance_sec, settings.max_exit_sec
+            )
         return builder, custom_renderer

@@ -845,6 +845,9 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_effects.glow_duration_factor` | int | 400 | Time the outline takes to turn yellow and back, segment seconds times this in ms each way. The glow colour is fixed in code. |
 | `subtitle_effects.typewriter_char_reveal_max_sec` | float | 0.1 | Longest time per character. The line starts visible, fades out over character count times that time (at most the segment's length), then fades back in; it isn't a per-character reveal. |
 | `subtitle_effects.typewriter_min_timing_ms` | int | 50 | The typewriter fade is added only when the time per character exceeds this. |
+| `subtitle_effects.typewriter_max_reveal_ms` | int or null | 250 | Longest the typewriter fade may run; null leaves it to the per-character time, which can take seconds on a long segment. |
+| `subtitle_effects.fade_duration_ms` | int | 250 | Fade-in length of the `fade` effect. |
+| `subtitle_effects.fade_out_duration_ms` | int or null | 80 | Fade-out length of the `fade` effect; 0 is a hard cut, null uses `fade_duration_ms`. The last segment never fades out. |
 | `text_rendering` | block | present | Line-width estimates for the ASS generator and the global caption safe zone. |
 | `text_rendering.narrow_char_width_factor`, `wide_char_width_factor`, `space_char_width_factor` | float | 0.4, 1.2, 0.3 | Width of narrow characters (`iIjl|':;,.`), wide ones (`mwMWAGOQ`) and spaces relative to the average, when the FFmpeg engine wraps a script that has no word timestamps. |
 | `text_rendering.safe_zone.min_x`, `max_x` | float (0-1) | 0.056, 0.833 | Left and right edges of the caption safe zone as a fraction of frame width. They clamp FFmpeg caption position and width and cap the pycaps caption width. A profile's `subtitle_settings.safe_zone` wins. |
@@ -862,6 +865,8 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_settings.pycaps.vertical_align_offset` | float (-1 to 1) or null | -0.20 | Places the caption block at `subtitle_settings.pycaps.vertical_align` (bundled `bottom`) with this offset, replacing the template's own alignment; null keeps the template's position. The image band is placed against it too. |
 | `subtitle_settings.pycaps.caption_block_height` | float (0-0.5) | 0.12 | Estimated caption block height as a fraction of the frame; the assembler keeps the product image above it. pycaps doesn't read it. |
 | `subtitle_settings.pycaps.mute_template_sound_effects` | bool | true | Drops the template's sound effects, such as the ding on each highlighted word. |
+| `subtitle_settings.pycaps.max_entrance_sec` | float or null | 0.25 | Longest a template's entrance animation runs; a longer one is shortened. Null keeps the template's timing. |
+| `subtitle_settings.pycaps.max_exit_sec` | float or null | 0.08 | Longest a template's exit runs: a fade-out is shortened to it and any other exit animation is dropped, so the caption leaves with a hard cut. 0 drops every exit; null keeps the template's exits. |
 | `subtitle_settings.timing_smoothing` | block | on | Adjusts Whisper word timings before either engine sees them; timings from the Google STT fallback are left alone. |
 | `subtitle_settings.timing_smoothing.lead_sec` | float | 0.04 | Shows each word this many seconds before it is spoken. |
 | `subtitle_settings.timing_smoothing.hook_lead_sec`, `hook_lead_word_count` | float, int | 0.20, 3 | Extra lead for the first words of the script; 0 turns it off. |

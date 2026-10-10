@@ -143,7 +143,23 @@ class SubtitleEffectsSettings(BaseModel):
 
     # Fade effect parameters
     fade_duration_ms: int = Field(
-        300, description="Default fade in/out duration in milliseconds"
+        default=300, ge=0, description="Fade-in duration in milliseconds"
+    )
+    fade_out_duration_ms: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Fade-out duration in milliseconds; 0 is a hard cut. `None` uses "
+            "`fade_duration_ms`."
+        ),
+    )
+    typewriter_max_reveal_ms: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Longest a typewriter reveal may run, in milliseconds. `None` "
+            "leaves it to the per-character time."
+        ),
     )
 
 
@@ -423,6 +439,25 @@ class PycapsSettings(BaseModel):
             "to highlight. Set to a recipe naming what to tag. `None` leaves "
             "the template's own instruction alone. Ignored by a template with "
             "no AI rule, such as `word-focus`."
+        ),
+    )
+    max_entrance_sec: float | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Longest a template's entrance animation may run, in seconds; a "
+            "longer one is shortened to it. `None` leaves the template's "
+            "timing alone."
+        ),
+    )
+    max_exit_sec: float | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Longest a template's exit may run, in seconds. A fade-out is "
+            "shortened to it; any other exit animation is dropped, so the "
+            "caption leaves with a hard cut. 0 drops every exit. `None` "
+            "leaves the template's exits alone."
         ),
     )
     mute_template_sound_effects: bool = Field(
