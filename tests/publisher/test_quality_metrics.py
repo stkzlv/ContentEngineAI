@@ -162,7 +162,12 @@ async def _sweep(tmp_path: Path, analytics_side_effect) -> None:
         analytics_config=AnalyticsConfig(limit=50),
     )
     args = argparse.Namespace(
-        limit=None, rank_only=False, outputs_dir=tmp_path, debug=False
+        limit=None,
+        rank_only=False,
+        by_arm=False,
+        since=None,
+        outputs_dir=tmp_path,
+        debug=False,
     )
     with (
         patch(

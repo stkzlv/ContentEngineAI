@@ -206,12 +206,6 @@ Reports per pillar, template, voice, caption variant and hook style over rolling
 
 **Done when:** one command answers which pillar converts best on a platform over the last four weeks. No issue yet.
 
-### 5.4 Reach by content-format arm
-
-Join performance, keyed by post, with the format arm, keyed by product, through the publish history.
-
-**Done when:** one command reports day-N and durability figures by format arm and states how many posts it could not place. No issue yet.
-
 ### 5.6 First-seconds metrics
 
 Store every first-seconds and quality metric the platforms expose, segmented by format arm and render choice. [Design 0010](design/0010-first-seconds-metrics.md), #551.

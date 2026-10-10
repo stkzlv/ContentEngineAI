@@ -35,6 +35,7 @@ from src.publisher.analytics import (
     publish_time,
     quality_metrics,
     rank_by_durability,
+    readout_by_arm,
     save_metrics,
     segment_quality,
     summarize_post,
@@ -236,19 +237,68 @@ def _log_quality_segments(outputs_dir: Path, duration_bands: list[float]) -> Non
             logger.info("  %s", line)
 
 
+def _iso_date(value: str) -> datetime:
+    """A YYYY-MM-DD argument as a naive datetime at midnight."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"expected YYYY-MM-DD, got {value!r}") from e
+
+
+def _log_arm_readout(
+    outputs_dir: Path, since: datetime | None, analytics_config
+) -> None:
+    """The reach-test readout over stored metrics (REQ-PUB-150)."""
+    from src.publisher.product_registry import load_registry
+
+    arms = {
+        entry.product_id: entry.content_format
+        for entry in load_registry(outputs_dir)
+        if entry.content_format
+    }
+    arm_by_post = {
+        post_id: arm
+        for post_id, product_id in _load_product_map(outputs_dir).items()
+        if (arm := arms.get(product_id))
+    }
+    for line in readout_by_arm(
+        load_metrics(outputs_dir),
+        arm_by_post,
+        since=since,
+        platforms=analytics_config.readout_platforms,
+        breakout_multiple=analytics_config.breakout_multiple,
+    ):
+        logger.info("%s", line)
+
+
 def _load_product_map(outputs_dir: Path) -> dict[str, str]:
-    """Map Zernio post_id to product_id from publish_history.json (best effort)."""
+    """Map Zernio post_id to product_id (best effort).
+
+    From publish_history.json, then schedule.json for posts history no longer
+    names: a `--force` republish overwrites a product's history row with the
+    new post, while the schedule keeps one entry per post (REQ-PUB-151).
+    """
     from src.publisher.tracking import get_tracking_path
 
+    out: dict[str, str] = {}
     try:
         posts = json.loads(get_tracking_path(outputs_dir).read_text())["posts"]
-    except (OSError, KeyError, ValueError):
-        return {}
-    out: dict[str, str] = {}
-    for value in posts.values():
-        post_id = value.get("post_id")
-        if post_id:
-            out[post_id] = value.get("product_id", post_id)
+        for value in posts.values():
+            post_id = value.get("post_id")
+            if post_id:
+                out[post_id] = value.get("product_id", post_id)
+    except (OSError, KeyError, ValueError, AttributeError):
+        pass
+    try:
+        schedule = json.loads(
+            durable_state_path(outputs_dir, "schedule.json").read_text()
+        )["entries"]
+        for entry in schedule:
+            post_id = entry.get("post_id")
+            if post_id and entry.get("product_id"):
+                out.setdefault(post_id, entry["product_id"])
+    except (OSError, KeyError, ValueError, TypeError, AttributeError):
+        pass
     return out
 
 
@@ -425,6 +475,8 @@ async def cmd_analytics(
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
     _log_quality_segments(outputs_dir, config.analytics_config.duration_bands_sec)
+    if args.by_arm:
+        _log_arm_readout(outputs_dir, args.since, config.analytics_config)
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")
     for m in rank_by_durability(metrics):
@@ -1720,6 +1772,20 @@ Examples:
             "How many recent published posts to measure "
             "(default: analytics.limit in config/publisher.yaml)"
         ),
+    )
+    analytics_parser.add_argument(
+        "--by-arm",
+        action="store_true",
+        help=(
+            "Also report median day-2 and day-7 views by format arm, their "
+            "ratio and the reach-test verdict"
+        ),
+    )
+    analytics_parser.add_argument(
+        "--since",
+        type=_iso_date,
+        default=None,
+        help="With --by-arm, only posts published on or after DATE (YYYY-MM-DD)",
     )
     analytics_parser.add_argument(
         "--rank-only",

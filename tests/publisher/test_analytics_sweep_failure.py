@@ -28,7 +28,12 @@ def _config():
 
 def _args(tmp_path):
     return argparse.Namespace(
-        limit=None, rank_only=False, outputs_dir=Path(tmp_path), debug=False
+        limit=None,
+        rank_only=False,
+        by_arm=False,
+        since=None,
+        outputs_dir=Path(tmp_path),
+        debug=False,
     )
 
 

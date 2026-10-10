@@ -182,6 +182,12 @@ So 18 of 51 day-7 figures, a third, were understated by a leg that hadn't starte
 
 The trade is deliberate. A missing figure is visible and can be excluded; a quietly understated one is neither. It does mean a comparison needs more posts than its target sample to end up with that many usable ones.
 
+### Reading by format arm
+
+`analytics --by-arm` answers the reach test's question: does one format arm reach as many people as the other. It compares median day-7 views, topic over product, because daily views on a small channel range over an order of magnitude and one spike would swamp a mean (`REQ-PUB-150`). The medians count the platforms in `analytics.readout_platforms` and nothing else, from each platform's own day-N figure (`REQ-PUB-149`); a sum over every platform weights a platform the protocol leaves out, and on this channel moved the ratio from 1.04 to 1.21.
+
+A post is placed in an arm through its product's registry row. Posts the readout can't place are counted and named rather than dropped, so a gap in the labelling shows up beside the result (`REQ-PUB-151`). Per-platform medians and the breakout rate follow as secondary lines: both arms can sit on the same floor while one of them breaks out more often, which the median can't see (`REQ-PUB-152`).
+
 ### Reading a blank figure
 
 Three causes produce a blank, and `timeline_end` alone doesn't separate them: a post that aged past the retention horizon before its first sweep looks the same as one with a silent leg. Read `lagged_cutoff_days` in `outputs/state/post_metrics.json` first; it names the cutoffs a leg was silent for. Failing that, `timeline_end` earlier than the cutoff means the window hadn't closed when the sweep ran, and at or past it with no marker means the retained rows begin after the cutoff.

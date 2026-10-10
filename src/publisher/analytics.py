@@ -23,14 +23,17 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
+
+_V = TypeVar("_V", int, float)
 
 # Views after this many days count as durable rather than launch traffic.
 DURABILITY_WINDOW_DAYS = 30
@@ -132,6 +135,10 @@ class PostMetrics:
     # Per platform, per field: the latest reading, or None when the platform
     # does not expose the field or the sweep could not read it (REQ-PUB-084).
     platform_metrics: dict[str, dict[str, float | None]] = field(default_factory=dict)
+    # Per platform, its own day-N views ("day_2", "day_7"), so a readout can
+    # count only the platforms a protocol names (REQ-PUB-149). None when that
+    # platform had no row by the cutoff.
+    views_by_platform: dict[str, dict[str, int | None]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -393,6 +400,29 @@ def publish_time(post: dict[str, Any]) -> str:
     return str(post.get("publishedAt") or post.get("scheduledFor") or "")
 
 
+def platform_day_views(
+    rows: Any, published_at: datetime
+) -> dict[str, dict[str, int | None]]:
+    """Each platform's own day-N views, from its rows alone.
+
+    A platform's series needs no lag guard: a leg that had not reported by a
+    cutoff has no row at or before it and reads None, never a partial sum.
+    """
+    by_platform: dict[str, list[dict[str, Any]]] = {}
+    for row in rows or []:
+        if isinstance(row, dict) and row.get("platform"):
+            by_platform.setdefault(str(row["platform"]).lower(), []).append(row)
+    return {
+        platform: {
+            f"day_{day}": views_at_day(
+                normalize_timeline(platform_rows), published_at, day
+            )
+            for day in LAUNCH_DAYS
+        }
+        for platform, platform_rows in by_platform.items()
+    }
+
+
 def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
     """Reduce one post's raw timeline to the figures worth storing."""
     when = _parse_date(published_at)
@@ -458,6 +488,7 @@ def summarize_post(post_id: str, published_at: Any, rows: Any) -> PostMetrics:
         timeline_end=timeline[-1][0].isoformat(),
         lagged_cutoff_days=marked,
         covers_publication=covers_publication,
+        views_by_platform=platform_day_views(rows, when),
     )
 
 
@@ -727,14 +758,19 @@ def _combine(stored: PostMetrics, fresh: PostMetrics) -> PostMetrics:
         platform_metrics=_combine_quality(
             stored.platform_metrics, fresh.platform_metrics
         ),
+        # Same rule as the summed day-N figures: a reading past the retention
+        # horizon comes back None and must not erase one taken earlier.
+        views_by_platform=_combine_quality(
+            stored.views_by_platform, fresh.views_by_platform
+        ),
     )
     return _withdraw_lagged(merged)
 
 
 def _combine_quality(
-    stored: dict[str, dict[str, float | None]],
-    fresh: dict[str, dict[str, float | None]],
-) -> dict[str, dict[str, float | None]]:
+    stored: dict[str, dict[str, _V | None]],
+    fresh: dict[str, dict[str, _V | None]],
+) -> dict[str, dict[str, _V | None]]:
     merged = {platform: dict(row) for platform, row in stored.items()}
     for platform, row in fresh.items():
         target = merged.setdefault(platform, {})
@@ -820,4 +856,153 @@ def segment_quality(
                         parts.append(f"{platform}.{name}={mean:.1f}(n={len(readings)})")
             if parts:
                 lines.append(f"{dim}={value} [{len(posts)} post(s)]: {' '.join(parts)}")
+    return lines
+
+
+# The reach test's decision rule: the topic arm's median day-7 views over the
+# product arm's, read against these bands (REQ-PUB-150).
+READOUT_ARMS = ("topic", "product")
+PROCEED_RATIO = 0.7
+REFORECAST_RATIO = 0.4
+
+
+def _median(values: Sequence[float]) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return float(ordered[mid])
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def _views_on(m: PostMetrics, platforms: list[str], day: int) -> int | None:
+    """A post's day-N views on the named platforms, or None if any is missing.
+
+    A post missing one platform's figure is left out rather than counted on
+    the others: a partial sum ranks it below an identical post for a reason
+    that is not reach.
+    """
+    total = 0
+    for platform in platforms:
+        value = m.views_by_platform.get(platform, {}).get(f"day_{day}")
+        if value is None:
+            return None
+        total += value
+    return total
+
+
+def _verdict(ratio: float) -> str:
+    if ratio >= PROCEED_RATIO:
+        return "reach holds: proceed"
+    if ratio >= REFORECAST_RATIO:
+        return "proceed, re-forecast revenue down by the ratio"
+    return "reach premise fails: revisit niche or format"
+
+
+def _fmt(value: float | None) -> str:
+    return "-" if value is None else f"{value:g}"
+
+
+def readout_by_arm(
+    metrics: list[PostMetrics],
+    arm_by_post: dict[str, str],
+    *,
+    since: datetime | None,
+    platforms: list[str],
+    breakout_multiple: float,
+) -> list[str]:
+    """The reach-test readout: day-N medians by format arm and their ratio.
+
+    Medians, not means: one spike would swamp an average. The gate counts
+    only `platforms`; per-platform medians and the breakout rate are
+    secondary lines that do not change the verdict (REQ-PUB-152). Posts with
+    no arm are counted and named rather than silently dropped; posts before
+    `since` are counted in the header.
+    """
+    in_window = [
+        m
+        for m in metrics
+        if since is None
+        or ((when := _parse_date(m.published_at)) is not None and when >= since)
+    ]
+    excluded = len(metrics) - len(in_window)
+    unplaced = [m.post_id for m in in_window if arm_by_post.get(m.post_id) is None]
+    placed = {
+        arm: [m for m in in_window if arm_by_post.get(m.post_id) == arm]
+        for arm in READOUT_ARMS
+    }
+    lines = [
+        f"Reach readout by arm on {'+'.join(platforms)}"
+        + (f" since {since.date().isoformat()}" if since else "")
+        + f": {len(in_window)} post(s), {len(unplaced)} with no arm"
+        + (f", {excluded} earlier left out" if excluded else "")
+    ]
+    if unplaced:
+        lines.append(f"  no arm: {', '.join(unplaced)}")
+
+    medians: dict[tuple[str, int], float | None] = {}
+    for arm, posts in placed.items():
+        parts = []
+        for day in LAUNCH_DAYS:
+            values = [
+                v for m in posts if (v := _views_on(m, platforms, day)) is not None
+            ]
+            medians[(arm, day)] = _median(values)
+            parts.append(
+                f"day {day} median {_fmt(medians[(arm, day)])} (n={len(values)})"
+            )
+        # Summed over every platform: a ratio of views after day 30 to views
+        # within it means the same on any platform subset.
+        ratios = [m.durability_ratio for m in posts if m.durability_ratio is not None]
+        median_ratio = _median(ratios)
+        parts.append(
+            "durability median "
+            f"{_fmt(None if median_ratio is None else round(median_ratio, 3))}"
+            f" (n={len(ratios)})"
+        )
+        lines.append(f"  {arm} [{len(posts)} post(s)]: {', '.join(parts)}")
+
+    for day in LAUNCH_DAYS:
+        topic, product = medians[("topic", day)], medians[("product", day)]
+        if topic is None or not product:
+            lines.append(f"  ratio day {day}: not measurable")
+            continue
+        # The verdict reads the printed figure, so a ratio shown as 0.70 is
+        # never placed in the band below 0.7.
+        ratio = round(topic / product, 2)
+        verdict = f": {_verdict(ratio)}" if day == LAUNCH_DAYS[-1] else ""
+        lines.append(f"  ratio day {day}: {ratio:.2f}{verdict}")
+
+    lines.append("Secondary (does not change the verdict):")
+    all_platforms = sorted({p for m in in_window for p in m.views_by_platform})
+    day = LAUNCH_DAYS[-1]
+    for platform in all_platforms:
+        parts = []
+        for arm, posts in placed.items():
+            values = [
+                v for m in posts if (v := _views_on(m, [platform], day)) is not None
+            ]
+            parts.append(f"{arm} {_fmt(_median(values))} (n={len(values)})")
+        lines.append(f"  {platform} day {day} median: {', '.join(parts)}")
+    pooled = [
+        v
+        for posts in placed.values()
+        for m in posts
+        if (v := _views_on(m, platforms, day)) is not None
+    ]
+    pooled_median = _median(pooled)
+    if pooled_median:
+        threshold = pooled_median * breakout_multiple
+        parts = []
+        for arm, posts in placed.items():
+            values = [
+                v for m in posts if (v := _views_on(m, platforms, day)) is not None
+            ]
+            hits = sum(v >= threshold for v in values)
+            parts.append(f"{arm} {hits} of {len(values)}")
+        lines.append(
+            f"  breakouts (day {day} at {breakout_multiple:g}x the pooled median "
+            f"{pooled_median:g} or more): {', '.join(parts)}"
+        )
     return lines
