@@ -50,6 +50,7 @@ Why:
 
 - Word-by-word highlighting keeps the viewer's eye where the audio is instead of reading ahead, and is reported to have the highest retention of the caption styles for longer clips [C] ([Opus Clip](https://www.opus.pro/blog/best-caption-presets-styles-boost-retention), [Blitzcut](https://blitzcutai.com/blog/best-caption-style-tiktok)).
 - An entrance over 250 ms is still moving when the viewer wants to read the word, and an exit longer than a cut or a short fade overlaps the next caption, which confuses the order [C].
+- No effect scales a word past 1.15x (`REQ-VID-162`): `explosive`'s pop-in overshoots to 1.1x and the FFmpeg pulse to 110%. The narrated-word colour change repeats several times a second, but on one word, far smaller than the area WCAG 2.3.1 counts as a flash.
 - Pulsing or moving every word adds fatigue and a motion-sickness risk. If you add an effect, keep any colour flash under three per second, the WCAG photosensitivity threshold [A] ([WCAG 2.3.1](https://w3c.github.io/wcag21/understanding/three-flashes-or-below-threshold.html)).
 
 ## AI-driven highlighting
@@ -103,6 +104,8 @@ Why:
 - Under 0.6 s even a one-word caption doesn't register; past 2.5 s the viewer has read it and scanned ahead, and the caption feels stale.
 - Showing a word slightly before it is spoken matches perception: reading takes longer than hearing.
 - Vanilla Whisper's word timestamps drift by tens to hundreds of milliseconds, enough to make a karaoke highlight visibly early or late [C] ([OpenAI Whisper discussion](https://github.com/openai/whisper/discussions/435)). Forced alignment (WhisperX) or attention-based alignment ([whisper-timestamped](https://github.com/linto-ai/whisper-timestamped)) fixes it at the cost of a heavy dependency chain. Issue #90 closed that upgrade as not planned until a render shows timing drift the smoother can't absorb.
+
+Not supported: a characters-per-second cap. Subtitle practice recommends 15-17, but a karaoke caption stays on screen exactly as long as the voice takes to say it, so its rate is the voice's: a median of 14.2 and a 90th percentile of 17.2 on saved renders. Merging fast segments would put more words on screen than the 3-5 above ([decision 0015](../decisions/0015-karaoke-captions-follow-the-voice.md)).
 
 ## Numbers and punctuation
 

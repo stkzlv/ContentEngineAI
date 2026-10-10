@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.200.1] - 2026-10-10
+
+### Changed
+
+- Decision 0015 records why caption segments follow the voice's rate rather than a characters-per-second cap, and a test holds caption effects to at most 1.15x scale.
+
 ## [0.200.0] - 2026-10-10
 
 ### Changed
