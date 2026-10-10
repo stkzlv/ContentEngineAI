@@ -226,8 +226,9 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-122** `shipped` Where step lists are on, a step with no source is refused, and a topic that can't be sourced is dropped.
 - **REQ-VID-123** `planned #560` Where step visuals are on, each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
-- **REQ-VID-124** `planned #561` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
-  - On when: `video_settings.graphics.enabled` is set after the reach-test readout (#540).
+- **REQ-VID-124** `held` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
+  - On when: `video_settings.graphics.enabled` is set once a sample render's cards are reviewed.
+  - Gap: only the step card is built: a counter over the step's menu path, timed to the step's narration, skipped when the narration can't be found (#561).
 - **REQ-VID-151** `shipped` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome, or for a "why" question one symptom whose usual causes the steps check), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).

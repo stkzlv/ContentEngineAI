@@ -249,6 +249,23 @@ video_settings:
     # (min_x 0.056 / max_x 0.833). See docs/explanation/platform-safe-zones.md.
     max_width_fraction: 0.78
 
+  # Step cards on a topic render with a step list (REQ-VID-124, design
+  # 0019): "Step 2 of 4" over the step's menu path, shown from when the
+  # narration reaches the step until the next one, at the hook's place on
+  # the frame after the hook ends. A step whose words can't be found in the
+  # transcript gets no card.
+  graphics:
+    enabled: false
+    min_sec: 1.5
+    max_sec: 6.0
+    max_path_words: 4
+    y_percent: 0.28
+    counter_size_factor: 0.55
+    path_size_factor: 0.7
+    max_width_fraction: 0.78
+    font_color: "white"
+    box_color: "black@0.6"
+
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by
   # variant. Variant name is selected deterministically per product (salted

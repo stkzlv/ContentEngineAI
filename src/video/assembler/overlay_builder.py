@@ -32,9 +32,11 @@ from typing import Any
 
 from src.video.config.visual_models import (
     DisclosureSettings,
+    GraphicsSettings,
     HookOverlaySettings,
     UpperLineSettings,
 )
+from src.video.step_cards import StepCard
 
 logger = logging.getLogger(__name__)
 
@@ -536,6 +538,109 @@ def apply_hook_overlay(
     # Preserve the terminal copy[v_out] so the disclosure rewrite still works.
     new_terminal = "[v_hook]copy[v_out]"
     return [*video_filters[:-1], hook_filter, new_terminal]
+
+
+def _fit_font(text: str, start: int, max_px: int, floor: int) -> int:
+    """The largest size from `start` down to `floor` at which `text` fits."""
+    size = start
+    while size > floor and _estimate_hook_text_width(text, size) > max_px:
+        size -= 2
+    return max(size, floor)
+
+
+def build_step_card_drawtext(
+    cards: list[StepCard],
+    settings: GraphicsSettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    r"""Two time-gated drawtexts per step card: the counter over the path.
+
+    Same mechanics as the hook overlay: text through `textfile=` and an
+    `enable=between(t\,a\,b)` gate. A card with no path draws the counter
+    alone. The path's font shrinks until the line fits `max_width_fraction`
+    of the frame.
+    """
+    counter_px = max(8, int(subtitle_font_size_pixels * settings.counter_size_factor))
+    path_px_start = max(8, int(subtitle_font_size_pixels * settings.path_size_factor))
+    max_px = int(frame_width * settings.max_width_fraction)
+    lines: list[tuple[str, int, str, float, float]] = []
+    for card in cards:
+        y = f"h*{settings.y_percent}"
+        lines.append((card.counter, counter_px, y, card.start, card.end))
+        if card.path:
+            path_px = _fit_font(card.path, path_px_start, max_px, int(counter_px * 0.8))
+            lines.append(
+                (
+                    card.path,
+                    path_px,
+                    f"{y}+{int(counter_px * 1.6)}",
+                    card.start,
+                    card.end,
+                )
+            )
+    drawtexts: list[str] = []
+    for i, (text, size, y_expr, start, end) in enumerate(lines):
+        stream_in = input_stream if i == 0 else f"[v_scl{i}]"
+        stream_out = output_stream if i == len(lines) - 1 else f"[v_scl{i + 1}]"
+        line_file = temp_dir / f"step_card_line_{i}.txt"
+        line_file.write_text(_escape_drawtext_textfile(text), encoding="utf-8")
+        text_path = line_file.as_posix().replace(":", r"\:")
+        drawtexts.append(
+            "".join(
+                [
+                    f"{stream_in}drawtext=",
+                    f"textfile='{text_path}':",
+                    _fontfile_part(text),
+                    f"fontsize={size}:",
+                    f"fontcolor={settings.font_color}:",
+                    f"box=1:boxcolor={settings.box_color}:boxborderw=14:",
+                    f"x=(w-text_w)/2:y={y_expr}:",
+                    f"enable=between(t\\,{start:.3f}\\,{end:.3f}){stream_out}",
+                ]
+            )
+        )
+    return ";".join(drawtexts)
+
+
+def apply_step_card_overlay(
+    video_filters: list[str],
+    settings: GraphicsSettings,
+    cards: list[StepCard],
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Insert the step cards before the disclosure's rewrite slot.
+
+    Same contract as :func:`apply_hook_overlay`: the chain keeps its terminal
+    `copy[v_out]`, and it is returned unchanged when the cards are off or
+    empty, or when its last filter has an unexpected shape.
+    """
+    if not settings.enabled or not cards or not video_filters:
+        return video_filters
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "Step cards skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
+        )
+        return video_filters
+    input_stream = normalized[-1].replace("copy[v_out]", "")
+    card_filter = build_step_card_drawtext(
+        cards,
+        settings,
+        subtitle_font_size_pixels,
+        frame_width,
+        temp_dir,
+        input_stream=input_stream,
+        output_stream="[v_steps]",
+    )
+    logger.info("Step cards: %d drawn", len(cards))
+    return [*normalized[:-1], card_filter, "[v_steps]copy[v_out]"]
 
 
 def resolve_upper_line_text(

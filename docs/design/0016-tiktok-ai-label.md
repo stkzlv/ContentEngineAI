@@ -51,5 +51,5 @@ Remove the switch when: never; it is a lasting option, because the AI-role state
 
 ## Open questions
 
-- Checked: no C2PA manifest is carried. The voice comes from Google Cloud Text-to-Speech (Chirp 3 HD voices, LINEAR16), and `exiftool` finds no C2PA or JUMBF data in a pipeline voiceover WAV or in a delivered MP4, whose only tags are the container's and the `Lavf` encoder's. An inaudible watermark in the waveform itself can't be detected without the vendor's own detector, so whether a platform could recognise the audio as synthetic stays open.
+- Checked: no C2PA manifest is carried. The voice comes from Gemini TTS (the Charon voice) through the Google Cloud Text-to-Speech API, and `exiftool` finds no C2PA or JUMBF data in a pipeline voiceover WAV or in a delivered MP4, whose only tags are the container's and the `Lavf` encoder's. An inaudible watermark in the waveform itself can't be detected without the vendor's own detector, so whether a platform could recognise the audio as synthetic stays open.
 - The spec names no config key for the AI-role statement.

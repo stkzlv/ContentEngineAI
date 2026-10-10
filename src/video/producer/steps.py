@@ -1862,6 +1862,36 @@ def _spoken_words(ctx: PipelineContext) -> list[dict[str, Any]] | None:
     """Whisper's word timings for this run, when sound effects need them."""
     if not ctx.config.audio_settings.sound_effects.enabled:
         return None
+    return _word_timings(ctx)
+
+
+def _step_cards(ctx: PipelineContext) -> list[Any] | None:
+    """A topic render's step cards, when graphics are on (REQ-VID-124).
+
+    Read from the step list the script step recorded beside the script, and
+    timed from Whisper's words, which only the pycaps caption engine writes;
+    none without either. Cards start after the hook overlay, which holds the
+    same place on the frame.
+    """
+    settings = ctx.config.video_settings.graphics
+    script_file = ctx.run_paths.get("script_file")
+    if not settings.enabled or script_file is None:
+        return None
+    from src.video.step_cards import load_step_cards
+
+    hook = ctx.config.video_settings.hook_overlay
+    return load_step_cards(
+        Path(script_file).with_name("step_list.json"),
+        _word_timings(ctx),
+        not_before=hook.duration_sec if hook.enabled else 0.0,
+        min_sec=settings.min_sec,
+        max_sec=settings.max_sec,
+        max_path_words=settings.max_path_words,
+    )
+
+
+def _word_timings(ctx: PipelineContext) -> list[dict[str, Any]] | None:
+    """Whisper's word timings for this run, or None when there are none."""
     path = ctx.run_paths.get("whisper_transcript_file")
     if path is None or not Path(path).exists():
         return None
@@ -1870,7 +1900,7 @@ def _spoken_words(ctx: PipelineContext) -> list[dict[str, Any]] | None:
 
         return _extract_word_timings(json.loads(Path(path).read_text("utf-8")))
     except (OSError, ValueError) as exc:
-        logger.warning("Sound effects: unreadable transcript %s: %s", path, exc)
+        logger.warning("Word timings: unreadable transcript %s: %s", path, exc)
         return None
 
 
@@ -2058,6 +2088,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end,
                 spoken_words=_spoken_words(ctx),
+                step_cards=_step_cards(ctx),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.202.0] - 2026-10-10
+
+### Added
+
+- Step cards on tutorial renders, behind `video_settings.graphics.enabled` (off by default): "Step 2 of 4" over the step's menu path, shown from when the narration reaches the step until the next one, and skipped for a step whose narration can't be found in the transcript.
+
+### Fixed
+
+- Design 0016 names the voice correctly: Gemini TTS through the Google Cloud Text-to-Speech API, not a Chirp 3 HD voice.
+
 ## [0.201.0] - 2026-10-10
 
 ### Changed
