@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `analytics --by-arm` reports median day-2 and day-7 views per format arm over the platforms in `analytics.readout_platforms` (YouTube and TikTok by default), the topic-over-product ratio with the reach-test verdict, the posts it could not place, and secondary per-platform medians and breakout counts; `--since` limits it to recent posts.
+- `analytics --by-arm` reports median day-2 and day-7 views per format arm over the platforms in `analytics.readout_platforms` (YouTube and TikTok by default), the topic-over-product ratio with the reach-test verdict, the median durability ratio per arm, the posts it could not place, and secondary per-platform medians and breakout counts; `--since` limits it to recent posts.
 - The analytics sweep stores each platform's own day-2 and day-7 views beside the summed figures.
 
 ### Fixed

@@ -154,7 +154,7 @@ python -m src.publisher.late analytics [options]
 |---|---|---|
 | `--limit N` | `analytics.limit` (50) | How many recent published posts to measure. |
 | `--rank-only` | off | Rank stored figures without contacting the provider. Publisher config still loads first, so an API key must be configured. |
-| `--by-arm` | off | Also print the reach readout: median day-2 and day-7 views per format arm over `analytics.readout_platforms`, the topic-over-product ratio with its verdict, the posts with no arm, and secondary per-platform and breakout lines. |
+| `--by-arm` | off | Also print the reach readout: median day-2 and day-7 views per format arm over `analytics.readout_platforms`, the topic-over-product ratio with its verdict, the median durability ratio per arm, the posts with no arm, and secondary per-platform and breakout lines. |
 | `--since DATE` | none | With `--by-arm`, only posts published on or after `DATE` (`YYYY-MM-DD`). |
 | `--outputs-dir PATH` | the outputs root | Outputs root; `post_metrics.json` lives under its `state/` directory. |
 

@@ -144,9 +144,9 @@ class TestTheReadout:
         ("topic", "verdict"),
         [
             (700, "reach holds: proceed"),
-            (699, "proceed, re-forecast revenue down by the ratio"),
+            (694, "proceed, re-forecast revenue down by the ratio"),
             (400, "proceed, re-forecast revenue down by the ratio"),
-            (399, "reach premise fails: revisit niche or format"),
+            (394, "reach premise fails: revisit niche or format"),
         ],
     )
     def test_the_bands(self, topic: int, verdict: str) -> None:
@@ -155,6 +155,30 @@ class TestTheReadout:
         lines = _readout([_post("t", 0, topic), _post("p", 0, 1000)], arms)
 
         assert _line(lines, "ratio day 7").endswith(verdict)
+
+    def test_the_verdict_reads_the_printed_ratio(self) -> None:
+        # Topic median 699.5 over 1000 prints as 0.70 and must read as 0.70.
+        metrics = [
+            _post("t1", 0, 699),
+            _post("t2", 0, 700),
+            _post("p", 0, 1000),
+        ]
+        arms = {"t1": "topic", "t2": "topic", "p": "product"}
+
+        line = _line(_readout(metrics, arms), "ratio day 7")
+
+        assert line == "ratio day 7: 0.70: reach holds: proceed"
+
+    def test_durability_median_per_arm(self) -> None:
+        metrics = [_post("t1", 0, 1), _post("t2", 0, 1), _post("p", 0, 1)]
+        metrics[0].durability_ratio = 0.1
+        metrics[1].durability_ratio = 0.3
+        arms = {"t1": "topic", "t2": "topic", "p": "product"}
+
+        lines = _readout(metrics, arms)
+
+        assert _line(lines, "topic [").endswith("durability median 0.2 (n=2)")
+        assert _line(lines, "product [").endswith("durability median - (n=0)")
 
     def test_a_post_missing_a_gate_platform_is_left_out(self) -> None:
         metrics = [_post("t1", None, 50), _post("t2", 10, 500), _post("p", 10, 500)]
@@ -182,7 +206,9 @@ class TestTheReadout:
             metrics, {"old": "topic", "new": "topic"}, since=datetime(2026, 9, 14)
         )
 
-        assert "since 2026-09-14: 1 post(s)" in lines[0]
+        assert lines[0].endswith(
+            "since 2026-09-14: 1 post(s), 0 with no arm, 1 earlier left out"
+        )
         assert "topic [1 post(s)]" in _line(lines, "topic [")
 
     def test_an_empty_arm_reads_not_measurable(self) -> None:

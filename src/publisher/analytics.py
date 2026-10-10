@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -865,7 +866,7 @@ PROCEED_RATIO = 0.7
 REFORECAST_RATIO = 0.4
 
 
-def _median(values: list[int]) -> float | None:
+def _median(values: Sequence[float]) -> float | None:
     if not values:
         return None
     ordered = sorted(values)
@@ -915,9 +916,9 @@ def readout_by_arm(
 
     Medians, not means: one spike would swamp an average. The gate counts
     only `platforms`; per-platform medians and the breakout rate are
-    secondary lines that do not change the verdict (REQ-PUB-152). Posts
-    published before `since`, and posts with no arm, are counted and named
-    rather than silently dropped.
+    secondary lines that do not change the verdict (REQ-PUB-152). Posts with
+    no arm are counted and named rather than silently dropped; posts before
+    `since` are counted in the header.
     """
     in_window = [
         m
@@ -925,6 +926,7 @@ def readout_by_arm(
         if since is None
         or ((when := _parse_date(m.published_at)) is not None and when >= since)
     ]
+    excluded = len(metrics) - len(in_window)
     unplaced = [m.post_id for m in in_window if arm_by_post.get(m.post_id) is None]
     placed = {
         arm: [m for m in in_window if arm_by_post.get(m.post_id) == arm]
@@ -934,6 +936,7 @@ def readout_by_arm(
         f"Reach readout by arm on {'+'.join(platforms)}"
         + (f" since {since.date().isoformat()}" if since else "")
         + f": {len(in_window)} post(s), {len(unplaced)} with no arm"
+        + (f", {excluded} earlier left out" if excluded else "")
     ]
     if unplaced:
         lines.append(f"  no arm: {', '.join(unplaced)}")
@@ -949,6 +952,15 @@ def readout_by_arm(
             parts.append(
                 f"day {day} median {_fmt(medians[(arm, day)])} (n={len(values)})"
             )
+        # Summed over every platform: a ratio of views after day 30 to views
+        # within it means the same on any platform subset.
+        ratios = [m.durability_ratio for m in posts if m.durability_ratio is not None]
+        median_ratio = _median(ratios)
+        parts.append(
+            "durability median "
+            f"{_fmt(None if median_ratio is None else round(median_ratio, 3))}"
+            f" (n={len(ratios)})"
+        )
         lines.append(f"  {arm} [{len(posts)} post(s)]: {', '.join(parts)}")
 
     for day in LAUNCH_DAYS:
@@ -956,7 +968,9 @@ def readout_by_arm(
         if topic is None or not product:
             lines.append(f"  ratio day {day}: not measurable")
             continue
-        ratio = topic / product
+        # The verdict reads the printed figure, so a ratio shown as 0.70 is
+        # never placed in the band below 0.7.
+        ratio = round(topic / product, 2)
         verdict = f": {_verdict(ratio)}" if day == LAUNCH_DAYS[-1] else ""
         lines.append(f"  ratio day {day}: {ratio:.2f}{verdict}")
 

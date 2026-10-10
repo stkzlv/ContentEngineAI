@@ -449,7 +449,7 @@ Day-2 and day-7 figures can be captured only while a post is inside the provider
    python -m src.publisher.late analytics --rank-only --by-arm --since 2026-09-14
    ```
 
-   The readout prints the median day-2 and day-7 views per arm over `analytics.readout_platforms`, the topic-over-product ratio with its verdict, the ids of posts it could not place, then per-platform medians and breakout counts that do not change the verdict.
+   The readout prints the median day-2 and day-7 views per arm over `analytics.readout_platforms`, the topic-over-product ratio with its verdict, the median durability ratio per arm, the ids of posts it could not place, then per-platform medians and breakout counts that do not change the verdict.
 
 2. Install the daily timer:
 
