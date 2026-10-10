@@ -5,8 +5,9 @@ character limit and ends it wherever that falls, so a caption can end on
 "because it" or split "iPhone | 15" across two screens (REQ-VID-157). This
 module picks the end among the same candidates the greedy fill allows,
 preferring a break after punctuation or before a word that opens a phrase,
-and avoiding one after a word that needs the next one, before the particle
-of a phrasal verb, or inside a name. It has no
+and avoiding one after a word that needs the next one or inside a name.
+"on" and "in" never count as phrase openers: in a how-to script they are as
+often the particle of "turn on" or "plug it in" as a preposition. It has no
 pycaps import, so it is tested without the optional group; the renderer
 wraps it in a splitter class at render time.
 """
@@ -18,7 +19,7 @@ import re
 # A break before one of these starts a new phrase.
 _PHRASE_OPENERS = frozenset(
     "and but or so because if when while then to for with from into onto "
-    "on in at by about after before until unless which who where like "
+    "at by about after before until unless which who where like "
     "instead without".split()
 )
 # A segment must not end on one of these: each needs the word after it.
@@ -28,15 +29,6 @@ _BINDERS = frozenset(
     "be been being has have had can will would should could do does did not "
     "no very more most under over about through between across".split()
 )
-# "turn on", "plug it in", "log out": after one of these verbs (or its
-# pronoun object) a particle belongs to the verb, so a segment may end on it
-# and must not start with it.
-_PARTICLE_VERBS = frozenset(
-    "turn switch plug log sign check set put pick power zoom opt back hold "
-    "swipe scroll slide pull push shut start top clean fill wipe tap".split()
-)
-_PARTICLES = frozenset("on in off up out down".split())
-_PRONOUN_OBJECTS = frozenset("it them this that everything".split())
 _PUNCTUATED = re.compile(r"[,.;:!?)\]\"']$")
 _SENTENCE_END = re.compile(r"[.!?]$")
 
@@ -59,28 +51,12 @@ def _is_name_part(words: list[str], index: int) -> bool:
     return index > 0 and not _SENTENCE_END.search(words[index - 1])
 
 
-def _is_particle(words: list[str], index: int) -> bool:
-    """`words[index]` is the particle of a phrasal verb such as "turn on"."""
-    if _bare(words[index]) not in _PARTICLES or index == 0:
-        return False
-    previous = _bare(words[index - 1])
-    if previous in _PARTICLE_VERBS:
-        return True
-    return (
-        previous in _PRONOUN_OBJECTS
-        and index > 1
-        and _bare(words[index - 2]) in _PARTICLE_VERBS
-    )
-
-
 def break_score(words: list[str], end: int) -> int:
     """Score ending a segment before `words[end]`; negative is avoided."""
     before, after = words[end - 1], words[end]
     if _PUNCTUATED.search(before):
         return _PUNCTUATION_SCORE
-    if _is_particle(words, end):
-        return _FORBIDDEN
-    if _bare(before) in _BINDERS and not _is_particle(words, end - 1):
+    if _bare(before) in _BINDERS:
         return _FORBIDDEN
     if _is_name_part(words, end - 1) and _is_name_part(words, end):
         return _FORBIDDEN

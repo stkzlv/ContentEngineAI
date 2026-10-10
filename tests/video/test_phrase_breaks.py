@@ -59,23 +59,24 @@ class TestWhereASegmentEnds:
         assert "the power for 30 seconds," in segments
 
     @pytest.mark.parametrize(
-        ("text", "together"),
+        "text",
         [
-            (
-                "Simply plug it in and press the button to start the cleaning cycle",
-                "plug it in",
-            ),
-            (
-                "Next you need to turn on the power switch located at the back",
-                "turn on",
-            ),
-            ("Then log out of every account you share with others", "log out"),
+            "After that just tap on the icon to open the app settings",
+            "After that just put it in the drawer next to the charger",
+            "After that just check in the settings menu for updates",
+            "Next you need to turn on the power switch located at the back",
         ],
     )
-    def test_a_phrasal_verb_keeps_its_particle(self, text: str, together: str) -> None:
-        for limits in ((25, 10), (20, 15)):
+    def test_no_segment_ends_on_on_or_in(self, text: str) -> None:
+        """Particle or preposition, a segment ending on one reads cut off.
+
+        Neither counts as a phrase opener either, so 'tap | on the icon' is
+        not preferred over a neutral break.
+        """
+        for limits in ((25, 10), (20, 15), (30, 12)):
             segments = _segments(text, *limits)
-            assert any(together in s for s in segments), (limits, segments)
+            assert not any(s.split()[-1] in {"on", "in"} for s in segments), segments
+        assert break_score(["tap", "on"], 1) == 0
 
     @pytest.mark.parametrize("word", ["under", "through", "has", "been"])
     def test_more_binding_words(self, word: str) -> None:

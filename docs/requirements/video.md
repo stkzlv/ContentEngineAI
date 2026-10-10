@@ -117,7 +117,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-147** `shipped` Captions carry no emoji: they come from the transcription of a voiceover whose script has its emojis removed, and no bundled caption template or style preset adds one.
 - **REQ-VID-156** `planned #591` A caption segment's reading rate stays at or below a configured characters-per-second cap, and a segment over the cap merges into its neighbour.
 - **REQ-VID-157** `partial` Caption lines break at phrase boundaries and never split a noun phrase or a product name.
-  - Gap: with `pycaps.phrase_breaks` on (the bundled default), pycaps caption segments prefer to end after punctuation or before a word that opens a phrase, and avoid ending after an article, preposition or auxiliary, inside a phrasal verb or inside a name, within the template's character limits; when every break that fits is one to avoid, the segment ends where the limit falls. Lines inside a segment still wrap by width, and the FFmpeg engine breaks on word and character counts (#591).
+  - Gap: with `pycaps.phrase_breaks` on (the bundled default), pycaps caption segments prefer to end after punctuation or before a word that opens a phrase, and avoid ending after an article, preposition or auxiliary or inside a name, within the template's character limits; when every break that fits is one to avoid, the segment ends where the limit falls. Lines inside a segment still wrap by width, and the FFmpeg engine breaks on word and character counts (#591).
 
 ## Two-part captions
 
