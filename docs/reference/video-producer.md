@@ -217,6 +217,9 @@ video_profiles:
     image_top_position_percent: 0.15
     first_frame_pre_motion: true   # Ken Burns settle-zoom on segment 0
     pre_motion_peak_zoom: 1.10
+    target_length:                 # script length, in place of the 30-40 s default
+      seconds: [15, 30]
+      words: [50, 60]
 
   product_video_sequential:
     description: "Sequential video clips"

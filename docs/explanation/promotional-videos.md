@@ -63,7 +63,7 @@ Planned: motion on every still, not only the first ([design 0001](../design/0001
 
 ## After the hook
 
-The narrator profile in `script_templates.narrator_profile` targets 30-40 seconds of speech (roughly 75-100 words). The `slideshow_short_20s` profile is a shorter canvas (about 50-60 words) for testing hooks against a fixed body. The evidence on length, platform limits and what top creators post is in [video length](video-length.md).
+The narrator profile in `script_templates.narrator_profile` targets 30-40 seconds of speech (roughly 75-100 words). The `slideshow_short_20s` profile is a shorter canvas for testing hooks against a fixed body: its own `target_length` asks for 15-30 seconds and about 50-60 words (`REQ-VID-095`). The evidence on length, platform limits and what top creators post is in [video length](video-length.md).
 
 Why:
 

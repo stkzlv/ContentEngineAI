@@ -163,3 +163,13 @@ def test_every_narrator_prompt_in_the_steps_takes_the_override() -> None:
     ]
     assert len(calls) == 4
     assert all("_target_length(ctx)" in call for call in calls)
+
+
+@pytest.mark.req("REQ-VID-095")
+def test_the_short_profile_asks_for_a_short_script() -> None:
+    """The short profile's prompt asks for 15-30 s and 50-60 words."""
+    target = config.video_profiles["slideshow_short_20s"].target_length
+    rendered = config.llm_settings.script_templates.narrator_for(False, target)
+
+    assert "Target 15-30 seconds" in rendered
+    assert "roughly 50-60 words" in rendered
