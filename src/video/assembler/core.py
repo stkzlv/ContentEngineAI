@@ -32,6 +32,7 @@ from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
+    apply_step_card_overlay,
     apply_upper_line_overlay,
     resolve_hook_line,
 )
@@ -41,6 +42,7 @@ from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_builder import VisualFilterBuilder
 from src.video.config import VideoConfig
 from src.video.config.visual_models import DisclosureSettings, MergedProfileSettings
+from src.video.step_cards import StepCard
 
 logger = logging.getLogger(__name__)
 
@@ -703,6 +705,7 @@ class VideoAssembler:
         music_fade_out_sec: float | None = None,
         speech_end_sec: float | None = None,
         spoken_words: list[dict[str, Any]] | None = None,
+        step_cards: list[StepCard] | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -731,6 +734,8 @@ class VideoAssembler:
                 it; an end-placed sting finishes there.
             spoken_words: Whisper's word timings, which place the reveal and
                 call-to-action sound effects; None places the hook effect only.
+            step_cards: The tutorial's step cards, drawn after the hook when
+                `video_settings.graphics` is on (REQ-VID-124).
 
         Returns:
         -------
@@ -821,6 +826,16 @@ class VideoAssembler:
                         self.config.video_settings.resolution[0],
                         temp_dir,
                     )
+
+            # Step cards, timed after the hook (REQ-VID-124).
+            video_filters = apply_step_card_overlay(
+                video_filters,
+                self.config.video_settings.graphics,
+                step_cards or [],
+                subtitle_font_size_pixels,
+                self.config.video_settings.resolution[0],
+                temp_dir,
+            )
 
             # The static upper line, before the disclosure so the disclosure
             # keeps the top of the z-order. Engine-independent by design: the

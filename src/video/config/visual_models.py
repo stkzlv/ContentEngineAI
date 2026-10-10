@@ -368,6 +368,65 @@ class StillMotionSettings(BaseModel):
         return self
 
 
+class GraphicsSettings(BaseModel):
+    """Explanatory graphics on a tutorial render (REQ-VID-124, design 0019).
+
+    The first graphic type is the step card.
+
+    One card per step of a topic's step list: a counter over the step's menu
+    path, shown from the moment the narration reaches the step until the
+    next one. A step whose narration can't be found gets no card.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Draw a card for each step of a topic render's step list.",
+    )
+    min_sec: float = Field(
+        default=1.5,
+        ge=0.5,
+        description="A card that would be on screen less than this is skipped.",
+    )
+    max_sec: float = Field(
+        default=6.0,
+        ge=1.0,
+        description="Longest a card stays on screen when the next step is late.",
+    )
+    max_path_words: int = Field(
+        default=4,
+        ge=2,
+        description="A longer menu path keeps its last segments after '...'.",
+    )
+    y_percent: float = Field(
+        default=0.28,
+        ge=0.14,
+        le=0.6,
+        description="Top of the card as a share of the frame height.",
+    )
+    counter_size_factor: float = Field(
+        default=0.55,
+        gt=0,
+        le=2.0,
+        description="Counter font size as a multiple of the caption base font.",
+    )
+    path_size_factor: float = Field(
+        default=0.7,
+        gt=0,
+        le=2.0,
+        description="Path font size as a multiple of the caption base font.",
+    )
+    max_width_fraction: float = Field(
+        default=0.78,
+        gt=0.3,
+        le=0.95,
+        description="The path's font shrinks until it fits this share of the width.",
+    )
+    font_color: str = Field(default="white", description="Text colour.")
+    box_color: str = Field(
+        default="black@0.6", description="Colour of the box behind each line."
+    )
+
+
 class HookOverlaySettings(BaseModel):
     """Burned-in hook text overlay (Phase 1.2c, also closes #102).
 
@@ -582,6 +641,7 @@ class VideoSettings(BaseModel):
     hook_overlay: HookOverlaySettings = Field(
         default_factory=HookOverlaySettings  # type: ignore[arg-type]
     )
+    graphics: GraphicsSettings = Field(default_factory=GraphicsSettings)
     upper_line: UpperLineSettings = Field(
         default_factory=UpperLineSettings  # type: ignore[arg-type]
     )

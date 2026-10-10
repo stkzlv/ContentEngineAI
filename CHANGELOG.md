@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.202.0] - 2026-10-10
+
+### Added
+
+- Step cards on tutorial renders, behind `video_settings.graphics.enabled` (off by default): "Step 2 of 4" over the step's menu path, shown from when the narration reaches the step until the next one, and skipped for a step whose narration can't be found in the transcript.
+
 ## [0.201.0] - 2026-10-10
 
 ### Changed

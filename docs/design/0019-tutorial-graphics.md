@@ -1,6 +1,6 @@
 # 0019. Explanatory graphics
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #561
 - **Requirements:** REQ-VID-124
 
@@ -37,3 +37,11 @@ Remove the switch when: `video_settings.graphics.enabled` has been on in the bun
 ## Open questions
 
 None recorded.
+
+## As built
+
+- The first graphic type is the step card: "Step 2 of 4" over the step's menu path, drawn with FFmpeg `drawtext` in the assembler's overlay chain, like the hook overlay, rather than HTML rendered in Chromium. A text card needs no browser, and the Chromium route stays open for the graphics that draw shapes.
+- The spec is the step list the script step records (`step_list.json`): each step's `ui_path` gives the path line, so no new model call writes graphic text.
+- Timing comes from Whisper's word timings: a card starts at the first word of its step's last path segment, spoken after the first sentence, preferring a match right after an action verb ("Tap General" over "The General menu opens"). Words are compared with spaces and punctuation dropped, so "BackTap" matches "Back Tap". A card ends when the next starts, after at most `max_sec`; a step not found, or on screen less than `min_sec`, gets no card.
+- Cards sit where the hook overlay sits (28% from the top) and start after it ends, so one graphic is on screen at a time. A path longer than `max_path_words` keeps its last segments after "...".
+- On a real topic render (five steps, 49 s) all five cards were drawn, each starting within a word of its step's narration.

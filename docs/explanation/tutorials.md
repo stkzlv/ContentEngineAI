@@ -187,7 +187,7 @@ Why: temporal contiguity (d = 1.30) and coherence (d = 0.70) in [What makes a sh
 
 ## Explanatory graphics
 
-Planned ([design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124, behind `video_settings.graphics.enabled`, default false): graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
+Built in part, behind `video_settings.graphics.enabled` (default false; [design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124): the step card, a counter over the step's menu path, timed to the step's narration. The other types below are planned. Graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
 
 Why:
 
