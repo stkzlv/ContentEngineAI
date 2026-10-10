@@ -148,7 +148,7 @@ class TestWhenACardShows:
 
     def test_a_miss_is_not_found_in_the_recap(self) -> None:
         """Without a window the unmatched step lands on the recap at the end."""
-        filler = "and wait a moment " * 15
+        filler = "and wait a moment " * 25
         cards = _plan(
             [
                 {"ui_path": "Settings", "action": "Open Settings"},
@@ -162,6 +162,41 @@ class TestWhenACardShows:
 
         assert [c.counter for c in cards] == ["Step 1 of 3", "Step 3 of 3"]
         assert cards[1].start == pytest.approx(5 * 0.4)
+
+    def test_a_step_far_after_the_last_is_still_found(self) -> None:
+        """Real scripts put up to 42 words between two steps."""
+        gap = "it is important that they are not still connected " * 5  # 45
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": ""},
+                {"ui_path": "Add device", "action": ""},
+            ],
+            "Intro here. Open Settings. " + gap + "Then tap Add device. Done here.",
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+
+    def test_a_miss_widens_the_next_window(self) -> None:
+        gap = "it is important that they are not still connected " * 7  # 63
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": ""},
+                {"ui_path": "Unspoken", "action": ""},
+                {"ui_path": "Add device", "action": ""},
+            ],
+            "Intro here. Open Settings. " + gap + "Then tap Add device. Done here.",
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 3", "Step 3 of 3"]
+
+    def test_a_verb_three_words_back_wins(self) -> None:
+        cards = _plan(
+            [{"ui_path": "Password", "action": ""}],
+            "Intro here. Pick the one you want the password for. "
+            "Tap the word Password. Then wait a while.",
+        )
+
+        assert cards[0].start == pytest.approx(13 * 0.4)
 
     def test_a_placeholder_segment_uses_the_action(self) -> None:
         cards = _plan(

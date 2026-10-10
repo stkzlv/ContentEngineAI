@@ -32,11 +32,13 @@ _ACTION_VERBS = frozenset(
     "tap open select choose go press click hit pick turn toggle enable disable "
     "find scroll swipe head".split()
 )
-# How far past the previous step a step's narration may be found. Steps are
-# narrated a sentence or two apart; without a bound, a step whose words don't
-# match its own narration matches the closing path recap instead, and the
-# steps in between are lost.
-_SEARCH_WINDOW_WORDS = 40
+# How far past the last step found a step's narration may be, in words, per
+# step since then: real scripts put up to 42 words between two steps, and a
+# step not found widens the next one's window. Without a bound, a step whose
+# words don't match its own narration matches the closing path recap, and
+# the steps in between are lost.
+_SEARCH_WINDOW_WORDS = 60
+_VERB_LOOKBACK_WORDS = 3
 _STOPWORDS = frozenset(
     "a an the to on in of your you and then tap open go select turn".split()
 )
@@ -99,10 +101,12 @@ def _key(step: dict[str, Any]) -> str:
     return action[0] if action else ""
 
 
-def _matches(words: list[str], key: str, after: int) -> list[tuple[int, int]]:
+def _matches(
+    words: list[str], key: str, after: int, window: int
+) -> list[tuple[int, int]]:
     """Every (index, count) of words in the window after `after` spelling `key`."""
     found = []
-    for i in range(after, min(len(words), after + _SEARCH_WINDOW_WORDS)):
+    for i in range(after, min(len(words), after + window)):
         joined = ""
         for j in range(i, len(words)):
             joined += words[j]
@@ -114,14 +118,18 @@ def _matches(words: list[str], key: str, after: int) -> list[tuple[int, int]]:
     return found
 
 
-def _find(words: list[str], key: str, after: int) -> tuple[int, int] | None:
+def _find(
+    words: list[str], key: str, after: int, window: int
+) -> tuple[int, int] | None:
     """The match a step is spoken at.
 
-    The first one within two words of an action verb, else the first one.
+    The first one within three words of an action verb ("Tap the word
+    Password"), else the first one.
     """
-    matches = _matches(words, key, after)
+    matches = _matches(words, key, after, window)
     for index, count in matches:
-        if any(w in _ACTION_VERBS for w in words[max(after, index - 2) : index]):
+        lookback = words[max(after, index - _VERB_LOOKBACK_WORDS) : index]
+        if any(w in _ACTION_VERBS for w in lookback):
             return index, count
     return matches[0] if matches else None
 
@@ -151,14 +159,18 @@ def plan_step_cards(
     # The first sentence names the topic ("Here's how to set up Back Tap"),
     # so it would match the last step's target before any step is spoken.
     cursor = next((i + 1 for i, w in enumerate(raw) if _SENTENCE_END.search(w)), 0)
+    missed = 0
     for number, step in enumerate(steps, start=1):
         key = _key(step)
-        match = _find(words, key, cursor) if key else None
+        window = _SEARCH_WINDOW_WORDS * (1 + missed)
+        match = _find(words, key, cursor, window) if key else None
         if match is None:
             logger.info(
                 "Step card %d of %d skipped: narration not found", number, total
             )
+            missed += 1
             continue
+        missed = 0
         index, count = match
         path = display_path(str(step.get("ui_path") or ""), max_path_words)
         found.append((number, index, path))
