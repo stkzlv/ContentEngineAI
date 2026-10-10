@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.198.1] - 2026-10-10
+
+### Changed
+
+- REQ-CNT-150 is marked partial: a YouTube description has no URL and points at the profile link only in optimized metadata mode, not in unified mode, the default.
+
 ## [0.198.0] - 2026-10-09
 
 ### Changed
