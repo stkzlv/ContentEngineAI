@@ -68,6 +68,8 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-036** `shipped` First comments are off unless the config enables them, and the bundled config enables them.
 - **REQ-PUB-037** `shipped` The bundled config posts the script's closing line as the YouTube first comment, and the product title with a link-in-bio pointer as the Instagram first comment.
 - **REQ-PUB-038** `shipped` The publisher posts first comments on YouTube and Instagram, and never on TikTok.
+- **REQ-PUB-153** `shipped` A successful render keeps its script and sign-off in the product directory (`script.json`) before removing its intermediate files, and the first comment reads the closing line from there when `temp/` is gone.
+  - Why: the publisher runs after the render's cleanup, so every batch publish and every publish of a render made with `--skip-publish` skipped the YouTube first comment.
 - **REQ-PUB-039** `shipped` A first-comment template can use the placeholders `{affiliate_link}`, `{product_title}`, `{hashtags}` and `{closing_line}`, and needs data only for the placeholders it uses.
 - **REQ-PUB-040** `shipped` The `{affiliate_link}` placeholder takes the shortened affiliate link when one exists, and the full link otherwise.
 - **REQ-PUB-041** `shipped` Where `first_comment.move_hashtags_to_comment` is on, the publisher moves Instagram hashtags from the caption into the first comment.

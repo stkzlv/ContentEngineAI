@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from src.publisher.models import FirstCommentConfig
 
 from src.utils.script_sanitizer import split_sentences
-from src.utils.script_signoff import normalise, recorded_signoff
+from src.utils.script_signoff import normalise, read_script
 
 logger = logging.getLogger(__name__)
 
@@ -145,17 +145,11 @@ def build_first_comment(
 
     closing_line = ""
     if "{closing_line}" in template:
-        temp_dir = outputs_dir / product_id / "temp"
-        script_path = temp_dir / "script.txt"
-        try:
-            closing_line = (
-                extract_closing_line(
-                    script_path.read_text("utf-8"), recorded_signoff(temp_dir)
-                )
-                or ""
-            )
-        except OSError as e:
-            logger.warning("Could not read script for %s: %s", product_id, e)
+        found = read_script(outputs_dir / product_id)
+        if found is None:
+            logger.warning("Could not read script for %s", product_id)
+        else:
+            closing_line = extract_closing_line(*found) or ""
         if not closing_line:
             logger.warning(
                 "No closing line for %s, skipping %s first comment",
