@@ -32,6 +32,11 @@ _ACTION_VERBS = frozenset(
     "tap open select choose go press click hit pick turn toggle enable disable "
     "find scroll swipe head".split()
 )
+# How far past the previous step a step's narration may be found. Steps are
+# narrated a sentence or two apart; without a bound, a step whose words don't
+# match its own narration matches the closing path recap instead, and the
+# steps in between are lost.
+_SEARCH_WINDOW_WORDS = 40
 _STOPWORDS = frozenset(
     "a an the to on in of your you and then tap open go select turn".split()
 )
@@ -48,7 +53,8 @@ class StepCard:
 
 
 def _tokens(text: str) -> list[str]:
-    return _TOKEN.findall(text.lower())
+    # Whisper writes a spoken "&" as "and".
+    return _TOKEN.findall(text.lower().replace("&", " and "))
 
 
 def display_path(ui_path: str, max_words: int) -> str:
@@ -83,9 +89,10 @@ def _key(step: dict[str, Any]) -> str:
     path is empty ("Restart the router" -> "restart").
     """
     segments = [s for s in _PATH_SPLIT.split(str(step.get("ui_path") or "")) if s]
-    if segments:
-        last = _PLACEHOLDER.sub(lambda m: m.group(1), segments[-1])
-        key = "".join(_tokens(last))
+    # A segment that is only a placeholder ("[App Name]") is never spoken as
+    # written, so the step is found by its action instead.
+    if segments and not _PLACEHOLDER.fullmatch(segments[-1].strip()):
+        key = "".join(_tokens(segments[-1]))
         if key:
             return key
     action = [t for t in _tokens(str(step.get("action") or "")) if t not in _STOPWORDS]
@@ -93,9 +100,9 @@ def _key(step: dict[str, Any]) -> str:
 
 
 def _matches(words: list[str], key: str, after: int) -> list[tuple[int, int]]:
-    """Every (index, count) of spoken words from `after` whose letters are `key`."""
+    """Every (index, count) of words in the window after `after` spelling `key`."""
     found = []
-    for i in range(after, len(words)):
+    for i in range(after, min(len(words), after + _SEARCH_WINDOW_WORDS)):
         joined = ""
         for j in range(i, len(words)):
             joined += words[j]
@@ -185,7 +192,13 @@ def load_step_cards(
     max_path_words: int = 4,
 ) -> list[StepCard]:
     """Cards for a render, or none when it has no step list or no timings."""
-    if not spoken or not step_list_file.exists():
+    if not step_list_file.exists():
+        return []
+    if not spoken:
+        logger.info(
+            "Step cards skipped: no word timings (the pycaps caption engine "
+            "writes them)"
+        )
         return []
     try:
         data = json.loads(step_list_file.read_text(encoding="utf-8"))

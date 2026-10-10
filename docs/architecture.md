@@ -137,7 +137,7 @@ Every module also uses `utils` and the config layer; the dotted lines stand for 
 
 ### Assembler
 
-`src/video/assembler/core.py::VideoAssembler` builds one FFmpeg command from builders: `visual_builder.py` (images, videos, aspect fits), `video_strategies.py` (the assembly modes), `subtitle_builder.py`, `overlay_builder.py` (disclosure, hook and upper-line overlays), `audio_builder.py` (voiceover and music mix) and `media_inspector.py` (probing). It is called by the `assemble_video` step only. Notes: [video.md](notes/video.md).
+`src/video/assembler/core.py::VideoAssembler` builds one FFmpeg command from builders: `visual_builder.py` (images, videos, aspect fits), `video_strategies.py` (the assembly modes), `subtitle_builder.py`, `overlay_builder.py` (disclosure, hook, step-card and upper-line overlays), `audio_builder.py` (voiceover and music mix) and `media_inspector.py` (probing). It is called by the `assemble_video` step only. Notes: [video.md](notes/video.md).
 
 ### AI
 

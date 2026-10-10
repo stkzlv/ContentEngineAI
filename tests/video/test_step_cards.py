@@ -137,6 +137,41 @@ class TestWhenACardShows:
 
         assert cards[0].end - cards[0].start == pytest.approx(3.0)
 
+    def test_an_ampersand_matches_a_spoken_and(self) -> None:
+        cards = _plan(
+            [{"ui_path": "Settings > Bluetooth & devices", "action": "Open it"}],
+            "Pair a mouse. Open Settings then Bluetooth and devices now. Done here.",
+        )
+
+        assert cards and cards[0].path == "Settings > Bluetooth & devices"
+        assert cards[0].start == pytest.approx(6 * 0.4)
+
+    def test_a_miss_is_not_found_in_the_recap(self) -> None:
+        """Without a window the unmatched step lands on the recap at the end."""
+        filler = "and wait a moment " * 15
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Unmatched Menu", "action": "Tap it"},
+                {"ui_path": "Storage", "action": "Tap Storage"},
+            ],
+            "Intro here. Open Settings. Tap Storage. "
+            + filler
+            + "Recap: Settings, Unmatched Menu, Storage.",
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 3", "Step 3 of 3"]
+        assert cards[1].start == pytest.approx(5 * 0.4)
+
+    def test_a_placeholder_segment_uses_the_action(self) -> None:
+        cards = _plan(
+            [{"ui_path": "Apps > [App Name]", "action": "Select the app to clear"}],
+            "Intro here. Now select the app you want. Then wait.",
+        )
+
+        assert cards and cards[0].path == "Apps > App Name"
+        assert cards[0].start == pytest.approx(5 * 0.4)  # "app", the first content word
+
     def test_a_step_without_a_path_falls_back_to_its_action(self) -> None:
         cards = _plan(
             [{"ui_path": "", "action": "Restart the router"}],
@@ -180,6 +215,18 @@ class TestLoading:
         bad.write_text(json.dumps({"steps": "x"}), encoding="utf-8")
         assert load_step_cards(bad, spoken, **options) == []
         assert load_step_cards(bad, None, **options) == []
+
+    def test_no_timings_is_logged(self, tmp_path: Path, caplog) -> None:
+        steps = tmp_path / "step_list.json"
+        steps.write_text(json.dumps({"steps": [{"ui_path": "A"}]}), encoding="utf-8")
+
+        with caplog.at_level("INFO"):
+            cards = load_step_cards(
+                steps, None, not_before=0.0, min_sec=0.5, max_sec=6.0
+            )
+
+        assert cards == []
+        assert "no word timings" in caplog.text
 
     def test_the_producer_reads_the_list_beside_the_script(
         self, tmp_path: Path

@@ -1869,8 +1869,9 @@ def _step_cards(ctx: PipelineContext) -> list[Any] | None:
     """A topic render's step cards, when graphics are on (REQ-VID-124).
 
     Read from the step list the script step recorded beside the script, and
-    timed from Whisper's words; none without either. Cards start after the
-    hook overlay, which holds the same place on the frame.
+    timed from Whisper's words, which only the pycaps caption engine writes;
+    none without either. Cards start after the hook overlay, which holds the
+    same place on the frame.
     """
     settings = ctx.config.video_settings.graphics
     script_file = ctx.run_paths.get("script_file")
