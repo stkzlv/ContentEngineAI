@@ -450,7 +450,7 @@ output_structure:
 outputs/
 ├── B0DLKB5V35/                    # Product directory
 │   ├── data.json                  # Scraped data
-│   ├── script.txt                 # Generated script
+│   ├── script.json                # Script and sign-off, kept when temp/ is removed
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
 │   ├── video_B0DLKB5V35_slideshow_images1.mp4 # Final video

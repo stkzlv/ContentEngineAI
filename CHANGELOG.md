@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.1] - 2026-10-10
+
+### Fixed
+
+- The YouTube first comment is posted again for batch publishes and for renders published after `--skip-publish`: the render keeps its script in `script.json` before deleting its intermediate files, and the comment reads its closing line from there.
+
 ## [0.204.0] - 2026-10-10
 
 ### Changed

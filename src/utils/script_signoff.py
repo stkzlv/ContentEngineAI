@@ -10,12 +10,20 @@ end, so neither quotes the sign-off in place of the closing line.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 
 from src.utils.script_sanitizer import split_sentences
 
 STATE_FILE = "pipeline_state.json"
+SCRIPT_FILE = "script.txt"
+# Kept in the product directory, which outlives the intermediate files: a
+# successful render deletes `temp/`, and the publisher runs after it
+# (REQ-PUB-153).
+SCRIPT_RECORD = "script.json"
+
+logger = logging.getLogger(__name__)
 
 
 def recorded_signoff(temp_dir: Path) -> str | None:
@@ -31,6 +39,39 @@ def recorded_signoff(temp_dir: Path) -> str | None:
         step = state.get("generate_script")
         signoff = step.get("signoff") if isinstance(step, dict) else None
     return signoff if isinstance(signoff, str) and signoff.strip() else None
+
+
+def keep_script_record(product_dir: Path, temp_dir: Path) -> None:
+    """Copy the script and its sign-off out of `temp_dir` before it is removed.
+
+    Best effort: a render that could not keep the record still succeeded, and
+    the first comment then skips with its usual warning.
+    """
+    try:
+        script = (temp_dir / SCRIPT_FILE).read_text("utf-8")
+        (product_dir / SCRIPT_RECORD).write_text(
+            json.dumps({"script": script, "signoff": recorded_signoff(temp_dir)}),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        logger.warning("Could not keep the script record in %s: %s", product_dir, e)
+
+
+def read_script(product_dir: Path) -> tuple[str, str | None] | None:
+    """The render's script and sign-off, from `temp/` or the kept record."""
+    temp_dir = product_dir / "temp"
+    try:
+        return (temp_dir / SCRIPT_FILE).read_text("utf-8"), recorded_signoff(temp_dir)
+    except OSError:
+        pass
+    try:
+        record = json.loads((product_dir / SCRIPT_RECORD).read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(record, dict) or not isinstance(record.get("script"), str):
+        return None
+    signoff = record.get("signoff")
+    return record["script"], signoff if isinstance(signoff, str) else None
 
 
 def normalise(text: str) -> str:

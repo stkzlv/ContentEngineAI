@@ -26,6 +26,7 @@ from src.utils.performance import (
     PerformanceHistoryManager,
     PerformanceMonitor,
 )
+from src.utils.script_signoff import keep_script_record
 from src.video.config import (
     DebugSettings,
     OptimizationSettings,
@@ -641,6 +642,9 @@ async def create_video_for_product(
                 and run_paths["intermediate_base"].exists()
             ):
                 logger.info("Successful run; cleaning up intermediate files.")
+                keep_script_record(
+                    run_paths["run_root"], run_paths["intermediate_base"]
+                )
                 cleanup_temp_dirs(run_paths["intermediate_base"])
             elif debug_mode:
                 logger.info(
