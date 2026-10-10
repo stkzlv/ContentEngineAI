@@ -304,7 +304,7 @@ class TestTypewriterEffect:
     def test_typewriter_alpha_transition(
         self, animated_config, frame_size, sample_segments
     ):
-        """Typewriter should use alpha transitions."""
+        """The shipped typewriter fades the line in over at most 250 ms."""
         generator = UnifiedSubtitleGenerator(
             config=animated_config, frame_size=frame_size, product_id="TEST001"
         )
@@ -317,10 +317,9 @@ class TestTypewriterEffect:
 
         assert dialogue is not None, "Dialogue should not be None"
 
-        # Typewriter uses alpha transitions
-        assert (
-            "\\alpha" in dialogue or "\\t(" in dialogue
-        ), f"Expected alpha transition in: {dialogue}"
+        match = re.search(r"\\fad\((\d+),0\)", dialogue)
+        assert match, f"Expected a fade-in in: {dialogue}"
+        assert 0 < int(match.group(1)) <= 250
 
 
 class TestASSSyntaxValidation:

@@ -1154,13 +1154,12 @@ class UnifiedSubtitleGenerator:
                         # A capped reveal is a fade-in from invisible: the
                         # uncapped pair fades out first and then back in up
                         # to the event's end, so capping it lengthened the
-                        # motion instead (REQ-VID-155).
+                        # motion instead (REQ-VID-155). `\\fad` scales the
+                        # style's alphas; `\\alpha` would replace them and
+                        # turn the 50% shadow solid.
                         reveal = min(reveal_duration, max_reveal)
-                        effects.append(
-                            f"\\alpha&HFF&\\t(0,{reveal},\\alpha&H00&)"
-                            if reveal > 0
-                            else "\\alpha&H00&"
-                        )
+                        if reveal > 0:
+                            effects.append(f"\\fad({reveal},0)")
 
             # Karaoke effects
             if self._selected_effects.get("karaoke", False):

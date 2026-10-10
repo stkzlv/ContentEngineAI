@@ -259,8 +259,9 @@ class TestFfmpegMotion:
         capped = SubtitleEffectsSettings(typewriter_max_reveal_ms=250)
         line = _dialogue(monkeypatch, "typewriter", capped)
 
-        assert "\\alpha&HFF&\\t(0,250,\\alpha&H00&)" in line
-        assert line.count("\\t(") == 1
+        assert "\\fad(250,0)" in line
+        assert "\\t(" not in line
+        assert "\\alpha" not in line, "replaces the style's shadow alpha"
 
     def test_zero_shows_the_line_at_once(self, monkeypatch) -> None:
         line = _dialogue(
@@ -270,7 +271,8 @@ class TestFfmpegMotion:
         )
 
         assert "\\t(" not in line
-        assert "\\alpha&HFF&" not in line
+        assert "\\fad(" not in line
+        assert "\\alpha" not in line
 
     def test_uncapped_keeps_the_old_effect(self, monkeypatch) -> None:
         line = _dialogue(monkeypatch, "typewriter", SubtitleEffectsSettings())
