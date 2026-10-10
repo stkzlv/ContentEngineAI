@@ -115,7 +115,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-062** `shipped` Captions never split or alter a number: thousands separators, decimals and hyphenated tokens stay whole and keep their punctuation.
 - **REQ-VID-063** `shipped` Where timing smoothing is on (the bundled default), caption word timings get a minimum time on screen per word (default 0.12 s), gaps shorter than a threshold merge into the preceding word (default 0.08 s), and the last word of a segment is held (default 0.2 s).
 - **REQ-VID-147** `shipped` Captions carry no emoji: they come from the transcription of a voiceover whose script has its emojis removed, and no bundled caption template or style preset adds one.
-- **REQ-VID-156** `planned #591` A caption segment's reading rate stays at or below a configured characters-per-second cap, and a segment over the cap merges into its neighbour.
+- **REQ-VID-156** `deprecated` A caption segment's reading rate stays at or below a configured characters-per-second cap, and a segment over the cap merges into its neighbour.
+  - Why: karaoke captions are on screen for as long as the voice takes to say them, so their rate is the voice's ([decision 0015](../decisions/0015-karaoke-captions-follow-the-voice.md)).
 - **REQ-VID-157** `partial` Caption lines break at phrase boundaries and never split a noun phrase or a product name.
   - Gap: with `pycaps.phrase_breaks` on (the bundled default), pycaps caption segments prefer to end after punctuation or before a word that opens a phrase, and avoid ending after an article, preposition or auxiliary or inside a name, within the template's character limits; when every break that fits is one to avoid, the segment ends where the limit falls. Lines inside a segment still wrap by width, and the FFmpeg engine breaks on word and character counts (#591).
 
@@ -140,6 +141,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-148** `shipped` No bundled caption template or style preset flashes, and none scales a word beyond 1.1x: the `explosive` template's word zoom peaks at 1.10x, and `word-focus` has no animation.
 - **REQ-VID-149** `shipped` A render's captions use at most three highlight colours, since one caption template or one colour pair styles the whole render.
   - Check: `explosive` uses three fills (a word before, during and after its narration), `word-focus` one box colour, and FFmpeg karaoke one sweep colour.
+- **REQ-VID-162** `shipped` No caption effect scales a word to more than 1.15 times its size.
 - **REQ-VID-155** `shipped` A caption entrance animation lasts at most 250 ms, and a segment leaves with a hard cut or a fade of at most 80 ms.
 
 ## Cold open
@@ -148,7 +150,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-075** `shipped` Pre-motion is off by default and on in the short profile; a profile can turn it on or off.
 - **REQ-VID-076** `shipped` The pre-motion peak zoom is configurable globally and per profile (default 1.10).
 - **REQ-VID-077** `shipped` Where the hook overlay is on (the bundled default), the render shows a short headline as static centre-upper text for the first 1.5 s (configurable), sized relative to the captions, with no per-word reveal.
-- **REQ-VID-154** `planned #591` The hook headline renders larger than the narration captions on every caption engine.
+- **REQ-VID-154** `partial` The hook headline renders larger than the narration captions on every caption engine.
+  - Gap: the hook is `hook_overlay.size_factor` (1.1) times 5% of the frame height, about 106 px on 1920. Pycaps captions take the template's size (about 78 px for `explosive`, 72 px for `word-focus`) and ASS captions are capped at 100 px, so both sit below it; SRT captions are 7.5% of the frame height times `font_size_scale`, about 144 px, larger than the hook, and the bundled `subtitle_format` is `ass`.
 - **REQ-VID-078** `shipped` The on-frame disclosure is drawn above the hook overlay.
 - **REQ-VID-079** `shipped` FFmpeg captions sit below the hook overlay; pycaps captions are burned after assembly and sit above both overlays.
 - **REQ-VID-080** `shipped` When the hook headline is too long, the overlay wraps it to a configurable number of lines, each within a configurable share of the frame width, and shrinks the font when wrapping alone doesn't fit.
