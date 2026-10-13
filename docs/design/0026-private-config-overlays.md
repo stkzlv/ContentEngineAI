@@ -32,7 +32,7 @@ A file that is itself an overlay gets no overlay, so the existing `topics.privat
 
 `CONFIG_OVERLAYS=off` in the environment reads the shipped files alone. It is a machine setting under decision 0003, set in the shell: the circuit breakers and the video config singleton read config at import, before any `.env` loads. The test suite sets it at the top of the root conftest, before any test module imports config, since a fixture runs after collection has already cached what those modules read.
 
-A parse error names the file, as the readers' own parsing did, because the helper parses from a stream. The log line counts as written only once a handler can show it, so an overlay first read at import time, before logging is set up, is logged on the next read.
+A parse error names the file, as the readers' own parsing did, because the helper parses from a stream. An overlay applied before any handler exists, at import time, is held and logged when the logging setup attaches its handlers, since that import may be the only read of its file in a run (the scraper reads `performance.yaml` only there).
 
 `*.private.yaml` is already gitignored. `config/publisher.private.yaml.example` shows the shape.
 

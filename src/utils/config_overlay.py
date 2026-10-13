@@ -22,6 +22,8 @@ OVERLAY_SUFFIX = ".private.yaml"
 OVERLAYS_ENV = "CONFIG_OVERLAYS"
 
 _logged: set[Path] = set()
+# Applied before any handler could show the line; logging setup flushes them.
+_pending: list[Path] = []
 _logged_lock = threading.Lock()
 
 
@@ -78,12 +80,41 @@ def read_config_yaml(path: Path | str) -> Any:
             f"Config overlay {overlay} is not a mapping "
             f"(parsed as {type(extra).__name__})"
         )
-    # Counted as logged only once a handler can show it: a read at import
-    # time, before logging is set up, would otherwise drop the only line.
-    with _logged_lock:
-        first = overlay.resolve() not in _logged
-        if first and logger.isEnabledFor(logging.INFO) and logger.hasHandlers():
-            _logged.add(overlay.resolve())
-    if first:
-        logger.info("Config overlay applied: %s", overlay)
+    _log_applied(overlay)
     return deep_merge(data if data is not None else {}, extra)
+
+
+def _can_show() -> bool:
+    return logger.isEnabledFor(logging.INFO) and logger.hasHandlers()
+
+
+def _log_applied(overlay: Path) -> None:
+    """Log an overlay once; before logging is set up, hold it for log_pending.
+
+    A read at import time (the circuit breakers) may be the only read of its
+    file in a run, so a line logged then, with no handler, would be lost.
+    """
+    key = overlay.resolve()
+    with _logged_lock:
+        if key in _logged:
+            return
+        if not _can_show():
+            if overlay not in _pending:
+                _pending.append(overlay)
+            return
+        _logged.add(key)
+        if overlay in _pending:
+            _pending.remove(overlay)
+    logger.info("Config overlay applied: %s", overlay)
+
+
+def log_pending() -> None:
+    """Log the overlays applied before logging was set up. Call after setup."""
+    if not _can_show():
+        return
+    with _logged_lock:
+        held = [o for o in _pending if o.resolve() not in _logged]
+        _pending.clear()
+        _logged.update(o.resolve() for o in held)
+    for overlay in held:
+        logger.info("Config overlay applied: %s", overlay)

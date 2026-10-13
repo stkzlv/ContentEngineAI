@@ -29,6 +29,7 @@ def _overlays_on(monkeypatch):
     """The suite turns overlays off; these tests are about them."""
     monkeypatch.delenv("CONFIG_OVERLAYS", raising=False)
     monkeypatch.setattr(config_overlay, "_logged", set())
+    monkeypatch.setattr(config_overlay, "_pending", [])
 
 
 @pytest.fixture
@@ -308,3 +309,46 @@ def test_overlays_are_ignored_and_an_example_ships() -> None:
     shipped = yaml.safe_load((ROOT / "config" / "publisher.yaml").read_text())
     assert isinstance(data, dict) and data
     assert set(data) <= set(shipped)
+
+
+@pytest.mark.req("REQ-OPS-118")
+def test_an_import_time_read_is_logged_by_the_logging_setup(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The only read of a file can come before any handler exists."""
+    path = tmp_path / "x.yaml"
+    path.write_text("a: 1\n", encoding="utf-8")
+    (tmp_path / "x.private.yaml").write_text("a: 2\n", encoding="utf-8")
+    root = logging.getLogger()
+    monkeypatch.setattr(root, "handlers", [])
+    monkeypatch.setattr(root, "level", logging.INFO)
+    read_config_yaml(path)
+    seen: list[str] = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            seen.append(record.getMessage())
+
+    collect = _Collect()
+    root.addHandler(collect)
+    line = f"Config overlay applied: {tmp_path / 'x.private.yaml'}"
+    config_overlay.log_pending()
+    assert seen == [line]
+    config_overlay.log_pending()
+    read_config_yaml(path)
+    assert seen == [line]
+
+
+@pytest.mark.req("REQ-OPS-118")
+def test_the_logging_setup_flushes_held_overlays() -> None:
+    """setup_debug_logging calls log_pending once its handlers are attached.
+
+    Read from the file: the suite replaces the function to keep logs off disk.
+    """
+    text = (ROOT / "src" / "utils" / "logging_setup.py").read_text(encoding="utf-8")
+    start = text.index("\ndef setup_debug_logging(")
+    end = text.find("\ndef ", start + 1)
+    source = text[start : end if end != -1 else len(text)]
+    assert source.index("log_pending()") > source.index(
+        "root_logger.addHandler(file_handler)"
+    )

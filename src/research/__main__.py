@@ -23,7 +23,7 @@ from src.research.sample import recent_products, sample
 from src.research.sources import PytrendsSource, TrendsUnavailableError
 from src.research.verify import run_verify
 from src.scraper.base.keyword_pillars import read_keyword_pillars
-from src.utils.config_overlay import read_config_yaml
+from src.utils.config_overlay import log_pending, read_config_yaml
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
 from src.video.config import load_video_config_modular
 
@@ -73,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     # come from the environment, as for the batch.
     load_dotenv(get_project_root() / ".env")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    log_pending()
     out = run_dir(args.out)
     out.mkdir(parents=True, exist_ok=True)
     demand_file = out / "demand.json"
