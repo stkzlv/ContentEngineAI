@@ -324,8 +324,12 @@ llm_settings:
     # is the templated-sameness signal the platforms throttle on. Validation
     # still accepts any line in the list, since a script that reached for a
     # sibling has still closed on a CTA. `--cta` overrides the choice.
+    #
+    # Generic lines: none points at a link the installation may not have. An
+    # installation lists its own in config/ai_services.private.yaml; each must
+    # start with one of the CTA openers the publisher strips
+    # (src/publisher/first_comment.py).
     cta_options:
-      - "Check the link in bio if you want one."
       - "Follow for more finds like this."
       - "Drop a comment if you've tried it."
       - "Save this for when you need one."
@@ -348,23 +352,16 @@ llm_settings:
     # where the script turns from problem to fix; the sign-off is spoken
     # right before the CTA, after a tutorial's recap. `enabled: false`
     # leaves every prompt unchanged.
+    # Off, with empty pools: the lines are an author's own voice. An
+    # installation sets them in config/ai_services.private.yaml; the
+    # example overlay (ai_services.private.yaml.example) shows the shape.
     signature:
-      enabled: true
+      enabled: false
       product:
         use_rate: 0.5
-        # None: the product's name is the hook.
         openers: []
-        transitions:
-          - "Here's what matters."
-          - "Here's what it gets right."
-          - "Here's the useful part."
-        # Every product script names one drawback, so these have one to
-        # point at; a how-to has no opinion to sign off with.
-        signoffs:
-          - "That's my honest take."
-          - "That's the honest version."
-          - "Now you know the catch."
-          - "That's the real picture."
+        transitions: []
+        signoffs: []
       topic:
         use_rate: 0.4
         # Only the templates that open on the task: elsewhere the opening
@@ -372,23 +369,9 @@ llm_settings:
         opener_templates:
           - topic_from_steps
           - topic_answer_first
-        openers:
-          - "Here's how to"
-          - "Quick fix to"
-          - "The fast way to"
-          - "Easy way to"
-        transitions:
-          - "Here's the fix."
-          - "Now the fix."
-          - "Here's what works."
-          - "Let's fix it."
-        # Factual, with no claim about how long the fix takes: a fix with
-        # many steps can take longer than the video to follow.
-        signoffs:
-          - "That's the whole fix."
-          - "And that's the fix."
-          - "That's all it takes."
-          - "And you're done."
+        openers: []
+        transitions: []
+        signoffs: []
     # A concrete hook and sentences linked by cause or complication in the
     # script, and the search phrase leading the hook headline, the
     # description and every platform caption (design 0007). Off leaves every
@@ -413,9 +396,8 @@ llm_settings:
         - topic_answer_first
 
     # Narrator direction for topic scripts. The default profile below is
-    # written for someone describing a thing they bought, down to its CTA list,
-    # which is where "Link in bio if you want one" comes from. A topic script
-    # has no product behind that, so it needs its own voice.
+    # written for someone describing a thing they bought. A topic script has
+    # no product behind it, so it needs its own voice.
     narrator_profile_topic: |-
       Narrator profile: every video on this channel is voiced by the same person. Keep that voice consistent.
 

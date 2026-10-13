@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.209.0] - 2026-10-13
+
+### Changed
+
+- **Breaking**: The shipped config no longer carries one installation's choices: the posting schedule is one example slot in UTC, the author signature ships off with empty pools, no bundled CTA or Instagram first comment points at a bio link, link-in-bio updates ship off, and the TikTok AI-content label ships on; an installation keeps its own values in `config/<name>.private.yaml`, and `config/ai_services.private.yaml.example` shows the signature and CTA shape.
+
 ## [0.208.0] - 2026-10-13
 
 ### Added

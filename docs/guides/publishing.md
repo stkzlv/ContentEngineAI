@@ -52,7 +52,7 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 
    Never commit `.env`; use `.env.example` as the template.
 
-6. To keep link-in-bio updates on (the bundled default), add your Lnk.Bio credentials too:
+6. To turn link-in-bio updates on (off in the bundled config), set `link_in_bio.enabled: true` in `config/publisher.private.yaml` and add your Lnk.Bio credentials:
 
    ```bash
    LNKBIO_CLIENT_ID=your_client_id
@@ -68,7 +68,7 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
    timeout: 120.0              # TikTok needs longer processing time
    recurring_schedule:
      enabled: true             # Schedule into the next free slot
-     timezone: "Europe/Berlin"
+     timezone: "UTC"
    cleanup:
      enabled: true             # Remove products once published
    ```
@@ -139,13 +139,13 @@ The same command runs through make: `make publish ARGS="single B0BTYCRJSS --debu
    ```yaml
    recurring_schedule:
      enabled: true
-     timezone: "Europe/Berlin"
+     timezone: "America/New_York"   # your own schedule, in publisher.private.yaml
      slots:
        - day_of_week: monday
          time: "10:00:00"
        - day_of_week: tuesday
          time: "10:00:00"
-       # ... one slot a day at 10:00
+       # ... one entry per posting slot
    schedule_validation:
      min_post_spacing_hours: 2
      prevent_duplicates: true
@@ -486,7 +486,7 @@ Cron works too, but it has no equivalent of the timer's `Persistent=true` and mi
    make batch-lowpri ARGS="--keywords 'wireless earbuds' --max-products 7 --products-per-keyword 7 --profile slideshow_images1 --skip-publish --debug"
    ```
 
-2. Schedule them into the recurring slots, one a day with the bundled schedule:
+2. Schedule them into the recurring slots:
 
    ```bash
    poetry run python -m src.publisher.late schedule \

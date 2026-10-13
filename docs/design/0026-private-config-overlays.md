@@ -1,6 +1,6 @@
 # 0026. Private config overlays
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #754
 - **Requirements:** REQ-OPS-116 to REQ-OPS-121
 
@@ -53,3 +53,10 @@ The second step (REQ-OPS-121) moves the installation-specific values out of the 
 ## Open questions
 
 - Whether an overlay should be able to delete a mapping key rather than set it to `null`. No setting needs it yet: every optional key reads `null` as unset.
+
+## As built
+
+- The loader shipped first (REQ-OPS-116 to REQ-OPS-120), then the generic defaults (REQ-OPS-121, [decision 0017](../decisions/0017-the-shipped-config-is-generic.md)). The installation's values went into its overlays before the defaults changed: the merged config with the overlays in place was compared key by key with the config before the change, and every value matched.
+- The defaults that moved: the posting schedule (one example slot in UTC), the signature (off, empty pools), the product CTA that points at a bio link, the Instagram first comment (the closing line, like YouTube's), link-in-bio updates (off), and the TikTok AI-content label (on). `config/ai_services.private.yaml.example` shows the signature and CTA shape.
+- A CTA in an overlay must still start with an opener the publisher strips before it reads the closing line; that list is hand-kept in the publisher, which doesn't load the video config.
+

@@ -33,7 +33,7 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 - **REQ-CMP-016** `shipped` TikTok posts carry the AI-generated-content label by default, and `tiktok_settings.video_made_with_ai: false` turns it off.
 - **REQ-CMP-021** `shipped` If the `tiktok_settings` section is invalid, every TikTok setting falls back to its default with a warning, so the AI-generated-content label stays on.
 - **REQ-CMP-017** `shipped` AI disclosure on each platform follows that platform's current rule, recorded with its source.
-- **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice (the TikTok label went off with [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md); a render that meets TikTok's bar turns it back on).
+- **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice (the bundled config keeps the TikTok label on; an installation whose renders meet TikTok's exemption turns it off in its overlay under [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md)).
 - **REQ-CMP-019** `planned #558` An optional statement says what AI did and what a person did.
 
 ## Manual steps

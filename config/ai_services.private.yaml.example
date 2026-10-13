@@ -1,0 +1,31 @@
+# Copy to `config/ai_services.private.yaml` (gitignored) to give scripts this
+# installation's own voice. Merged over `config/ai_services.yaml`: a mapping
+# merges key by key; a list replaces the shipped list. Only list what differs.
+
+llm_settings:
+  script_templates:
+    # Every CTA must start with an opener the publisher strips: "link in bio",
+    # "follow for more", "drop a comment", "share with someone",
+    # "share it with", "save this" or "check the link".
+    cta_options:
+      - "Check the link in bio if you want one."
+      - "Follow for more finds like this."
+      - "Save this for when you need one."
+    # Recurring author signature (design 0022). Each pool is drawn at its
+    # arm's use_rate: the opener starts the first sentence (at most 5 words,
+    # no comma), the transition marks the turn from problem to fix, and the
+    # sign-off is spoken right before the CTA.
+    signature:
+      enabled: true
+      product:
+        transitions:
+          - "Here's the part that matters."
+        signoffs:
+          - "That's the short version."
+      topic:
+        openers:
+          - "Here's how to"
+        transitions:
+          - "Here's the fix."
+        signoffs:
+          - "That's all there is to it."

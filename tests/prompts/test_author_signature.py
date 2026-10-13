@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from src.ai import script_generator
@@ -306,22 +307,33 @@ class TestTheConfig:
         with pytest.raises(ValidationError, match="use_rate"):
             SignatureConfig.model_validate({"use_rate": 0.5, "openers": []})
 
-    def test_the_bundled_lines_ship_on(self) -> None:
+    @pytest.mark.req("REQ-OPS-121")
+    def test_the_bundled_signature_ships_off_with_empty_pools(self) -> None:
+        """An author's lines are an installation's own (design 0026)."""
         signature = load_video_config_modular().llm_settings.script_templates.signature
-        assert signature.enabled is True
+        assert signature.enabled is False
         for arm in (signature.product, signature.topic):
-            assert len(arm.signoffs) >= 3 and len(arm.transitions) >= 3
-        assert signature.topic.openers and not signature.product.openers
-        assert not any("honest" in line.lower() for line in signature.topic.signoffs)
+            assert not (arm.openers or arm.transitions or arm.signoffs)
+        assert signature.topic.opener_templates
 
-    def test_no_bundled_line_claims_how_long_a_fix_takes(self) -> None:
-        """A fix with many steps can take longer than the video to follow."""
-        signature = load_video_config_modular().llm_settings.script_templates.signature
+    def test_no_example_line_claims_how_long_a_fix_takes(self) -> None:
+        """A fix with many steps can take longer than the video to follow.
+
+        The shipped pools are empty; the example overlay is what an
+        installation copies.
+        """
+        from src.utils.outputs_paths import get_project_root
+
+        example = get_project_root() / "config" / "ai_services.private.yaml.example"
+        raw = yaml.safe_load(example.read_text(encoding="utf-8"))
+        signature = raw["llm_settings"]["script_templates"]["signature"]
         lines = [
             line
-            for arm in (signature.product, signature.topic)
-            for line in arm.openers + arm.transitions + arm.signoffs
+            for arm in (signature["product"], signature["topic"])
+            for key in ("openers", "transitions", "signoffs")
+            for line in arm.get(key, [])
         ]
+        assert lines
         timed = [
             line
             for line in lines

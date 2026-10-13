@@ -129,7 +129,7 @@ On (`ending: peak` in the bundled config): ending on the last spoken word, with 
 
 ## Where a call to action can point
 
-One product CTA points at the profile ("Check the link in bio if you want one."); the others ask for a follow, a comment or a save. The publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
+The bundled CTAs ask for a follow, a comment or a save; an installation with a bio link adds one that points at the profile, in its overlay. With `link_in_bio.enabled` on, the publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`), and an installation's Instagram first-comment template can carry a link-in-bio pointer (`REQ-PUB-037`).
 
 | Surface | Clickable destination? |
 |---|---|
@@ -146,7 +146,7 @@ Why: a video classified as a Short cannot carry a clickable link on any surface 
 
 A render with a material connection carries a persistent `#ad` overlay in a fixed corner for the full clip (`video_settings.disclosure_overlay`, top-right at 0.45 times the subtitle font by default, `REQ-CMP-001`, `REQ-CMP-002`; the FTC asks for clear and conspicuous, not a size ratio), and its caption leads with the disclosure on its own line (`REQ-CMP-006`). The overlay and the caption follow the same recorded decision (`REQ-CMP-007`). The hook overlay sits centre-upper, so the two don't compete for the same zone in the first seconds.
 
-AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on by default in code (`REQ-CMP-016`) and off in the bundled config, since TikTok's rule does not require it for generic TTS ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
+AI-content labels are a separate platform-policy layer on top of `#ad`. The TikTok AI label is on in code and in the bundled config (`REQ-CMP-016`); an installation whose renders meet TikTok's exemption for generic TTS turns it off in its overlay ([decision 0017](../decisions/0017-the-shipped-config-is-generic.md)) ([design 0016](../design/0016-tiktok-ai-label.md), `REQ-CMP-017`); the YouTube synthetic-media flag is opt-in (`REQ-CMP-015`, held).
 
 The regulators, the rules, the platform flags, the manual steps and the penalty surface are in [the compliance guide](compliance.md).
 
