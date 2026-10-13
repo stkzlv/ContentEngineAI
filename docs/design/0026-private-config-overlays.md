@@ -30,7 +30,9 @@ One helper parses every file under `config/`, and a test fails if any other modu
 
 A file that is itself an overlay gets no overlay, so the existing `topics.private.yaml` is never treated as one. An overlay that doesn't parse or isn't a mapping raises an error naming it; the publisher reports it as an unreadable config, like a broken `publisher.yaml`. An empty overlay changes nothing. Each overlay applied is logged once per process at INFO.
 
-`CONFIG_OVERLAYS=off` in the environment reads the shipped files alone. It is a machine setting under decision 0003. The test suite sets it in an autouse fixture, the way it already removes the topic pool.
+`CONFIG_OVERLAYS=off` in the environment reads the shipped files alone. It is a machine setting under decision 0003, set in the shell: the circuit breakers and the video config singleton read config at import, before any `.env` loads. The test suite sets it at the top of the root conftest, before any test module imports config, since a fixture runs after collection has already cached what those modules read.
+
+A parse error names the file, as the readers' own parsing did, because the helper parses from a stream. The log line counts as written only once a handler can show it, so an overlay first read at import time, before logging is set up, is logged on the next read.
 
 `*.private.yaml` is already gitignored. `config/publisher.private.yaml.example` shows the shape.
 

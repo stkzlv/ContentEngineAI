@@ -260,10 +260,9 @@ class CircuitBreaker:
 
 def _load_circuit_breaker_config() -> dict[str, Any]:
     """Load circuit breaker settings from config/performance.yaml."""
-    try:
-        import yaml
+    from src.utils.config_overlay import ConfigOverlayError, read_config_yaml
 
-        from src.utils.config_overlay import read_config_yaml
+    try:
         from src.utils.outputs_paths import get_project_root
 
         config_path = get_project_root() / "config" / "performance.yaml"
@@ -271,6 +270,9 @@ def _load_circuit_breaker_config() -> dict[str, Any]:
             config = read_config_yaml(config_path)
             result: dict[str, Any] = config.get("circuit_breaker", {})
             return result
+    except ConfigOverlayError:
+        # A broken overlay stops the load, as it does for every other reader.
+        raise
     except Exception as e:
         logger.debug("Could not load circuit breaker config, using defaults: %s", e)
     return {}

@@ -7,6 +7,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -153,11 +154,16 @@ class TestEveryLoaderReadsTheOverlay:
             "src/video/config_adapter.py": 1,
             "src/video/producer/topic_input.py": 1,
         }
+        parse = re.compile(
+            r"\byaml\.(?:safe_|full_|unsafe_)?load\(|(?<![.\w])(?:safe_|full_|unsafe_)load\("
+        )
         found: dict[str, int] = {}
-        for path in sorted((ROOT / "src").rglob("*.py")):
-            count = len(re.findall(r"\bsafe_load\(", path.read_text(encoding="utf-8")))
-            if count:
-                found[path.relative_to(ROOT).as_posix()] = count
+        for folder in ("src", "tools", "scripts"):
+            for path in sorted((ROOT / folder).rglob("*.py")):
+                text = path.read_text(encoding="utf-8")
+                count = len(parse.findall(text))
+                if count:
+                    found[path.relative_to(ROOT).as_posix()] = count
         assert found == allowed
 
 
@@ -230,8 +236,63 @@ def test_overlays_off_reads_the_shipped_file(tmp_path: Path, monkeypatch) -> Non
 
 @pytest.mark.req("REQ-OPS-119")
 def test_the_suite_runs_with_overlays_off(request) -> None:
-    """The autouse fixture in the root conftest turns them off for every test."""
+    """The root conftest turns them off before any test module imports config.
+
+    Module-level reads (the video config singleton, the circuit breakers)
+    cache what they read at collection, before any fixture runs.
+    """
     assert "_no_config_overlays" in request.fixturenames
+    text = (ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
+    switch = text.index('os.environ["CONFIG_OVERLAYS"] = "off"')
+    assert switch < text.index("\nfrom src")
+
+
+@pytest.mark.req("REQ-OPS-117")
+def test_a_broken_shipped_file_is_named(tmp_path: Path) -> None:
+    path = tmp_path / "x.yaml"
+    path.write_text("a: [1\n", encoding="utf-8")
+    with pytest.raises(yaml.YAMLError, match=r"x\.yaml"):
+        read_config_yaml(path)
+
+
+@pytest.mark.req("REQ-OPS-117")
+def test_the_circuit_breakers_stop_on_a_broken_overlay(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from src.utils import circuit_breaker, outputs_paths
+
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "performance.yaml").write_text(
+        "circuit_breaker:\n  llm:\n    failure_threshold: 2\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(outputs_paths, "get_project_root", lambda: tmp_path)
+    assert circuit_breaker._load_circuit_breaker_config() == {
+        "llm": {"failure_threshold": 2}
+    }
+    (tmp_path / "config" / "performance.private.yaml").write_text(
+        "- a\n", encoding="utf-8"
+    )
+    with pytest.raises(ConfigOverlayError, match="performance.private.yaml"):
+        circuit_breaker._load_circuit_breaker_config()
+
+
+@pytest.mark.req("REQ-OPS-118")
+def test_a_read_before_logging_is_set_up_is_logged_later(
+    tmp_path: Path, caplog, monkeypatch
+) -> None:
+    path = tmp_path / "x.yaml"
+    path.write_text("a: 1\n", encoding="utf-8")
+    (tmp_path / "x.private.yaml").write_text("a: 2\n", encoding="utf-8")
+    with caplog.at_level(logging.INFO, logger="src.utils.config_overlay"):
+        with monkeypatch.context() as early:
+            early.setattr(config_overlay.logger, "hasHandlers", lambda: False)
+            read_config_yaml(path)
+        caplog.clear()
+        read_config_yaml(path)
+        read_config_yaml(path)
+    assert [r.getMessage() for r in caplog.records] == [
+        f"Config overlay applied: {tmp_path / 'x.private.yaml'}"
+    ]
 
 
 @pytest.mark.req("REQ-OPS-120")

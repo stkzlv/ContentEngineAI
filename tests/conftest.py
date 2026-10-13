@@ -1,9 +1,16 @@
 """Pytest configuration and shared fixtures for ContentEngineAI tests."""
 
+# ruff: noqa: E402
+import os
+
+# Before any import: modules that read config at import time (the video
+# config singleton, the circuit breakers) would cache a developer's
+# `config/*.private.yaml` for the whole session.
+os.environ["CONFIG_OVERLAYS"] = "off"
+
 import inspect
 import json
 import logging
-import os
 import sys
 import tempfile
 from collections.abc import Generator

@@ -58,12 +58,15 @@ def read_config_yaml(path: Path | str) -> Any:
     ConfigOverlayError naming it.
     """
     path = Path(path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    # From a stream, so a parse error names the file.
+    with path.open(encoding="utf-8") as handle:
+        data = yaml.safe_load(handle)
     overlay = overlay_path(path)
     if overlay is None or not overlays_enabled() or not overlay.is_file():
         return data
     try:
-        extra = yaml.safe_load(overlay.read_text(encoding="utf-8"))
+        with overlay.open(encoding="utf-8") as handle:
+            extra = yaml.safe_load(handle)
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise ConfigOverlayError(
             f"Config overlay {overlay} is unreadable: {exc}"
@@ -75,9 +78,12 @@ def read_config_yaml(path: Path | str) -> Any:
             f"Config overlay {overlay} is not a mapping "
             f"(parsed as {type(extra).__name__})"
         )
+    # Counted as logged only once a handler can show it: a read at import
+    # time, before logging is set up, would otherwise drop the only line.
     with _logged_lock:
         first = overlay.resolve() not in _logged
-        _logged.add(overlay.resolve())
+        if first and logger.isEnabledFor(logging.INFO) and logger.hasHandlers():
+            _logged.add(overlay.resolve())
     if first:
         logger.info("Config overlay applied: %s", overlay)
     return deep_merge(data if data is not None else {}, extra)
