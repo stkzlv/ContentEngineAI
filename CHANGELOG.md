@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.5] - 2026-10-13
+
+### Security
+
+- Dependencies updated for published advisories: anyio 4.15.1 (critical), aiohttp 3.14.5, urllib3 2.8.0, fsspec 2026.9.0, multidict 7.1.0 and virtualenv 21.14.7.
+
 ## [0.204.4] - 2026-10-13
 
 ### Fixed
