@@ -1168,7 +1168,8 @@ class LatePublisher(BasePublisher):
         platform takes no cover. Empty when covers are off, no target takes
         one, or the video has no usable cover (REQ-PUB-159).
         """
-        targets = {name.lower() for name in platform_names}
+        # Matched exactly, as the builder matches them.
+        targets = set(platform_names)
         if not self.covers_enabled or not targets & {"instagram", "tiktok"}:
             return {}
         video = self._uploaded_videos.get(media_id)

@@ -233,7 +233,8 @@ class TestNoCoverStillPublishes:
         assert VIDEO_NAME in caplog.text
 
     @pytest.mark.parametrize(
-        "record_text", ["{not json", '{"at_ms": "750"}', '{"at_ms": true}', "[]"]
+        "record_text",
+        ["{not json", '{"at_ms": "750"}', '{"at_ms": true}', '{"at_ms": -1}', "[]"],
     )
     async def test_unusable_record(self, tmp_path, caplog, record_text):
         video = _render(tmp_path)
