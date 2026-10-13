@@ -38,6 +38,7 @@ import yaml
 
 from src.scraper.amazon.models import SearchParameters
 from src.scraper.base.keyword_pillars import keywords_for_run, read_keyword_pillars
+from src.utils.config_overlay import read_config_yaml
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
 from src.video.config import VideoConfig
 from src.video.producer.shared_cli import layout_render_overrides
@@ -932,8 +933,7 @@ def _scraper_keyword_pool(
     if not path.exists():
         return [], {}
     try:
-        with open(path, encoding="utf-8") as handle:
-            raw = yaml.safe_load(handle) or {}
+        raw = read_config_yaml(path) or {}
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("Could not read %s for keywords: %s", scraper_config_path, exc)
         return [], {}
@@ -1046,10 +1046,9 @@ def load_global_batch_config(
     yaml_path = Path(config_path)
 
     if yaml_path.exists():
-        with open(yaml_path, encoding="utf-8") as f:
-            loaded = yaml.safe_load(f)
-            if isinstance(loaded, dict) and "global_batch" in loaded:
-                yaml_config = loaded["global_batch"]
+        loaded = read_config_yaml(yaml_path)
+        if isinstance(loaded, dict) and "global_batch" in loaded:
+            yaml_config = loaded["global_batch"]
 
     # Apply 3-tier precedence: CLI > YAML > defaults
     # When ANY CLI input is provided (product_ids or keywords), treat CLI as

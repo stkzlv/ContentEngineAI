@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+from src.utils.config_overlay import read_config_yaml
 from src.video.config import VideoConfig, VideoProfile
 
 logger = logging.getLogger(__name__)
@@ -55,8 +56,7 @@ class ModularConfigAdapter:
         if not file_path.exists():
             logger.warning("Config file not found: %s", file_path)
             return {}
-        with open(file_path, encoding="utf-8") as f:
-            content = yaml.safe_load(f)
+        content = read_config_yaml(file_path)
         if content is None:
             return {}
         if not isinstance(content, dict):

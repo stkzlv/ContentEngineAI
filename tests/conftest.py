@@ -1,9 +1,16 @@
 """Pytest configuration and shared fixtures for ContentEngineAI tests."""
 
+# ruff: noqa: E402
+import os
+
+# Before any import: modules that read config at import time (the video
+# config singleton, the circuit breakers) would cache a developer's
+# `config/*.private.yaml` for the whole session.
+os.environ["CONFIG_OVERLAYS"] = "off"
+
 import inspect
 import json
 import logging
-import os
 import sys
 import tempfile
 from collections.abc import Generator
@@ -52,6 +59,16 @@ def _no_installation_topic_pool(monkeypatch):
     pool they wrote, never the machine's.
     """
     monkeypatch.delenv("PIPELINE_TOPICS_FILE", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _no_config_overlays(monkeypatch):
+    """Keep the developer's `config/*.private.yaml` out of every test.
+
+    Tests assert the shipped defaults; an overlay would change them on one
+    machine only. The overlay's own tests remove this.
+    """
+    monkeypatch.setenv("CONFIG_OVERLAYS", "off")
 
 
 @pytest.fixture(autouse=True)

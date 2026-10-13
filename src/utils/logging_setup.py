@@ -385,6 +385,10 @@ def setup_debug_logging(
     root_logger.setLevel(log_level)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
+    # Overlays read at import time, before these handlers existed.
+    from src.utils.config_overlay import log_pending
+
+    log_pending()
 
     for lib in QUIET_LOGGERS:
         logging.getLogger(lib).setLevel(logging.WARNING)

@@ -7,6 +7,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.utils.config_overlay import read_config_yaml
+
 DEFAULT_PATH = Path("config/research.yaml")
 
 
@@ -103,6 +105,4 @@ class ResearchConfig(BaseModel):
 
 
 def load_research_config(path: Path = DEFAULT_PATH) -> ResearchConfig:
-    return ResearchConfig.model_validate(
-        yaml.safe_load(path.read_text(encoding="utf-8"))
-    )
+    return ResearchConfig.model_validate(read_config_yaml(path))

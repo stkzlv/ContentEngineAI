@@ -477,16 +477,17 @@ def producer_media_minimums() -> tuple[int, int, int]:
     """
     import yaml
 
+    from src.utils.config_overlay import read_config_yaml
     from src.utils.outputs_paths import get_project_root
 
     path = get_project_root() / "config" / "video_production.yaml"
     # An unparseable file raises, as the producer's loader does: falling back
     # to defaults would filter products on numbers the producer then refuses.
     try:
-        text = path.read_text(encoding="utf-8")
+        raw = read_config_yaml(path)
     except FileNotFoundError:
-        text = ""
-    settings = (yaml.safe_load(text) or {}).get("video_settings") or {}
+        raw = None
+    settings = (raw or {}).get("video_settings") or {}
     # The file, not the video package: the scraper doesn't import the producer.
     names = ("min_total_media", "min_images_if_no_video", "min_images_with_video")
     total, no_video, with_video = (

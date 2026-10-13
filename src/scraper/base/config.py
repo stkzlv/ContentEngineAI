@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 
+from src.utils.config_overlay import read_config_yaml
+
 from .models import Platform
 
 
@@ -44,8 +46,7 @@ class PlatformConfigManager:
         if not config_file.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
-        with open(config_file, encoding="utf-8") as f:
-            raw = yaml.safe_load(f)
+        raw = read_config_yaml(config_file)
         # Validated and defaults-filled, so every reader indexes a present key
         # and a misspelled, empty or non-mapping file fails here rather than
         # reading as a default.

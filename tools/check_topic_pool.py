@@ -30,11 +30,10 @@ def configured_pool(topics_file: Path | None) -> list[Any]:
 
     if topics_file is not None:
         return load_topics_file(topics_file)
-    import yaml
-
     from src.pipeline.config import DEFAULT_PIPELINE_CONFIG_PATH, _configured_topics
+    from src.utils.config_overlay import read_config_yaml
 
-    raw = yaml.safe_load(DEFAULT_PIPELINE_CONFIG_PATH.read_text(encoding="utf-8"))
+    raw = read_config_yaml(DEFAULT_PIPELINE_CONFIG_PATH)
     batch = (raw or {}).get("global_batch") or {}
     return _configured_topics(batch, DEFAULT_PIPELINE_CONFIG_PATH)
 

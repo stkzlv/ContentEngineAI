@@ -27,6 +27,7 @@ from src.scraper.base.keyword_pillars import (
     rotate_keyword_pool,
 )
 from src.scraper.config_models import ScraperConfig
+from src.utils.config_overlay import read_config_yaml
 from src.utils.logging_setup import dated_log_path, setup_debug_logging
 from src.utils.outputs_paths import (
     get_logs_directory,
@@ -347,8 +348,7 @@ def _load_scraper_config() -> dict[str, Any] | None:
     config_path = get_project_root() / "config/scraper.yaml"
     if not config_path.exists():
         return None
-    with open(config_path, encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
+    raw = read_config_yaml(config_path)
     return ScraperConfig.from_legacy_dict(raw).to_runtime_dict()
 
 

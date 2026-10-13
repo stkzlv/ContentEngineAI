@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from src.utils.config_overlay import read_config_yaml
+
 if TYPE_CHECKING:
     from src.scraper.config_models import ScraperConfig
 
@@ -50,8 +52,7 @@ class ScraperConfigAdapter:
                 "Scraper config file not found: %s; using defaults", file_path
             )
             return {}
-        with open(file_path, encoding="utf-8") as f:
-            content = yaml.safe_load(f)
+        content = read_config_yaml(file_path)
         logger.debug("Loaded config from %s", file_path)
         return content
 
