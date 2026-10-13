@@ -145,8 +145,10 @@ class TestTopicNarratorProfile:
         """Guards against the two lists being conflated later."""
         from src.video.config import config
 
-        product = config.llm_settings.script_templates.cta_options_for(is_topic=False)
-        assert any("link in bio" in o.lower() for o in product)
+        templates = config.llm_settings.script_templates
+        product = templates.cta_options_for(is_topic=False)
+        topic = templates.cta_options_for(is_topic=True)
+        assert product and set(product).isdisjoint(topic)
 
 
 @pytest.mark.unit

@@ -262,8 +262,8 @@ default_account: production
 | Key | Type | Default | Bundled | Description |
 |---|---|---|---|---|
 | `enabled` | bool | `false` | `true` | `schedule` refuses to run in scheduled mode when off. `single` reads the slots either way. |
-| `timezone` | string | `UTC` | `Europe/Berlin` | IANA timezone for the slots. |
-| `slots` | list | `[]` | daily at `10:00:00` | Each slot has `day_of_week` (`monday` to `sunday`), `time` (`HH:MM:SS`, 24-hour) and an optional `timezone` that defaults to the section's. An invalid slot is skipped with a warning (`REQ-PUB-013`). |
+| `timezone` | string | `UTC` | `UTC` | IANA timezone for the slots. |
+| `slots` | list | `[]` | one example slot, Wednesday at `17:00:00`; an installation lists its own in its overlay | Each slot has `day_of_week` (`monday` to `sunday`), `time` (`HH:MM:SS`, 24-hour) and an optional `timezone` that defaults to the section's. An invalid slot is skipped with a warning (`REQ-PUB-013`). |
 
 The number of alternatives suggested on a conflict is fixed at 5 and is not read from the file.
 
@@ -295,7 +295,7 @@ If the section is invalid, the loader falls back to the defaults but keeps `enab
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | bool | `true` | Add the product's link to the bio page after each publish. |
+| `enabled` | bool | `true` (the bundled config sets `false`) | Add the product's link to the bio page after each publish. |
 | `provider` | string | `lnkbio` | Provider. Only `lnkbio` is implemented. |
 | `max_links` | int | `0` | When above 0, remove the oldest link once the page holds this many. 0 means no limit. |
 | `max_title_length` | int | `80` | Truncate link titles past this length, ending in `...`. At least 10. |
@@ -310,7 +310,7 @@ The Lnk.Bio protocol is described in [the Lnk.Bio API notes](lnkbio-api.md).
 | `move_hashtags_to_comment` | bool | `false` | | Move Instagram hashtags from the caption into the comment, as `{hashtags}`. |
 | `platforms` | map | `{}` | see below | Platform name to comment template. |
 
-Bundled templates: `youtube: "{closing_line}"`, and for `instagram` the product title, a newline, then a link emoji followed by `Link in bio!`.
+Bundled templates: `{closing_line}` for both `youtube` and `instagram`. An installation with a bio link sets its own Instagram template in `config/publisher.private.yaml`, such as the product title followed by a link-in-bio pointer.
 
 | Placeholder | Source |
 |---|---|
@@ -364,7 +364,7 @@ Shipped commented out. A section with an unknown key falls back to all defaults 
 | `is_brand_organic_post` | bool | `true` | A render with no material connection always sends `false`. |
 | `content_preview_confirmed` | bool | `true` | Sent on every post. |
 | `express_consent_given` | bool | `true` | Sent on every post. |
-| `video_made_with_ai` | bool | `true` (the bundled config sets `false`) | TikTok's AI-generated-content label, sent as `videoMadeWithAi` beside `tiktokSettings` rather than inside it. |
+| `video_made_with_ai` | bool | `true` (the bundled config keeps it on; an installation may turn it off in its overlay under decision 0013) | TikTok's AI-generated-content label, sent as `videoMadeWithAi` beside `tiktokSettings` rather than inside it. |
 
 ### `analytics`
 

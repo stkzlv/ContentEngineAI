@@ -66,7 +66,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 
 - **REQ-PUB-035** `shipped` Where `first_comment.enabled` is on, the publisher posts a first comment on each post, built from that platform's template.
 - **REQ-PUB-036** `shipped` First comments are off unless the config enables them, and the bundled config enables them.
-- **REQ-PUB-037** `shipped` The bundled config posts the script's closing line as the YouTube first comment, and the product title with a link-in-bio pointer as the Instagram first comment.
+- **REQ-PUB-037** `shipped` The bundled config posts the script's closing line as the first comment on YouTube and on Instagram; an installation with a bio link sets its own Instagram template in its overlay.
 - **REQ-PUB-038** `shipped` The publisher posts first comments on YouTube and Instagram, and never on TikTok.
 - **REQ-PUB-153** `shipped` A successful render keeps its script and sign-off in the product directory (`script.json`) before removing its intermediate files, and the first comment reads the closing line from there when `temp/` is gone.
   - Why: the publisher runs after the render's cleanup, so every batch publish and every publish of a render made with `--skip-publish` skipped the YouTube first comment.
@@ -110,7 +110,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 
 ## Link-in-bio
 
-- **REQ-PUB-062** `shipped` After publishing a product, the publisher adds the product's affiliate link to a link-in-bio page.
+- **REQ-PUB-062** `shipped` Where `link_in_bio.enabled` is on (the bundled config ships it off), after publishing a product the publisher adds the product's affiliate link to a link-in-bio page.
 - **REQ-PUB-063** `shipped` The publisher supports Lnk.Bio as the link-in-bio provider.
 - **REQ-PUB-064** `shipped` Where `link_in_bio.max_links` is above 0, the publisher removes the oldest link when the page reaches that count; 0 (the default) sets no limit.
 - **REQ-PUB-065** `shipped` If the link-in-bio update fails, the publisher logs a warning and the publish result is unchanged.

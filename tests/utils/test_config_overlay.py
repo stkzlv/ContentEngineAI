@@ -304,11 +304,12 @@ def test_overlays_are_ignored_and_an_example_ships() -> None:
         check=False,
     )
     assert result.returncode == 0
-    example = ROOT / "config" / "publisher.private.yaml.example"
-    data = yaml.safe_load(example.read_text(encoding="utf-8"))
-    shipped = yaml.safe_load((ROOT / "config" / "publisher.yaml").read_text())
-    assert isinstance(data, dict) and data
-    assert set(data) <= set(shipped)
+    for name in ("publisher", "ai_services"):
+        example = ROOT / "config" / f"{name}.private.yaml.example"
+        data = yaml.safe_load(example.read_text(encoding="utf-8"))
+        shipped = yaml.safe_load((ROOT / "config" / f"{name}.yaml").read_text())
+        assert isinstance(data, dict) and data
+        assert set(data) <= set(shipped)
 
 
 @pytest.mark.req("REQ-OPS-118")
@@ -363,3 +364,27 @@ def test_the_single_file_video_loader_names_a_broken_overlay(tmp_path: Path) -> 
     (tmp_path / "video.private.yaml").write_text("- a\n", encoding="utf-8")
     with pytest.raises(ConfigOverlayError, match=r"video\.private\.yaml"):
         load_video_config(path)
+
+
+@pytest.mark.req("REQ-OPS-120")
+def test_the_example_overlays_load_as_written(config_dir: Path, monkeypatch) -> None:
+    """Copied as they ship, both examples validate and take effect."""
+    from src.publisher.config import load_publisher_config
+    from src.publisher.first_comment import _CTA_MARKERS
+    from src.video.config import VideoConfig
+    from src.video.config_adapter import ModularConfigAdapter
+
+    for name in ("publisher", "ai_services"):
+        shutil.copy(
+            ROOT / "config" / f"{name}.private.yaml.example",
+            config_dir / f"{name}.private.yaml",
+        )
+    monkeypatch.setenv("LATE_API_KEY", "sk_test_overlay")
+    publisher = load_publisher_config(config_path=config_dir / "publisher.yaml")
+    slots = publisher.schedule_config.slots
+    assert slots and {s.timezone for s in slots} == {"America/New_York"}
+    merged = ModularConfigAdapter(str(config_dir)).get_merged_config_dict()
+    templates = VideoConfig(**merged).llm_settings.script_templates
+    assert templates.signature.enabled is True
+    for line in templates.cta_options:
+        assert line.lower().startswith(_CTA_MARKERS), line

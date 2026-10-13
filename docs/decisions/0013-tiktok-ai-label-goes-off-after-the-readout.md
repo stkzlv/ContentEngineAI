@@ -1,6 +1,6 @@
 # 0013. The TikTok AI label goes off after the reach-test readout
 
-- **Status:** Amended by [0014](0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)
+- **Status:** Amended by [0014](0014-the-reach-test-hold-ends-when-its-posts-are-queued.md) and [0017](0017-the-shipped-config-is-generic.md)
 - **Date:** 2026-10-05
 
 ## Context and problem

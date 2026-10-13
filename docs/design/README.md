@@ -84,4 +84,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0023](0023-content-research.md) | Repeatable content research | #686 | Implemented |
 | [0024](0024-researcher-voice.md) | Product scripts in the researcher's voice | #700 | Implemented |
 | [0025](0025-video-length.md) | Video length: recorded, bounded and configurable | #705 | Implemented |
-| [0026](0026-private-config-overlays.md) | Private config overlays | #754 | Accepted |
+| [0026](0026-private-config-overlays.md) | Private config overlays | #754 | Implemented |

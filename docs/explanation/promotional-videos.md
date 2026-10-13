@@ -129,7 +129,7 @@ On (`ending: peak` in the bundled config): ending on the last spoken word, with 
 
 ## Where a call to action can point
 
-One product CTA points at the profile ("Check the link in bio if you want one."); the others ask for a follow, a comment or a save. The publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`). The Instagram first comment carries a link-in-bio pointer (`REQ-PUB-037`).
+The bundled CTAs ask for a follow, a comment or a save; an installation with a bio link adds one that points at the profile, in its overlay. With `link_in_bio.enabled` on, the publisher adds each product's affiliate link to a link-in-bio page after publishing (`REQ-PUB-062`), and an installation's Instagram first-comment template can carry a link-in-bio pointer (`REQ-PUB-037`).
 
 | Surface | Clickable destination? |
 |---|---|

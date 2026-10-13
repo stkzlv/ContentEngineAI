@@ -127,27 +127,17 @@ recurring_schedule:
   # Timezone for schedule times (IANA timezone name)
   # Examples: Europe/Berlin (CET), America/New_York (EST), UTC
   # Affects: When videos actually go live based on local time
-  timezone: Europe/Berlin  # CET
+  timezone: UTC
 
   # Weekly publishing slots
   # Each slot defines a day and time for automated posting
   # Times are in 24-hour format (HH:MM:SS) in specified timezone
   # Algorithm selects nearest available slot for each video
+  # One example slot. An installation lists its own in
+  # config/publisher.private.yaml (see publisher.private.yaml.example).
   slots:
-    - day_of_week: monday
-      time: "10:00:00"
-    - day_of_week: tuesday
-      time: "10:00:00"
     - day_of_week: wednesday
-      time: "10:00:00"
-    - day_of_week: thursday
-      time: "10:00:00"
-    - day_of_week: friday
-      time: "10:00:00"
-    - day_of_week: saturday
-      time: "10:00:00"
-    - day_of_week: sunday
-      time: "10:00:00"
+      time: "17:00:00"
 
 
 # ============================================================================
@@ -248,7 +238,7 @@ first_comment:
     # closing question instead: replies and profile visits are the
     # only route to a clickable destination (the channel's profile links).
     youtube: "{closing_line}"
-    instagram: "{product_title}\n🔗 Link in bio!"
+    instagram: "{closing_line}"
 
 # Retention for the Vercel Blob store that stages large video uploads
 # (LATE_VERCEL_TOKEN). Zernio fetches the video from the blob URL when a
@@ -281,8 +271,9 @@ delivery_sweep:
   limit: 25
 
 link_in_bio:
-  # Enable/disable link-in-bio updates after publishing
-  enabled: true
+  # Enable/disable link-in-bio updates after publishing. Off by default: it
+  # needs the provider's credentials (LNKBIO_CLIENT_ID and friends).
+  enabled: false
 
   # Provider to use (lnkbio, linktree, beacons, etc.)
   # Credentials via environment variables (e.g., LNKBIO_CLIENT_ID)
@@ -355,12 +346,13 @@ covers:
 # Per-post TikTok options. Every key here has a dataclass default, so the
 # block is optional; it is shipped commented so the keys are discoverable.
 #
-# `video_made_with_ai` is TikTok's AI-generated-content label, and it is ON by
-# default. TikTok's 2026-H2 guidelines require it for realistic AI people or
+# `video_made_with_ai` is TikTok's AI-generated-content label, and it ships
+# on. TikTok's 2026-H2 guidelines require it for realistic AI people or
 # scenes and for audio mimicking a real person, and exempt generic TTS
-# narration, which is all this pipeline uses, so the label is off here
-# (decision 0013). Turn it back on for a render that adds realistic AI people
-# or scenes, or a voice that mimics a real person.
+# narration. An installation whose renders use only generic TTS over real
+# photos and stock footage may turn it off in its private overlay
+# (decision 0013); one that adds realistic AI people or scenes, or a voice
+# that mimics a real person, keeps it on.
 #
 # Disclosing is also the cheaper error: TikTok reads C2PA credentials and
 # auto-labels undisclosed AI content, and enforcement escalates from a warning
@@ -369,7 +361,7 @@ covers:
 # A single unknown key discards the whole block back to defaults, with a
 # warning. Keep it minimal.
 tiktok_settings:
-  video_made_with_ai: false
+  video_made_with_ai: true
 #  privacy_level: "PUBLIC_TO_EVERYONE"
 #  allow_comment: true
 #  allow_duet: false
