@@ -454,6 +454,8 @@ outputs/
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
 │   ├── video_B0DLKB5V35_slideshow_images1.mp4 # Final video
+│   ├── video_B0DLKB5V35_slideshow_images1.cover.jpg  # Its cover: a frame with the hook on screen (REQ-VID-014)
+│   ├── video_B0DLKB5V35_slideshow_images1.cover.json # The cover's video and frame time (at_ms)
 │   ├── metadata.json              # Pipeline metadata
 │   ├── ffmpeg_command.log         # FFmpeg execution log
 │   ├── images/                    # Product images

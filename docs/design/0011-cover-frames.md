@@ -40,3 +40,10 @@ The cover does not change the feed video, but it changes the profile grid and se
 ## Open questions
 
 - Whether the provider's API has a Shorts thumbnail field. If it has none, record the gap and keep frame 0 as the YouTube lever.
+
+## As built
+
+- The cover is a frame of the finished video, after the burned captions, taken halfway through the hook (0.75 s with the bundled 1.5 s hook), not a separate frame 0 composition: the hook headline is fully on screen there and the picture is the one viewers see.
+- Each video gets its own cover beside it, `<video>.cover.jpg`, because a product renders once per profile and a platform may be sent any of those videos. `<video>.cover.json` records the image, the video and the frame time in milliseconds, which a timestamp-based platform can use.
+- A whole render writes it, and so does a `--step` run of the profile's final step, which is how topic batches finish a video. `--clean` removes it with the video.
+- A cover that can't be written is logged and skipped, and an earlier render's cover is removed first so it never outlives a failed write.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.206.0] - 2026-10-13
+
+### Added
+
+- Every render that finishes a video writes a cover image beside it, a frame halfway through the hook named after the video (`<video>.cover.jpg`), with the frame's time in `<video>.cover.json`; no platform is sent it yet.
+
 ## [0.205.1] - 2026-10-13
 
 ### Fixed

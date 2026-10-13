@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.video.config import VideoConfig
+from src.video.cover import cover_paths
 from src.video.producer.state import _clean_producer_files
 
 
@@ -107,6 +108,21 @@ class TestProducerCleanup:
         run_paths = {"run_root": product_dir}
 
         return product_dir, config, run_paths
+
+    @pytest.mark.req("REQ-VID-014")
+    def test_cleanup_removes_each_video_cover(self):
+        product_dir, config, run_paths = self.create_test_environment()
+        covers: list[Path] = []
+        for profile in ("slideshow_images1", "other_profile"):
+            video = product_dir / f"video_{self.product_id}_{profile}.mp4"
+            video.write_text("video")
+            covers.extend(cover_paths(video))
+        for path in covers:
+            path.write_text("cover")
+
+        _clean_producer_files(run_paths, config, self.product_id, self.profile_name)
+
+        assert not any(path.exists() for path in covers)
 
     def test_cleanup_producer_generated_files(self):
         """Test cleanup removes only producer-generated files."""
