@@ -17,7 +17,7 @@ from src.ai.llm_settings import LLMSettings
 # Platform-specific metadata models (no circular import after extracting LLMSettings)
 from src.ai.platform_metadata.models import PlatformMetadataSettings
 from src.utils import MAX_FILENAME_LENGTH
-from src.utils.config_overlay import read_config_yaml
+from src.utils.config_overlay import ConfigOverlayError, read_config_yaml
 from src.utils.outputs_paths import GLOBAL_DIR_NAMES, is_product_directory
 from src.video.config.audio_models import (
     AudioProcessingSettings,
@@ -1543,6 +1543,8 @@ def load_video_config(config_path: Path) -> VideoConfig:
     except ValidationError as e:
         logger.error("Config validation error: %s", e)
         raise ValueError("Config validation failed.") from e
+    except ConfigOverlayError:
+        raise  # already names the overlay
     except Exception as e:
         logger.exception("Error parsing config data: %s", e)
         raise ValueError("Unexpected error during config parsing.") from e

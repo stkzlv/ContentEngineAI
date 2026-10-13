@@ -352,3 +352,14 @@ def test_the_logging_setup_flushes_held_overlays() -> None:
     assert source.index("log_pending()") > source.index(
         "root_logger.addHandler(file_handler)"
     )
+
+
+@pytest.mark.req("REQ-OPS-117")
+def test_the_single_file_video_loader_names_a_broken_overlay(tmp_path: Path) -> None:
+    from src.video.config.core_models import load_video_config
+
+    path = tmp_path / "video.yaml"
+    path.write_text("a: 1\n", encoding="utf-8")
+    (tmp_path / "video.private.yaml").write_text("- a\n", encoding="utf-8")
+    with pytest.raises(ConfigOverlayError, match=r"video\.private\.yaml"):
+        load_video_config(path)
