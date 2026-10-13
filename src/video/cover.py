@@ -6,21 +6,34 @@ height, inside the centred 3:4 area Instagram's profile grid crops to. A
 small record beside it keeps the frame's time, so a platform that picks its
 cover by timestamp (TikTok) can point at the same frame.
 
+Each video gets its own cover, named after it, because a product renders
+once per profile and a platform may be sent any of those videos.
+
 A cover that can't be written is logged and skipped: the video is the
 render's product, the cover only presents it.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from pathlib import Path
 
+from src.utils.async_io import async_run_ffmpeg
+
 logger = logging.getLogger(__name__)
 
-COVER_FILE = "cover.jpg"
-COVER_RECORD = "cover.json"
+COVER_SUFFIX = ".cover.jpg"
+RECORD_SUFFIX = ".cover.json"
+COVER_TIMEOUT_SEC = 60.0
+
+
+def cover_paths(video: Path) -> tuple[Path, Path]:
+    """The cover image and its record for `video`, beside it."""
+    return (
+        video.with_name(video.stem + COVER_SUFFIX),
+        video.with_name(video.stem + RECORD_SUFFIX),
+    )
 
 
 def cover_time_sec(hook_duration_sec: float) -> float:
@@ -29,10 +42,13 @@ def cover_time_sec(hook_duration_sec: float) -> float:
 
 
 async def write_cover(
-    video: Path, run_root: Path, at_sec: float, ffmpeg_path: str = "ffmpeg"
+    video: Path, at_sec: float, ffmpeg_path: str = "ffmpeg"
 ) -> Path | None:
-    """Write `cover.jpg` and `cover.json` into `run_root`; None on failure."""
-    out = run_root / COVER_FILE
+    """Write the cover and its record beside `video`; None on failure."""
+    out, record = cover_paths(video)
+    # A previous render's cover must not outlive a failed write.
+    out.unlink(missing_ok=True)
+    record.unlink(missing_ok=True)
     cmd = [
         ffmpeg_path,
         "-hide_banner",
@@ -49,25 +65,20 @@ async def write_cover(
         "2",
         str(out),
     ]
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE
-        )
-        _, stderr = await proc.communicate()
-    except OSError as exc:
-        logger.warning("Cover not written for %s: %s", video, exc)
-        return None
-    if proc.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
-        logger.warning(
-            "Cover not written for %s: ffmpeg exited %s: %s",
-            video,
-            proc.returncode,
-            stderr.decode(errors="replace").strip()[:200],
-        )
+    ok, _, stderr = await async_run_ffmpeg(cmd, timeout_sec=COVER_TIMEOUT_SEC)
+    if not ok or not out.is_file() or out.stat().st_size == 0:
+        logger.warning("Cover not written for %s: %s", video, stderr.strip()[:200])
+        out.unlink(missing_ok=True)
         return None
     try:
-        (run_root / COVER_RECORD).write_text(
-            json.dumps({"file": COVER_FILE, "at_ms": round(at_sec * 1000)}),
+        record.write_text(
+            json.dumps(
+                {
+                    "file": out.name,
+                    "video": video.name,
+                    "at_ms": round(at_sec * 1000),
+                }
+            ),
             encoding="utf-8",
         )
     except OSError as exc:

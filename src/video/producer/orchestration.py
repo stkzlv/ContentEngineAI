@@ -569,13 +569,17 @@ async def create_video_for_product(
             )
 
             # The cover (REQ-VID-014): a frame of the finished video with the
-            # hook on screen. Like the choices row, only for a whole render.
+            # hook on screen. A whole render writes it, and so does a `--step`
+            # run of the final step, which is how topic batches finish a video.
             final_video = run_paths.get("final_video_output")
-            if debug_step_target is None and final_video:
+            finishes_video = debug_step_target in (
+                None,
+                resolved_step_order(ctx.profile)[-1],
+            )
+            if finishes_video and final_video:
                 hook = ctx.config.video_settings.hook_overlay
                 await write_cover(
                     Path(final_video),
-                    Path(run_paths["run_root"]),
                     cover_time_sec(hook.duration_sec),
                     ctx.config.ffmpeg_settings.executable_path or "ffmpeg",
                 )

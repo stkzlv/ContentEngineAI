@@ -10,6 +10,7 @@ from typing import Any
 
 from src.utils import ensure_dirs_exist
 from src.video.config import VideoConfig
+from src.video.cover import cover_paths
 from src.video.producer.context import PipelineContext
 from src.video.stock_media import StockMediaInfo
 
@@ -127,6 +128,9 @@ def _clean_producer_files(
     # Clean all video files with any profile name (video_*_{product_id}_*.mp4)
     for video_file in product_root.glob(f"video_{product_id}_*.mp4"):
         producer_files_to_remove.append(video_file)
+    # Each video's cover and its record (REQ-VID-014)
+    for video_file in [p for p in producer_files_to_remove if p.suffix == ".mp4"]:
+        producer_files_to_remove.extend(cover_paths(video_file))
 
     # Add debug files using configurable patterns
     debug_patterns = config.path_config.cleanup.debug_file_patterns

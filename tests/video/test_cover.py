@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.video.cover import COVER_FILE, COVER_RECORD, cover_time_sec, write_cover
+from src.video.cover import cover_paths, cover_time_sec, write_cover
 
 FFMPEG = shutil.which("ffmpeg")
 needs_ffmpeg = pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
@@ -76,11 +76,11 @@ def test_the_cover_time_is_halfway_through_the_hook():
 @needs_ffmpeg
 @pytest.mark.req("REQ-VID-014")
 def test_the_cover_is_a_full_frame_with_the_hook_on_screen(tmp_path):
-    video = _video(tmp_path / "video.mp4")
+    video = _video(tmp_path / "video_B0TESTID01_slideshow.mp4")
 
-    out = asyncio.run(write_cover(video, tmp_path, cover_time_sec(1.5), FFMPEG))
+    out = asyncio.run(write_cover(video, cover_time_sec(1.5), FFMPEG))
 
-    assert out == tmp_path / COVER_FILE
+    assert out == tmp_path / "video_B0TESTID01_slideshow.cover.jpg"
     probe = subprocess.run(
         [
             shutil.which("ffprobe") or "ffprobe",
@@ -102,8 +102,12 @@ def test_the_cover_is_a_full_frame_with_the_hook_on_screen(tmp_path):
     # The band sits at the hook's place, inside the centred 3:4 area
     # (y 240-1680); after the hook ends it would be black.
     assert _mean_luma(out, 560, 160) > 200
-    record = json.loads((tmp_path / COVER_RECORD).read_text())
-    assert record == {"file": COVER_FILE, "at_ms": 750}
+    record = json.loads(cover_paths(video)[1].read_text())
+    assert record == {
+        "file": "video_B0TESTID01_slideshow.cover.jpg",
+        "video": "video_B0TESTID01_slideshow.mp4",
+        "at_ms": 750,
+    }
 
 
 @needs_ffmpeg
@@ -112,26 +116,42 @@ def test_a_frame_after_the_hook_would_miss_it(tmp_path):
     """The marker test bites: a cover taken after the hook shows no band."""
     video = _video(tmp_path / "video.mp4")
 
-    out = asyncio.run(write_cover(video, tmp_path, 1.8, FFMPEG))
+    out = asyncio.run(write_cover(video, 1.8, FFMPEG))
 
     assert out is not None
     assert _mean_luma(out, 560, 160) < 30
 
 
 @pytest.mark.req("REQ-VID-014")
-def test_a_missing_video_is_skipped_not_raised(tmp_path):
-    out = asyncio.run(write_cover(tmp_path / "absent.mp4", tmp_path, 0.75))
+def test_each_profile_video_gets_its_own_cover(tmp_path):
+    one, other = (
+        cover_paths(tmp_path / f"video_B0TESTID01_{p}.mp4")[0] for p in ("a", "b")
+    )
 
-    assert out is None
-    assert not (tmp_path / COVER_RECORD).exists()
+    assert one != other
+    assert one.parent == other.parent == tmp_path
 
 
 @pytest.mark.req("REQ-VID-014")
-def test_the_producer_writes_it_for_a_whole_render_only():
+def test_a_failed_write_leaves_no_earlier_cover(tmp_path):
+    video = tmp_path / "absent.mp4"
+    for path in cover_paths(video):
+        path.write_text("from an earlier render")
+
+    out = asyncio.run(write_cover(video, 0.75, FFMPEG or "ffmpeg"))
+
+    assert out is None
+    assert not any(path.exists() for path in cover_paths(video))
+
+
+@pytest.mark.req("REQ-VID-014")
+def test_the_producer_writes_it_when_a_run_finishes_the_video():
     from src.video.producer import orchestration
 
     source = inspect.getsource(orchestration)
     call = source.index("await write_cover(")
-    guard = source.rindex("if debug_step_target is None and final_video:", 0, call)
+    guard = source.rindex("if finishes_video and final_video:", 0, call)
+    rule = source.rindex("finishes_video = debug_step_target in (", 0, guard)
 
     assert call - guard < 400
+    assert "resolved_step_order(ctx.profile)[-1]" in source[rule:guard]
