@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.publisher.models import FirstCommentConfig, Platform
+from src.publisher.models import PLATFORM_LIMITS, FirstCommentConfig, Platform
 from src.publisher.publish_modes import publish_product
 
 
@@ -489,8 +489,11 @@ class TestPlatformContentsCarryFullPayload:
         entry = out["youtube"]
         assert entry["first_comment"] == "a comment"
         assert entry["title"] == "A real product title"
-        # Content is the fully formatted caption, disclosure included.
-        assert entry["content"] == meta.format_content()
+        # Content is the fully formatted caption, disclosure included, ending
+        # on the profile pointer YouTube gets for a product (REQ-CNT-150).
+        assert entry["content"] == meta.format_content().replace(
+            "\n\n#", "\n\nLink in bio.\n\n#", 1
+        )
         assert entry["content"].startswith("#ad")
 
     def test_the_payload_survives_a_platform_with_no_comment(self, tmp_path):
@@ -667,5 +670,9 @@ class TestUnifiedCaptionFitsEveryTarget:
         kwargs = mock_publisher.publish.call_args.kwargs
         # The composed caption is what the provider measures, not description.
         assert len(kwargs["content"]) <= 2200
-        for entry in (kwargs["platform_contents"] or {}).values():
-            assert len(entry["content"]) <= 2200
+        # Each entry is that platform's own caption, so it fits that platform:
+        # YouTube's entry also carries the profile pointer (REQ-CNT-150).
+        for name, entry in (kwargs["platform_contents"] or {}).items():
+            cap = PLATFORM_LIMITS[Platform(name)]["description"]
+            assert isinstance(cap, int)
+            assert len(entry["content"]) <= cap

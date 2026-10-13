@@ -836,6 +836,11 @@ class PublisherConfig:
     # footage of a real place. Both are properties of what a provider returns,
     # so this can become true without any change here.
     synthetic_media_disclosure: bool = False
+    # A YouTube Shorts description can't carry a clickable link, so a
+    # product video's YouTube description ends on "Link in bio." when it
+    # names no profile link of its own (REQ-CNT-150). URLs are removed
+    # whatever this says (REQ-PUB-148).
+    youtube_profile_pointer: bool = True
     use_platform_specific_content: bool = False
     # Per-platform video profile routing (Phase 1.3).
     # Maps platform name (lowercased: "tiktok"/"youtube"/"instagram") to a

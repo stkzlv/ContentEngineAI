@@ -117,6 +117,7 @@ class LatePublisher(BasePublisher):
         tiktok_settings: TikTokContentSettings | None = None,
         first_comment_config: FirstCommentConfig | None = None,
         synthetic_media_disclosure: bool = False,
+        youtube_profile_pointer: bool = True,
     ):
         """Initialize Late.dev publisher client.
 
@@ -132,6 +133,8 @@ class LatePublisher(BasePublisher):
             synthetic_media_disclosure: Declare YouTube's altered-or-synthetic
                 content flag. Off by default; the policy excludes AI narration,
                 AI scripts and stock footage (optional)
+            youtube_profile_pointer: End a product video's YouTube
+                description on "Link in bio." (default on)
 
         Raises:
         ------
@@ -165,6 +168,7 @@ class LatePublisher(BasePublisher):
         self.tiktok_settings = tiktok_settings or TikTokContentSettings()
         self.first_comment_config = first_comment_config or FirstCommentConfig()
         self.synthetic_media_disclosure = synthetic_media_disclosure
+        self.youtube_profile_pointer = youtube_profile_pointer
 
         # Initialize Late SDK client
         try:

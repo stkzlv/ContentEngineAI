@@ -16,29 +16,9 @@ from src.ai.platform_metadata.models import PlatformMetadata
 from src.ai.platform_metadata.utilities import generate_with_llm, strip_inline_markdown
 from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.models import ProductData
+from src.utils.youtube_description import drop_urls
 
 logger = logging.getLogger(__name__)
-
-
-_URL_LINE = re.compile(r"^[^\n]*?(?:https?://|www\.)\S+[^\n]*$", re.MULTILINE)
-_URL = re.compile(r"(?:https?://|www\.)\S+")
-
-
-def drop_urls(description: str) -> str:
-    """The description without URLs (REQ-PUB-148).
-
-    A line that is only a lead-in and a URL goes whole; a URL inside a
-    sentence goes alone.
-    """
-
-    def line(match: re.Match[str]) -> str:
-        rest = _URL.sub("", match.group(0)).strip(" :-")
-        if len(rest.split()) <= 3:
-            return ""
-        return re.sub(r" {2,}", " ", _URL.sub("", match.group(0))).rstrip()
-
-    cleaned = _URL_LINE.sub(line, description)
-    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 class YouTubeMetadataGenerator(BasePlatformMetadataGenerator):

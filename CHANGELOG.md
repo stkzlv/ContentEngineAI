@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.205.0] - 2026-10-13
+
+### Changed
+
+- A product video's YouTube description has its URLs removed and ends on "Link in bio." in unified metadata mode too, set by `youtube_profile_pointer` (on in the bundled config); the TikTok and Instagram captions are unchanged.
+
 ## [0.204.5] - 2026-10-13
 
 ### Security

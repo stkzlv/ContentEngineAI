@@ -194,4 +194,5 @@ def create_publisher_from_config(
         tiktok_settings=config.tiktok_settings,
         first_comment_config=config.first_comment_config,
         synthetic_media_disclosure=config.synthetic_media_disclosure,
+        youtube_profile_pointer=config.youtube_profile_pointer,
     )

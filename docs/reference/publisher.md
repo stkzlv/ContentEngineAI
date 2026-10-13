@@ -231,6 +231,7 @@ In the tables, "Default" is the value used when the key is absent, and "Bundled"
 | `timeout` | float | `120.0` | | Seconds per API request. Must be above 0. |
 | `stagger_delay_min` | int | `30` | | Minimum seconds between posts in an immediate batch. Must be 0 or more. |
 | `stagger_delay_max` | int | `60` | | Maximum seconds between posts. Must be at least `stagger_delay_min`. |
+| `youtube_profile_pointer` | bool | `true` | | Ends a product video's YouTube description on "Link in bio." when it names no profile link already, in both metadata modes. URLs are removed from every YouTube description whatever it says. |
 | `synthetic_media_disclosure` | bool | `false` | | Sends YouTube's altered-or-synthetic-content flag (`containsSyntheticMedia`) on every YouTube post. See [Compliance](../explanation/compliance.md). |
 
 ### `accounts`

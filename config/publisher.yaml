@@ -337,6 +337,11 @@ affiliate_disclosure:
 # either can become true without any change to this project.
 synthetic_media_disclosure: false
 
+# A link in a YouTube Shorts description can't be clicked. A product video's
+# YouTube description has its URLs removed and, with this on, ends on
+# "Link in bio." when it names no profile link already.
+youtube_profile_pointer: true
+
 # ============================================================================
 # TIKTOK CONTENT SETTINGS
 # ============================================================================
