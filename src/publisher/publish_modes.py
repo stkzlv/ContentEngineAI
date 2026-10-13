@@ -3,43 +3,19 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.publisher.first_comment import build_first_comment
 from src.publisher.metadata import METADATA_PLATFORM_ORDER, load_platform_metadata
-from src.publisher.models import _TOPIC_ID_PREFIX, Platform
-from src.utils.youtube_description import drop_urls, with_profile_pointer
+from src.publisher.models import Platform
+from src.publisher.youtube_caption import youtube_metadata
 
 if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
-
-
-def youtube_metadata(meta: Any, product_id: str, *, pointer: bool) -> Any:
-    """The metadata as YouTube posts it: no URL, and a profile pointer.
-
-    A link in a Shorts description can't be clicked (REQ-PUB-148), so URLs
-    go, and a product video ends on "Link in bio." when `pointer` is on and
-    the description names no profile link already (REQ-CNT-150). Unified
-    metadata shares one description across platforms, so this is applied to
-    the YouTube entry only.
-    """
-    if not isinstance(getattr(meta, "description", None), str):
-        return meta
-    description = drop_urls(meta.description) or meta.description
-    if pointer and product_id and not product_id.startswith(_TOPIC_ID_PREFIX):
-        description = with_profile_pointer(description)
-    if description == meta.description:
-        return meta
-    youtube = replace(meta, description=description)
-    # The entry goes to YouTube alone, so it fits YouTube's caps; a caption
-    # clamped to the tightest target can grow past that one by the pointer.
-    youtube.clamp_for_platforms([Platform.YOUTUBE])
-    return youtube
 
 
 def _build_platform_contents_with_comments(
