@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.4] - 2026-10-13
+
+### Documentation
+
+- Decision 0016 records that the scraper's browser cache, temp and debug files stay in the repository's `outputs/` when the outputs root is moved, and the outputs-directory requirement names that exception.
+
 ## [0.204.3] - 2026-10-13
 
 ### Fixed

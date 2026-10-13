@@ -12,7 +12,8 @@ global_settings:
   # ---- Output Directory Configuration ----
   # Configurable paths for all scraper outputs
   output_config:
-    # Base directory for ALL outputs (scraper data, videos, logs)
+    # Base directory for the Botasaurus browser output only. Products go to the
+    # outputs root (--output-dir, OUTPUTS_DIR); see decision 0016.
     base_directory: "outputs"
 
     # File naming patterns
