@@ -121,8 +121,8 @@ def write_download_cache_output(data: Any, result: dict[str, Any]) -> None:
     if not result:
         return
 
-    # Save to global cache directory
-    cache_dir = get_global_botasaurus_dir()
+    # The run's outputs root when the scraper was given one (#742).
+    cache_dir = get_botasaurus_cache_directory(_effective_dir())
 
     # Handle both single dict and list inputs from Botasaurus
     # When @task receives a list, it processes each item but calls

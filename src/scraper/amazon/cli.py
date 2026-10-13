@@ -792,9 +792,7 @@ def main() -> None:
         _clean_outputs(outputs_root)
 
     if args.debug:
-        from ...utils.outputs_paths import get_temp_directory
-
-        logger.debug("Debug files will be saved to: %s", get_temp_directory())
+        logger.debug("Debug files will be saved to: %s", outputs_root / "temp")
 
     built = _build_search_params(args)
     if built is None:

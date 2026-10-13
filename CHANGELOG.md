@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.204.4] - 2026-10-13
 
+### Fixed
+
+- The scraper's media-download records and debug image analysis are written under the outputs root it was given, not the repository's `outputs/`.
+
 ### Documentation
 
-- Decision 0016 records that the scraper's browser cache, temp and debug files stay in the repository's `outputs/` when the outputs root is moved, and the outputs-directory requirement names that exception.
+- Decision 0016 records that scraper screenshots stay where the browser driver saves them, under `output/screenshots/` in the working directory.
 
 ## [0.204.3] - 2026-10-13
 

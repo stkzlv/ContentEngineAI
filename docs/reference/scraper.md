@@ -140,7 +140,7 @@ A flag on the command line overrides the YAML, and the YAML overrides the model 
 | `count_products_with_media` | bool | `true` | Counts only products that pass media validation. |
 | `retries` | int | `3` | Browser task retries. Not in the bundled YAML. |
 | `proxy` | string or null | `null` | Browser proxy. Not in the bundled YAML. |
-| `output_config.base_directory` | string | `outputs` | Base directory for the Botasaurus browser output. Products and `--clean` use the outputs root instead, and the scraper's other working files stay in the repository's `outputs/` (decision 0016). |
+| `output_config.base_directory` | string | `outputs` | Has no effect on where the scraper writes: products, its working files and `--clean` use the outputs root (`--output-dir`, else `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`). |
 | `output_config.file_patterns` | mapping | `product_file: "{keyword}_products.json"`, `image_file: "{asin}_image_{index}.{ext}"`, `video_file: "{asin}_video_{index}.{ext}"` | File name patterns. |
 
 #### `retry_config`
