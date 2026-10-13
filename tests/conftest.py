@@ -8,17 +8,36 @@ import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
 import yaml
 from aioresponses import aioresponses
+from aioresponses import core as aioresponses_core
 
 from src.scraper.amazon.models import ProductData
 from src.scraper.base.models import Platform
 from src.utils import logging_setup
 from src.video.config import VideoConfig, VideoProfile, load_video_config
+
+
+class _StreamWriterClientResponse(aiohttp.ClientResponse):
+    """aioresponses 0.7.9 builds responses without aiohttp 3.14's `stream_writer`.
+
+    With `writer=None` aiohttp reads only `stream_writer.output_size`, so a stub
+    holding 0 is enough. Drop this once aioresponses passes the argument.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("stream_writer", SimpleNamespace(output_size=0))
+        super().__init__(*args, **kwargs)
+
+
+if "stream_writer" in inspect.signature(aiohttp.ClientResponse.__init__).parameters:
+    aioresponses_core.ClientResponse = _StreamWriterClientResponse  # type: ignore[misc]
 
 
 @pytest.fixture(autouse=True)
