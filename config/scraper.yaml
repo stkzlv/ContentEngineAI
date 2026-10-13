@@ -12,7 +12,8 @@ global_settings:
   # ---- Output Directory Configuration ----
   # Configurable paths for all scraper outputs
   output_config:
-    # Base directory for ALL outputs (scraper data, videos, logs)
+    # Has no effect on where the scraper writes: everything goes to the outputs
+    # root (--output-dir, else OUTPUTS_DIR or CONTENT_ENGINE_OUTPUT).
     base_directory: "outputs"
 
     # File naming patterns

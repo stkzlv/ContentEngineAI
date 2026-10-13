@@ -20,8 +20,10 @@ def _perform_advanced_debug_analysis(driver: Driver, debug_options: dict, logger
     try:
         # Create debug output directory
         from ...utils.outputs_paths import get_temp_directory
+        from .botasaurus_output import _effective_dir
 
-        debug_dir = get_temp_directory() / "debug" / "image_analysis"
+        # Under the run's outputs root when the scraper was given one (#742).
+        debug_dir = get_temp_directory(_effective_dir()) / "debug" / "image_analysis"
         debug_dir.mkdir(parents=True, exist_ok=True)
 
         current_url = driver.current_url
