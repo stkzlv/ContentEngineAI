@@ -274,6 +274,16 @@ The default modular configuration files in `config/` work for most use cases. Ke
 
 For detailed configuration options, see [Configuration](../reference/configuration.md).
 
+### Keep your own settings out of the tracked files
+
+To change a setting for your installation, put it in an overlay rather than editing the tracked file:
+
+1. Copy `config/publisher.private.yaml.example` to `config/publisher.private.yaml`, or create `config/<name>.private.yaml` beside any other config file.
+2. List only the keys that differ from the shipped file, nested the same way.
+3. Run any command. The log names each overlay it applied.
+
+Git ignores `*.private.yaml`. How overlays merge is in [Private overlays](../reference/configuration.md#private-overlays).
+
 ## Verification
 
 ### Test Installation

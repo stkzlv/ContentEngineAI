@@ -370,7 +370,7 @@ class VideoConfigValidator:
         """
         from pathlib import Path
 
-        import yaml
+        from src.utils.config_overlay import read_config_yaml
 
         try:
             # Load style presets from config
@@ -378,9 +378,8 @@ class VideoConfigValidator:
             if not subtitles_config_path.exists():
                 return
 
-            with open(subtitles_config_path, encoding="utf-8") as f:
-                subtitles_data = yaml.safe_load(f)
-                style_presets = subtitles_data.get("style_presets", {})
+            subtitles_data = read_config_yaml(subtitles_config_path)
+            style_presets = subtitles_data.get("style_presets", {})
 
             # Check each preset for effect count
             for preset_name, preset_config in style_presets.items():

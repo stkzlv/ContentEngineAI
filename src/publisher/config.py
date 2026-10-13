@@ -32,6 +32,7 @@ from src.publisher.models import (
     ScheduleConfig,
     TikTokContentSettings,
 )
+from src.utils.config_overlay import ConfigOverlayError, read_config_yaml
 from src.utils.outputs_paths import get_project_root
 
 logger = logging.getLogger(__name__)
@@ -202,14 +203,13 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
         return {}
 
     try:
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-            if not isinstance(config, dict):
-                raise ConfigUnreadableError(
-                    f"{config_path} is not a mapping, got " f"{type(config).__name__}"
-                )
-            logger.debug("Loaded YAML config from %s", config_path)
-            return config
+        config = read_config_yaml(config_path)
+        if not isinstance(config, dict):
+            raise ConfigUnreadableError(
+                f"{config_path} is not a mapping, got " f"{type(config).__name__}"
+            )
+        logger.debug("Loaded YAML config from %s", config_path)
+        return config
     except yaml.YAMLError as e:
         # A file that exists and cannot be parsed is not an absent file.
         # Returning {} here sent the caller to `_apply_defaults`, whose
@@ -219,6 +219,8 @@ def _load_yaml_config(config_path: Path) -> dict[str, Any]:
         raise ConfigUnreadableError(f"Could not parse {config_path}: {e}") from e
     except OSError as e:
         raise ConfigUnreadableError(f"Could not read {config_path}: {e}") from e
+    except ConfigOverlayError as e:
+        raise ConfigUnreadableError(str(e)) from e
 
 
 def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]:

@@ -23,6 +23,7 @@ from src.scraper.base.keyword_pillars import (
     read_keyword_pillars,
 )
 from src.scraper.config_models import ScraperConfig, producer_media_minimums
+from src.utils.config_overlay import read_config_yaml
 from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import (
     MEDIA_IMAGE_SUFFIXES,
@@ -265,8 +266,7 @@ class BotasaurusAmazonScraper(BaseScraper):
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-        with open(config_path, encoding="utf-8") as f:
-            raw = yaml.safe_load(f)
+        raw = read_config_yaml(config_path)
         # Validated: a misspelled key, or an empty file, fails here, and
         # every key a reader indexes is present with the model's default.
         self.settings = ScraperConfig.from_legacy_dict(raw)

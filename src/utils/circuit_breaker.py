@@ -263,14 +263,14 @@ def _load_circuit_breaker_config() -> dict[str, Any]:
     try:
         import yaml
 
+        from src.utils.config_overlay import read_config_yaml
         from src.utils.outputs_paths import get_project_root
 
         config_path = get_project_root() / "config" / "performance.yaml"
         if config_path.exists():
-            with open(config_path) as f:
-                config = yaml.safe_load(f)
-                result: dict[str, Any] = config.get("circuit_breaker", {})
-                return result
+            config = read_config_yaml(config_path)
+            result: dict[str, Any] = config.get("circuit_breaker", {})
+            return result
     except Exception as e:
         logger.debug("Could not load circuit breaker config, using defaults: %s", e)
     return {}

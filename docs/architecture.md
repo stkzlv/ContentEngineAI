@@ -246,7 +246,7 @@ flowchart TB
 
 ### Configuration tiers
 
-[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The environment holds only secrets and three machine settings (`CONTENT_ENGINE_OUTPUT`, `OUTPUTS_DIR`, `FFMPEG_THREADS`), none of which a profile can set, so applying them when the YAML loads keeps them above the profile. `UnifiedConfigManager` merges the YAML files, applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
+[Decision 0003](decisions/0003-config-precedence.md) sets four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files under `config/`. The environment holds only secrets and three machine settings (`CONTENT_ENGINE_OUTPUT`, `OUTPUTS_DIR`, `FFMPEG_THREADS`), none of which a profile can set, so applying them when the YAML loads keeps them above the profile. `UnifiedConfigManager` merges the YAML files, each read with its gitignored `config/<name>.private.yaml` overlay merged over it ([design 0026](design/0026-private-config-overlays.md)), applies a fixed map of environment variables, then the CLI overrides; `VideoConfig.get_profile_merged_settings` then merges the chosen profile under the CLI overrides. Secrets come from `.env` or the environment and never from YAML. The key-by-key reference is [Configuration](reference/configuration.md).
 
 ### Logging, run ids and product ids
 

@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from src.utils.config_overlay import read_config_yaml
 from src.utils.outputs_paths import get_project_root
 
 # The file sits beside the other config, at the repo root. Anchored on this
@@ -146,7 +147,6 @@ def load_url_shortener_settings(
     if not path.exists():
         return URLShortenerSettings()
 
-    with open(path, encoding="utf-8") as handle:
-        loaded = yaml.safe_load(handle) or {}
+    loaded = read_config_yaml(path) or {}
 
     return URLShortenerSettings(**(loaded.get("url_shortener") or {}))

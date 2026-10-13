@@ -55,6 +55,16 @@ def _no_installation_topic_pool(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_config_overlays(monkeypatch):
+    """Keep the developer's `config/*.private.yaml` out of every test.
+
+    Tests assert the shipped defaults; an overlay would change them on one
+    machine only. The overlay's own tests remove this.
+    """
+    monkeypatch.setenv("CONFIG_OVERLAYS", "off")
+
+
+@pytest.fixture(autouse=True)
 def _no_memory_wait(monkeypatch):
     """Keep the machine's free memory out of every render-loop test.
 

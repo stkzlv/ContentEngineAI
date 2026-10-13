@@ -1,0 +1,18 @@
+# Copy to `config/publisher.private.yaml` (gitignored) to keep this
+# installation's publishing choices out of the tracked defaults. Any config
+# file takes an overlay the same way: `config/<name>.private.yaml` beside
+# `config/<name>.yaml`. A mapping merges key by key; a list or a value
+# replaces the shipped one. Keys are validated like the shipped file's.
+#
+# Only list what differs from `config/publisher.yaml`.
+
+recurring_schedule:
+  timezone: America/New_York
+  slots:
+    - day_of_week: tuesday
+      time: "18:00:00"
+    - day_of_week: friday
+      time: "18:00:00"
+
+link_in_bio:
+  enabled: false

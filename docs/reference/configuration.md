@@ -15,6 +15,12 @@ ContentEngineAI resolves a setting from these tiers, highest first, as the code 
 
 [Decision 0003](../decisions/0003-config-precedence.md) sets the order and limits the environment to secrets and machine settings; [decision 0008](../decisions/0008-operator-account-values-in-the-environment.md) adds the operator's account values (affiliate tag and program switch, link-in-bio address, topics file). No setting the environment reads is one a profile can set, so the order holds without a second merge.
 
+### Private overlays
+
+`config/<name>.private.yaml`, beside `config/<name>.yaml`, holds an installation's own settings for that file ([design 0026](../design/0026-private-config-overlays.md)). Every reader of the file reads the overlay merged over it: a mapping merges key by key, and a list, a value or `null` replaces the shipped value. The overlay is part of the YAML tier, so CLI flags, the environment and profiles still win over it. Its keys are validated like the shipped file's, and an overlay that doesn't parse or isn't a mapping stops the load with an error naming it. Each overlay applied is logged once at INFO.
+
+Git ignores `*.private.yaml`. `config/publisher.private.yaml.example` shows the shape; copy it to `config/publisher.private.yaml` and keep only what differs from the shipped file. `CONFIG_OVERLAYS=off` reads the shipped files alone; the test suite runs that way.
+
 ### Global Settings Precedence in Detail
 
 Each tier overrides the one below it:
@@ -2309,6 +2315,7 @@ The machine settings the config reads from the environment. Behaviour settings l
 | `OUTPUTS_DIR` | string | outputs | As above; wins over `CONTENT_ENGINE_OUTPUT` |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 | `ALLOW_LOW_MEMORY` | `1` or unset | unset | Start a render without waiting for `memory_guard`'s free memory |
+| `CONFIG_OVERLAYS` | `off` or unset | unset | `off` reads the shipped config files without their [private overlays](#private-overlays) |
 
 Debug mode is `global_settings.debug_mode` in `config/scraper.yaml` or `--debug`; the pipeline timeout is `pipeline_timeout_sec`.
 

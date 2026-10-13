@@ -7,9 +7,15 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-001** `shipped` The config resolves each setting from four tiers, highest first: CLI flags, the machine environment, the profile, the YAML files.
 - **REQ-OPS-002** `shipped` A CLI flag overrides a lower tier only when the user passes it.
 - **REQ-OPS-003** `shipped` The environment holds only secrets, machine-specific settings and the operator's account values ([decision 0008](../decisions/0008-operator-account-values-in-the-environment.md)); other behaviour settings live in the YAML files or a profile.
-- **REQ-OPS-004** `shipped` The YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
+- **REQ-OPS-004** `shipped` The tracked YAML files under `config/` hold the application settings, contain no secrets and are safe to commit.
 - **REQ-OPS-005** `shipped` A CLI flag can override a nested setting, such as `--pycaps-template` overriding `subtitle_settings.pycaps.template_name`.
 - **REQ-OPS-006** `shipped` If the config is invalid, the pipeline stops at startup with an error that names the setting and the problem.
+- **REQ-OPS-116** `shipped` Where `config/<name>.private.yaml` sits beside `config/<name>.yaml`, every reader of that file reads the overlay merged over it: a mapping merges key by key, and a list, a value or `null` replaces the shipped value ([design 0026](../design/0026-private-config-overlays.md)).
+- **REQ-OPS-117** `shipped` An overlay's keys are validated like the shipped file's, and an overlay that doesn't parse or isn't a mapping stops the load with an error naming the overlay.
+- **REQ-OPS-118** `shipped` Each overlay applied is logged once per process, with its path.
+- **REQ-OPS-119** `shipped` With `CONFIG_OVERLAYS=off` in the environment no overlay is read, and the test suite runs with overlays off.
+- **REQ-OPS-120** `shipped` Git ignores every `*.private.yaml` overlay, and the repository ships `config/publisher.private.yaml.example`.
+- **REQ-OPS-121** `planned #754` The shipped config holds generic defaults: no installation's posting schedule, signature pools, CTA lists, first-comment templates or link-in-bio provider, and the TikTok AI-content label on.
 
 ## Secrets
 

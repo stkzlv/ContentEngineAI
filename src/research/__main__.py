@@ -23,6 +23,7 @@ from src.research.sample import recent_products, sample
 from src.research.sources import PytrendsSource, TrendsUnavailableError
 from src.research.verify import run_verify
 from src.scraper.base.keyword_pillars import read_keyword_pillars
+from src.utils.config_overlay import read_config_yaml
 from src.utils.outputs_paths import get_project_root, resolve_outputs_dir
 from src.video.config import load_video_config_modular
 
@@ -30,7 +31,7 @@ SCRAPER_CONFIG = Path("config/scraper.yaml")
 
 
 def scraper_keywords(path: Path = SCRAPER_CONFIG) -> list[str]:
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    raw = read_config_yaml(path)
     keywords, _ = read_keyword_pillars(((raw or {}).get("batch") or {}).get("keywords"))
     return keywords
 
@@ -39,7 +40,7 @@ def pool_specs() -> list[Any]:
     """The topic pool the batch reads, as the topic filter's tool reads it."""
     from src.pipeline.config import DEFAULT_PIPELINE_CONFIG_PATH, _configured_topics
 
-    raw = yaml.safe_load(DEFAULT_PIPELINE_CONFIG_PATH.read_text(encoding="utf-8"))
+    raw = read_config_yaml(DEFAULT_PIPELINE_CONFIG_PATH)
     batch = (raw or {}).get("global_batch") or {}
     return list(_configured_topics(batch, DEFAULT_PIPELINE_CONFIG_PATH))
 

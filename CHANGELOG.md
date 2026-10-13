@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.208.0] - 2026-10-13
+
+### Added
+
+- A `config/<name>.private.yaml` beside any config file overrides that file's settings for one installation, merged key by key, validated like the shipped file and ignored by git; `CONFIG_OVERLAYS=off` reads the shipped files alone.
+
 ## [0.207.0] - 2026-10-13
 
 ### Added
