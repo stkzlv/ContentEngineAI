@@ -55,4 +55,5 @@ def youtube_metadata(meta: Any, product_id: str, *, pointer: bool) -> Any:
         youtube.description = (
             _trim_on_word_boundary(body, max(budget - len(tail), 0)) + tail
         )
+        youtube.character_counts["description"] = len(youtube.description)
     return youtube
