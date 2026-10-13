@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.206.1] - 2026-10-13
+
+### Documentation
+
+- The cover requirements and design now cover publishing: an Instagram Reel gets the cover image, a TikTok post the same frame by timestamp rather than an image the provider would stitch into the video, and a YouTube Short none, behind a publish setting that ships off.
+
 ## [0.206.0] - 2026-10-13
 
 ### Added
