@@ -154,6 +154,19 @@ class TestTheScrapeSkipsPublishedResults:
         assert summary.failed_products == ["phone stand"]
 
     @pytest.mark.asyncio
+    async def test_a_later_page_also_passes_over_published_results(self, fake_scraper):
+        fake_scraper.pages = {
+            ("phone stand", 1): [{"asin": "B0PUB1"}],
+            ("phone stand", 2): [{"asin": "B0PUB2"}, {"asin": "B0NEW"}],
+            ("phone stand", 3): [{"asin": "B0PAGE3"}],
+        }
+
+        summary = await _scrape(_config(), published={"B0PUB1", "B0PUB2"})
+
+        assert summary.successful_products == ["B0NEW"]
+        assert fake_scraper.calls == [("phone stand", 1), ("phone stand", 2)]
+
+    @pytest.mark.asyncio
     async def test_a_failed_candidate_on_a_later_page_is_still_a_failure(
         self, fake_scraper
     ):
