@@ -13,6 +13,7 @@ import shutil
 import time
 import traceback
 import warnings
+from collections.abc import Collection
 from typing import Any
 
 import yaml
@@ -1013,13 +1014,17 @@ class BotasaurusAmazonScraper(BaseScraper):
         inputs: list[str],
         search_params: SearchParameters | None = None,
         start_page: int = 1,
+        skip_asins: Collection[str] = (),
     ) -> list[dict]:
         """Scrape multiple inputs in a single Chrome session (browser phase only).
 
         Returns raw product dicts per input. No media downloads or validation
         happens here; call process_raw_products() on each result set afterwards.
+        A search result in `skip_asins` is passed over without a visit and
+        does not count toward the page's product limit.
 
-        Returns list of dicts: [{"input": str, "products": list[dict]}]
+        Returns list of dicts:
+        [{"input": str, "products": list[dict], "skipped_asins": list[str]}]
         """
         items = []
         for inp in inputs:
@@ -1034,6 +1039,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     "max_products": self.effective_max_products,
                     "page": start_page,
                     "extract_videos": self.profile_uses_videos is not False,
+                    "skip_asins": sorted(skip_asins),
                 }
             )
 

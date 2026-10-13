@@ -701,7 +701,7 @@ class GlobalPipelineOrchestrator:
         return await run_scraping_phase(
             self.config,
             self._resolve_profile_uses_videos,
-            is_already_published=self._published_everywhere,
+            published=self._published_everywhere_ids(),
         )
 
     def _materialise_topics_phase(self) -> ScrapingPhaseSummary:
@@ -886,6 +886,20 @@ class GlobalPipelineOrchestrator:
             asin for asin in skipped if asin not in scrape_skipped
         ]
         return kept
+
+    def _published_everywhere_ids(self) -> set[str]:
+        """Every product id `_published_everywhere` holds true for.
+
+        The scrape needs the set up front, to pass over those search results
+        in the browser before they take a page's product slot.
+        """
+        from src.publisher.tracking import load_tracking
+
+        posts = load_tracking(self.config.outputs_dir).get("posts", {})
+        candidates = {key.rpartition(":")[0] for key in posts if ":" in key}
+        return {
+            asin for asin in candidates if asin and self._published_everywhere(asin)
+        }
 
     def _published_everywhere(self, asin: str) -> bool:
         """Whether the run should skip this product as already published.

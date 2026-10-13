@@ -3,8 +3,13 @@
 The scraping phase stopped at `max_products` products and the batch dropped
 the published ones only afterwards, before render. A run capped at one
 product could scrape one it had already published, render nothing and exit
-0, leaving its slot empty. The scrape now skips such search results before
-media download and takes the next one.
+0, leaving its slot empty. The browser now passes over such search results
+without letting them take a page's slot, and the phase takes the next one.
+
+The fake scraper behaves as the real browser does: a page stops at
+`run_max_products` products, and a result in `skip_asins` is passed over and
+reported back. A fake that returned every listed product hid that a
+published top result cost the rest of its page.
 """
 
 from __future__ import annotations
@@ -20,9 +25,12 @@ from src.pipeline.phases import scraping as scraping_phase
 
 
 class _FakeScraper:
-    """Search pages keyed by (input, page); `process_raw_products` keeps order."""
+    """Search pages keyed by (input, page), served as the browser serves them."""
 
     pages: dict[tuple[str, int], list[dict]] = {}
+    calls: list[tuple[str, int]] = []
+    # Products that fail media validation, as `process_raw_products` drops them.
+    invalid: set[str] = set()
 
     def __init__(self, **_kwargs):
         self.output_dir = "unused"
@@ -31,17 +39,30 @@ class _FakeScraper:
             summary_lines=lambda: [], dead_queries=[], throttled_inputs=[]
         )
         self.processed: list[str] = []
+        _FakeScraper.calls = []
 
-    def scrape_batch_browser(self, inputs, search_params=None, start_page=1):
-        return [
-            {"input": i, "products": list(self.pages.get((i, start_page), []))}
-            for i in inputs
-        ]
+    def scrape_batch_browser(
+        self, inputs, search_params=None, start_page=1, skip_asins=()
+    ):
+        results = []
+        for i in inputs:
+            products, skipped = [], []
+            self.calls.append((i, start_page))
+            for card in self.pages.get((i, start_page), []):
+                # A product-id input opens the product page: no cards to skip.
+                if card["asin"] in skip_asins and not self._is_asin(i):
+                    skipped.append(card["asin"])
+                    continue
+                products.append(card)
+                if len(products) >= self.run_max_products:
+                    break
+            results.append({"input": i, "products": products, "skipped_asins": skipped})
+        return results
 
     def process_raw_products(self, raw, target_download_count=None, pillar=None):
-        chosen = raw[:target_download_count]
-        self.processed.extend(r["asin"] for r in chosen)
-        return [SimpleNamespace(asin=r["asin"]) for r in chosen]
+        self.processed.extend(r["asin"] for r in raw)
+        chosen = [r for r in raw if r["asin"] not in self.invalid]
+        return [SimpleNamespace(asin=r["asin"]) for r in chosen[:target_download_count]]
 
     @staticmethod
     def _is_asin(value):
@@ -70,6 +91,7 @@ def _config(**overrides):
 @pytest.fixture
 def fake_scraper(monkeypatch):
     _FakeScraper.pages = {}
+    _FakeScraper.invalid = set()
     monkeypatch.setattr(
         "src.scraper.amazon.scraper.BotasaurusAmazonScraper", _FakeScraper
     )
@@ -85,7 +107,7 @@ async def _scrape(config, published=()):
     return await scraping_phase.run_scraping_phase(
         config,
         lambda: None,
-        is_already_published=lambda asin: asin in published,
+        published=set(published),
     )
 
 
@@ -103,6 +125,76 @@ class TestTheScrapeSkipsPublishedResults:
         assert summary.successful_products == ["B0NEW"]
         assert summary.already_published == ["B0PUB"]
         assert summary.failed == 0
+
+    @pytest.mark.asyncio
+    async def test_the_next_result_comes_from_the_same_page(self, fake_scraper):
+        """A published top result costs nothing: no further page is fetched."""
+        fake_scraper.pages = {
+            ("phone stand", 1): [{"asin": "B0PUB"}, {"asin": "B0NEW"}],
+            ("phone stand", 2): [{"asin": "B0PAGE2"}],
+        }
+
+        summary = await _scrape(_config(), published={"B0PUB"})
+
+        assert summary.successful_products == ["B0NEW"]
+        assert fake_scraper.calls == [("phone stand", 1)]
+
+    @pytest.mark.asyncio
+    async def test_a_new_candidate_that_fails_validation_is_still_a_failure(
+        self, fake_scraper
+    ):
+        fake_scraper.pages = {
+            ("phone stand", 1): [{"asin": "B0PUB"}, {"asin": "B0BAD"}],
+        }
+        fake_scraper.invalid = {"B0BAD"}
+
+        summary = await _scrape(_config(), published={"B0PUB"})
+
+        assert summary.successful_products == []
+        assert summary.failed_products == ["phone stand"]
+
+    @pytest.mark.asyncio
+    async def test_a_failed_candidate_on_a_later_page_is_still_a_failure(
+        self, fake_scraper
+    ):
+        fake_scraper.pages = {
+            ("phone stand", 1): [{"asin": "B0PUB"}],
+            ("phone stand", 2): [{"asin": "B0BAD"}],
+        }
+        fake_scraper.invalid = {"B0BAD"}
+
+        summary = await _scrape(_config(), published={"B0PUB"})
+
+        assert summary.failed_products == ["phone stand"]
+
+    @pytest.mark.asyncio
+    async def test_two_inputs_meeting_the_same_published_product_both_end_clean(
+        self, fake_scraper
+    ):
+        fake_scraper.pages = {
+            ("earbuds", 1): [{"asin": "B0PUB"}],
+            ("wireless earbuds", 1): [{"asin": "B0PUB"}],
+        }
+
+        summary = await _scrape(
+            _config(keywords=["earbuds", "wireless earbuds"], max_products=2),
+            published={"B0PUB"},
+        )
+
+        assert summary.failed == 0
+        assert summary.already_published == ["B0PUB"]
+
+    @pytest.mark.asyncio
+    async def test_a_published_product_id_input_is_dropped(self, fake_scraper):
+        fake_scraper.pages = {("B0PUB", 1): [{"asin": "B0PUB"}]}
+
+        summary = await _scrape(
+            _config(product_ids=["B0PUB"], keywords=[]), published={"B0PUB"}
+        )
+
+        assert summary.successful_products == []
+        assert summary.failed == 0
+        assert summary.already_published == ["B0PUB"]
 
     @pytest.mark.asyncio
     async def test_without_the_check_the_published_one_takes_the_slot(
