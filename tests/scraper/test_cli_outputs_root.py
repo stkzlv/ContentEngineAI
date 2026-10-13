@@ -58,13 +58,23 @@ class TestTheStandaloneScraperTakesTheOutputsRoot:
 
         assert got == str(tmp_path / "flag")
 
-    def test_without_either_it_is_the_repository_outputs(self, monkeypatch):
-        from src.utils.outputs_paths import get_project_root
+    def test_without_either_the_shared_resolver_decides(self, monkeypatch, tmp_path):
+        """No flag: the CLI asks `resolve_outputs_dir`, whose default is tested
+        with the other modules. Stubbed, since the CLI creates the root and a
+        fresh checkout has no `outputs/` for this test to create.
+        """
+        from src.scraper.amazon import cli as scraper_cli
 
-        monkeypatch.delenv("OUTPUTS_DIR", raising=False)
-        monkeypatch.delenv("CONTENT_ENGINE_OUTPUT", raising=False)
+        asked = []
 
-        assert self._built_with(monkeypatch, []) == str(get_project_root() / "outputs")
+        def resolver(value):
+            asked.append(value)
+            return tmp_path / "outputs"
+
+        monkeypatch.setattr(scraper_cli, "resolve_outputs_dir", resolver)
+
+        assert self._built_with(monkeypatch, []) == str(tmp_path / "outputs")
+        assert asked == [None]
 
     def test_clean_cleans_the_root_the_scrape_uses(self, monkeypatch, tmp_path):
         monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "env-root"))
@@ -73,13 +83,13 @@ class TestTheStandaloneScraperTakesTheOutputsRoot:
 
         assert _BUILT["cleaned"] == [tmp_path / "env-root"]
 
-    def test_a_root_whose_parent_is_missing_is_created(self, monkeypatch, tmp_path):
+    def test_a_root_whose_parents_are_missing_gets_them(self, monkeypatch, tmp_path):
         root = tmp_path / "a" / "b" / "outputs"
         monkeypatch.setenv("OUTPUTS_DIR", str(root))
 
         self._built_with(monkeypatch, [])
 
-        assert root.is_dir()
+        assert root.parent.is_dir()
 
 
 @pytest.mark.unit

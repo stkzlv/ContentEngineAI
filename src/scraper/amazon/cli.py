@@ -781,10 +781,12 @@ def main() -> None:
     # The outputs root every module resolves: `--output-dir`, then
     # OUTPUTS_DIR / CONTENT_ENGINE_OUTPUT, then the repository's `outputs/`.
     # The scraper alone ignored the environment, and `--clean` cleaned the
-    # repository tree whatever the scrape used (#740). Created here, parents
-    # included, since the product writer creates only the last level.
+    # repository tree whatever the scrape used (#740). Its parents are
+    # created here, since the product writer creates only the last level;
+    # the root itself is left to that writer, so a run that scrapes nothing
+    # plants no empty root.
     outputs_root = resolve_outputs_dir(getattr(args, "output_dir", None))
-    outputs_root.mkdir(parents=True, exist_ok=True)
+    outputs_root.parent.mkdir(parents=True, exist_ok=True)
 
     if args.clean:
         _clean_outputs(outputs_root)

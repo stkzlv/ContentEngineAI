@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The batch's scraping phase writes into the outputs root the run uses (`--outputs-dir`, `OUTPUTS_DIR` or the configured one) instead of the repository's `outputs/`, so a run pointed elsewhere finds the products it scraped.
-- The standalone scraper honours `OUTPUTS_DIR` and `CONTENT_ENGINE_OUTPUT` when `--output-dir` is not passed, as the other modules do, and `--clean` cleans that same root, creating it when its parent folders are missing.
+- The standalone scraper honours `OUTPUTS_DIR` and `CONTENT_ENGINE_OUTPUT` when `--output-dir` is not passed, as the other modules do, and `--clean` cleans that same root, creating its parent folders when they are missing.
 
 ## [0.204.2] - 2026-10-13
 
