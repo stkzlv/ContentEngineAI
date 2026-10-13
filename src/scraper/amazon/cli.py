@@ -28,7 +28,11 @@ from src.scraper.base.keyword_pillars import (
 )
 from src.scraper.config_models import ScraperConfig
 from src.utils.logging_setup import dated_log_path, setup_debug_logging
-from src.utils.outputs_paths import get_logs_directory, get_project_root
+from src.utils.outputs_paths import (
+    get_logs_directory,
+    get_project_root,
+    resolve_outputs_dir,
+)
 
 from . import scraper as scraper_module
 from .config import get_default_search_parameters, get_output_path
@@ -248,7 +252,10 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--output-dir",
         metavar="DIR",
-        help='Override output directory (default: "outputs" from config)',
+        help=(
+            "Outputs root (default: OUTPUTS_DIR or CONTENT_ENGINE_OUTPUT, "
+            'else the repository\'s "outputs")'
+        ),
     )
 
 
@@ -810,7 +817,10 @@ def main() -> None:
                 "analyze_images": args.analyze_images if args.debug else False,
                 "dump_image_urls": args.dump_image_urls if args.debug else False,
             },
-            output_dir=getattr(args, "output_dir", None),
+            # The outputs root every module resolves: `--output-dir`, then
+            # OUTPUTS_DIR / CONTENT_ENGINE_OUTPUT, then the repository's
+            # `outputs/`. The scraper alone ignored the environment (#740).
+            output_dir=str(resolve_outputs_dir(getattr(args, "output_dir", None))),
             profile_uses_videos=args.profile_uses_videos,
         )
 

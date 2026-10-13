@@ -23,7 +23,7 @@ The parser is `build_argument_parser` in `src/scraper/amazon/cli.py`. A run with
 | `--fail-fast` / `--no-fail-fast` | switch | `batch.fail_fast` | Stops the batch at the first failed input, or continues past it. |
 | `--strict` | switch | off | Exits non-zero when any product id or keyword produced nothing, not only when the run scraped nothing. |
 | `--clean` | switch | off | Before scraping, deletes the product directories (named by ASIN), the `cache`, `temp` and `screenshots` directories, and loose `.json`, `.csv`, `.xlsx` and `.html` files under the configured output base. Logs and files whose names start with `report` stay. |
-| `--output-dir` | `DIR` | `global_settings.output_config.base_directory` | Writes the scraped products under this directory. |
+| `--output-dir` | `DIR` | `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/` | Writes the scraped products under this directory. |
 | `--no-profile-uses-videos` | switch | off | Scrapes for an image-only profile: no video is extracted or downloaded, and images must meet the minimums on their own. |
 | `--profile-uses-videos` | switch | off | Keeps the configured media requirements, which count videos. The same as passing neither flag. |
 
