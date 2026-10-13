@@ -20,8 +20,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-011** `shipped` Where a profile's ending is `peak`, a render ends on its last spoken word with no silent or fading tail; with `loop`, an image-only render's last frame also matches its first.
 - **REQ-VID-012** `shipped` Where sound effects are on, sparse effects mark three beats (the hook on the first frame, the reveal, the call to action), drawn per product from a pool, capped per 10 seconds and mastered with the rest of the mix.
 - **REQ-VID-013** `shipped` Where beat snapping is on, visual cuts move to the nearest music beat within a small window without changing caption timing.
-- **REQ-VID-014** `partial` Every render produces a cover image, a 1080x1920 JPEG beside its video showing the hero visual with the hook headline inside the centred 3:4 area, and records the cover's time in the video.
-  - Why: the publisher sets it on each platform (REQ-PUB-154 to REQ-PUB-159), and a profile grid crops a cover to its centred 3:4 area (Instagram's since January 2025).
+- **REQ-VID-014** `partial` Every render produces a cover image, a JPEG at the video's resolution (1080x1920 bundled) beside it, showing the video's opening visual with the hook headline inside the centred 3:4 area, and records the cover's time in the video.
+  - Why: the publisher is to send it to Instagram and TikTok, and YouTube Shorts none (REQ-PUB-154 to REQ-PUB-159), and a profile grid crops a cover to its centred 3:4 area (Instagram's since January 2025).
   - Gap: with the hook overlay off the cover is a plain frame with no headline.
 - **REQ-VID-015** `shipped` Where image curation is on, a product render prefers clean product images over text-heavy seller infographics, using text-heavy ones only when too few clean images exist.
 - **REQ-VID-016** `planned #554` Where image curation is on and the profile accepts video, a product render prefers the listing's product video over stills.

@@ -24,7 +24,7 @@ What each platform and the provider accept:
 | Platform API | A cover image (`cover_url`) or a frame offset (`thumb_offset`, default the first frame); the image wins when both are set [A] | A frame only (`video_cover_timestamp_ms`; unset or invalid falls back to the first frame) [A] | `thumbnails.set` uploads an image; Google's docs don't say whether it applies to Shorts [A] |
 | Image limits | JPEG, sRGB, 8 MB at most, 9:16 recommended, on a public server [A] | none (frame only) | JPEG or PNG, 50 MB at most since September 2026, 9:16 for Shorts [A] |
 | Provider field | `instagramThumbnail` (alias `reelCover`) or `thumbOffset` | `videoCoverTimestampMs` (default 1 s), or `videoCoverImageUrl` | none: "Custom thumbnails for regular videos only" |
-| Changing it later | not with the installed provider SDK, which edits a post's text, schedule and settings but not its platform data | the same | not for Shorts |
+| Changing it later | the provider edits a draft or scheduled post's platform data, not a published one's | the same | not for Shorts |
 
 Sources: [Instagram IG User Media reference](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media), [TikTok Direct Post reference](https://developers.tiktok.com/doc/content-posting-api-reference-direct-post), [YouTube custom thumbnails](https://support.google.com/youtube/answer/72431), [YouTube Data API revision history](https://developers.google.com/youtube/v3/revision_history), and the provider's [Instagram](https://docs.zernio.com/platforms/instagram), [TikTok](https://docs.zernio.com/platforms/tiktok) and [YouTube](https://docs.zernio.com/platforms/youtube) pages and its SDK's platform data models.
 
@@ -39,7 +39,7 @@ The provider's TikTok image cover is not TikTok's: TikTok's API takes no image. 
 
 - A YouTube Shorts cover: the provider can't set one, and the Shorts feed doesn't show it.
 - A separately designed cover image (a different picture or text from the video's opening): a cover that differs from the opening breaks the promise the video has to confirm.
-- Changing the cover of a post already scheduled or published.
+- Changing the cover of a post already scheduled or published: the publisher sends the cover with the post and never edits a queued one.
 
 ## Design
 
