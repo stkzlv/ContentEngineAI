@@ -75,8 +75,11 @@ async def run_scraping_phase(
             "Scraper validation aligned with profile: videos %s",
             "enabled" if profile_uses_videos else "disabled (image-only)",
         )
+    # The batch's outputs root, not the scraper's default: the later phases
+    # read this root, so a scrape written anywhere else is never found (#740).
     scraper = BotasaurusAmazonScraper(
         debug_override=config.debug,
+        output_dir=str(config.outputs_dir),
         profile_uses_videos=profile_uses_videos,
     )
 

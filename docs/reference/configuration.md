@@ -2303,8 +2303,8 @@ The machine settings the config reads from the environment. Behaviour settings l
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory for the producer, the publisher and the global batch |
-| `OUTPUTS_DIR` | string | outputs | Base output directory, as above, and the scraper's output base; wins over `CONTENT_ENGINE_OUTPUT` |
+| `CONTENT_ENGINE_OUTPUT` | string | outputs | Base output directory for the scraper, the producer, the publisher and the global batch |
+| `OUTPUTS_DIR` | string | outputs | As above; wins over `CONTENT_ENGINE_OUTPUT` |
 | `FFMPEG_THREADS` | int | 0 | FFmpeg threads (0 = auto-detect) |
 | `ALLOW_LOW_MEMORY` | `1` or unset | unset | Start a render without waiting for `memory_guard`'s free memory |
 
