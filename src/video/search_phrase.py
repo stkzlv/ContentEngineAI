@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from src.scraper.amazon.utils import validate_asin_format
 from src.utils.script_sanitizer import split_sentences
 
 logger = logging.getLogger(__name__)
@@ -70,10 +71,20 @@ def contains(text: str | None, phrase: str, *, question: bool = False) -> bool:
 
 
 def search_phrase(product: Any) -> str | None:
-    """A topic's title, else the product's search keyword."""
+    """A topic's title, else the product's search keyword.
+
+    A product scraped from its id or a product URL records that input as its
+    keyword. Neither is anything a viewer searches for, and a caption told to
+    open with it opened with the id (#748), so neither counts as a phrase.
+    """
     if getattr(product, "topic", None):
         return getattr(product, "title", None) or None
-    return (getattr(product, "keyword", "") or "").strip() or None
+    keyword = (getattr(product, "keyword", "") or "").strip()
+    if not keyword or validate_asin_format(keyword):
+        return None
+    if keyword.lower().startswith(("http://", "https://", "www.")):
+        return None
+    return keyword
 
 
 def captions(run_root: Path) -> dict[str, str]:
