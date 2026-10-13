@@ -51,7 +51,7 @@ Why:
 
 The shipped `size_factor` of 1.1 gives about 5.5% of frame height, below the 10-15% band vendors quote and possibly smaller than the rendered captions. Measure one render before relying on it. Set a longer `duration_sec` (for example 2.5) when the headline should read alongside visible motion rather than as its own beat.
 
-Planned: a cover image carrying the hero visual and the hook headline ([design 0011](../design/0011-cover-frames.md), `REQ-VID-014`).
+Each render writes a cover beside its video, a frame halfway through the hook with the headline on screen ([design 0011](../design/0011-cover-frames.md), `REQ-VID-014`, partial: no platform is sent it yet).
 
 ## Cold open
 
