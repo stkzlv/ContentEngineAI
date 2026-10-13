@@ -342,6 +342,13 @@ synthetic_media_disclosure: false
 # "Link in bio." when it names no profile link already.
 youtube_profile_pointer: true
 
+# Send each render's cover (written beside the video) with its post: the
+# cover image on Instagram, the same frame by its time on TikTok, nothing on
+# YouTube Shorts. Off until one real post on each of Instagram and TikTok
+# shows the rendered cover.
+covers:
+  enabled: false
+
 # ============================================================================
 # TIKTOK CONTENT SETTINGS
 # ============================================================================

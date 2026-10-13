@@ -337,6 +337,12 @@ A template needs data only for the placeholders it uses (`REQ-PUB-039`).
 | `max_age_days` | int | `30` | | Delete blobs older than this. |
 | `max_total_mb` | int | `500` | | Then delete the oldest until the store is under this size. |
 
+### `covers`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Send each render's cover (`<video>.cover.jpg` and `<video>.cover.json` beside the video) with its post: the image as an Instagram Reel's cover, the same frame's time as a TikTok post's cover, nothing to YouTube Shorts. A video with no usable cover, or a cover that fails to upload, is published without one and a warning names it. See [design 0011](../design/0011-cover-frames.md). |
+
 ### `delivery_sweep`
 
 | Key | Type | Default | Description |

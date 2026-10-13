@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.207.0] - 2026-10-13
+
+### Added
+
+- With `covers.enabled` on (shipped off), a post carries its render's cover: an Instagram Reel gets the cover image and a TikTok post the same frame by its time in the video, on every publish path, and a video with no usable cover still publishes with a warning.
+
 ## [0.206.1] - 2026-10-13
 
 ### Documentation

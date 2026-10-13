@@ -195,4 +195,5 @@ def create_publisher_from_config(
         first_comment_config=config.first_comment_config,
         synthetic_media_disclosure=config.synthetic_media_disclosure,
         youtube_profile_pointer=config.youtube_profile_pointer,
+        covers_enabled=config.covers_config.enabled,
     )

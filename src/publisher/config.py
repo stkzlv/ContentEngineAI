@@ -22,6 +22,7 @@ from src.publisher.models import (
     AnalyticsConfig,
     BlobRetentionConfig,
     CleanupConfig,
+    CoversConfig,
     DeliverySweepConfig,
     FirstCommentConfig,
     LinkInBioConfig,
@@ -431,6 +432,18 @@ def _parse_schedule_and_cleanup_config(config: dict[str, Any]) -> dict[str, Any]
             result["delivery_sweep_config"] = DeliverySweepConfig()
     else:
         result["delivery_sweep_config"] = DeliverySweepConfig()
+
+    # Parse covers config
+    covers_section = result.get("covers", {})
+    if covers_section:
+        try:
+            result["covers_config"] = CoversConfig(**covers_section)
+            logger.debug("Parsed covers config: %s", covers_section)
+        except (ValueError, TypeError) as e:
+            logger.warning("Failed to parse covers config: %s, using defaults", e)
+            result["covers_config"] = CoversConfig()
+    else:
+        result["covers_config"] = CoversConfig()
 
     # Parse affiliate_disclosure config
     affiliate_disclosure_section = result.get("affiliate_disclosure", {})
