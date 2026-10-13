@@ -52,7 +52,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 ## Outputs directory
 
 - **REQ-OPS-030** `shipped` The pipeline writes all its artifacts under one outputs directory, `outputs/` by default.
-- **REQ-OPS-031** `shipped` When `--outputs-dir` (producer, publisher, global batch) or `--output-dir` (scraper) is passed, the run uses that directory instead, scraper working files included, except for the scraper's screenshots, which the browser driver saves under `output/screenshots/` in the working directory ([decision 0016](../decisions/0016-scraper-screenshots-stay-where-the-driver-writes-them.md)).
+- **REQ-OPS-031** `shipped` When `--outputs-dir` (producer, publisher, global batch) or `--output-dir` (scraper) is passed, the run uses that directory instead, scraper working files included, except for the bot-detection and debug-step screenshots the browser functions save without a path, which the browser driver puts under `output/screenshots/` in the working directory ([decision 0016](../decisions/0016-scraper-screenshots-stay-where-the-driver-writes-them.md)).
 - **REQ-OPS-115** `shipped` Without that flag, every module, the scraper included, takes the outputs root from `OUTPUTS_DIR`, else `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`.
 - **REQ-OPS-032** `shipped` Each product gets `outputs/<product_id>/`, holding `data.json`, `metadata.json`, the `images/`, `videos/`, `music/` and `temp/` subdirectories, the media validation reports and the final `video_*.mp4`.
 - **REQ-OPS-033** `shipped` A topic render writes to `outputs/topic-<slug>-<digest>/`, which has no `images/` or `videos/` subdirectory.

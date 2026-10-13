@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Decision 0016 records that scraper screenshots stay where the browser driver saves them, under `output/screenshots/` in the working directory.
+- Decision 0016 records that the scraper's bot-detection and debug-step screenshots, saved without a path, stay where the browser driver puts them, under `output/screenshots/` in the working directory.
 
 ## [0.204.3] - 2026-10-13
 
