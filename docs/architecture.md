@@ -173,7 +173,7 @@ sequenceDiagram
     participant Z as Zernio
 
     Op->>B: make batch-lowpri
-    B->>S: scrape keywords and product ids, one browser session
+    B->>S: scrape keywords and product ids, one browser session, skipping already-published results
     S-->>B: data.json and media per product
     Note over B: topics are materialised here instead of scraped
     B->>B: handoff: discover ready products, drop already published
@@ -329,7 +329,7 @@ The full list, with statuses, is in [the requirements](requirements/README.md).
 | Script-first | The step order of a profile that draws no scraped media: the script is written before the visuals are gathered. |
 | Step | One of the eight render stages, each recorded in `pipeline_state.json`. |
 | Phase | One of the batch stages: scraping, handoff, production, publishing. |
-| Handoff | The batch phase that turns scraped directories into a list of ready products and drops already-published ones. |
+| Handoff | The batch phase that turns scraped directories into a list of ready products and drops already-published ones (the scrape already skipped those it found). |
 | Leg | One platform's part of a multi-platform post. |
 | Delivery sweep | The post-publish check that reports posts with a failed leg. |
 | Blob retention | The post-publish trim of staged uploads in the upload store. |

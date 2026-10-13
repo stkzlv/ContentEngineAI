@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.2] - 2026-10-13
+
+### Fixed
+
+- A batch run no longer spends `max_products` on products already published on every target platform: the scrape skips those search results and takes the next one, and a keyword with nothing new is not counted as a failed input.
+
 ## [0.204.1] - 2026-10-10
 
 ### Fixed

@@ -56,6 +56,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-028** `shipped` When `--force` is passed, the batch renders and publishes already-published products.
 - **REQ-BAT-029** `shipped` When `--skip-publish` is passed, the batch renders already-published products.
 - **REQ-BAT-030** `shipped` The batch summary lists the products dropped as already published.
+- **REQ-BAT-088** `shipped` A product already published on every target platform does not count toward `max_products`: the scraping phase skips it before media download and takes the next search result, searching further result pages for a keyword when it needs to, and a keyword whose results are all published is not a failed input.
 
 ## Inputs and selection
 

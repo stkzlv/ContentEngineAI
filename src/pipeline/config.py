@@ -470,6 +470,10 @@ class ScrapingPhaseSummary:
     # input would have worked with a longer gap.
     dead_queries: list[str] = field(default_factory=list)
     throttled_inputs: list[str] = field(default_factory=list)
+    # Search results skipped because they are published on every targeted
+    # platform. Skipped before they count toward `max_products`, so a capped
+    # run takes the next result instead of rendering nothing (#737).
+    already_published: list[str] = field(default_factory=list)
 
 
 @dataclass
