@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from src.publisher.first_comment import build_first_comment
 from src.publisher.metadata import METADATA_PLATFORM_ORDER, load_platform_metadata
 from src.publisher.models import Platform
+from src.publisher.youtube_caption import youtube_metadata
 
 if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
@@ -51,6 +52,12 @@ def _build_platform_contents_with_comments(
         meta = metadata_by_platform.get(platform_name) if metadata_by_platform else None
         entry: dict[str, str] = {}
         if meta is not None:
+            if platform_name == Platform.YOUTUBE.value:
+                meta = youtube_metadata(
+                    meta,
+                    product_id,
+                    pointer=getattr(publisher, "youtube_profile_pointer", True),
+                )
             entry["content"] = meta.format_content()
             title = getattr(meta, "title", None)
             if not title:

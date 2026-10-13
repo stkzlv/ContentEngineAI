@@ -38,6 +38,7 @@ from src.publisher.models import (
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
 from src.publisher.tracking import is_already_published, record_publish
+from src.publisher.youtube_caption import youtube_metadata
 from src.scraper.base.models import carries_affiliate_content
 from src.utils.outputs_paths import durable_state_path
 
@@ -1046,6 +1047,13 @@ class ScheduleManager:
             p_content = ""
             if p_meta is not None:
                 # Clamped here, for exactly this post's one destination (#408).
+                # YouTube gets its own copy: no URL, a profile pointer.
+                if p_name == Platform.YOUTUBE.value:
+                    p_meta = youtube_metadata(
+                        p_meta,
+                        product_id,
+                        pointer=getattr(publisher, "youtube_profile_pointer", True),
+                    )
                 p_content = p_meta.clamped_for([Platform(p_name)]).format_content()
                 p_content_data = {
                     "content": p_content,
@@ -1122,6 +1130,18 @@ class ScheduleManager:
             for p_dict in platform_dicts:
                 p_name = p_dict["platform"]
                 payload: dict[str, Any] = {"content": unified_content}
+                if p_name == Platform.YOUTUBE.value:
+                    # YouTube's entry is its own caption: no URL, and a
+                    # profile pointer (REQ-PUB-148, REQ-CNT-150).
+                    payload["content"] = (
+                        youtube_metadata(
+                            platform_metas[first_platform],
+                            product_id,
+                            pointer=getattr(publisher, "youtube_profile_pointer", True),
+                        )
+                        .clamped_for([Platform.YOUTUBE])
+                        .format_content()
+                    )
                 if p_name == "youtube" and titles.get(p_name):
                     payload["title"] = titles[p_name]
                 if p_name in first_comments:
