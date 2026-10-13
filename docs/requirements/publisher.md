@@ -203,3 +203,16 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-111** `shipped` The title sent to each platform is the trimmed title.
 - **REQ-PUB-147** `shipped` The TikTok privacy level and whether comments, duets and stitches are allowed are set under `tiktok_settings`, defaulting to public with comments on and duets and stitches off.
 - **REQ-PUB-148** `shipped` A YouTube Shorts description carries no URL, since one there can't be clicked: a URL the model writes anyway is removed in both metadata modes (a description that is nothing but a URL becomes the pointer, or stays when no pointer applies, since an empty one is refused), and a product video's description ends on a pointer to the profile link when `youtube_profile_pointer` is on (bundled on).
+
+## Covers
+
+- **REQ-PUB-154** `planned #552` Where `covers.enabled` is on (bundled off) and a video has a cover record (`<video>.cover.json`), the publisher sends that video's cover to every target platform that accepts one, and to no other.
+  - On when: one real post on each of Instagram and TikTok shows the rendered cover.
+- **REQ-PUB-155** `planned #552` An Instagram Reel's cover is the cover image, uploaded through the provider's media upload and sent as the Reel's cover image URL (`instagramThumbnail`).
+  - Check: the image is a JPEG of at most 8 MB at 9:16, the platform's Reels cover specification.
+- **REQ-PUB-156** `planned #552` A TikTok post's cover is the frame at the record's time, sent as the cover timestamp in milliseconds (`videoCoverTimestampMs`), never as a cover image.
+  - Why: on accounts connected through TikTok's developer app the provider stitches a cover image into the video as a still frame at its start, which changes the feed video; the frame at the record's time is the same picture without that.
+- **REQ-PUB-157** `shipped` A YouTube Shorts post is sent no cover.
+  - Why: the provider sets custom thumbnails on regular videos only, and a Shorts thumbnail is not shown in the Shorts feed.
+- **REQ-PUB-158** `planned #552` Every publish path (`single`, `schedule`, `schedule --immediate` and the batch), in both metadata modes, sets the cover the same way.
+- **REQ-PUB-159** `planned #552` If a video has no cover record, or its cover image is missing or fails to upload, the publisher publishes the post without a cover and logs a warning naming the video.

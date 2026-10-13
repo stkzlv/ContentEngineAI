@@ -170,7 +170,7 @@ A new product rotates the featured slot rather than appending, so the bio carrie
 
 ### 4.7 Cover frames
 
-A cover image per render, set as the poster where the platform accepts one. [Design 0011](design/0011-cover-frames.md), #552.
+A cover image per render, set as the poster where the platform accepts one: an image on Instagram and the same frame by timestamp on TikTok. YouTube Shorts get none, since the publishing provider sets custom thumbnails on regular videos only. [Design 0011](design/0011-cover-frames.md), #552.
 
 **Done when:** every render produces a cover and the publish payload sets it on the platforms that accept one.
 

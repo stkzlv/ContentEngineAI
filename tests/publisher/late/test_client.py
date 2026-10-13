@@ -759,6 +759,57 @@ class TestLatePublisherDeletePost:
             await publisher.delete_post("post_123")
 
 
+class TestYouTubeShortsGetNoCover:
+    """A YouTube Shorts post is sent no cover (REQ-PUB-157).
+
+    The provider documents a media item ``thumbnail`` for regular videos, so a
+    change that sets it on every platform would reach Shorts unnoticed.
+    """
+
+    @pytest.mark.req("REQ-PUB-157")
+    @pytest.mark.asyncio
+    async def test_the_created_post_carries_no_cover_for_youtube(self):
+        from src.publisher.late.client import LatePublisher
+
+        pub = LatePublisher(api_key="sk_test_abc123")
+        pub.client = MagicMock()
+        sent: dict = {}
+
+        async def capture(_method, *args, **kwargs):
+            sent.update(kwargs)
+            return MagicMock()
+
+        with (
+            patch.object(pub, "_call_sdk", side_effect=capture),
+            patch.object(
+                pub,
+                "_parse_publish_response",
+                return_value={
+                    "post_id": "post_1",
+                    "status": "published",
+                    "published_urls": [],
+                },
+            ),
+            patch.object(pub, "_extract_platform_failures", return_value=[]),
+        ):
+            await pub.publish(
+                media_id="https://example.com/video.mp4",
+                platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
+                platform_contents={
+                    "youtube": {"content": "#ad\n\nA caption", "title": "A title"}
+                },
+            )
+
+        cover_words = ("thumb", "cover")
+        media_keys = {k.lower() for item in sent["media_items"] for k in item}
+        assert not [k for k in media_keys if any(w in k for w in cover_words)]
+        (youtube,) = sent["platforms"]
+        entry_keys = {k.lower() for k in youtube} | {
+            k.lower() for k in youtube.get("platformSpecificData", {})
+        }
+        assert not [k for k in entry_keys if any(w in k for w in cover_words)]
+
+
 class TestBuildSdkPlatformsYouTubeTitle:
     """The YouTube payload must carry a real title (#195).
 
