@@ -35,6 +35,7 @@ from src.video.config import (
 )
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
+from src.video.cover import cover_time_sec, write_cover
 from src.video.pipeline_graph import PipelineGraph, StepStatus
 from src.video.producer.artifact_registry import load_artifacts_for_step
 from src.video.producer.context import (
@@ -566,6 +567,18 @@ async def create_video_for_product(
                 product_id,
                 run_paths.get("final_video_output", "N/A"),
             )
+
+            # The cover (REQ-VID-014): a frame of the finished video with the
+            # hook on screen. Like the choices row, only for a whole render.
+            final_video = run_paths.get("final_video_output")
+            if debug_step_target is None and final_video:
+                hook = ctx.config.video_settings.hook_overlay
+                await write_cover(
+                    Path(final_video),
+                    Path(run_paths["run_root"]),
+                    cover_time_sec(hook.duration_sec),
+                    ctx.config.ffmpeg_settings.executable_path or "ffmpeg",
+                )
 
             # One row per finished render for the variety report (REQ-PUB-083).
             # A `--step` run did not make a whole video, so it records nothing.

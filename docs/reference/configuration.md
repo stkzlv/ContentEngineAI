@@ -451,6 +451,8 @@ outputs/
 ├── B0DLKB5V35/                    # Product directory
 │   ├── data.json                  # Scraped data
 │   ├── script.json                # Script and sign-off, kept when temp/ is removed
+│   ├── cover.jpg                  # Cover: a frame with the hook on screen (REQ-VID-014)
+│   ├── cover.json                 # The cover frame's time in the video (at_ms)
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
 │   ├── video_B0DLKB5V35_slideshow_images1.mp4 # Final video
