@@ -822,6 +822,7 @@ class PublisherConfig:
     delivery_sweep_config: "DeliverySweepConfig" = field(
         default_factory=lambda: DeliverySweepConfig()
     )
+    covers_config: "CoversConfig" = field(default_factory=lambda: CoversConfig())
     affiliate_disclosure_config: "AffiliateDisclosureConfig" = field(
         default_factory=lambda: AffiliateDisclosureConfig()
     )
@@ -1646,6 +1647,23 @@ class BlobRetentionConfig:
     enabled: bool = False
     max_age_days: int = 30
     max_total_mb: int = 500
+
+
+@dataclass
+class CoversConfig:
+    """Send each render's cover with its post (design 0011).
+
+    Instagram gets the cover image, TikTok the same frame by its time in the
+    video, YouTube Shorts nothing. Off by default: a cover changes how posts
+    look on the profile and in search.
+
+    Attributes
+    ----------
+        enabled: Send the cover with each post
+
+    """
+
+    enabled: bool = False
 
 
 @dataclass

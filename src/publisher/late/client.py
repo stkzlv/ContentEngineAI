@@ -14,13 +14,15 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import httpx
 import pydantic
-from late import Late
+from late import Late, LateError
 from late.models import PostGetResponse, PostsListResponse
 
 from src.publisher.base import (
     AuthenticationError,
     BasePublisher,
+    PublisherError,
     PublisherProvider,
     PublishError,
     UploadError,
@@ -35,6 +37,7 @@ from src.publisher.constants import (
 )
 from src.publisher.models import FirstCommentConfig, TikTokContentSettings
 from src.publisher.registry import register_publisher
+from src.utils.cover_record import CoverRecord, read_cover
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +121,7 @@ class LatePublisher(BasePublisher):
         first_comment_config: FirstCommentConfig | None = None,
         synthetic_media_disclosure: bool = False,
         youtube_profile_pointer: bool = True,
+        covers_enabled: bool = False,
     ):
         """Initialize Late.dev publisher client.
 
@@ -135,6 +139,8 @@ class LatePublisher(BasePublisher):
                 AI scripts and stock footage (optional)
             youtube_profile_pointer: End a product video's YouTube
                 description on "Link in bio." (default on)
+            covers_enabled: Send each uploaded video's render cover with
+                its post (default off)
 
         Raises:
         ------
@@ -169,6 +175,12 @@ class LatePublisher(BasePublisher):
         self.first_comment_config = first_comment_config or FirstCommentConfig()
         self.synthetic_media_disclosure = synthetic_media_disclosure
         self.youtube_profile_pointer = youtube_profile_pointer
+        self.covers_enabled = covers_enabled
+        # Which video each upload came from, so a post finds its cover
+        # whichever path uploaded it; and each cover image's uploaded URL,
+        # so per-platform posts of one video upload it once.
+        self._uploaded_videos: dict[str, Path] = {}
+        self._cover_urls: dict[Path, str] = {}
 
         # Initialize Late SDK client
         try:
@@ -1079,28 +1091,12 @@ class LatePublisher(BasePublisher):
                     _upload_large, f"Upload large {video_path.name}"
                 )
 
-            # Extract media URL from response
-            # Late SDK returns files array, Vercel Blob returns url directly
-            media_url = None
-            if hasattr(media_response, "url") and media_response.url:
-                # Vercel Blob SDK response has url attribute directly
-                media_url = str(media_response.url)
-            elif hasattr(media_response, "files") and media_response.files:
-                # Late SDK returns files array
-                first_file = media_response.files[0]
-                media_url = str(first_file.url) if hasattr(first_file, "url") else None
-            elif isinstance(media_response, dict):
-                # Dict response - check for url or files array
-                media_url = media_response.get("url")
-                if not media_url:
-                    files = media_response.get("files", [])
-                    if files:
-                        media_url = files[0].get("url")
-
+            media_url = self._media_url(media_response)
             if not media_url:
                 raise UploadError(f"No media URL in response: {media_response}")
 
             logger.info("Upload successful, media URL: %s", media_url)
+            self._uploaded_videos[media_url] = video_path
             return media_url
 
         except ValidationError:
@@ -1110,12 +1106,99 @@ class LatePublisher(BasePublisher):
             logger.error(error_msg)
             raise UploadError(error_msg) from e
 
+    @staticmethod
+    def _media_url(media_response: Any) -> str | None:
+        """The uploaded file's URL from an upload response.
+
+        The SDK returns a files array, a Vercel Blob upload a url directly.
+        """
+        if hasattr(media_response, "url") and media_response.url:
+            return str(media_response.url)
+        if hasattr(media_response, "files") and media_response.files:
+            first_file = media_response.files[0]
+            return str(first_file.url) if hasattr(first_file, "url") else None
+        if isinstance(media_response, dict):
+            url = media_response.get("url")
+            if not url:
+                files = media_response.get("files", [])
+                if files:
+                    url = files[0].get("url")
+            return url
+        return None
+
+    async def _cover_url(self, image: Path) -> str | None:
+        """Upload a cover image once; None when it can't be uploaded."""
+        if image in self._cover_urls:
+            return self._cover_urls[image]
+        try:
+            size = image.stat().st_size
+            if size > LATE_DIRECT_UPLOAD_MAX_BYTES:
+                raise UploadError(f"cover is {size} bytes, over the direct upload")
+
+            async def _upload():
+                return await self._call_sdk(self.client.media.upload, str(image))
+
+            url = self._media_url(
+                await self._retry_with_backoff(_upload, f"Upload {image.name}")
+            )
+            if not url:
+                raise UploadError("no media URL in the upload response")
+        # The cover is optional: nothing about its upload may sink the post,
+        # including what the SDK lets escape (a dropped connection, an HTML
+        # error page).
+        except (
+            PublisherError,
+            LateError,
+            httpx.HTTPError,
+            aiohttp.ClientError,
+            OSError,
+            ValueError,
+        ) as exc:
+            logger.warning("Cover not uploaded for %s: %s", image.name, exc)
+            return None
+        self._cover_urls[image] = url
+        return url
+
+    async def _resolve_cover(
+        self, media_id: str, platform_names: list[str]
+    ) -> dict[str, object]:
+        """The cover fields for a post of the video uploaded as `media_id`.
+
+        Instagram gets the image URL, TikTok the frame's time; any other
+        platform takes no cover. Empty when covers are off, no target takes
+        one, or the video has no usable cover (REQ-PUB-159).
+        """
+        # Matched exactly, as the builder matches them.
+        targets = set(platform_names)
+        if not self.covers_enabled or not targets & {"instagram", "tiktok"}:
+            return {}
+        video = self._uploaded_videos.get(media_id)
+        if video is None:
+            logger.warning("No cover: the video for %s was not uploaded here", media_id)
+            return {}
+        cover: CoverRecord | None
+        cover, reason = read_cover(video)
+        if cover is None:
+            logger.warning("No cover for %s: %s", video.name, reason)
+            return {}
+        fields: dict[str, object] = {}
+        if "tiktok" in targets:
+            fields["tiktok_ms"] = cover.at_ms
+        if "instagram" in targets:
+            url = await self._cover_url(cover.image)
+            if url:
+                fields["instagram_url"] = url
+            else:
+                logger.warning("No Instagram cover for %s", video.name)
+        return fields
+
     def _build_sdk_platforms(
         self,
         platforms: list[dict[str, str]],
         content: str | None,
         platform_contents: dict[str, dict[str, str]] | None,
         carries_affiliate_content: bool = True,
+        cover: dict[str, object] | None = None,
     ) -> tuple[list[dict[str, object]], str | None]:
         """Build SDK platform entries with per-platform content and TikTok settings.
 
@@ -1209,6 +1292,20 @@ class LatePublisher(BasePublisher):
                     "tiktokSettings": tiktok_settings.to_sdk_dict(),
                     **tiktok_settings.to_platform_data(),
                 }
+
+            # The cover merges into whatever platform data the entry already
+            # carries (Instagram's first comment, TikTok's settings).
+            cover_field: tuple[str, object] | None = None
+            if cover and platform_name == "instagram" and "instagram_url" in cover:
+                cover_field = ("instagramThumbnail", cover["instagram_url"])
+            elif cover and platform_name == "tiktok" and "tiktok_ms" in cover:
+                cover_field = ("videoCoverTimestampMs", cover["tiktok_ms"])
+            if cover_field:
+                psd = platform_entry.get("platformSpecificData")
+                if not isinstance(psd, dict):
+                    psd = {}
+                    platform_entry["platformSpecificData"] = psd
+                psd[cover_field[0]] = cover_field[1]
 
             sdk_platforms.append(platform_entry)
 
@@ -1405,8 +1502,13 @@ class LatePublisher(BasePublisher):
 
         try:
             publish_now = scheduled_time is None
+            cover = await self._resolve_cover(media_id, platform_names)
             sdk_platforms, main_content = self._build_sdk_platforms(
-                platforms, content, platform_contents, carries_affiliate_content
+                platforms,
+                content,
+                platform_contents,
+                carries_affiliate_content,
+                cover=cover,
             )
 
             async def _create_post():

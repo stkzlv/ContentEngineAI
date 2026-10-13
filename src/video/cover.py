@@ -20,20 +20,13 @@ import logging
 from pathlib import Path
 
 from src.utils.async_io import async_run_ffmpeg
+from src.utils.cover_record import cover_paths
 
 logger = logging.getLogger(__name__)
 
-COVER_SUFFIX = ".cover.jpg"
-RECORD_SUFFIX = ".cover.json"
 COVER_TIMEOUT_SEC = 60.0
 
-
-def cover_paths(video: Path) -> tuple[Path, Path]:
-    """The cover image and its record for `video`, beside it."""
-    return (
-        video.with_name(video.stem + COVER_SUFFIX),
-        video.with_name(video.stem + RECORD_SUFFIX),
-    )
+__all__ = ["cover_paths", "cover_time_sec", "write_cover"]
 
 
 def cover_time_sec(hook_duration_sec: float) -> float:

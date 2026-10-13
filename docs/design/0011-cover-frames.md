@@ -78,4 +78,5 @@ The switch ships off, since a cover changes how posts appear on the profile and 
 - Each video gets its own cover beside it, `<video>.cover.jpg`, because a product renders once per profile and a platform may be sent any of those videos. `<video>.cover.json` records the image, the video and the frame time in milliseconds, which a timestamp-based platform can use.
 - A whole render writes it, and so does a `--step` run of the profile's final step, which is how topic batches finish a video. `--clean` removes it with the video.
 - A cover that can't be written is logged and skipped, and an earlier render's cover is removed first so it never outlives a failed write.
-- The publish side is not built (REQ-PUB-154 to REQ-PUB-159).
+- The publish side is built behind `covers.enabled`, off (REQ-PUB-154 to REQ-PUB-156, REQ-PUB-158 and REQ-PUB-159 `held`; REQ-PUB-157 `shipped`). The publisher remembers which video each upload came from, so `publish` finds the cover for any path that uploads the video and then posts it, with no per-path wiring. A cover image is uploaded once per video and reused by that video's per-platform posts, and only when an Instagram post needs it.
+- A cover image over the provider's 4 MB direct upload is skipped with a warning rather than sent through the large-file upload; a render's cover is about 0.3 MB.
