@@ -26,7 +26,7 @@ Titles and descriptions over a platform's hard cap are trimmed on a word boundar
 
 ## Scheduling into recurring slots
 
-Without `--immediate` or `--schedule`, the publisher schedules each post into the next free slot from `recurring_schedule.slots`, a weekly list of days and times in a timezone (`REQ-PUB-019`, `REQ-PUB-020`). The bundled schedule has one slot a day at 10:00 Europe/Berlin.
+Without `--immediate` or `--schedule`, the publisher schedules each post into the next free slot from `recurring_schedule.slots`, a weekly list of days and times in a timezone (`REQ-PUB-019`, `REQ-PUB-020`). The bundled schedule has one example slot, Wednesday at 17:00 UTC; an installation lists its own slots in `config/publisher.private.yaml`.
 
 `schedule` in scheduled mode works through the backlog:
 
@@ -111,7 +111,7 @@ The phrase flows through the code like this:
 
 The publisher can post a first comment on each YouTube and Instagram post instead of putting links in the caption (`REQ-PUB-035`, `REQ-PUB-038`). Meta's ranking deprioritises posts with outbound links in the description, so a comment keeps the caption clean. TikTok is always skipped, because the provider's API doesn't support `firstComment` there.
 
-The bundled templates spend the YouTube comment on the script's closing line, because YouTube renders URLs in Shorts comments as plain text, and point Instagram at the bio link (`REQ-PUB-037`).
+The bundled templates spend the YouTube comment on the script's closing line, because YouTube renders URLs in Shorts comments as plain text, and spend the Instagram comment on it too; an installation with a bio link sets its own Instagram template (`REQ-PUB-037`).
 
 1. After the metadata loads, `build_first_comment()` renders the platform's template with data from `outputs/<product_id>/data.json`.
 2. Each platform gets its own comment from its template in `first_comment.platforms`.

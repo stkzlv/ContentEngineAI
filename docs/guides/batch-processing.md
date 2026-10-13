@@ -571,7 +571,7 @@ A run that names its inputs removes only those, and a run carrying both kinds re
 - `immediate_publish: false` enables auto-scheduling
 - `recurring_schedule.slots` defines available time slots
 - `cleanup.enabled: true` removes product directories after successful publish, once `keep_published_days` has passed and, with `verify_before_delete`, every leg is live or scheduled
-- `link_in_bio.enabled: true` adds affiliate link to bio page after each publish
+- `link_in_bio.enabled` (off in the bundled config) adds the affiliate link to the bio page after each publish
 
 ### Configuration Precedence
 

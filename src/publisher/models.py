@@ -216,12 +216,11 @@ class AnalyticsConfig:
     timeline retention horizon, which is roughly five weeks. Below that, the
     oldest still-reachable figures are skipped on every sweep and then expire
     unrecorded, which is silent: a short sweep looks exactly like a complete
-    one. At one post a day the horizon holds about 35 posts; the bundled
-    schedule publishes once a day, and 50 covers that with headroom for
-    missed sweeps. **Raise it with the cadence.** The default is not
-    decorative: a config carrying no ``analytics:`` section at all falls back
-    to it without logging anything, so an installation whose file predates
-    that section gets this number and no warning.
+    one. At one post a day the horizon holds about 35 posts, and 50 covers
+    that with headroom for missed sweeps. **Raise it with the cadence.** The
+    default is not decorative: a config carrying no ``analytics:`` section at
+    all falls back to it without logging anything, so an installation whose
+    file predates that section gets this number and no warning.
     """
 
     limit: int = 50

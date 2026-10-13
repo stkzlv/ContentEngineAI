@@ -22,3 +22,4 @@ The shipped config holds defaults that suit any installation. An installation's 
 - The bundled schedule is one example slot in UTC, the signature ships off with empty pools, no bundled CTA or first comment mentions a bio link, and link-in-bio updates ship off.
 - An installation that relied on those defaults moves them into its overlay before upgrading; `config/publisher.private.yaml.example` and `config/ai_services.private.yaml.example` show the shape.
 - A test pins each generic default (REQ-OPS-121).
+- The YouTube description's "Link in bio." pointer (`youtube_profile_pointer`) and the metadata prompts that ask for it still assume a bio link. They change prompts and rendered metadata, so they ship separately (#756).

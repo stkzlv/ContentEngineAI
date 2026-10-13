@@ -386,8 +386,8 @@ tiktok_settings:
 #
 # At one post per day the horizon holds about 35 posts, so 50 leaves headroom.
 # A faster cadence needs a larger value: two posts a day puts 70 inside the
-# window, and 50 would quietly lose the oldest 20. The bundled schedule has
-# one slot a day, which is what 50 is sized for -- raise it with the cadence,
+# window, and 50 would quietly lose the oldest 20. 50 is sized for one post
+# a day -- raise it with the cadence,
 # or every post ages out of the sweep before its durability ratio can be
 # taken. A test asserts the two shipped values against each other.
 #

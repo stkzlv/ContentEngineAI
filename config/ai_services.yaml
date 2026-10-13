@@ -396,9 +396,8 @@ llm_settings:
         - topic_answer_first
 
     # Narrator direction for topic scripts. The default profile below is
-    # written for someone describing a thing they bought, down to its CTA list,
-    # which is where "Link in bio if you want one" comes from. A topic script
-    # has no product behind that, so it needs its own voice.
+    # written for someone describing a thing they bought. A topic script has
+    # no product behind it, so it needs its own voice.
     narrator_profile_topic: |-
       Narrator profile: every video on this channel is voiced by the same person. Keep that voice consistent.
 
