@@ -593,6 +593,7 @@ The pipeline uses a **two-tier limit system** for keyword searches:
 - Processing iterates through keywords, collecting up to `products_per_keyword` from each
 - Stops immediately when `max_products` is reached, even if keywords remain
 - Product IDs count toward `max_products` but are not limited by `products_per_keyword`
+- A product already published on every target platform counts toward neither: the search passes over it and takes the next result (unless `--force` or `--skip-publish`)
 
 **Example**: With `max_products: 10` and `products_per_keyword: 1` across 12 keywords:
 - Keywords 1-10: 1 product each = 10 total (global cap reached)

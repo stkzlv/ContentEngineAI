@@ -532,6 +532,10 @@ def scrape_amazon_products_browser_impl(
 
         # Track processed ASINs to avoid duplicates
         processed_asins = set()
+        # Products the caller already published everywhere: passed over
+        # without a visit, so they never take one of the page's
+        # `max_products` slots (#737). Recorded on the item for the caller.
+        skip_asins = set(data.get("skip_asins") or ())
 
         i = 0
         while i < len(product_cards):
@@ -563,6 +567,14 @@ def scrape_amazon_products_browser_impl(
 
                     # Mark ASIN as processed
                     processed_asins.add(serp_info.asin)
+
+                    if serp_info.asin in skip_asins:
+                        data.setdefault("skipped_asins", []).append(serp_info.asin)
+                        logger.info(
+                            "Skipping already-published product: %s", serp_info.asin
+                        )
+                        i += 1
+                        continue
 
                     # Products taken so far, not cards visited: a page that
                     # yields nothing (or no media) does not advance this, so
@@ -1084,7 +1096,13 @@ def scrape_batch_items(
                 # dead page into the proof that condemned the next input.
                 if products:
                     tracker.record_success(input_label)
-                results.append({"input": input_label, "products": products or []})
+                results.append(
+                    {
+                        "input": input_label,
+                        "products": products or [],
+                        "skipped_asins": list(item.get("skipped_asins") or []),
+                    }
+                )
                 break
             except Exception as e:
                 if not is_error_page_failure(e):

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 
 from src.pipeline.config import GlobalBatchConfig, ScrapingPhaseSummary
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 async def run_scraping_phase(
     config: GlobalBatchConfig,
     resolve_profile_uses_videos: Callable[[], bool | None],
+    published: Collection[str] = (),
 ) -> ScrapingPhaseSummary:
     """Execute scraping phase and return summary.
 
@@ -33,6 +34,11 @@ async def run_scraping_phase(
         resolve_profile_uses_videos: Reads whether the target profile(s)
             use scraped videos, or None when that cannot be known up
             front; called once, before the scraper is built.
+        published: Product ids published on every platform the run
+            targets. The browser passes over such search results without a
+            visit, so they never take a page's product slot or count toward
+            `max_products` (#737); a product-id input among them is dropped
+            before media download.
 
     Returns:
     -------
@@ -81,6 +87,31 @@ async def run_scraping_phase(
     inputs_failed = 0
     successful_products: list[str] = []
     failed_inputs: list[str] = []
+    already_published: list[str] = []
+    published_ids = set(published)
+
+    def note_published(asins: list[str]) -> None:
+        for asin in asins:
+            if asin not in already_published:
+                already_published.append(asin)
+
+    def take_new(entry: dict) -> tuple[list[dict], bool]:
+        """The results to process, and whether any published one was passed over.
+
+        The browser already passed over published search results; this also
+        drops a product-id input that is itself published.
+        """
+        skipped = list(entry.get("skipped_asins") or [])
+        kept = []
+        for item in entry.get("products") or []:
+            asin = item.get("asin")
+            if asin and asin in published_ids:
+                skipped.append(asin)
+            else:
+                kept.append(item)
+        note_published(skipped)
+        return kept, bool(skipped)
+
     total_images = 0
     total_videos = 0
 
@@ -88,7 +119,9 @@ async def run_scraping_phase(
     logger.info("Phase 1: batch browser scrape (%d inputs)", total_inputs)
     try:
         batch_results = scraper.scrape_batch_browser(
-            all_inputs, search_params=config.scraper_filters
+            all_inputs,
+            search_params=config.scraper_filters,
+            skip_asins=published_ids,
         )
     except Exception as e:
         logger.error("Batch browser scrape failed: %s", e)
@@ -97,9 +130,9 @@ async def run_scraping_phase(
         batch_results = []
 
     # Build a lookup so we can iterate in original order
-    results_by_input: dict[str, list[dict]] = {}
+    results_by_input: dict[str, dict] = {}
     for entry in batch_results:
-        results_by_input[entry["input"]] = entry.get("products", [])
+        results_by_input[entry["input"]] = entry
 
     # --- Phase 2: per-keyword post-processing ---
     logger.info("Phase 2: media download and validation")
@@ -127,8 +160,12 @@ async def run_scraping_phase(
             collected,
         )
 
-        raw_products = results_by_input.get(input_item, [])
-        if not raw_products:
+        raw_products, saw_published = take_new(results_by_input.get(input_item, {}))
+        # Whether a product the run could render reached validation: an
+        # input that only met published ones has nothing new, and is not a
+        # failure (#737); one whose new candidates failed still is.
+        sent_unpublished = bool(raw_products)
+        if not raw_products and not saw_published:
             inputs_failed += 1
             failed_inputs.append(input_item)
             logger.warning("[%s/%s] No data for %s", idx, total_inputs, input_item)
@@ -173,17 +210,26 @@ async def run_scraping_phase(
                         [input_item],
                         search_params=config.scraper_filters,
                         start_page=page,
+                        skip_asins=published_ids,
                     )
-                    extra_raw = []
+                    extra_raw: list[dict] = []
+                    page_saw_published = False
                     for entry in extra_results:
-                        extra_raw.extend(entry.get("products", []))
-                    if not extra_raw:
+                        kept, saw = take_new(entry)
+                        extra_raw.extend(kept)
+                        page_saw_published = page_saw_published or saw
+                    saw_published = saw_published or page_saw_published
+                    if not extra_raw and not page_saw_published:
                         logger.info(
                             "No more results for %s on page %d",
                             input_item,
                             page,
                         )
                         break
+                    if not extra_raw:
+                        page += 1
+                        continue
+                    sent_unpublished = True
                     extra_products = scraper.process_raw_products(
                         extra_raw,
                         target_download_count=remaining,
@@ -212,6 +258,15 @@ async def run_scraping_phase(
                     idx,
                     total_inputs,
                     len(products),
+                    input_item,
+                )
+            elif saw_published and not sent_unpublished:
+                # Nothing new behind this input: a normal outcome once the
+                # rotation comes round again, not a failed input.
+                logger.info(
+                    "[%s/%s] No unpublished product for %s",
+                    idx,
+                    total_inputs,
                     input_item,
                 )
             else:
@@ -245,6 +300,12 @@ async def run_scraping_phase(
     duration = time.monotonic() - phase_start
     media_stats = {"total_images": total_images, "total_videos": total_videos}
 
+    if already_published:
+        logger.info(
+            "Skipped %s already-published search result(s): %s",
+            len(already_published),
+            ", ".join(already_published),
+        )
     logger.info(
         "Scraping phase complete: %s products from %s inputs " "(%s failed) in %.1fs",
         len(successful_products),
@@ -264,6 +325,7 @@ async def run_scraping_phase(
         failed_products=failed_inputs,
         dead_queries=scraper.throttle.dead_queries,
         throttled_inputs=scraper.throttle.throttled_inputs,
+        already_published=already_published,
         media_stats=media_stats,
         duration_sec=duration,
     )

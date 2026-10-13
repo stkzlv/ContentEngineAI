@@ -21,7 +21,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--topic-description` | `TEXT` | none | Source material the topic script is written from, with `--topic`. |
 | `--topic-keywords` | `TERMS` | none | Comma-separated stock media search terms for the topic. |
 | `--topics-file` | `FILE` | none | A YAML list of topics to render, each with a title and an optional description, keywords and `search` (the search the content research measures it by). |
-| `--max-products` | `N` | `global_batch.max_products` | Cap on the products collected across all keywords. |
+| `--max-products` | `N` | `global_batch.max_products` | Cap on the products collected across all keywords. A product already published on every target platform is skipped and does not count. |
 | `--products-per-keyword` | `N` | `global_batch.products_per_keyword` | Cap on the products scraped for one keyword. |
 
 ### Scraper filters
@@ -92,7 +92,7 @@ The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds unt
 | `topics_file` | `null` | A file whose topics replace `topics`. A relative path resolves against `config/`. `PIPELINE_TOPICS_FILE` overrides it; a missing file is an error. |
 | `topics_per_run` | `1` | How many topics a run with no input flags includes, taken in rotation by date. `0` renders products only. Topics on the command line ignore it. |
 | `alternate_formats` | `true` | A run with no input flags renders one side per day, topics or products, chosen by date parity. A side with nothing configured falls back to the other with a warning. |
-| `max_products` | `10` | Cap on the products collected across all keywords. |
+| `max_products` | `10` | Cap on the products collected across all keywords. A product already published on every target platform is skipped and does not count. |
 | `products_per_keyword` | `1` | Cap on the products scraped for one keyword. |
 | `scraper_filters` | all `null` | `min_price`, `max_price`, `min_rating` and `prime_only`. A `null` takes `scrapers.amazon.default_search_parameters` from `config/scraper.yaml`; a flag overrides both. |
 

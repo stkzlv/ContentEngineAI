@@ -75,3 +75,49 @@ def test_asin_input_non_debug_path_runs(monkeypatch):
     result = scrape_amazon_products_browser_impl(driver, data)
 
     assert result == []
+
+
+@pytest.mark.req("REQ-BAT-088")
+def test_a_published_search_result_is_passed_over_without_taking_a_slot(
+    monkeypatch,
+):
+    """With one product per page, a published top result must not end the page.
+
+    The page stops at `max_products` products, so a published result that
+    took the slot left the next result on the page unseen (#737).
+    """
+    from types import SimpleNamespace
+
+    cards = [MagicMock(name=asin) for asin in ("B0PUB", "B0NEW", "B0LATER")]
+    monkeypatch.setattr(browser_functions, "raise_if_error_page", lambda _d: None)
+    monkeypatch.setattr(
+        browser_functions,
+        "extract_serp_product_info",
+        lambda card, _kw: SimpleNamespace(
+            asin=card._mock_name, url=f"https://www.amazon.com/dp/{card._mock_name}"
+        ),
+    )
+    visited: list[str] = []
+
+    def fake_extract(_driver, asin, *_a, **_k):
+        visited.append(asin)
+        return {"asin": asin, "images": ["https://img/1.jpg"], "videos": []}
+
+    monkeypatch.setattr(
+        browser_functions, "extract_product_data_from_page", fake_extract
+    )
+    driver = MagicMock()
+    driver.is_bot_detected.return_value = False
+    driver.select_all.return_value = cards
+    data = {
+        "keyword": "phone stand",
+        "debug_mode": False,
+        "max_products": 1,
+        "skip_asins": ["B0PUB"],
+    }
+
+    result = scrape_amazon_products_browser_impl(driver, data)
+
+    assert [p["asin"] for p in result] == ["B0NEW"]
+    assert visited == ["B0NEW"]
+    assert data["skipped_asins"] == ["B0PUB"]

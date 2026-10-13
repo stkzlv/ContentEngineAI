@@ -252,6 +252,7 @@ def _merge_scraping_summaries(
         failed_products=[p for s in present for p in s.failed_products],
         dead_queries=[q for s in present for q in s.dead_queries],
         throttled_inputs=[i for s in present for i in s.throttled_inputs],
+        already_published=[p for s in present for p in s.already_published],
         media_stats=media,
         duration_sec=sum(s.duration_sec for s in present),
     )
@@ -478,6 +479,9 @@ class GlobalPipelineOrchestrator:
         self.state.advance_phase(PipelinePhase.HANDOFF)
         self._save_state()
 
+        # Products the scrape skipped as published count as dropped too, so
+        # a run that found nothing new still ends as "nothing new".
+        self._scrape_skipped_as_published = list(scraping_summary.already_published)
         ready_products = self._execute_handoff_phase(
             scraping_summary.successful_products
         )
@@ -694,7 +698,11 @@ class GlobalPipelineOrchestrator:
 
     async def _execute_scraping_phase(self) -> ScrapingPhaseSummary:
         """Scrape the inputs; the body lives in `src.pipeline.phases.scraping`."""
-        return await run_scraping_phase(self.config, self._resolve_profile_uses_videos)
+        return await run_scraping_phase(
+            self.config,
+            self._resolve_profile_uses_videos,
+            published=self._published_everywhere_ids(),
+        )
 
     def _materialise_topics_phase(self) -> ScrapingPhaseSummary:
         """Stand in for the scraping phase when the inputs are topics.
@@ -859,15 +867,55 @@ class GlobalPipelineOrchestrator:
         such publish is already counted a failure -- but it is worth knowing
         that this goes silent rather than half-firing.
         """
+        scrape_skipped = list(getattr(self, "_scrape_skipped_as_published", []))
+        kept, skipped = [], []
+        for path, data in products:
+            asin = getattr(data, "asin", None)
+            if asin and self._published_everywhere(asin):
+                skipped.append(asin)
+            else:
+                kept.append((path, data))
+
+        if skipped:
+            logger.info(
+                "Skipping %s already-published product(s) before render: %s",
+                len(skipped),
+                ", ".join(skipped),
+            )
+        self._skipped_as_published = scrape_skipped + [
+            asin for asin in skipped if asin not in scrape_skipped
+        ]
+        return kept
+
+    def _published_everywhere_ids(self) -> set[str]:
+        """Every product id `_published_everywhere` holds true for.
+
+        The scrape needs the set up front, to pass over those search results
+        in the browser before they take a page's product slot.
+        """
+        from src.publisher.tracking import load_tracking
+
+        posts = load_tracking(self.config.outputs_dir).get("posts", {})
+        candidates = {key.rpartition(":")[0] for key in posts if ":" in key}
+        return {
+            asin for asin in candidates if asin and self._published_everywhere(asin)
+        }
+
+    def _published_everywhere(self, asin: str) -> bool:
+        """Whether the run should skip this product as already published.
+
+        The one rule both the scrape and the handoff apply: published on
+        every platform this run targets, never for a topic, and never under
+        `--force` or `--skip-publish`.
+        """
         from src.publisher.tracking import is_already_published
 
         if (
             getattr(self.config, "force", False)
             or getattr(self.config, "skip_publish", False)
-            or not products
+            or asin.startswith(TOPIC_ID_PREFIX)
         ):
-            return products
-
+            return False
         # The list the publish phase will actually target, read the same way
         # it reads it. A hardcoded triple demanded tiktok of an install whose
         # `default_platforms` omits it, so a product complete for that install
@@ -882,29 +930,10 @@ class GlobalPipelineOrchestrator:
             platform.lower()
             for platform in (self.config.platforms or self._default_platforms())
         ]
-        kept, skipped = [], []
-        for path, data in products:
-            asin = getattr(data, "asin", None)
-            if (
-                asin
-                and not asin.startswith(TOPIC_ID_PREFIX)
-                and all(
-                    is_already_published(asin, platform, self.config.outputs_dir)
-                    for platform in platforms
-                )
-            ):
-                skipped.append(asin)
-            else:
-                kept.append((path, data))
-
-        if skipped:
-            logger.info(
-                "Skipping %s already-published product(s) before render: %s",
-                len(skipped),
-                ", ".join(skipped),
-            )
-        self._skipped_as_published = skipped
-        return kept
+        return all(
+            is_already_published(asin, platform, self.config.outputs_dir)
+            for platform in platforms
+        )
 
     def _publisher_profiles(self) -> dict[str, str] | None:
         """Per-platform render profiles, as the publish phase would read them.
