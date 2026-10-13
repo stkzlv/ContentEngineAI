@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+_BUILT: dict = {}
+
 
 class _BuiltError(Exception):
     """Raised by the fake scraper to stop `main` once it has the arguments."""
@@ -31,9 +33,16 @@ class TestTheStandaloneScraperTakesTheOutputsRoot:
         monkeypatch.setattr(scraper_cli, "BotasaurusAmazonScraper", fake)
         monkeypatch.setattr(scraper_cli, "_start_logging", lambda: None)
         monkeypatch.setattr(scraper_cli, "_resolve_debug", lambda *_a: None)
+        # `main` loads `.env`, which would put back a variable a test removed.
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *_a, **_k: None)
+        cleaned: list = []
+        monkeypatch.setattr(scraper_cli, "_clean_outputs", cleaned.append)
+        seen["cleaned"] = cleaned
         monkeypatch.setattr("sys.argv", ["scraper", "--keywords", "x", *argv])
         with pytest.raises(_BuiltError):
             scraper_cli.main()
+        _BUILT.clear()
+        _BUILT.update(seen)
         return seen["output_dir"]
 
     def test_the_environment_moves_the_root(self, monkeypatch, tmp_path):
@@ -56,3 +65,34 @@ class TestTheStandaloneScraperTakesTheOutputsRoot:
         monkeypatch.delenv("CONTENT_ENGINE_OUTPUT", raising=False)
 
         assert self._built_with(monkeypatch, []) == str(get_project_root() / "outputs")
+
+    def test_clean_cleans_the_root_the_scrape_uses(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("OUTPUTS_DIR", str(tmp_path / "env-root"))
+
+        self._built_with(monkeypatch, ["--clean"])
+
+        assert _BUILT["cleaned"] == [tmp_path / "env-root"]
+
+    def test_a_root_whose_parent_is_missing_is_created(self, monkeypatch, tmp_path):
+        root = tmp_path / "a" / "b" / "outputs"
+        monkeypatch.setenv("OUTPUTS_DIR", str(root))
+
+        self._built_with(monkeypatch, [])
+
+        assert root.is_dir()
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-OPS-115")
+def test_clean_removes_products_under_the_given_root_only(tmp_path):
+    from src.scraper.amazon import cli as scraper_cli
+
+    root, other = tmp_path / "root", tmp_path / "other"
+    (root / "B0AAAAAAAA").mkdir(parents=True)
+    (root / "reports").mkdir()
+    (other / "B0BBBBBBBB").mkdir(parents=True)
+
+    scraper_cli._clean_outputs(root)
+
+    assert sorted(p.name for p in root.iterdir()) == ["reports"]
+    assert (other / "B0BBBBBBBB").is_dir()

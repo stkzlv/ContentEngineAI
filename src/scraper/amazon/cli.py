@@ -35,7 +35,7 @@ from src.utils.outputs_paths import (
 )
 
 from . import scraper as scraper_module
-from .config import get_default_search_parameters, get_output_path
+from .config import get_default_search_parameters
 from .models import SearchParameters
 from .scraper import BotasaurusAmazonScraper, WebsocketFilter
 
@@ -481,13 +481,12 @@ def _log_debug_options(args: argparse.Namespace, config_debug_mode: bool) -> Non
             logger.debug("%s", message)
 
 
-def _clean_outputs() -> None:
+def _clean_outputs(base_output_path: Path) -> None:
     """Remove scraped product directories and scraper working files.
 
-    The project root, not the working directory, because Botasaurus changes
-    it; reports and logs are left alone.
+    Under the outputs root the scrape then writes to, resolved from the flag
+    and the environment; reports and logs are left alone.
     """
-    base_output_path = get_project_root() / get_output_path("base")
     if not base_output_path.exists():
         return
 
@@ -779,8 +778,16 @@ def main() -> None:
 
     _resolve_debug(args, log_file)
 
+    # The outputs root every module resolves: `--output-dir`, then
+    # OUTPUTS_DIR / CONTENT_ENGINE_OUTPUT, then the repository's `outputs/`.
+    # The scraper alone ignored the environment, and `--clean` cleaned the
+    # repository tree whatever the scrape used (#740). Created here, parents
+    # included, since the product writer creates only the last level.
+    outputs_root = resolve_outputs_dir(getattr(args, "output_dir", None))
+    outputs_root.mkdir(parents=True, exist_ok=True)
+
     if args.clean:
-        _clean_outputs()
+        _clean_outputs(outputs_root)
 
     if args.debug:
         from ...utils.outputs_paths import get_temp_directory
@@ -817,10 +824,7 @@ def main() -> None:
                 "analyze_images": args.analyze_images if args.debug else False,
                 "dump_image_urls": args.dump_image_urls if args.debug else False,
             },
-            # The outputs root every module resolves: `--output-dir`, then
-            # OUTPUTS_DIR / CONTENT_ENGINE_OUTPUT, then the repository's
-            # `outputs/`. The scraper alone ignored the environment (#740).
-            output_dir=str(resolve_outputs_dir(getattr(args, "output_dir", None))),
+            output_dir=str(outputs_root),
             profile_uses_videos=args.profile_uses_videos,
         )
 

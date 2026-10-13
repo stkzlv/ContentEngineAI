@@ -22,7 +22,7 @@ The parser is `build_argument_parser` in `src/scraper/amazon/cli.py`. A run with
 | `--batch-size` | `N` | all at once | Processes the product ids in chunks of N. Keywords are searched once, with the first chunk. |
 | `--fail-fast` / `--no-fail-fast` | switch | `batch.fail_fast` | Stops the batch at the first failed input, or continues past it. |
 | `--strict` | switch | off | Exits non-zero when any product id or keyword produced nothing, not only when the run scraped nothing. |
-| `--clean` | switch | off | Before scraping, deletes the product directories (named by ASIN), the `cache`, `temp` and `screenshots` directories, and loose `.json`, `.csv`, `.xlsx` and `.html` files under the configured output base. Logs and files whose names start with `report` stay. |
+| `--clean` | switch | off | Before scraping, deletes the product directories (named by ASIN), the `cache`, `temp` and `screenshots` directories, and loose `.json`, `.csv`, `.xlsx` and `.html` files under the outputs root the scrape writes to (`--output-dir`, else `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/`). Logs and files whose names start with `report` stay. |
 | `--output-dir` | `DIR` | `OUTPUTS_DIR` or `CONTENT_ENGINE_OUTPUT`, else the repository's `outputs/` | Writes the scraped products under this directory. |
 | `--no-profile-uses-videos` | switch | off | Scrapes for an image-only profile: no video is extracted or downloaded, and images must meet the minimums on their own. |
 | `--profile-uses-videos` | switch | off | Keeps the configured media requirements, which count videos. The same as passing neither flag. |
@@ -140,7 +140,7 @@ A flag on the command line overrides the YAML, and the YAML overrides the model 
 | `count_products_with_media` | bool | `true` | Counts only products that pass media validation. |
 | `retries` | int | `3` | Browser task retries. Not in the bundled YAML. |
 | `proxy` | string or null | `null` | Browser proxy. Not in the bundled YAML. |
-| `output_config.base_directory` | string | `outputs` | Base directory for scraper outputs. |
+| `output_config.base_directory` | string | `outputs` | Base directory for the scraper's cache, temp and debug files. Products and `--clean` use the outputs root instead. |
 | `output_config.file_patterns` | mapping | `product_file: "{keyword}_products.json"`, `image_file: "{asin}_image_{index}.{ext}"`, `video_file: "{asin}_video_{index}.{ext}"` | File name patterns. |
 
 #### `retry_config`
