@@ -1128,12 +1128,15 @@ def _unified_title(ctx: PipelineContext) -> str | None:
     if not settings.short_product_titles or getattr(ctx.product, "topic", None):
         return ctx.product.title
     from src.video.product_title import short_title
+    from src.video.search_phrase import search_phrase
 
     platforms = settings.platform_metadata
     max_len = platforms.youtube.title_length_max if platforms else 60
+    # The search phrase, not the raw keyword: an id-scraped product's keyword
+    # is its id, which would open the title (#748).
     return short_title(
         ctx.product.title or "",
-        getattr(ctx.product, "keyword", None),
+        search_phrase(ctx.product),
         _hook_headline(ctx),
         max_len,
     )

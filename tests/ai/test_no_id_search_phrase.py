@@ -48,3 +48,26 @@ def test_a_real_keyword_still_leads(keyword):
 
     assert search_phrase(product) == keyword
     assert f'"{keyword}"' in search_phrase_rule(product, _settings())
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-PUB-008")
+def test_the_short_youtube_title_does_not_open_with_the_id():
+    from src.video.config import config
+    from src.video.producer import steps
+
+    cfg = config.model_copy(deep=True)
+    cfg.description_settings.short_product_titles = True
+    ctx = SimpleNamespace(
+        config=cfg,
+        product=SimpleNamespace(
+            title="Smart Watch for Men Women, 1.83 HD Touch Screen",
+            keyword="B0TESTID01",
+            topic=None,
+        ),
+        state={
+            "generate_script": {"hook_headline": "Track your sleep without a phone"}
+        },
+    )
+
+    assert steps._unified_title(ctx) == "Track your sleep without a phone"

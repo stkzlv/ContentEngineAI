@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A product scraped from its id or a URL no longer has that id or URL as its search phrase, so its captions no longer open with the product id.
+- A product scraped from its id or a URL no longer has the id as its search phrase, so its captions and its short YouTube title no longer open with the product id.
 
 ## [0.205.0] - 2026-10-13
 

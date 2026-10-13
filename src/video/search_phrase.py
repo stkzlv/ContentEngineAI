@@ -21,7 +21,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from src.scraper.amazon.utils import validate_asin_format
 from src.utils.script_sanitizer import split_sentences
 
 logger = logging.getLogger(__name__)
@@ -79,6 +78,10 @@ def search_phrase(product: Any) -> str | None:
     """
     if getattr(product, "topic", None):
         return getattr(product, "title", None) or None
+    # Imported here: the scraper's utils load the browser stack, which a
+    # render has no other use for (#470).
+    from src.scraper.amazon.utils import validate_asin_format
+
     keyword = (getattr(product, "keyword", "") or "").strip()
     if not keyword or validate_asin_format(keyword):
         return None
