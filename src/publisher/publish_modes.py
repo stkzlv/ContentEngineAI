@@ -52,13 +52,6 @@ def _build_platform_contents_with_comments(
         meta = metadata_by_platform.get(platform_name) if metadata_by_platform else None
         entry: dict[str, str] = {}
         if meta is not None:
-            if platform_name == Platform.YOUTUBE.value:
-                meta = youtube_metadata(
-                    meta,
-                    product_id,
-                    pointer=getattr(publisher, "youtube_profile_pointer", True),
-                )
-            entry["content"] = meta.format_content()
             title = getattr(meta, "title", None)
             if not title:
                 # Unified mode maps one platform's metadata onto every
@@ -68,6 +61,14 @@ def _build_platform_contents_with_comments(
                 # back to the platform's own file for the title only.
                 own = load_platform_metadata(product_id, platform_name, outputs_dir)
                 title = getattr(own, "title", None) if own else None
+            if platform_name == Platform.YOUTUBE.value:
+                meta = youtube_metadata(
+                    meta,
+                    product_id,
+                    pointer=getattr(publisher, "youtube_profile_pointer", False),
+                    title=title,
+                )
+            entry["content"] = meta.format_content()
             if title:
                 entry["title"] = title
         if fc_config is not None and comments_enabled:

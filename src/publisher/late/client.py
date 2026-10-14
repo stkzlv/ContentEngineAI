@@ -120,7 +120,7 @@ class LatePublisher(BasePublisher):
         tiktok_settings: TikTokContentSettings | None = None,
         first_comment_config: FirstCommentConfig | None = None,
         synthetic_media_disclosure: bool = False,
-        youtube_profile_pointer: bool = True,
+        youtube_profile_pointer: bool = False,
         covers_enabled: bool = False,
     ):
         """Initialize Late.dev publisher client.
@@ -138,7 +138,8 @@ class LatePublisher(BasePublisher):
                 content flag. Off by default; the policy excludes AI narration,
                 AI scripts and stock footage (optional)
             youtube_profile_pointer: End a product video's YouTube
-                description on "Link in bio." (default on)
+                description on "Link in bio."; off removes a bare pointer line
+                (default off)
             covers_enabled: Send each uploaded video's render cover with
                 its post (default off)
 

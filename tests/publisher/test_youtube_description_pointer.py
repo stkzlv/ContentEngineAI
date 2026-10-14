@@ -92,6 +92,25 @@ class TestYouTubeEntry:
         assert "Link in bio." not in content["youtube"]
         assert "amzn.to" not in content["youtube"]
 
+    def test_off_a_stale_pointer_line_is_removed(self):
+        # Metadata written while the pointer was on still ends on it.
+        meta = _meta("A comfy tilted bowl.\n\nTeam A or team B?\n\nLink in bio.")
+
+        content = _entries(meta, "B0TESTPTR1", pointer=False)
+
+        assert content["youtube"].startswith(
+            "A comfy tilted bowl.\n\nTeam A or team B?"
+        )
+        assert "bio" not in content["youtube"]
+        assert "Link in bio." in content["tiktok"]
+
+    def test_on_a_pointer_line_is_kept(self):
+        meta = _meta("A comfy tilted bowl.\n\nLink in bio.")
+
+        content = _entries(meta, "B0TESTPTR1")
+
+        assert content["youtube"].count("Link in bio.") == 1
+
     @pytest.mark.parametrize("words", [1100, 990, 996])
     def test_a_long_caption_fits_youtube_and_keeps_the_pointer(self, words):
         # 990 and 996 sit just under YouTube's budget, where appending the
@@ -187,16 +206,47 @@ class TestTheSchedulerPathsToo:
         assert "Link in bio." in entries["youtube"]["content"]
         assert "Link in bio." not in entries["tiktok"]["content"]
 
+    @pytest.mark.asyncio
+    async def test_unified_off_a_pointer_only_description_takes_the_title(
+        self, tmp_path
+    ):
+        from src.publisher.schedule import ScheduleManager
+
+        manager = ScheduleManager(schedule_path=tmp_path / "schedule.json")
+        publisher, calls = _schedule_publisher(pointer=False)
+        tiktok = PublishMetadata(
+            platform=Platform.TIKTOK,
+            title=None,
+            description="Link in bio: https://amzn.to/x",
+            hashtags=["cat"],
+            keywords=[],
+            product_id="B0TESTPTR1",
+            disclosure="#ad",
+            carries_affiliate_content=False,
+        )
+        metas = {"tiktok": tiktok, "youtube": _meta("unused")}
+
+        await manager._post_unified(**self._kwargs(tmp_path, publisher, metas))
+
+        youtube = calls[0]["platform_contents"]["youtube"]["content"]
+        assert youtube.startswith("Tilted cat bowl")
+        assert "bio" not in youtube.lower() and "amzn" not in youtube
+
 
 @pytest.mark.unit
 @pytest.mark.req("REQ-CNT-150")
-def test_the_bundled_config_turns_the_pointer_on(monkeypatch):
+@pytest.mark.req("REQ-OPS-121")
+def test_the_bundled_config_ships_the_pointer_off(monkeypatch):
+    # Decision 0017: an installation with a bio link turns it on in its
+    # private overlay.
     from src.publisher.config import load_publisher_config
+    from src.utils.youtube_description import profile_pointer_on
 
     monkeypatch.delenv("LATE_API_KEY", raising=False)
     config = load_publisher_config(cli_overrides={"api_key": "sk_test_" + "x" * 40})
 
-    assert config.youtube_profile_pointer is True
+    assert config.youtube_profile_pointer is False
+    assert profile_pointer_on() is False
 
 
 @pytest.mark.unit
@@ -207,3 +257,81 @@ def test_the_bundled_config_turns_the_pointer_on(monkeypatch):
 )
 def test_pointer_phrasings_are_recognised(text):
     assert with_profile_pointer(text) == text
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Great bowl.\n\nLink in bio.", "Great bowl."),
+        ("Great bowl.\nlinks in my bio!\nMore text.", "Great bowl.\nMore text."),
+        ("Great bowl.\nThe link is in the bio", "Great bowl."),
+        # A sentence that only mentions the bio stays: it says something else.
+        ("The link in bio has the size chart.", "The link in bio has the size chart."),
+        ("No pointer here.", "No pointer here."),
+    ],
+)
+def test_without_profile_pointer(text, expected):
+    from src.utils.youtube_description import without_profile_pointer
+
+    assert without_profile_pointer(text) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(True, True), ("false", False), ("true", False), (False, False)],
+)
+def test_the_publisher_reads_the_pointer_as_the_render_does(value, expected):
+    # Only a YAML `true` is on, on both sides, so a quoted value can't have
+    # the prompts drop the pointer while the publisher appends it.
+    from unittest.mock import patch
+
+    from src.publisher.models import PublisherConfig
+    from src.publisher.registry import create_publisher_from_config
+
+    config = PublisherConfig(
+        provider="late", api_key="sk_live_" + "0" * 48, youtube_profile_pointer=value
+    )
+    with patch("src.publisher.registry.create_publisher") as factory:
+        create_publisher_from_config(config)
+
+    assert factory.call_args.kwargs["youtube_profile_pointer"] is expected
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+@pytest.mark.req("REQ-PUB-148")
+@pytest.mark.parametrize("text", ["Link in bio.", "Link in bio: https://amzn.to/abc"])
+def test_off_a_pointer_only_description_becomes_the_title(text):
+    youtube = youtube_metadata(_meta(text), "B0TESTPTR1", pointer=False)
+
+    assert youtube.description == "Tilted cat bowl"
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+def test_off_unified_tiktok_metadata_takes_youtubes_own_title(tmp_path, monkeypatch):
+    # Unified mode may hand YouTube TikTok's metadata, which has no title.
+    meta = PublishMetadata(
+        platform=Platform.TIKTOK,
+        title=None,
+        description="Link in bio.",
+        hashtags=["cat"],
+        keywords=[],
+        product_id="B0TESTPTR1",
+        disclosure="#ad",
+        carries_affiliate_content=False,
+    )
+    youtube_own = MagicMock(title="Tilted cat bowl")
+    monkeypatch.setattr(
+        "src.publisher.publish_modes.load_platform_metadata",
+        lambda pid, name, out: youtube_own if name == "youtube" else None,
+    )
+
+    content = _entries(meta, "B0TESTPTR1", pointer=False)
+
+    assert content["youtube"].startswith("Tilted cat bowl")
+    assert "bio" not in content["youtube"].lower()

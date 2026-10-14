@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from src.utils.youtube_description import pointer_placeholders
+
 
 def load_prompt_template(path: Path) -> str:
     """Load prompt template from file (test utility)."""
@@ -96,6 +98,7 @@ class TestYouTubeTemplateStructure:
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
             "VIDEO_SCRIPT": "",
+            **pointer_placeholders(on=False),
         }
 
         formatted = self.template.format(**sample_data)
@@ -167,6 +170,7 @@ class TestTikTokTemplateStructure:
             "FULL_PRODUCT_NAME": "Test Product - Wireless Headphones",
             "PRODUCT_DESCRIPTION": "High-quality wireless headphones with noise cancellation",
             "VIDEO_SCRIPT": "",
+            **pointer_placeholders(on=False),
         }
 
         formatted = self.template.format(**sample_data)
@@ -251,6 +255,7 @@ class TestInstagramTemplateStructure:
             "CAPTION_STYLE": "seo",
             "EMOJI_ENABLED": "Use emojis",
             "VIDEO_SCRIPT": "",
+            **pointer_placeholders(on=False),
         }
 
         formatted = self.template.format(**sample_data)
@@ -273,6 +278,7 @@ class TestInstagramTemplateStructure:
             "CAPTION_STYLE": "short",
             "EMOJI_ENABLED": "No emojis",
             "VIDEO_SCRIPT": "",
+            **pointer_placeholders(on=False),
         }
 
         formatted = self.template.format(**sample_data)

@@ -15,7 +15,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-118** `shipped` Each overlay applied is logged once per process, with its path.
 - **REQ-OPS-119** `shipped` With `CONFIG_OVERLAYS=off` in the environment no overlay is read, and the test suite runs with overlays off.
 - **REQ-OPS-120** `shipped` Git ignores every `*.private.yaml` overlay, and the repository ships example overlays for the publisher and the script settings (`config/publisher.private.yaml.example`, `config/ai_services.private.yaml.example`).
-- **REQ-OPS-121** `shipped` The shipped config holds generic defaults: no installation's posting schedule, signature pools, CTA lists, first-comment templates or link-in-bio provider, and the TikTok AI-content label on ([decision 0017](../decisions/0017-the-shipped-config-is-generic.md)).
+- **REQ-OPS-121** `shipped` The shipped config holds generic defaults: no installation's posting schedule, signature pools, CTA lists, first-comment templates, link-in-bio provider or YouTube bio-link pointer, and the TikTok AI-content label on ([decision 0017](../decisions/0017-the-shipped-config-is-generic.md)).
 
 ## Secrets
 

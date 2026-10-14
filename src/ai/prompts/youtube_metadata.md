@@ -46,17 +46,16 @@ Product Description: {PRODUCT_DESCRIPTION}
 **Closing-line Mirror:**
 
 The script above ends with one short engagement-bait line right before the
-final CTA ("Link in bio", etc.). It is either a two-option opinion question
+final CTA ({CTA_EXAMPLE}, etc.). It is either a two-option opinion question
 (e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
 spec claim (e.g. "Most people only need two ports, but three is usually
 better."). End the description with that same line, verbatim or
-near-verbatim, on its own line before the profile pointer. **Preserve the
+near-verbatim, on its own line{PP_MIRROR_BEFORE}. **Preserve the
 script's exact punctuation, including any hyphen between the two options;
 do not convert a hyphen to an em-dash or en-dash.** The closing line is
 additive to the description content (front-loaded SEO + benefits), not a
-replacement; the description still has to satisfy the rules above and end
-with the profile pointer. A link in a Shorts description is plain text that
-no one can click, so never write a URL; the clickable link is on the profile. If the Generated Spoken Script section above is
+replacement; the description still has to satisfy the rules above{PP_MIRROR_END}. A link in a Shorts description is plain text that
+no one can click, so never write a URL{PP_NO_URL}. If the Generated Spoken Script section above is
 empty, skip the mirror — produce the description as you would otherwise.
 
 ---
@@ -67,7 +66,7 @@ Return your response in the following exact format:
 
 TITLE: [Your 50-60 character title here]
 
-DESCRIPTION: [First 150 chars SEO-optimized; then benefits/features; then a blank line; then the closing engagement-bait line from the script on its own line; then a blank line; then "Link in bio." on the final line. If the script section is empty, skip the closing line and end with "Link in bio."]
+DESCRIPTION: [First 150 chars SEO-optimized; then benefits/features; then a blank line; then the closing engagement-bait line from the script on its own line{PP_FORMAT}. If the script section is empty, skip the closing line{PP_FORMAT_EMPTY}]
 
 HASHTAGS: [3-5 hashtags separated by spaces, starting with #Shorts]
 
@@ -81,9 +80,7 @@ TITLE: Wireless Earbuds With 8-Hour Battery and Noise Isolation
 
 DESCRIPTION: Looking for affordable wireless earbuds with premium sound? These budget-friendly earbuds deliver crystal-clear audio, 8-hour battery life, and comfortable all-day wear. Perfect for workouts, commutes, and everyday listening. Features include noise isolation, touch controls, and IPX5 water resistance. Great value for the price.
 
-Bass-heavy or balanced sound - which do you reach for?
-
-Link in bio.
+Bass-heavy or balanced sound - which do you reach for?{PP_EXAMPLE}
 
 HASHTAGS: #Shorts #WirelessEarbuds #BudgetTech #AudioGear #ad
 
@@ -95,9 +92,7 @@ TITLE: 20000mAh Power Bank - Charges iPhone 5X Fast Charging
 
 DESCRIPTION: Never run out of battery again with this ultra-high capacity 20000mAh portable charger. Fast charges iPhone, Samsung, and all USB devices. Includes 3 ports for simultaneous charging, LED display shows remaining power, and compact design fits in your pocket. Perfect for travel, camping, and emergencies.
 
-Team big battery or team lightweight - which side are you on?
-
-Link in bio.
+Team big battery or team lightweight - which side are you on?{PP_EXAMPLE}
 
 HASHTAGS: #Shorts #PortableCharger #TechEssentials #TravelGadgets #ad
 
@@ -109,9 +104,7 @@ TITLE: Fitness Smartwatch - Heart Rate, Sleep Tracking, 10 Days
 
 DESCRIPTION: Track your health 24/7 with this advanced fitness smartwatch featuring heart rate monitoring, sleep analysis, and 100+ workout modes. 10-day battery life, waterproof design, and smartphone notifications keep you connected. Monitor calories, steps, and blood oxygen levels. Achieve your fitness goals.
 
-Sleep tracking or step counting - which one actually changes your habits?
-
-Link in bio.
+Sleep tracking or step counting - which one actually changes your habits?{PP_EXAMPLE}
 
 HASHTAGS: #Shorts #Smartwatch #FitnessTracker #HealthTech #ad
 
@@ -124,7 +117,7 @@ KEYWORDS: fitness smartwatch, health tracker watch, heart rate monitor watch, sl
 - MUST include #Shorts as the first hashtag
 - MUST include #ad hashtag
 - First 150 characters of description are critical for SEO
-- Description ends with: closing engagement-bait line on its own line, blank line, "Link in bio." on the final line (see Closing-line Mirror rule above). Skip the closing line only if the script section is empty.
+- Description ends with: closing engagement-bait line on its own line{PP_IMPORTANT} (see Closing-line Mirror rule above). Skip the closing line only if the script section is empty.
 - Never write a URL: a Shorts description cannot be clicked.
 
 Generate the YouTube metadata below this line:

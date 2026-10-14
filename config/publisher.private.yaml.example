@@ -16,3 +16,7 @@ recurring_schedule:
 
 link_in_bio:
   enabled: false
+
+# On when the profiles carry a link: YouTube descriptions then end on
+# "Link in bio." and the metadata prompts ask for it.
+youtube_profile_pointer: false
