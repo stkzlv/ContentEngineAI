@@ -1053,6 +1053,7 @@ class ScheduleManager:
                         p_meta,
                         product_id,
                         pointer=getattr(publisher, "youtube_profile_pointer", False),
+                        title=titles.get(p_name),
                     )
                 p_content = p_meta.clamped_for([Platform(p_name)]).format_content()
                 p_content_data = {
@@ -1140,6 +1141,7 @@ class ScheduleManager:
                             pointer=getattr(
                                 publisher, "youtube_profile_pointer", False
                             ),
+                            title=titles.get(p_name),
                         )
                         .clamped_for([Platform.YOUTUBE])
                         .format_content()
