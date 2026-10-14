@@ -19,3 +19,10 @@ from src.video.config import load_video_config_modular
 def test_the_signature_sting_is_off() -> None:
     """No sting file ships, so the sting stays held."""
     assert load_video_config_modular().audio_settings.signature_sting is None
+
+
+@pytest.mark.req("REQ-VID-153")
+def test_step_cards_keep_one_layout() -> None:
+    """The layout rotation waits on a look at sample renders."""
+    graphics = load_video_config_modular().video_settings.graphics
+    assert graphics.layouts == ["centred"]

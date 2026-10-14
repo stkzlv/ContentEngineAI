@@ -835,6 +835,7 @@ class VideoAssembler:
                 subtitle_font_size_pixels,
                 self.config.video_settings.resolution[0],
                 temp_dir,
+                product_id=self.product_id,
             )
 
             # The static upper line, before the disclosure so the disclosure

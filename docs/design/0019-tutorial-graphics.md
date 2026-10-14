@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Issue:** #561
-- **Requirements:** REQ-VID-124
+- **Requirements:** REQ-VID-124, REQ-VID-153
 
 ## Context
 
@@ -45,3 +45,4 @@ None recorded.
 - Timing comes from Whisper's word timings: a card starts at the first word of its step's last path segment, spoken after the first sentence, preferring a match within three words after an action verb ("Tap General" over "The General menu opens"). Words are compared with spaces and punctuation dropped and "&" read as "and", so "BackTap" matches "Back Tap". A step is looked for within 60 words of the last step found, 60 more for each step missed since (real scripts put up to 42 words between two steps), so a step that doesn't match its own narration isn't found in the closing recap, and a path segment that is only a placeholder ("[App Name]") is matched by the action's first word instead. Timings come from the pycaps engine's transcript, so a render on the FFmpeg engine draws no cards. A card ends when the next starts, after at most `max_sec`; a step not found, or on screen less than `min_sec`, gets no card.
 - Cards sit where the hook overlay sits (28% from the top) and start after it ends, so one graphic is on screen at a time. A path longer than `max_path_words` keeps its last segments after "...".
 - On a real topic render (five steps, 49 s) all five cards were drawn, each starting within a word of its step's narration.
+- The step card has three layouts (REQ-VID-153): `centred` (the counter over the path in the middle), `left` (both lines from the left edge of `max_width_fraction`) and `inline` ("Step 2 of 4: Settings > General" as one line at the path's size). Each video draws one from an md5 hash of its product id, so a re-render keeps it. `graphics.layouts` ships as `[centred]`, which keeps every card as before; listing more turns the rotation on.
