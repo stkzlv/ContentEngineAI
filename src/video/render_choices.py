@@ -54,6 +54,7 @@ DIMENSIONS = (
     "transition_sec",
     "ending",
     "beat_snap_moved",
+    "step_card_layout",
     # Lists, where each element counts on its own.
     "still_moves",
     "sound_effects",
@@ -161,6 +162,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "still_moves": assembly.get("still_moves"),
         "beat_snap_moved": assembly.get("beat_snap_moved"),
         "sound_effects": assembly.get("sound_effects"),
+        "step_card_layout": assembly.get("step_card_layout"),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),

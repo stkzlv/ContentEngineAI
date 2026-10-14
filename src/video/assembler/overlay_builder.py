@@ -572,7 +572,8 @@ def build_step_card_drawtext(
     `enable=between(t\,a\,b)` gate. A card with no path draws the counter
     alone. The path's font shrinks until the line fits `max_width_fraction`
     of the frame. `left` starts both lines at the left edge of that width;
-    `inline` draws "counter: path" as one line at the path's size.
+    `inline` draws "counter: path" as one line at the path's size, and
+    stacks a card whose line can't fit.
     """
     counter_px = max(8, int(subtitle_font_size_pixels * settings.counter_size_factor))
     path_px_start = max(8, int(subtitle_font_size_pixels * settings.path_size_factor))
@@ -588,8 +589,11 @@ def build_step_card_drawtext(
         if layout == "inline":
             text = f"{card.counter}: {card.path}" if card.path else card.counter
             size = _fit_font(text, path_px_start, max_px, int(counter_px * 0.8))
-            lines.append((text, size, y, card.start, card.end))
-            continue
+            # A line that still overflows at the floor would run off the
+            # frame; that card is stacked instead.
+            if _estimate_hook_text_width(text, size) <= max_px:
+                lines.append((text, size, y, card.start, card.end))
+                continue
         lines.append((card.counter, counter_px, y, card.start, card.end))
         if card.path:
             path_px = _fit_font(card.path, path_px_start, max_px, int(counter_px * 0.8))

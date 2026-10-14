@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `video_settings.graphics.layouts` gives the tutorial step card three layouts (centred, left-aligned and one-line), one drawn per video from its product id; it ships as `[centred]`, so cards look as before until more layouts are listed.
+- `video_settings.graphics.layouts` gives the tutorial step card three layouts (centred, left-aligned and one-line), one drawn per video from its product id and recorded with the render's choices; it ships as `[centred]`, so cards look as before until more layouts are listed.
 
 ## [0.213.0] - 2026-10-14
 

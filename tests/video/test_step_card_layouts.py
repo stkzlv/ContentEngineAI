@@ -129,3 +129,66 @@ def test_ffmpeg_draws_the_left_layout_at_the_margin(tmp_path: Path) -> None:
     left = _left_edge_of_box(tmp_path, "left")
     assert 100 <= left <= 110
     assert _left_edge_of_box(tmp_path, "centred") > left + 50
+
+
+LONG = StepCard(
+    "Step 3 of 5", "Settings > Notifications > Notification Summary", 0.5, 1.0
+)
+
+
+@pytest.mark.req("REQ-VID-153")
+def test_an_inline_line_that_cannot_fit_is_stacked(tmp_path: Path) -> None:
+    settings = GraphicsSettings(enabled=True, layouts=["inline"])
+    chain = apply_step_card_overlay(
+        ["[0:v]copy[v_out]"], settings, [CARD, LONG], 96, 1080, tmp_path
+    )
+    # One line for the short card, two for the long one.
+    assert len(chain[-2].split(";")) == 3
+
+
+def _white_extent(tmp_path: Path, card: StepCard, layout: StepCardLayout) -> range:
+    chain = apply_step_card_overlay(
+        ["[0:v]copy[v_out]"],
+        GraphicsSettings(enabled=True, layouts=[layout]),
+        [card],
+        96,
+        1080,
+        tmp_path,
+    )
+    raw = subprocess.run(
+        [
+            "ffmpeg", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=0x808080:s=1080x1920:r=10:d=1.5",
+            "-filter_complex", ";".join([*chain, "[v_out]format=gray[g]"]),
+            "-map", "[g]", "-ss", "0.75", "-frames:v", "1",
+            "-f", "rawvideo", "-",
+        ],
+        check=True,
+        capture_output=True,
+    ).stdout  # fmt: skip
+    columns = [i % 1080 for i, v in enumerate(raw) if v > 200]
+    return range(min(columns), max(columns) + 1)
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
+@pytest.mark.req("REQ-VID-153")
+@pytest.mark.parametrize("layout", ["centred", "left", "inline"])
+def test_ffmpeg_keeps_a_long_path_inside_the_frame(
+    tmp_path: Path, layout: StepCardLayout
+) -> None:
+    extent = _white_extent(tmp_path, LONG, layout)
+    assert extent.start > 20
+    assert extent.stop < 1060
+
+
+@pytest.mark.req("REQ-VID-153")
+def test_the_assembler_records_the_layout_it_drew() -> None:
+    from src.video.assembler import core
+
+    assemble = inspect.getsource(core.VideoAssembler.assemble_video)
+    record = assemble[assemble.index("self.step_card_layout = (") :]
+    assert "pick_step_card_layout(" in record[:300]
+    assert "if video_filters != unchanged" in record[:300]
+    assert '"step_card_layout": self.step_card_layout' in inspect.getsource(
+        core.VideoAssembler.assembly_choices
+    )

@@ -34,6 +34,7 @@ from src.video.assembler.overlay_builder import (
     apply_hook_overlay,
     apply_step_card_overlay,
     apply_upper_line_overlay,
+    pick_step_card_layout,
     resolve_hook_line,
 )
 from src.video.assembler.subtitle_builder import SubtitleGraphBuilder
@@ -115,6 +116,8 @@ class VideoAssembler:
         self.visual_builder: VisualFilterBuilder | None = None
         # The effects the last render placed, as "kind:file" (design 0006).
         self.sound_effects_placed: list[str] = []
+        # The step-card layout the last render drew, None with no cards.
+        self.step_card_layout: str | None = None
         self.subtitle_builder: SubtitleGraphBuilder | None = None
         self.strategy_factory: VideoStrategyFactory | None = None
 
@@ -674,13 +677,15 @@ class VideoAssembler:
         """What the last render drew, for its record; an unused feature is None.
 
         The still-motion move per still, the cuts beat snapping moved, and
-        each sound effect as "kind:file" (designs 0001, 0005, 0003).
+        each sound effect as "kind:file" (designs 0001, 0005, 0003), and the
+        step-card layout (REQ-VID-153).
         """
         builder = self.visual_builder
         return {
             "still_moves": (list(builder.still_moves) or None) if builder else None,
             "beat_snap_moved": builder.beat_snap_moved if builder else None,
             "sound_effects": list(self.sound_effects_placed) or None,
+            "step_card_layout": self.step_card_layout,
         }
 
     def _disclosure_settings(self) -> DisclosureSettings:
@@ -827,7 +832,9 @@ class VideoAssembler:
                         temp_dir,
                     )
 
-            # Step cards, timed after the hook (REQ-VID-124).
+            # Step cards, timed after the hook (REQ-VID-124), in the layout
+            # this product draws (REQ-VID-153), recorded when any is drawn.
+            unchanged = video_filters
             video_filters = apply_step_card_overlay(
                 video_filters,
                 self.config.video_settings.graphics,
@@ -836,6 +843,13 @@ class VideoAssembler:
                 self.config.video_settings.resolution[0],
                 temp_dir,
                 product_id=self.product_id,
+            )
+            self.step_card_layout = (
+                pick_step_card_layout(
+                    self.config.video_settings.graphics.layouts, self.product_id
+                )
+                if video_filters != unchanged
+                else None
             )
 
             # The static upper line, before the disclosure so the disclosure
