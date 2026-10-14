@@ -124,6 +124,11 @@ def load_publisher_config(
     # Before the section parsers: one that refuses a sibling key falls back
     # to its defaults and would drop a quoted switch unseen.
     _refuse_raw_non_booleans(yaml_config)
+    # An empty section (`covers:` with nothing under it) parses as null:
+    # treat it as absent, so it loads its defaults.
+    for section in _raw_sections():
+        if section in yaml_config and yaml_config[section] is None:
+            del yaml_config[section]
 
     # Parse schedule and cleanup configurations from YAML
     yaml_config = _parse_schedule_and_cleanup_config(yaml_config)
@@ -173,6 +178,13 @@ def _bool_fields(*classes: type) -> set[str]:
     }
 
 
+# Sections whose defaults are unsafe to fall into silently: an empty
+# `recurring_schedule` would turn scheduling off and publish on the spot
+# (REQ-PUB-012), and an empty `cleanup` would turn cleanup on. An overlay
+# that blanks one is refused rather than loaded with defaults.
+_NULL_REFUSED = frozenset({"recurring_schedule", "schedule_validation", "cleanup"})
+
+
 def _raw_sections() -> dict[str, set[str]]:
     """Each YAML section and the switches the parser reads from it.
 
@@ -195,7 +207,9 @@ def _raw_sections() -> dict[str, set[str]]:
 
 
 def _refuse_raw_non_booleans(yaml_config: dict[str, Any]) -> None:
-    """Refuse a switch in the raw YAML that is not a boolean (REQ-PUB-160)."""
+    """Refuse a switch in the raw YAML that is not a boolean, and a section
+    holding switches that is not a mapping (REQ-PUB-160).
+    """
     checks: list[tuple[str, dict[str, Any], set[str]]] = [
         ("", yaml_config, _bool_fields(PublisherConfig))
     ]
@@ -203,6 +217,16 @@ def _refuse_raw_non_booleans(yaml_config: dict[str, Any]) -> None:
         raw = yaml_config.get(section)
         if isinstance(raw, dict):
             checks.append((f"{section}.", raw, switches))
+        elif switches and (
+            raw is not None or (section in yaml_config and section in _NULL_REFUSED)
+        ):
+            # `cleanup: "false"` reads no keys and loads the section's
+            # defaults, cleanup on; a section without switches (analytics)
+            # keeps its own lenient fallback.
+            raise ValueError(
+                f"Invalid publisher configuration: {section} must be a "
+                f"mapping of settings, got {raw!r} ({type(raw).__name__})"
+            )
     for prefix, raw, switches in checks:
         for key in switches & raw.keys():
             value = raw[key]
