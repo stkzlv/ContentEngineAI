@@ -766,6 +766,7 @@ subtitle_settings:
   max_line_length: 30                # Maximum characters per line
   max_duration: 2.5                  # Maximum duration for subtitle segments (seconds)
   min_duration: 0.6                  # Minimum duration for subtitle segments (seconds)
+  phrase_breaks: true                # FFmpeg engine: end a caption at a phrase boundary
 
   # Randomization Options (for 'random' preset)
   randomize_fonts: false             # Use random font selection from curated collection
@@ -875,6 +876,7 @@ Keys the examples above don't show. Defaults are the bundled values. The `subtit
 | `subtitle_settings.pycaps.caption_block_height` | float (0-0.5) | 0.12 | Estimated caption block height as a fraction of the frame; the assembler keeps the product image above it. pycaps doesn't read it. |
 | `subtitle_settings.pycaps.mute_template_sound_effects` | bool | true | Drops the template's sound effects, such as the ding on each highlighted word. |
 | `subtitle_settings.pycaps.phrase_breaks` | bool | true | Ends each caption segment at a phrase boundary within the template's `limit_by_chars` limits, instead of wherever the limit falls. |
+| `subtitle_settings.phrase_breaks` | bool | true (model default false) | FFmpeg engine: when a caption reaches its word, character, width or duration limit, it ends at the best phrase boundary that keeps at least two words, and the words after it open the next caption. False ends it where the limit falls. |
 | `subtitle_settings.pycaps.max_entrance_sec` | float or null | 0.25 | Longest a template's entrance animation runs; a longer one is shortened, and 0 drops every entrance. Null keeps the template's timing. |
 | `subtitle_settings.pycaps.max_exit_sec` | float or null | 0.08 | Longest a template's exit runs: a fade-out is shortened to it and any other exit animation is dropped, so the caption leaves with a hard cut. 0 drops every exit; null keeps the template's exits. |
 | `subtitle_settings.timing_smoothing` | block | on | Adjusts Whisper word timings before either engine sees them; timings from the Google STT fallback are left alone. |

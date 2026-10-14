@@ -1013,6 +1013,7 @@ class VideoConfig(BaseModel):
                 or ss.get("min_duration")
                 or SubtitleSettings.model_fields["min_duration"].default
             ),
+            "phrase_breaks": ss.get("phrase_breaks", False),
             "enabled": ss["enabled"],
             "font_directory": ss["font_directory"],
             "font_size_percent": ss["font_size_percent"],

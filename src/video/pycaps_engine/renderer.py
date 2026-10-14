@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from src.video.pycaps_engine.phrase_breaks import segment_end
+from src.video.phrase_breaks import segment_end
 
 if TYPE_CHECKING:
     from src.video.config.subtitle_models import PycapsSettings

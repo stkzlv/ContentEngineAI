@@ -304,6 +304,13 @@ subtitle_settings:
   # because eye→brain→recognition takes ~150-200ms minimum.
   min_duration: 0.6
 
+  # FFmpeg engine only (pycaps has its own key under pycaps). When a
+  # caption reaches a limit above, end it at a phrase boundary: after
+  # punctuation or before a word that opens a phrase, never after "the"
+  # or inside a name such as "iPhone 15". Keeps at least two words per
+  # caption; the rest move to the next one. false: end where the limit falls.
+  phrase_breaks: true
+
   # ---- RANDOMIZATION OPTIONS ----
   # Enable variety in subtitle appearance across different videos
   # All randomization uses seeded random for consistency within a video

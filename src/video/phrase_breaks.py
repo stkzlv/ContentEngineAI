@@ -9,12 +9,14 @@ and avoiding one after a word that needs the next one or inside a name.
 "on" and "in" never count as phrase openers: in a how-to script they are as
 often the particle of "turn on" or "plug it in" as a preposition. It has no
 pycaps import, so it is tested without the optional group; the renderer
-wraps it in a splitter class at render time.
+wraps it in a splitter class at render time, and the FFmpeg engine's
+segmenters call `phrase_end` when a limit forces a break.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 # A break before one of these starts a new phrase.
 _PHRASE_OPENERS = frozenset(
@@ -107,3 +109,26 @@ def split_words(words: list[str], max_chars: int, min_chars: int) -> list[int]:
         start = segment_end(words, start, max_chars, min_chars)
         ends.append(start)
     return ends
+
+
+def phrase_end(
+    words: list[str],
+    limit: int,
+    min_words: int,
+    carries: Callable[[int], bool] = lambda _end: True,
+) -> int:
+    """Where a caption of `words[:limit]` ends when a limit stops it there.
+
+    `words[limit]` is the word that did not fit. Any end that keeps at least
+    `min_words` words is a candidate when `carries(end)` says the words it
+    leaves over still fit beside that word; the best-scoring one wins, the
+    later on a tie, and when every candidate is one to avoid `limit` stands.
+    """
+    best, best_score = limit, _FORBIDDEN
+    for end in range(min(min_words, limit), limit + 1):
+        if end < limit and not carries(end):
+            continue
+        score = break_score(words, end)
+        if score >= best_score:
+            best, best_score = end, score
+    return best
