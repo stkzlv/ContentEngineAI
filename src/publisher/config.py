@@ -121,6 +121,9 @@ def load_publisher_config(
 
     # Load YAML config (lowest precedence)
     yaml_config = _load_yaml_config(config_path)
+    # Before the section parsers: one that refuses a sibling key falls back
+    # to its defaults and would drop a quoted switch unseen.
+    _refuse_raw_non_booleans(yaml_config)
 
     # Parse schedule and cleanup configurations from YAML
     yaml_config = _parse_schedule_and_cleanup_config(yaml_config)
@@ -159,6 +162,51 @@ def load_publisher_config(
     except (ValueError, TypeError) as e:
         logger.error("Configuration validation failed: %s", e)
         raise ValueError(f"Invalid publisher configuration: {e}") from e
+
+
+def _raw_sections() -> dict[str, tuple[type, ...]]:
+    """Each YAML section and the dataclasses its keys land in."""
+    return {
+        "recurring_schedule": (ScheduleConfig,),
+        "schedule_validation": (ScheduleConfig,),
+        "cleanup": (CleanupConfig,),
+        "link_in_bio": (LinkInBioConfig,),
+        "tiktok_settings": (TikTokContentSettings,),
+        "first_comment": (FirstCommentConfig,),
+        "blob_retention": (BlobRetentionConfig,),
+        "delivery_sweep": (DeliverySweepConfig,),
+        "covers": (CoversConfig,),
+        "affiliate_disclosure": (AffiliateDisclosureConfig,),
+        "analytics": (AnalyticsConfig,),
+    }
+
+
+def _bool_fields(*classes: type) -> set[str]:
+    return {
+        f.name
+        for cls in classes
+        for f in dataclasses.fields(cls)
+        if f.type in (bool, "bool")
+    }
+
+
+def _refuse_raw_non_booleans(yaml_config: dict[str, Any]) -> None:
+    """Refuse a switch in the raw YAML that is not a boolean (REQ-PUB-160)."""
+    checks: list[tuple[str, dict[str, Any], set[str]]] = [
+        ("", yaml_config, _bool_fields(PublisherConfig))
+    ]
+    for section, classes in _raw_sections().items():
+        raw = yaml_config.get(section)
+        if isinstance(raw, dict):
+            checks.append((f"{section}.", raw, _bool_fields(*classes)))
+    for prefix, raw, switches in checks:
+        for key in switches & raw.keys():
+            value = raw[key]
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Invalid publisher configuration: {prefix}{key} must be "
+                    f"true or false, got {value!r} ({type(value).__name__})"
+                )
 
 
 def _refuse_non_booleans(obj: Any, path: str = "") -> None:
