@@ -330,8 +330,11 @@ synthetic_media_disclosure: false
 
 # A link in a YouTube Shorts description can't be clicked. A product video's
 # YouTube description has its URLs removed and, with this on, ends on
-# "Link in bio." when it names no profile link already.
-youtube_profile_pointer: true
+# "Link in bio." when it names no profile link already; the metadata and
+# caption prompts name a bio link only with this on. Off, a stale
+# "Link in bio." line is removed. Turn it on in the private overlay when the
+# installation's profiles carry a link.
+youtube_profile_pointer: false
 
 # Send each render's cover (written beside the video) with its post: the
 # cover image on Instagram, the same frame by its time on TikTok, nothing on

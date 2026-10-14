@@ -52,7 +52,7 @@ Product Description: {PRODUCT_DESCRIPTION}
 **Closing-line Mirror:**
 
 The script above ends with one short engagement-bait line right before the
-final CTA ("Link in bio", etc.). It is either a two-option opinion question
+final CTA ({CTA_EXAMPLE}, etc.). It is either a two-option opinion question
 (e.g. "USB-C or Lightning - which still annoys you more?") or a debatable
 spec claim (e.g. "Most people only need two ports, but three is usually
 better."). End the caption body with that same line, verbatim or

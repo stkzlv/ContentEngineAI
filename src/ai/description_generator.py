@@ -44,6 +44,7 @@ from src.ai.prompt_selection import prompt_path_for
 from src.scraper.amazon.models import ProductData
 from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import llm_circuit_breaker
+from src.utils.youtube_description import pointer_placeholders
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,13 @@ def format_prompt(
         ValueError: If the template contains placeholders that can't be filled
 
     """
+    # The bio-link wording follows `youtube_profile_pointer` (REQ-CNT-150);
+    # only a prompt that names it reads the publisher config.
+    pointer = (
+        pointer_placeholders()
+        if "{PP_" in template or "{CTA_EXAMPLE}" in template
+        else {}
+    )
     try:
         return template.format(
             FULL_PRODUCT_NAME=product.title or "Product",
@@ -165,7 +173,7 @@ def format_prompt(
             # does not reference, so no product prompt changes.
             TOPIC_TITLE=product.title or "Topic",
             TOPIC_DETAIL=product.description or "No description available",
-            **(extra_placeholders or {}),
+            **{**pointer, **(extra_placeholders or {})},
         )
     except KeyError as e:
         raise ValueError(f"Missing placeholder in template: {e}") from e

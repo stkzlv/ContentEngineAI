@@ -19,6 +19,7 @@ from src.utils.youtube_description import (
     PROFILE_POINTER,
     drop_urls,
     with_profile_pointer,
+    without_profile_pointer,
 )
 
 
@@ -27,7 +28,9 @@ def youtube_metadata(meta: Any, product_id: str, *, pointer: bool) -> Any:
 
     A link in a Shorts description can't be clicked (REQ-PUB-148), so URLs
     go, and a product video ends on "Link in bio." when `pointer` is on and
-    the description names no profile link already (REQ-CNT-150). Unified
+    the description names no profile link already (REQ-CNT-150); with it
+    off, a line that is only a bio-link pointer goes, since metadata written
+    while it was on still carries one. Unified
     metadata shares one description across platforms, so this builds a copy
     for the YouTube entry only. The copy fits YouTube's caps with the pointer
     kept: the body is trimmed, never the pointer.
@@ -35,6 +38,8 @@ def youtube_metadata(meta: Any, product_id: str, *, pointer: bool) -> Any:
     if not isinstance(getattr(meta, "description", None), str):
         return meta
     body = drop_urls(meta.description)
+    if not pointer:
+        body = without_profile_pointer(body)
     wants_pointer = bool(
         pointer and product_id and not product_id.startswith(_TOPIC_ID_PREFIX)
     )

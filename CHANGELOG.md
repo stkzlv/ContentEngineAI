@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.210.0] - 2026-10-14
+
+### Changed
+
+- **Breaking**: `youtube_profile_pointer` ships off, so a product video's YouTube description no longer ends on "Link in bio." unless an installation turns it on; with it off, the metadata and caption prompts name no bio link and a stale pointer line is removed, and with it on they read as before.
+
+### Fixed
+
+- The default script prompt, used when no script template applies, closes on the configured call to action instead of asking for the link in bio, so its scripts pass validation.
+
 ## [0.209.0] - 2026-10-13
 
 ### Changed

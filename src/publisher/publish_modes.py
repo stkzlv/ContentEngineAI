@@ -56,7 +56,7 @@ def _build_platform_contents_with_comments(
                 meta = youtube_metadata(
                     meta,
                     product_id,
-                    pointer=getattr(publisher, "youtube_profile_pointer", True),
+                    pointer=getattr(publisher, "youtube_profile_pointer", False),
                 )
             entry["content"] = meta.format_content()
             title = getattr(meta, "title", None)

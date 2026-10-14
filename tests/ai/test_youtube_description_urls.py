@@ -32,11 +32,11 @@ def test_a_url_inside_a_sentence_goes_alone() -> None:
 
 
 @pytest.mark.req("REQ-PUB-148")
-def test_the_prompt_asks_for_the_profile_pointer_not_a_url() -> None:
+def test_the_prompt_asks_for_no_url() -> None:
     text = PROMPT.read_text(encoding="utf-8")
 
     assert "https://" not in text and "product URL" not in text
-    assert '"Link in bio." on the final line' in text
+    assert "never write a URL" in text
 
 
 @pytest.mark.req("REQ-PUB-148")
