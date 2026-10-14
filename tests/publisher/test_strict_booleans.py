@@ -108,3 +108,32 @@ def test_every_parsed_section_is_checked_raw():
     # Accounts hold credentials and names, no switches.
     parsed -= {"accounts"}
     assert parsed <= set(config_mod._raw_sections())
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-PUB-160")
+@pytest.mark.parametrize(
+    ("text", "name"),
+    [
+        ('cleanup: "false"\n', "cleanup"),
+        ("cleanup: false\n", "cleanup"),
+        ("covers: true\n", "covers"),
+        ("recurring_schedule: [1]\n", "recurring_schedule"),
+    ],
+)
+def test_a_section_that_is_not_a_mapping_is_refused(tmp_path, text, name):
+    with pytest.raises(ValueError, match=rf"{name} must be a mapping"):
+        _load(tmp_path, text)
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-PUB-160")
+def test_an_empty_section_loads_its_defaults(tmp_path):
+    config = _load(tmp_path, "cleanup:\ncovers: null\n")
+    assert config.covers_config.enabled is False
+
+
+@pytest.mark.unit
+def test_a_section_without_switches_keeps_its_fallback(tmp_path):
+    # analytics has no switch; `analytics: 50` warns and uses defaults.
+    _load(tmp_path, "analytics: 50\n")

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.212.0] - 2026-10-14
+
+### Changed
+
+- **Breaking**: The publisher stops and names the section when a section holding on/off settings is written as a single value, where `cleanup: false` used to load with cleanup on.
+
+### Fixed
+
+- An empty section in the publisher config (a heading with nothing under it) loads its defaults instead of stopping the load.
+
 ## [0.211.0] - 2026-10-14
 
 ### Changed
