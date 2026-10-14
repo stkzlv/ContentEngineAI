@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 import statistics
 from collections import Counter
+from types import SimpleNamespace
 from typing import Any
 
 from src.ai.llm_settings import ScriptLintConfig
@@ -16,7 +17,7 @@ from src.ai.script_lint import lint_script
 from src.ai.step_list import word_range
 from src.research.sample import is_task
 from src.utils.script_sanitizer import split_sentences
-from src.video.search_phrase import contains
+from src.video.search_phrase import contains, search_phrase
 
 # Templates that open on a symptom or a mistake, which a task topic lacks.
 PROBLEM_TEMPLATES = frozenset({"topic_symptom_cause", "topic_mistake_fix"})
@@ -75,11 +76,12 @@ def check_one(record: dict[str, Any], band: tuple[int, int]) -> dict[str, Any]:
     sentences = split_sentences(script)
     first = sentences[0] if sentences else ""
     # What a viewer types: a topic's `search` where it has one, else its
-    # title; a product's scraper keyword.
+    # title; a product's search keyword, as the render reads it. A product
+    # scraped from its id or URL has none and is not judged on this.
     if record["kind"] == "topic":
         phrase = str(record.get("search") or record["title"])
     else:
-        phrase = str(record.get("keyword") or "")
+        phrase = search_phrase(SimpleNamespace(keyword=record.get("keyword"))) or ""
     fact = record.get("fact_check") or {}
     flagged = fact.get("flagged") or []
     revision = fact.get("revision") or {}
@@ -95,8 +97,11 @@ def check_one(record: dict[str, Any], band: tuple[int, int]) -> dict[str, Any]:
         "words": count,
         "band": [low, high],
         "in_band": low <= count <= high,
-        "phrase_in_first_sentence": bool(phrase)
-        and contains(first, phrase, question=record["kind"] == "topic"),
+        "phrase_in_first_sentence": (
+            contains(first, phrase, question=record["kind"] == "topic")
+            if phrase
+            else None
+        ),
         "cta_last": bool(record.get("cta"))
         and bool(sentences)
         and sentences[-1].strip() == str(record["cta"]).strip(),
@@ -122,13 +127,19 @@ def summarise(checked: list[dict[str, Any]]) -> dict[str, Any]:
     def share(key: str) -> float | None:
         return round(sum(bool(c[key]) for c in ok) / n, 2) if n else None
 
+    def judged_share(key: str) -> float | None:
+        # Over the samples judged on `key` (None: not judged), since counting
+        # those as misses would reward a sample with fewer of them.
+        judged = [c[key] for c in ok if c[key] is not None]
+        return round(sum(map(bool, judged)) / len(judged), 2) if judged else None
+
     openings = Counter(c["opening"] for c in ok if c["opening"])
     return {
         "samples": len(checked),
         "errors": len(checked) - n,
         "median_words": statistics.median(c["words"] for c in ok) if n else None,
         "in_band": share("in_band"),
-        "phrase_in_first_sentence": share("phrase_in_first_sentence"),
+        "phrase_in_first_sentence": judged_share("phrase_in_first_sentence"),
         "cta_last": share("cta_last"),
         "with_lint_tell": share("lint"),
         "template_misfit": share("template_misfit"),

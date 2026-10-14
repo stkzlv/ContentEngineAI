@@ -14,7 +14,7 @@ from src.research import sample as sample_mod
 from src.research.__main__ import main
 from src.research.checks import check_one, run_checks, summarise
 from src.research.config import SampleResearch
-from src.research.report import render_report
+from src.research.report import _notes, render_report
 from src.research.sample import is_task, run_sample, sample_one, variant_config
 from src.video.config import load_video_config_modular
 from src.video.producer.topic_input import TopicSpec, build_topic_product
@@ -188,6 +188,33 @@ def test_a_step_list_script_is_held_to_its_own_band() -> None:
 
     checked = check_one(_record(steps=6), (5, 30))
     assert checked["band"] == list(word_range(6))
+
+
+@pytest.mark.req("REQ-OPS-110")
+@pytest.mark.parametrize(
+    "keyword", ["B0TESTSRCH", "https://example.com/dp/B0TESTSRCH", ""]
+)
+def test_a_product_with_no_search_keyword_is_not_judged(keyword: str) -> None:
+    # Scraped from its id or URL: the id is not a phrase, so a script that
+    # opens without it is neither a pass nor a miss.
+    checked = check_one(
+        _record(kind="product", keyword=keyword, title="A product"), (5, 30)
+    )
+    assert checked["phrase_in_first_sentence"] is None
+    assert "no search phrase" not in _notes(checked)
+
+
+@pytest.mark.req("REQ-OPS-110")
+def test_the_share_counts_only_judged_scripts() -> None:
+    judged = check_one(
+        _record(kind="product", keyword="iphone storage", title="A product"), (5, 30)
+    )
+    unjudged = check_one(
+        _record(kind="product", keyword="B0TESTSRCH", title="A product"), (5, 30)
+    )
+    assert judged["phrase_in_first_sentence"] is True
+    assert summarise([judged, unjudged])["phrase_in_first_sentence"] == 1.0
+    assert summarise([unjudged])["phrase_in_first_sentence"] is None
 
 
 def test_the_search_phrase_falls_back_to_the_title_and_the_keyword() -> None:
