@@ -129,8 +129,6 @@ poetry install --with pycaps
 poetry run playwright install chromium
 ```
 
-> **Note:** If `poetry install` fails building `openai-whisper` with `No module named 'pkg_resources'`, your virtualenv's setuptools is too new (≥81). See [Troubleshooting → openai-whisper Fails to Build](troubleshooting.md#openai-whisper-fails-to-build-no-module-named-pkg_resources).
-
 ### 4. Verify Installation
 
 Check that all components are properly installed:

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.212.1] - 2026-10-14
+
+### Security
+
+- setuptools moves to 83 to clear its advisory, and Whisper to 20250625, which builds with it, so installing no longer needs setuptools below 81 or a separate Whisper build step.
+
 ## [0.212.0] - 2026-10-14
 
 ### Changed

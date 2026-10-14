@@ -41,6 +41,7 @@ jobs:
     - uses: actions/checkout@v5
 
     - name: Set up Python 3.12
+      id: setup-python
       uses: actions/setup-python@v6
       with:
         python-version: "3.12"
@@ -61,15 +62,11 @@ jobs:
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: |
-        poetry run pip install "setuptools<81" wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Install project
       if: steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
-        poetry run pip install "setuptools<81" wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Run linting
@@ -149,15 +146,11 @@ jobs:
     - name: Install dependencies
       if: steps.scope.outputs.mode != 'skip' && steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: |
-        poetry run pip install "setuptools<81" wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Install project
       if: steps.scope.outputs.mode != 'skip' && steps.cached-poetry-dependencies.outputs.cache-hit == 'true'
       run: |
-        poetry run pip install "setuptools<81" wheel
-        poetry run pip install --no-build-isolation openai-whisper==20240930
         poetry install --no-interaction --with pycaps
 
     - name: Install pictex system libraries

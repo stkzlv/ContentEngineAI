@@ -137,24 +137,13 @@ poetry env remove python
 poetry install
 ```
 
-### `openai-whisper` Fails to Build (`No module named 'pkg_resources'`)
+### `torch` Installed as the CUDA Build
 
-**Error:** `poetry install` fails while building `openai-whisper (20240930)`:
-```
-ModuleNotFoundError: No module named 'pkg_resources'
-```
+**Symptom:** the virtualenv holds a multi-GB CUDA `torch` instead of the CPU build.
 
-**Cause:** Whisper's legacy `setup.py` imports `pkg_resources`, which setuptools removed in `>=81`. Poetry's isolated PEP 517 build environment always pulls the latest setuptools, so the build fails on a fresh virtualenv.
+**Cause:** `openai-whisper`, or another package that depends on `torch`, was installed with `pip` rather than Poetry.
 
-**Solution:** Bootstrap a compatible setuptools into the active virtualenv, then let Poetry's build inherit it via system site-packages:
-```bash
-# Inside the activated ContentEngineAI venv
-pip install 'setuptools>=78.1.0,<79' wheel   # 78.x still ships pkg_resources
-VIRTUALENV_SYSTEM_SITE_PACKAGES=true poetry install
-```
-`VIRTUALENV_SYSTEM_SITE_PACKAGES=true` makes Poetry's build env see the venv's setuptools. `PIP_CONSTRAINT` does **not** propagate into Poetry's build subprocess, so that approach does not help.
-
-**Do not** work around this by running `pip install openai-whisper` directly. pip resolves `torch` from PyPI (the multi-GB CUDA wheel) instead of the `pytorch-cpu` source pinned in `pyproject.toml`, and Poetry then treats the venv as satisfied and skips reinstalling the correct CPU build. If this has already happened, recreate the virtualenv from scratch rather than untangling the mixed state:
+Never run `pip install openai-whisper` directly: pip resolves `torch` from PyPI (the multi-GB CUDA wheel) instead of the `pytorch-cpu` source pinned in `pyproject.toml`, and Poetry then treats the venv as satisfied and skips reinstalling the correct CPU build. If this has already happened, recreate the virtualenv from scratch rather than untangling the mixed state:
 ```bash
 pyenv virtualenv-delete -f ContentEngineAI
 pyenv virtualenv 3.12.13 ContentEngineAI
