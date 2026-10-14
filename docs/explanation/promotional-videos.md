@@ -166,7 +166,7 @@ The pipeline draws each render's script template, call to action, voice and cold
 
 Why: all three platforms deprioritize unoriginal, templated, mass-produced output ([design 0006](../design/0006-render-choices-and-variety-report.md) has the sources). YouTube's inauthentic-content policy (July 2025, with channel terminations in January 2026, [The Next Web](https://thenextweb.com/news/youtube-ai-slop-crackdown-faceless-creators-collateral-damage)) targets unoriginality, not AI generation itself. Instagram's originality rules (30 April 2026) count "unique text, creative edits, and voiceover", and not watermarks or speed changes. TikTok tightened its For You feed standards on 24 September 2026. An automated pipeline that renders the same shapes repeatedly is exactly the failure mode, so variety is a reach requirement.
 
-Planned: record every drawn choice and report output variety, with an alert when one value dominates or two scripts are near-identical ([design 0006](../design/0006-render-choices-and-variety-report.md), `REQ-PUB-083`).
+Each finished render records its drawn choices, and a report shows output variety, with an alert when one value dominates or two scripts are near-identical ([design 0006](../design/0006-render-choices-and-variety-report.md), `REQ-PUB-083`).
 
 ## Platform changes since 2025
 

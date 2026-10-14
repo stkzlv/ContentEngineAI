@@ -368,6 +368,13 @@ class StillMotionSettings(BaseModel):
         return self
 
 
+StepCardLayout = Literal["centred", "left", "inline"]
+
+
+def _centred_only() -> list[StepCardLayout]:
+    return ["centred"]
+
+
 class GraphicsSettings(BaseModel):
     """Explanatory graphics on a tutorial render (REQ-VID-124, design 0019).
 
@@ -424,6 +431,16 @@ class GraphicsSettings(BaseModel):
     font_color: str = Field(default="white", description="Text colour.")
     box_color: str = Field(
         default="black@0.6", description="Colour of the box behind each line."
+    )
+    layouts: list[StepCardLayout] = Field(
+        default_factory=_centred_only,
+        min_length=1,
+        description=(
+            "Step-card layouts, one drawn per video from a hash of the product "
+            "id (REQ-VID-153): `centred` puts the counter over the path in the "
+            "middle, `left` aligns both lines to the left margin, `inline` "
+            "draws them as one line. One entry turns the rotation off."
+        ),
     )
 
 

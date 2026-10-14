@@ -26,10 +26,11 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from src.utils.seeding import product_rng
 from src.video.config.visual_models import (
     DisclosureSettings,
     GraphicsSettings,
@@ -548,6 +549,13 @@ def _fit_font(text: str, start: int, max_px: int, floor: int) -> int:
     return max(size, floor)
 
 
+def pick_step_card_layout(layouts: Sequence[str], product_id: str | None) -> str:
+    """The video's step-card layout, the same on every run (REQ-VID-153)."""
+    if len(layouts) == 1:
+        return layouts[0]
+    return product_rng(product_id or "", "step_card_layout").choice(layouts)
+
+
 def build_step_card_drawtext(
     cards: list[StepCard],
     settings: GraphicsSettings,
@@ -556,20 +564,40 @@ def build_step_card_drawtext(
     temp_dir: Path,
     input_stream: str,
     output_stream: str,
+    layout: str = "centred",
 ) -> str:
-    r"""Two time-gated drawtexts per step card: the counter over the path.
+    r"""Time-gated drawtexts per step card: the counter over the path.
 
     Same mechanics as the hook overlay: text through `textfile=` and an
     `enable=between(t\,a\,b)` gate. A card with no path draws the counter
     alone. The path's font shrinks until the line fits `max_width_fraction`
-    of the frame.
+    of the frame. `left` starts both lines at the left edge of that width;
+    `inline` draws "counter: path" as one line at the path's size, and
+    stacks a card whose line can't fit.
     """
     counter_px = max(8, int(subtitle_font_size_pixels * settings.counter_size_factor))
     path_px_start = max(8, int(subtitle_font_size_pixels * settings.path_size_factor))
     max_px = int(frame_width * settings.max_width_fraction)
+    # `left` starts at the margin, pulled left when a line runs past the
+    # other margin (the width estimate under-reads real glyphs), but never
+    # further than centred, so a line wider than both margins stays centred.
+    margin = (1 - settings.max_width_fraction) / 2
+    x_expr = (
+        f"min(w*{margin:.4f}\\,max(w*{1 - margin:.4f}-text_w\\,(w-text_w)/2))"
+        if layout == "left"
+        else "(w-text_w)/2"
+    )
     lines: list[tuple[str, int, str, float, float]] = []
     for card in cards:
         y = f"h*{settings.y_percent}"
+        if layout == "inline":
+            text = f"{card.counter}: {card.path}" if card.path else card.counter
+            size = _fit_font(text, path_px_start, max_px, int(counter_px * 0.8))
+            # A line that still overflows at the floor would run off the
+            # frame; that card is stacked instead.
+            if _estimate_hook_text_width(text, size) <= max_px:
+                lines.append((text, size, y, card.start, card.end))
+                continue
         lines.append((card.counter, counter_px, y, card.start, card.end))
         if card.path:
             path_px = _fit_font(card.path, path_px_start, max_px, int(counter_px * 0.8))
@@ -598,7 +626,7 @@ def build_step_card_drawtext(
                     f"fontsize={size}:",
                     f"fontcolor={settings.font_color}:",
                     f"box=1:boxcolor={settings.box_color}:boxborderw=14:",
-                    f"x=(w-text_w)/2:y={y_expr}:",
+                    f"x={x_expr}:y={y_expr}:",
                     f"enable=between(t\\,{start:.3f}\\,{end:.3f}){stream_out}",
                 ]
             )
@@ -613,6 +641,7 @@ def apply_step_card_overlay(
     subtitle_font_size_pixels: int,
     frame_width: int,
     temp_dir: Path,
+    product_id: str | None = None,
 ) -> list[str]:
     """Insert the step cards before the disclosure's rewrite slot.
 
@@ -630,6 +659,7 @@ def apply_step_card_overlay(
         )
         return video_filters
     input_stream = normalized[-1].replace("copy[v_out]", "")
+    layout = pick_step_card_layout(settings.layouts, product_id)
     card_filter = build_step_card_drawtext(
         cards,
         settings,
@@ -638,8 +668,9 @@ def apply_step_card_overlay(
         temp_dir,
         input_stream=input_stream,
         output_stream="[v_steps]",
+        layout=layout,
     )
-    logger.info("Step cards: %d drawn", len(cards))
+    logger.info("Step cards: %d drawn, layout %s", len(cards), layout)
     return [*normalized[:-1], card_filter, "[v_steps]copy[v_out]"]
 
 
