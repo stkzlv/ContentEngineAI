@@ -100,6 +100,15 @@ class TestTheFilterShape:
         assert "gblur" not in chain
 
 
+@pytest.fixture(scope="module")
+def config():
+    # Module scope: pytest 10 drops class-scoped fixtures defined as methods.
+    from src.video.config import load_video_config  # noqa: F401
+    from src.video.config_adapter import load_video_config_modular
+
+    return load_video_config_modular()
+
+
 class TestTheProfileWiring:
     """Three conditions, per docs/notes/video.md, or the override is swallowed.
 
@@ -107,13 +116,6 @@ class TestTheProfileWiring:
     `_collect_overrides` map. Missing the third is the quiet one: no warning,
     no test failure, the profile value simply never arrives.
     """
-
-    @pytest.fixture(scope="class")
-    def config(self):
-        from src.video.config import load_video_config  # noqa: F401
-        from src.video.config_adapter import load_video_config_modular
-
-        return load_video_config_modular()
 
     def test_a_profile_that_names_nothing_inherits_the_global_default(self, config):
         """Asserted on profiles that do not override, not on all of them.

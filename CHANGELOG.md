@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.214.1] - 2026-10-14
+
+### Security
+
+- The test runner moves to pytest 9 to clear its advisory.
+
 ## [0.214.0] - 2026-10-14
 
 ### Added
