@@ -562,6 +562,15 @@ class SubtitleSettings(BaseModel):
     max_subtitle_width_fraction: float = Field(0.80, ge=0.0, le=1.0)
     max_duration: float = Field(2.5, gt=0)
     min_duration: float = Field(0.6, gt=0)
+    phrase_breaks: bool = Field(
+        default=False,
+        description=(
+            "FFmpeg engine: when a caption reaches a word, character, width "
+            "or duration limit, end it at a phrase boundary that keeps at least "
+            "two words, carrying the rest into the next caption. Off ends it "
+            "where the limit falls. The pycaps engine reads `pycaps.phrase_breaks`."
+        ),
+    )
 
     # ---- Infrastructure (load-bearing for the rendering pipeline) ----
     font_directory: str = "static/fonts"
@@ -652,6 +661,7 @@ class PartialSubtitleSettings(BaseModel):
     max_subtitle_width_fraction: float | None = None
     max_duration: float | None = None
     min_duration: float | None = None
+    phrase_breaks: bool | None = None
     font_directory: str | None = None
     font_size_percent: float | None = None
     randomize_fonts: bool | None = None

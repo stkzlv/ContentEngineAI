@@ -63,6 +63,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Why: without the outer cap a long transcription spends the render's budget and the timeout is reported against a later step.
 - **REQ-VID-132** `shipped` If Whisper times out, the producer retries it with the limit widened by `timeout_retry_multiplier`, at most `timeout_retry_attempts` times, and stops retrying once the cap keeps the limit from widening.
 - **REQ-VID-133** `shipped` Where Google Cloud STT is enabled with valid credentials, it supplies the word timings when Whisper is unavailable or returns none.
+- **REQ-VID-163** `shipped` When no word timings are available, FFmpeg-engine captions are timed from the script text, and every word of the script appears in a caption.
 - **REQ-VID-030** `shipped` When a run produces no captions on purpose (captions disabled, or the engine unavailable under a skip policy), the subtitle step records why, so a resume can tell it from a step that produced nothing by accident.
 
 ## Caption engines
@@ -119,7 +120,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-156** `deprecated` A caption segment's reading rate stays at or below a configured characters-per-second cap, and a segment over the cap merges into its neighbour.
   - Why: karaoke captions are on screen for as long as the voice takes to say them, so their rate is the voice's ([decision 0015](../decisions/0015-karaoke-captions-follow-the-voice.md)).
 - **REQ-VID-157** `partial` Caption lines break at phrase boundaries and never split a noun phrase or a product name.
-  - Gap: with `pycaps.phrase_breaks` on (the bundled default), pycaps caption segments prefer to end after punctuation or before a word that opens a phrase, and avoid ending after an article, preposition or auxiliary or inside a name, within the template's character limits; when every break that fits is one to avoid, the segment ends where the limit falls. Lines inside a segment still wrap by width, and the FFmpeg engine breaks on word and character counts (#591).
+  - Gap: with `pycaps.phrase_breaks` on (the bundled default), pycaps caption segments prefer to end after punctuation or before a word that opens a phrase, and avoid ending after an article, preposition or auxiliary or inside a name, within the template's character limits; when every break that fits is one to avoid, the segment ends where the limit falls. With `subtitle_settings.phrase_breaks` on (the bundled default), the FFmpeg engine's Whisper-timed and script-timed captions end the same way when a word, character, width or duration limit stops them, keeping at least two words per caption. Lines inside a pycaps segment still wrap by width (#591).
 
 ## Two-part captions
 

@@ -8,6 +8,7 @@ a unified API for both SRT and ASS formats.
 import logging
 import random
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.seeding import product_rng
 from src.video.config import config
 from src.video.config.subtitle_models import SubtitleSettings
+from src.video.phrase_breaks import phrase_end
 from src.video.result_types import SubtitleResult
 from src.video.subtitle_positioning import (
     Position,
@@ -36,6 +38,10 @@ logger = logging.getLogger(__name__)
 # replacement with a warning rather than dropped: a silently ignored effect
 # leaves a caption with no animation at all, which reads as a rendering bug.
 _RETIRED_EFFECTS = {"movement": "fade"}
+
+# A phrase break never leaves a caption shorter than this. One word per
+# caption flashed on saved transcripts (11 of 77 with one, 2 of 69 with two).
+PHRASE_MIN_WORDS = 2
 
 
 def _migrate_retired_effects(effects: list[str], preset_name: str) -> list[str]:
@@ -400,6 +406,32 @@ class UnifiedSubtitleGenerator:
 
         return cleaned
 
+    def _phrase_keep(
+        self,
+        words: list[str],
+        incoming: str,
+        fits: Callable[[str], bool] | None = None,
+    ) -> int:
+        """How many of `words` a caption keeps when a limit stops it (REQ-VID-157).
+
+        `incoming` is the word that did not fit. The words left over are
+        carried into the next caption beside it, so an end is only taken when
+        they still fit there: within the character limit, and `fits` (the
+        width check) when given.
+        """
+
+        def carries(end: int) -> bool:
+            # The word limit needs no check: the caption kept at least
+            # PHRASE_MIN_WORDS, so the carry plus `incoming` is shorter.
+            text = " ".join([*words[end:], incoming])
+            if len(text) > self.config.max_line_length:
+                return False
+            return fits is None or fits(text)
+
+        return phrase_end(
+            [*words, incoming], len(words), PHRASE_MIN_WORDS, carries=carries
+        )
+
     def _create_segments(
         self,
         cleaned_timings: list[dict[str, Any]],
@@ -460,6 +492,18 @@ class UnifiedSubtitleGenerator:
                     should_break = True
 
             if should_break:
+                # A limit, not a sentence end, stops the caption here: end it
+                # at a phrase boundary and carry the words after it forward.
+                carried: list[dict[str, Any]] = []
+                if self.config.phrase_breaks and (
+                    word_count_would_exceed or char_limit_exceeded or duration_exceeded
+                ):
+                    keep = self._phrase_keep([w["word"] for w in current_words], word)
+                    carried = current_words[keep:]
+                    current_words = current_words[:keep]
+                    current_text = " ".join(w["word"] for w in current_words)
+                # The next caption starts with the first carried word, if any.
+                next_start = carried[0]["start_time"] if carried else start_time
                 # Create segment from current words
                 if current_words and current_text:
                     segment_end = current_words[-1]["end_time"]
@@ -472,7 +516,7 @@ class UnifiedSubtitleGenerator:
                     ):
                         proposed_end = current_start + self.config.min_duration
                         # Ensure we don't overlap with next word's start time
-                        segment_end = min(proposed_end, start_time)
+                        segment_end = min(proposed_end, next_start)
 
                     # Respect voiceover duration
                     if voiceover_duration:
@@ -506,8 +550,8 @@ class UnifiedSubtitleGenerator:
                     # words entirely, which is worse than the overlap this
                     # fixes. No pair in the measured transcript is that
                     # degenerate; the guard is for the one that is.
-                    if start_time > current_start:
-                        segment_end = min(segment_end, start_time)
+                    if next_start > current_start:
+                        segment_end = min(segment_end, next_start)
 
                     if segment_end > current_start:
                         segments.append(
@@ -519,9 +563,9 @@ class UnifiedSubtitleGenerator:
                         )
 
                 # Start new segment
-                current_words = [word_data]
-                current_text = word
-                current_start = start_time
+                current_words = [*carried, word_data]
+                current_text = " ".join(w["word"] for w in current_words)
+                current_start = current_words[0]["start_time"]
             else:
                 # Add to current segment
                 current_words.append(word_data)
@@ -597,6 +641,20 @@ class UnifiedSubtitleGenerator:
         if estimated_duration > 0:
             speaking_rate = len(words) / duration
 
+        font_size = get_font_size(self.config, self.frame_size[1])
+        max_width = int(self.frame_size[0] * self.config.max_subtitle_width_fraction)
+        # Cap against safe zone width (reads from config, not hardcoded)
+        sz = self.config.safe_zone
+        max_width = min(max_width, int(self.frame_size[0] * (sz.max_x - sz.min_x)))
+        # Use stricter constraint: image width or frame-based max
+        if visual_bounds is not None and visual_bounds.width > 0:
+            max_width = min(max_width, int(visual_bounds.width))
+
+        def fits_width(text: str) -> bool:
+            return self.fits_within_image_width(
+                text, font_size, max_width, max_width_percent=1.0
+            )
+
         current_segment_words: list[str] = []
         current_segment_text = ""
 
@@ -636,27 +694,11 @@ class UnifiedSubtitleGenerator:
                 should_break = True
 
             # 3. Width constraint (frame-based, safe zone, or image-based)
-            if not should_break:
-                font_size = get_font_size(self.config, self.frame_size[1])
-                max_width = int(
-                    self.frame_size[0] * self.config.max_subtitle_width_fraction
-                )
-
-                # Cap against safe zone width (reads from config, not hardcoded)
-                sz = self.config.safe_zone
-                safe_zone_width = int(self.frame_size[0] * (sz.max_x - sz.min_x))
-                max_width = min(max_width, safe_zone_width)
-
-                # Use stricter constraint: image width or frame-based max
-                if visual_bounds is not None and visual_bounds.width > 0:
-                    max_width = min(max_width, int(visual_bounds.width))
-
-                if not self.fits_within_image_width(
-                    potential_text, font_size, max_width, max_width_percent=1.0
-                ):
-                    should_break = True
+            if not should_break and not fits_width(potential_text):
+                should_break = True
 
             # 4. Natural sentence breaks
+            appended = False
             if (
                 not should_break
                 and word.endswith((".", "!", "?"))
@@ -666,6 +708,7 @@ class UnifiedSubtitleGenerator:
                 current_segment_words.append(word)
                 current_segment_text = potential_text
                 should_break = True
+                appended = True
 
             # 5. Duration limit (but allow at least 3 words)
             if not should_break and len(current_segment_words) >= 3:
@@ -674,6 +717,15 @@ class UnifiedSubtitleGenerator:
                     should_break = True
 
             if should_break and current_segment_words:
+                # A limit, not a sentence end, stops the caption here: end it
+                # at a phrase boundary and carry the words after it forward.
+                carried: list[str] = []
+                if self.config.phrase_breaks and not appended:
+                    keep = self._phrase_keep(current_segment_words, word, fits_width)
+                    carried = current_segment_words[keep:]
+                    current_segment_words = current_segment_words[:keep]
+                    current_segment_text = " ".join(current_segment_words)
+
                 # Calculate segment duration based on word count
                 word_duration = len(current_segment_words) / speaking_rate
                 word_duration = max(self.config.min_duration, word_duration)
@@ -693,13 +745,11 @@ class UnifiedSubtitleGenerator:
                     )
                     current_time += word_duration
 
-                # Start new segment
-                if not word.endswith((".", "!", "?")):  # Not just added
-                    current_segment_words = [word]
-                    current_segment_text = word
-                else:
-                    current_segment_words = []
-                    current_segment_text = ""
+                # Start the next segment. A word the sentence break already
+                # placed is not repeated; any other word opens it, a
+                # sentence-final one included, or it would be lost.
+                current_segment_words = carried if appended else [*carried, word]
+                current_segment_text = " ".join(current_segment_words)
             else:
                 # Add word to current segment
                 current_segment_words.append(word)

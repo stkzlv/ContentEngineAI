@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.video.config.subtitle_models import PycapsSettings
-from src.video.pycaps_engine.phrase_breaks import (
+from src.video.phrase_breaks import (
     break_score,
     segment_end,
     split_words,

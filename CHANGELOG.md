@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.213.0] - 2026-10-14
+
+### Added
+
+- `subtitle_settings.phrase_breaks` (on in the bundled config) ends an FFmpeg-engine caption at a phrase boundary when a word, character, width or duration limit stops it, keeping at least two words per caption.
+
+### Fixed
+
+- Captions timed from the script, used when no word timings are available, no longer drop a sentence-final word that arrives when a caption is full.
+
 ## [0.212.1] - 2026-10-14
 
 ### Security
