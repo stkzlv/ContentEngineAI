@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.210.1] - 2026-10-14
+
+### Fixed
+
+- The research sample no longer counts a product scraped from its id or URL as missing its search phrase: such a script is left out of that share, which reads the phrase the way the render does.
+
 ## [0.210.0] - 2026-10-14
 
 ### Changed

@@ -227,7 +227,10 @@ def _escape(cell: str) -> str:
 def _notes(c: dict[str, Any]) -> str:
     found = [
         (not c["in_band"], f"out of band {c['band'][0]}-{c['band'][1]}"),
-        (not c["phrase_in_first_sentence"], "no search phrase in first sentence"),
+        (
+            c["phrase_in_first_sentence"] is False,
+            "no search phrase in first sentence",
+        ),
         (not c["cta_last"], "CTA not last"),
         (bool(c["lint"]), f"lint: {c['lint']}"),
         (bool(c["flagged"]), f"{c['flagged']} flagged"),
