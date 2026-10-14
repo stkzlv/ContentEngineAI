@@ -148,6 +148,7 @@ def load_publisher_config(
     # Convert to PublisherConfig dataclass
     try:
         config = PublisherConfig(**config_dict)
+        _refuse_non_booleans(config)
         logger.info(
             "Configuration loaded: provider=%s, immediate_publish=%s, max_retries=%d",
             config.provider,
@@ -158,6 +159,37 @@ def load_publisher_config(
     except (ValueError, TypeError) as e:
         logger.error("Configuration validation failed: %s", e)
         raise ValueError(f"Invalid publisher configuration: {e}") from e
+
+
+def _refuse_non_booleans(obj: Any, path: str = "") -> None:
+    """Refuse a switch whose value is not a YAML boolean.
+
+    The dataclasses take values as written, so a quoted `"false"` was a
+    non-empty string and read as on: `cleanup.enabled: "false"` deleted
+    files. Walks every dataclass field typed `bool`, nested sections, lists
+    and mappings of them included.
+    """
+    if isinstance(obj, list | tuple):
+        for i, item in enumerate(obj):
+            _refuse_non_booleans(item, f"{path}[{i}]")
+        return
+    if isinstance(obj, dict):
+        for key, item in obj.items():
+            _refuse_non_booleans(item, f"{path}.{key}" if path else str(key))
+        return
+    if not dataclasses.is_dataclass(obj) or isinstance(obj, type):
+        return
+    for field in dataclasses.fields(obj):
+        value = getattr(obj, field.name, None)
+        name = f"{path}.{field.name}" if path else field.name
+        if field.type in (bool, "bool"):
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"{name} must be true or false, got {value!r} "
+                    f"({type(value).__name__})"
+                )
+        else:
+            _refuse_non_booleans(value, name)
 
 
 def parse_tiktok_settings(section: Any) -> TikTokContentSettings:

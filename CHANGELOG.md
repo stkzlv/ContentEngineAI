@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.210.2] - 2026-10-14
+
+### Fixed
+
+- The publisher stops and names the key when an on/off setting holds anything but `true` or `false`, where a quoted `"false"` used to read as on (turning cleanup or covers on, for example).
+
 ## [0.210.1] - 2026-10-14
 
 ### Fixed
