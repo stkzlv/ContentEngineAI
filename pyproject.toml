@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ContentEngineAI"
-version = "0.214.0"
+version = "0.214.1"
 description = "AI-powered content automation pipeline for e-commerce platforms"
 authors = ["ContentEngineAI Team <stkzlv+ContentEngineAI@gmail.com>"]
 license = "MIT"
@@ -48,7 +48,7 @@ late-sdk = "^1.1.1"
 vercel = "^0.3.6"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.2"
+pytest = "^9.0.3"
 pytest-asyncio = "^1.4.0"
 pytest-mock = "^3.14.0"
 pytest-cov = "^5.0.0"
