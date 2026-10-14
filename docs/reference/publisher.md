@@ -211,7 +211,7 @@ The link-in-bio provider reads `LNKBIO_CLIENT_ID` and `LNKBIO_CLIENT_SECRET`; bo
 
 ## Configuration file
 
-The file is `config/publisher.yaml`. A missing file is allowed, and everything then comes from the environment and the defaults below; a file that exists and cannot be parsed stops the publisher (`REQ-PUB-012`).
+The file is `config/publisher.yaml`. A missing file is allowed, and everything then comes from the environment and the defaults below; a file that exists and cannot be parsed stops the publisher (`REQ-PUB-012`), and so does an on/off key holding anything but `true` or `false`, such as a quoted `"false"` (`REQ-PUB-160`).
 
 In the tables, "Default" is the value used when the key is absent, and "Bundled" is the value in the shipped file where it differs.
 

@@ -2811,6 +2811,7 @@ for f in Path('config').glob('*.yaml'):
 - Inconsistent indentation (use 2 spaces, not tabs)
 - Missing quotes around strings with special characters
 - Incorrect boolean format (`true`/`false`, not `True`/`False`)
+- A quoted boolean (`"false"`): the publisher refuses it and names the key, since a quoted string would otherwise read as on
 
 ### Environment Variable Type Conversion
 

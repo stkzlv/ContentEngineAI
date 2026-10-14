@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.211.0] - 2026-10-14
+
+### Changed
+
+- **Breaking**: The publisher stops and names the key when an on/off setting holds anything but `true` or `false`, where a quoted `"false"` used to read as on (turning cleanup or covers on, for example), so a config that quotes a switch or writes it as a number must be changed to a bare boolean.
+
 ## [0.210.1] - 2026-10-14
 
 ### Fixed

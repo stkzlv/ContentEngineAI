@@ -121,6 +121,9 @@ def load_publisher_config(
 
     # Load YAML config (lowest precedence)
     yaml_config = _load_yaml_config(config_path)
+    # Before the section parsers: one that refuses a sibling key falls back
+    # to its defaults and would drop a quoted switch unseen.
+    _refuse_raw_non_booleans(yaml_config)
 
     # Parse schedule and cleanup configurations from YAML
     yaml_config = _parse_schedule_and_cleanup_config(yaml_config)
@@ -148,6 +151,7 @@ def load_publisher_config(
     # Convert to PublisherConfig dataclass
     try:
         config = PublisherConfig(**config_dict)
+        _refuse_non_booleans(config)
         logger.info(
             "Configuration loaded: provider=%s, immediate_publish=%s, max_retries=%d",
             config.provider,
@@ -158,6 +162,86 @@ def load_publisher_config(
     except (ValueError, TypeError) as e:
         logger.error("Configuration validation failed: %s", e)
         raise ValueError(f"Invalid publisher configuration: {e}") from e
+
+
+def _bool_fields(*classes: type) -> set[str]:
+    return {
+        f.name
+        for cls in classes
+        for f in dataclasses.fields(cls)
+        if f.type in (bool, "bool")
+    }
+
+
+def _raw_sections() -> dict[str, set[str]]:
+    """Each YAML section and the switches the parser reads from it.
+
+    The two schedule sections share `ScheduleConfig` but each is read for
+    its own keys only, so a misplaced key that is never read is not named.
+    """
+    return {
+        "recurring_schedule": {"enabled"},
+        "schedule_validation": {"prevent_duplicates", "allow_past_schedules"},
+        "cleanup": _bool_fields(CleanupConfig),
+        "link_in_bio": _bool_fields(LinkInBioConfig),
+        "tiktok_settings": _bool_fields(TikTokContentSettings),
+        "first_comment": _bool_fields(FirstCommentConfig),
+        "blob_retention": _bool_fields(BlobRetentionConfig),
+        "delivery_sweep": _bool_fields(DeliverySweepConfig),
+        "covers": _bool_fields(CoversConfig),
+        "affiliate_disclosure": _bool_fields(AffiliateDisclosureConfig),
+        "analytics": _bool_fields(AnalyticsConfig),
+    }
+
+
+def _refuse_raw_non_booleans(yaml_config: dict[str, Any]) -> None:
+    """Refuse a switch in the raw YAML that is not a boolean (REQ-PUB-160)."""
+    checks: list[tuple[str, dict[str, Any], set[str]]] = [
+        ("", yaml_config, _bool_fields(PublisherConfig))
+    ]
+    for section, switches in _raw_sections().items():
+        raw = yaml_config.get(section)
+        if isinstance(raw, dict):
+            checks.append((f"{section}.", raw, switches))
+    for prefix, raw, switches in checks:
+        for key in switches & raw.keys():
+            value = raw[key]
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"Invalid publisher configuration: {prefix}{key} must be "
+                    f"true or false, got {value!r} ({type(value).__name__})"
+                )
+
+
+def _refuse_non_booleans(obj: Any, path: str = "") -> None:
+    """Refuse a switch whose value is not a YAML boolean.
+
+    The dataclasses take values as written, so a quoted `"false"` was a
+    non-empty string and read as on: `cleanup.enabled: "false"` deleted
+    files. Walks every dataclass field typed `bool`, nested sections, lists
+    and mappings of them included.
+    """
+    if isinstance(obj, list | tuple):
+        for i, item in enumerate(obj):
+            _refuse_non_booleans(item, f"{path}[{i}]")
+        return
+    if isinstance(obj, dict):
+        for key, item in obj.items():
+            _refuse_non_booleans(item, f"{path}.{key}" if path else str(key))
+        return
+    if not dataclasses.is_dataclass(obj) or isinstance(obj, type):
+        return
+    for field in dataclasses.fields(obj):
+        value = getattr(obj, field.name, None)
+        name = f"{path}.{field.name}" if path else field.name
+        if field.type in (bool, "bool"):
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"{name} must be true or false, got {value!r} "
+                    f"({type(value).__name__})"
+                )
+        else:
+            _refuse_non_booleans(value, name)
 
 
 def parse_tiktok_settings(section: Any) -> TikTokContentSettings:
