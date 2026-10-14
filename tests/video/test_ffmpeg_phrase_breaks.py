@@ -4,6 +4,8 @@ script-timed captions keep every word (REQ-VID-163).
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from src.video.config.subtitle_models import SubtitleSettings
@@ -132,3 +134,22 @@ def test_bundled_profiles_hand_the_generator_phrase_breaks_on():
         merged = config.get_profile_merged_settings(name).subtitle_settings
         rebuilt = SubtitleSettings.from_legacy_dict(merged.model_dump())
         assert rebuilt.phrase_breaks is True, name
+
+
+@pytest.mark.req("REQ-VID-163")
+def test_script_breaks_do_not_outrun_the_audio_at_a_fast_rate(mock_config):
+    """At 4.5 words a second two words last under `min_duration`, so a break
+    that kept two pushed later captions past the audio and lost their words.
+    Seeded scripts from a how-to vocabulary; without the floor about half of
+    them lost words.
+    """
+    vocab = (
+        "the a your phone router plug it in and then open settings because "
+        "wait now. tap reset. iPhone 15 cable back of with to for app."
+    ).split()
+    rnd = random.Random(1)  # noqa: S311 - a reproducible fixture
+    generator = _generator(mock_config, True)
+    for _ in range(20):
+        words = [rnd.choice(vocab) for _ in range(rnd.randint(30, 90))]
+        segments = generator._create_script_segments(" ".join(words), len(words) / 4.5)
+        assert " ".join(_texts(segments)).split() == words

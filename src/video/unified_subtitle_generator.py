@@ -6,6 +6,7 @@ a unified API for both SRT and ASS formats.
 """
 
 import logging
+import math
 import random
 import re
 from collections.abc import Callable
@@ -411,13 +412,14 @@ class UnifiedSubtitleGenerator:
         words: list[str],
         incoming: str,
         fits: Callable[[str], bool] | None = None,
+        min_words: int = PHRASE_MIN_WORDS,
     ) -> int:
         """How many of `words` a caption keeps when a limit stops it (REQ-VID-157).
 
         `incoming` is the word that did not fit. The words left over are
         carried into the next caption beside it, so an end is only taken when
         they still fit there: within the character limit, and `fits` (the
-        width check) when given.
+        width check) when given. `min_words` is the fewest it keeps.
         """
 
         def carries(end: int) -> bool:
@@ -428,9 +430,7 @@ class UnifiedSubtitleGenerator:
                 return False
             return fits is None or fits(text)
 
-        return phrase_end(
-            [*words, incoming], len(words), PHRASE_MIN_WORDS, carries=carries
-        )
+        return phrase_end([*words, incoming], len(words), min_words, carries=carries)
 
     def _create_segments(
         self,
@@ -721,7 +721,19 @@ class UnifiedSubtitleGenerator:
                 # at a phrase boundary and carry the words after it forward.
                 carried: list[str] = []
                 if self.config.phrase_breaks and not appended:
-                    keep = self._phrase_keep(current_segment_words, word, fits_width)
+                    # Script-timed captions are laid end to end, each lasting
+                    # at least `min_duration`; a caption shorter than that at
+                    # this rate pushes every later one back, and past the end
+                    # of the audio its words are lost.
+                    keep = self._phrase_keep(
+                        current_segment_words,
+                        word,
+                        fits_width,
+                        min_words=max(
+                            PHRASE_MIN_WORDS,
+                            math.ceil(self.config.min_duration * speaking_rate),
+                        ),
+                    )
                     carried = current_segment_words[keep:]
                     current_segment_words = current_segment_words[:keep]
                     current_segment_text = " ".join(current_segment_words)

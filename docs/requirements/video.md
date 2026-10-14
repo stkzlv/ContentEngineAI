@@ -63,7 +63,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
   - Why: without the outer cap a long transcription spends the render's budget and the timeout is reported against a later step.
 - **REQ-VID-132** `shipped` If Whisper times out, the producer retries it with the limit widened by `timeout_retry_multiplier`, at most `timeout_retry_attempts` times, and stops retrying once the cap keeps the limit from widening.
 - **REQ-VID-133** `shipped` Where Google Cloud STT is enabled with valid credentials, it supplies the word timings when Whisper is unavailable or returns none.
-- **REQ-VID-163** `shipped` When no word timings are available, FFmpeg-engine captions are timed from the script text, and every word of the script appears in a caption.
+- **REQ-VID-163** `partial` When no word timings are available, FFmpeg-engine captions are timed from the script text, and every word of the script appears in a caption.
+  - Gap: captions are laid end to end, each lasting at least `min_duration`, and the excess is never paid back; at a fast rate (5.5 words a second in a sample of seeded scripts) they run past the end of the audio and the last ones are dropped. Phrase breaks never keep fewer words than fill `min_duration` at the script's rate, so they add no such loss.
 - **REQ-VID-030** `shipped` When a run produces no captions on purpose (captions disabled, or the engine unavailable under a skip policy), the subtitle step records why, so a resume can tell it from a step that produced nothing by accident.
 
 ## Caption engines
