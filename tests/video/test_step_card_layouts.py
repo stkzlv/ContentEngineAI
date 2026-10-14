@@ -59,7 +59,7 @@ def test_centred_stacks_the_counter_over_the_path(tmp_path: Path) -> None:
 def test_left_starts_both_lines_at_the_margin(tmp_path: Path) -> None:
     drawtexts = _drawtexts(tmp_path, "left")
     assert len(drawtexts) == 2
-    assert all("x=w*0.1100:" in d for d in drawtexts)
+    assert all("x=min(w*0.1100\\,w*0.8900-text_w):" in d for d in drawtexts)
 
 
 @pytest.mark.req("REQ-VID-153")
@@ -179,6 +179,9 @@ def test_ffmpeg_keeps_a_long_path_inside_the_frame(
     extent = _white_extent(tmp_path, LONG, layout)
     assert extent.start > 20
     assert extent.stop < 1060
+    if layout == "left":
+        # The line ends inside the right margin, 0.89 of the width.
+        assert extent.stop <= 961
 
 
 @pytest.mark.req("REQ-VID-153")

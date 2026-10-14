@@ -578,8 +578,11 @@ def build_step_card_drawtext(
     counter_px = max(8, int(subtitle_font_size_pixels * settings.counter_size_factor))
     path_px_start = max(8, int(subtitle_font_size_pixels * settings.path_size_factor))
     max_px = int(frame_width * settings.max_width_fraction)
+    # `left` starts at the margin, pulled left when a line runs past the
+    # other margin: the width estimate under-reads real glyphs.
+    margin = (1 - settings.max_width_fraction) / 2
     x_expr = (
-        f"w*{(1 - settings.max_width_fraction) / 2:.4f}"
+        f"min(w*{margin:.4f}\\,w*{1 - margin:.4f}-text_w)"
         if layout == "left"
         else "(w-text_w)/2"
     )
