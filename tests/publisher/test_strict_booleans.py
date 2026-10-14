@@ -79,6 +79,11 @@ class TestStrictBooleans:
         with pytest.raises(ValueError, match=name.replace(".", r"\.")):
             _load(tmp_path, text)
 
+    def test_a_key_the_section_never_reads_is_not_named(self, tmp_path):
+        # `enabled` belongs to recurring_schedule; under schedule_validation
+        # nothing reads it, so it is no switch there.
+        _load(tmp_path, 'schedule_validation:\n  enabled: "yes"\n')
+
     def test_the_shipped_config_passes(self, monkeypatch):
         monkeypatch.delenv("LATE_API_KEY", raising=False)
         load_publisher_config(cli_overrides=KEY)

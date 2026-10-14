@@ -164,23 +164,6 @@ def load_publisher_config(
         raise ValueError(f"Invalid publisher configuration: {e}") from e
 
 
-def _raw_sections() -> dict[str, tuple[type, ...]]:
-    """Each YAML section and the dataclasses its keys land in."""
-    return {
-        "recurring_schedule": (ScheduleConfig,),
-        "schedule_validation": (ScheduleConfig,),
-        "cleanup": (CleanupConfig,),
-        "link_in_bio": (LinkInBioConfig,),
-        "tiktok_settings": (TikTokContentSettings,),
-        "first_comment": (FirstCommentConfig,),
-        "blob_retention": (BlobRetentionConfig,),
-        "delivery_sweep": (DeliverySweepConfig,),
-        "covers": (CoversConfig,),
-        "affiliate_disclosure": (AffiliateDisclosureConfig,),
-        "analytics": (AnalyticsConfig,),
-    }
-
-
 def _bool_fields(*classes: type) -> set[str]:
     return {
         f.name
@@ -190,15 +173,36 @@ def _bool_fields(*classes: type) -> set[str]:
     }
 
 
+def _raw_sections() -> dict[str, set[str]]:
+    """Each YAML section and the switches the parser reads from it.
+
+    The two schedule sections share `ScheduleConfig` but each is read for
+    its own keys only, so a misplaced key that is never read is not named.
+    """
+    return {
+        "recurring_schedule": {"enabled"},
+        "schedule_validation": {"prevent_duplicates", "allow_past_schedules"},
+        "cleanup": _bool_fields(CleanupConfig),
+        "link_in_bio": _bool_fields(LinkInBioConfig),
+        "tiktok_settings": _bool_fields(TikTokContentSettings),
+        "first_comment": _bool_fields(FirstCommentConfig),
+        "blob_retention": _bool_fields(BlobRetentionConfig),
+        "delivery_sweep": _bool_fields(DeliverySweepConfig),
+        "covers": _bool_fields(CoversConfig),
+        "affiliate_disclosure": _bool_fields(AffiliateDisclosureConfig),
+        "analytics": _bool_fields(AnalyticsConfig),
+    }
+
+
 def _refuse_raw_non_booleans(yaml_config: dict[str, Any]) -> None:
     """Refuse a switch in the raw YAML that is not a boolean (REQ-PUB-160)."""
     checks: list[tuple[str, dict[str, Any], set[str]]] = [
         ("", yaml_config, _bool_fields(PublisherConfig))
     ]
-    for section, classes in _raw_sections().items():
+    for section, switches in _raw_sections().items():
         raw = yaml_config.get(section)
         if isinstance(raw, dict):
-            checks.append((f"{section}.", raw, _bool_fields(*classes)))
+            checks.append((f"{section}.", raw, switches))
     for prefix, raw, switches in checks:
         for key in switches & raw.keys():
             value = raw[key]
