@@ -129,8 +129,20 @@ def test_a_section_that_is_not_a_mapping_is_refused(tmp_path, text, name):
 @pytest.mark.unit
 @pytest.mark.req("REQ-PUB-160")
 def test_an_empty_section_loads_its_defaults(tmp_path):
-    config = _load(tmp_path, "cleanup:\ncovers: null\n")
+    config = _load(tmp_path, "covers:\nlink_in_bio: null\n")
     assert config.covers_config.enabled is False
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-PUB-160")
+@pytest.mark.req("REQ-PUB-012")
+@pytest.mark.parametrize(
+    "section", ["recurring_schedule", "schedule_validation", "cleanup"]
+)
+def test_an_empty_schedule_or_cleanup_section_is_refused(tmp_path, section):
+    # Its defaults would publish on the spot or turn cleanup on.
+    with pytest.raises(ValueError, match=rf"{section} must be a mapping"):
+        _load(tmp_path, f"{section}:\n")
 
 
 @pytest.mark.unit

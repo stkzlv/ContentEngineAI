@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- An empty section in the publisher config (a heading with nothing under it) loads its defaults instead of stopping the load.
+- An empty `recurring_schedule`, `schedule_validation` or `cleanup` section in the publisher config stops the load with a message naming it instead of crashing.
 
 ## [0.211.0] - 2026-10-14
 
