@@ -250,3 +250,36 @@ def test_without_profile_pointer(text, expected):
     from src.utils.youtube_description import without_profile_pointer
 
     assert without_profile_pointer(text) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(True, True), ("false", False), ("true", False), (False, False)],
+)
+def test_the_publisher_reads_the_pointer_as_the_render_does(value, expected):
+    # Only a YAML `true` is on, on both sides, so a quoted value can't have
+    # the prompts drop the pointer while the publisher appends it.
+    from unittest.mock import patch
+
+    from src.publisher.models import PublisherConfig
+    from src.publisher.registry import create_publisher_from_config
+
+    config = PublisherConfig(
+        provider="late", api_key="sk_live_" + "0" * 48, youtube_profile_pointer=value
+    )
+    with patch("src.publisher.registry.create_publisher") as factory:
+        create_publisher_from_config(config)
+
+    assert factory.call_args.kwargs["youtube_profile_pointer"] is expected
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-CNT-150")
+@pytest.mark.req("REQ-PUB-148")
+@pytest.mark.parametrize("text", ["Link in bio.", "Link in bio: https://amzn.to/abc"])
+def test_off_a_pointer_only_description_becomes_the_title(text):
+    youtube = youtube_metadata(_meta(text), "B0TESTPTR1", pointer=False)
+
+    assert youtube.description == "Tilted cat bowl"

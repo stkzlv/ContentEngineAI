@@ -194,6 +194,7 @@ def create_publisher_from_config(
         tiktok_settings=config.tiktok_settings,
         first_comment_config=config.first_comment_config,
         synthetic_media_disclosure=config.synthetic_media_disclosure,
-        youtube_profile_pointer=config.youtube_profile_pointer,
+        # Only a YAML `true`, as the render reads it (REQ-CNT-150).
+        youtube_profile_pointer=config.youtube_profile_pointer is True,
         covers_enabled=config.covers_config.enabled,
     )

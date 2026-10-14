@@ -40,6 +40,10 @@ def youtube_metadata(meta: Any, product_id: str, *, pointer: bool) -> Any:
     body = drop_urls(meta.description)
     if not pointer:
         body = without_profile_pointer(body)
+        if not body:
+            # Nothing but a pointer: the title stands in, since an empty
+            # description is refused and the pointer may not stay.
+            body = drop_urls(str(getattr(meta, "title", "") or ""))
     wants_pointer = bool(
         pointer and product_id and not product_id.startswith(_TOPIC_ID_PREFIX)
     )

@@ -23,7 +23,7 @@ GOOD (actual script - DO THIS):
 7.  **Value Proposition:** Explain the value the product offers by addressing what problems it solves for the user, based on the 'Product Description' provided below.
 8.  **Personality:** Inject personality; avoid a robotic or overly formal tone.
 9.  **Value:** Position the video script content as a helpful resource, providing value to the viewer, not just a sales pitch.
-10. **Call to Action (CTA):** Conclude with the call to action the rules below give. Do NOT use the phrase "Swipe up" and do NOT include hashtags or emojis in the CTA.
+10. **Call to Action (CTA):** Close on one relevant statement about the product, then conclude with the call to action the rules below give. Do NOT use the phrase "Swipe up" and do NOT include hashtags or emojis in the CTA.
 {CTA_RULE}
 
 **Product Information Provided for Reference:**
