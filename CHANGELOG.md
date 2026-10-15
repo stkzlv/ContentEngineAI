@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.215.0] - 2026-10-15
+
+### Changed
+
+- Tutorial step cards rotate between the centred and inline layouts, one per video drawn from its product id; the left layout stays available but isn't listed.
+
 ## [0.214.1] - 2026-10-14
 
 ### Security
