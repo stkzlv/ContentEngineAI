@@ -201,3 +201,11 @@ def test_the_assembler_records_the_layout_it_drew() -> None:
     assert '"step_card_layout": self.step_card_layout' in inspect.getsource(
         core.VideoAssembler.assembly_choices
     )
+
+
+@pytest.mark.req("REQ-VID-153")
+def test_bundled_config_rotates_centred_and_inline() -> None:
+    from src.video.config import load_video_config_modular
+
+    graphics = load_video_config_modular().video_settings.graphics
+    assert graphics.layouts == ["centred", "inline"]

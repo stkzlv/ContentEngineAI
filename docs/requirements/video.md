@@ -234,8 +234,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-151** `shipped` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome, or for a "why" question one symptom whose usual causes the steps check), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
-- **REQ-VID-153** `held` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.
-  - On when: `video_settings.graphics.layouts` lists more than one layout in the bundled config, after a look at a sample render of each (#561).
+- **REQ-VID-153** `shipped` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.
 
 ## Media validation
 

@@ -267,7 +267,7 @@ video_settings:
     box_color: "black@0.6"
     # Step-card layouts, one per video from a hash of the product id:
     # centred, left, inline. One entry keeps every card the same (REQ-VID-153).
-    layouts: ["centred"]
+    layouts: ["centred", "inline"]
 
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by
