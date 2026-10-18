@@ -549,6 +549,32 @@ def _fit_font(text: str, start: int, max_px: int, floor: int) -> int:
     return max(size, floor)
 
 
+def apply_step_visuals(
+    visual_chain_result: tuple,
+    screens: Sequence[tuple[Path, float, float]],
+) -> tuple:
+    """Lay each step screen over the visual chain for its time (REQ-VID-123).
+
+    Each screen is a frame-sized image input, overlaid while it is on, so
+    it covers the stock footage and sits under the captions and every text
+    overlay. A single-image input repeats its frame, so no loop is needed.
+    """
+    if not screens:
+        return visual_chain_result
+    filters, inputs, timed, stream, geometries, overridden = visual_chain_result
+    filters, inputs = list(filters), list(inputs)
+    for i, (path, start, end) in enumerate(screens):
+        index = inputs.count("-i")
+        inputs.extend(["-i", str(path)])
+        label = f"[v_step_visual_{i}]"
+        filters.append(
+            f"{stream}[{index}:v]overlay=0:0:"
+            f"enable='between(t,{start:.3f},{end:.3f})'{label}"
+        )
+        stream = label
+    return filters, inputs, timed, stream, geometries, overridden
+
+
 def pick_step_card_layout(layouts: Sequence[str], product_id: str | None) -> str:
     """The video's step-card layout, the same on every run (REQ-VID-153)."""
     if len(layouts) == 1:

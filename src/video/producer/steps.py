@@ -1893,6 +1893,32 @@ def _step_cards(ctx: PipelineContext) -> list[Any] | None:
     )
 
 
+def _step_visuals(
+    ctx: PipelineContext, total_duration: float
+) -> list[tuple[Path, float, float]] | None:
+    """A topic render's step screens, when step visuals are on (REQ-VID-123).
+
+    Drawn from the step list beside the script and timed from Whisper's
+    words, like the step cards; none without either, or when any step's
+    narration can't be found.
+    """
+    settings = ctx.config.video_settings.step_visuals
+    script_file = ctx.run_paths.get("script_file")
+    if not settings.enabled or script_file is None:
+        return None
+    from src.video.step_visuals import load_step_visuals
+
+    return load_step_visuals(
+        Path(script_file).with_name("step_list.json"),
+        _word_timings(ctx),
+        Path(ctx.run_paths["intermediate_base"]),
+        size=ctx.config.video_settings.resolution,
+        video_end=total_duration,
+        opening_max_sec=settings.opening_max_sec,
+        recap_sec=settings.recap_sec,
+    )
+
+
 def _word_timings(ctx: PipelineContext) -> list[dict[str, Any]] | None:
     """Whisper's word timings for this run, or None when there are none."""
     path = ctx.run_paths.get("whisper_transcript_file")
@@ -2092,6 +2118,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 speech_end_sec=speech_end,
                 spoken_words=_spoken_words(ctx),
                 step_cards=_step_cards(ctx),
+                step_visuals=_step_visuals(ctx, total_duration),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")

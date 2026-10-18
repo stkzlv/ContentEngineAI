@@ -444,6 +444,38 @@ class GraphicsSettings(BaseModel):
     )
 
 
+class StepVisualsSettings(BaseModel):
+    """A screen per tutorial step, timed to its narration (REQ-VID-123).
+
+    Design 0018. A topic render with a step list shows each step on a
+    mockup with the step's exact menu labels, the start screen before the
+    first step and a recap of the paths at the end; stock footage keeps only
+    the opening. A render where any step's narration can't be found keeps
+    its stock visuals.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Show each tutorial step on a mockup of its screen.",
+    )
+    opening_max_sec: float = Field(
+        default=3.0,
+        ge=0.0,
+        le=10.0,
+        description="Longest the opening stock footage plays before the screens.",
+    )
+    recap_sec: float = Field(
+        default=2.5,
+        ge=0.0,
+        le=6.0,
+        description=(
+            "Shortest time the closing recap of every step's path holds, "
+            "unless that would leave the last step under a second; it starts "
+            "earlier where the spoken recap does."
+        ),
+    )
+
+
 class HookOverlaySettings(BaseModel):
     """Burned-in hook text overlay (Phase 1.2c, also closes #102).
 
@@ -659,6 +691,7 @@ class VideoSettings(BaseModel):
         default_factory=HookOverlaySettings  # type: ignore[arg-type]
     )
     graphics: GraphicsSettings = Field(default_factory=GraphicsSettings)
+    step_visuals: StepVisualsSettings = Field(default_factory=StepVisualsSettings)
     upper_line: UpperLineSettings = Field(
         default_factory=UpperLineSettings  # type: ignore[arg-type]
     )

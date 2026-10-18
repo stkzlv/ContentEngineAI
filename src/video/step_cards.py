@@ -59,12 +59,11 @@ def _tokens(text: str) -> list[str]:
     return _TOKEN.findall(text.lower().replace("&", " and "))
 
 
-def display_path(ui_path: str, max_words: int) -> str:
-    """The menu path as the card shows it: 'Settings > Your name > iCloud'.
+def path_segments(ui_path: str) -> list[str]:
+    """A menu path's segments as shown: ['Settings', 'Your name', 'iCloud'].
 
     A bracketed placeholder ("[your name]") reads as its words, capitalised,
-    and a segment repeated back to back shows once. A path longer than
-    `max_words` keeps its last segments, after a leading "...".
+    and a segment repeated back to back shows once.
     """
     cleaned: list[str] = []
     for segment in _PATH_SPLIT.split(ui_path.strip()):
@@ -73,6 +72,16 @@ def display_path(ui_path: str, max_words: int) -> str:
         ).strip()
         if text and (not cleaned or cleaned[-1].lower() != text.lower()):
             cleaned.append(text)
+    return cleaned
+
+
+def display_path(ui_path: str, max_words: int) -> str:
+    """The menu path as the card shows it: 'Settings > Your name > iCloud'.
+
+    Segments as `path_segments` gives them. A path longer than `max_words`
+    keeps its last segments, after a leading "...".
+    """
+    cleaned = path_segments(ui_path)
     kept: list[str] = []
     for segment in reversed(cleaned):
         if kept and sum(len(s.split()) for s in [*kept, segment]) > max_words:
@@ -134,6 +143,63 @@ def _find(
     return matches[0] if matches else None
 
 
+def find_step_words(
+    steps: list[dict[str, Any]], spoken: list[dict[str, Any]]
+) -> dict[int, int]:
+    """Where each step's narration starts: step number -> index in `spoken`.
+
+    The search starts after the first sentence and moves forward, so a step
+    is found only after the one before it. `spoken` is Whisper's word list
+    (`word`, `start_time`, `end_time`). A step whose words can't be found is
+    missing from the result.
+    """
+    raw = [str(w.get("word", "")) for w in spoken]
+    words = ["".join(_tokens(w)) for w in raw]
+    found: dict[int, int] = {}
+    # The first sentence names the topic ("Here's how to set up Back Tap"),
+    # so it would match the last step's target before any step is spoken.
+    cursor = next((i + 1 for i, w in enumerate(raw) if _SENTENCE_END.search(w)), 0)
+    missed = 0
+    for number, step in enumerate(steps, start=1):
+        key = _key(step)
+        window = _SEARCH_WINDOW_WORDS * (1 + missed)
+        match = _find(words, key, cursor, window) if key else None
+        if match is None:
+            missed += 1
+            continue
+        missed = 0
+        index, count = match
+        found[number] = index
+        cursor = index + count
+    return found
+
+
+def sentence_starts(spoken: list[dict[str, Any]]) -> list[int]:
+    """The index of each sentence's first word in Whisper's word list."""
+    starts = [0] if spoken else []
+    for i, w in enumerate(spoken[:-1]):
+        if _SENTENCE_END.search(str(w.get("word", ""))):
+            starts.append(i + 1)
+    return starts
+
+
+def first_segment_word(
+    step: dict[str, Any], spoken: list[dict[str, Any]], after: int, before: int
+) -> int | None:
+    """The first word in (`after`, `before`] that starts any of the step's path
+    segments, so "find Auto-Lock" opens a step whose key is a later "30".
+    """
+    words = ["".join(_tokens(str(w.get("word", "")))) for w in spoken]
+    keys = ["".join(_tokens(s)) for s in path_segments(str(step.get("ui_path") or ""))]
+    hits = [
+        i
+        for key in keys
+        if key
+        for i, _ in _matches(words, key, after + 1, before - after)
+    ]
+    return min(hits) if hits else None
+
+
 def plan_step_cards(
     steps: list[dict[str, Any]],
     spoken: list[dict[str, Any]],
@@ -145,36 +211,22 @@ def plan_step_cards(
 ) -> list[StepCard]:
     """One card per step whose narration is found, in order.
 
-    The search starts after the first sentence. `spoken` is Whisper's word
-    list (`word`, `start_time`, `end_time`). A card starts at its step's
-    first matched word, no earlier than `not_before` (the hook overlay's
-    end), and ends when the next card starts, after at most `max_sec`; one
-    that would be on screen less than `min_sec` is dropped. A step found
-    before the previous one is skipped.
+    A card starts at its step's first matched word (`find_step_words`), no
+    earlier than `not_before` (the hook overlay's end), and ends when the
+    next card starts, after at most `max_sec`; one that would be on screen
+    less than `min_sec` is dropped.
     """
-    raw = [str(w.get("word", "")) for w in spoken]
-    words = ["".join(_tokens(w)) for w in raw]
     total = len(steps)
+    starts = find_step_words(steps, spoken)
     found: list[tuple[int, int, str]] = []
-    # The first sentence names the topic ("Here's how to set up Back Tap"),
-    # so it would match the last step's target before any step is spoken.
-    cursor = next((i + 1 for i, w in enumerate(raw) if _SENTENCE_END.search(w)), 0)
-    missed = 0
     for number, step in enumerate(steps, start=1):
-        key = _key(step)
-        window = _SEARCH_WINDOW_WORDS * (1 + missed)
-        match = _find(words, key, cursor, window) if key else None
-        if match is None:
+        if number not in starts:
             logger.info(
                 "Step card %d of %d skipped: narration not found", number, total
             )
-            missed += 1
             continue
-        missed = 0
-        index, count = match
         path = display_path(str(step.get("ui_path") or ""), max_path_words)
-        found.append((number, index, path))
-        cursor = index + count
+        found.append((number, starts[number], path))
 
     speech_end = float(spoken[-1]["end_time"]) if spoken else 0.0
     cards: list[StepCard] = []
