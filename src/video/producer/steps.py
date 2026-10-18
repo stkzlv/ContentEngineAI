@@ -550,6 +550,11 @@ async def step_gather_visuals(ctx: PipelineContext):
         )
 
 
+def _checklist_on(graphics: Any) -> bool:
+    """Whether the checklist graphic is drawn, so its text is asked for."""
+    return bool(graphics.enabled and graphics.checklist)
+
+
 async def _topic_step_list(ctx: PipelineContext) -> Any:
     """The sourced step list for a topic, when step lists are on (design 0017).
 
@@ -569,6 +574,7 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
         ctx.product.description or "",
         api_key=api_key,
         settings=cfg,
+        checklist=_checklist_on(ctx.config.video_settings.graphics),
     )
     record = Path(ctx.run_paths["script_file"]).with_name("step_list.json")
     if step_list is not None:
@@ -1890,6 +1896,7 @@ def _step_cards(ctx: PipelineContext) -> list[Any] | None:
         min_sec=settings.min_sec,
         max_sec=settings.max_sec,
         max_path_words=settings.max_path_words,
+        checklist=_checklist_on(settings),
     )
 
 
