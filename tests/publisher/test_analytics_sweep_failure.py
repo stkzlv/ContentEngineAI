@@ -32,6 +32,7 @@ def _args(tmp_path):
         rank_only=False,
         by_arm=False,
         since=None,
+        until=None,
         outputs_dir=Path(tmp_path),
         debug=False,
     )

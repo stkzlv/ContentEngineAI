@@ -911,6 +911,7 @@ def readout_by_arm(
     since: datetime | None,
     platforms: list[str],
     breakout_multiple: float,
+    until: datetime | None = None,
 ) -> list[str]:
     """The reach-test readout: day-N medians by format arm and their ratio.
 
@@ -918,15 +919,20 @@ def readout_by_arm(
     only `platforms`; per-platform medians and the breakout rate are
     secondary lines that do not change the verdict (REQ-PUB-152). Posts with
     no arm are counted and named rather than silently dropped; posts before
-    `since` are counted in the header.
+    `since` or after the day `until` names are counted in the header.
     """
-    in_window = [
-        m
-        for m in metrics
-        if since is None
-        or ((when := _parse_date(m.published_at)) is not None and when >= since)
-    ]
-    excluded = len(metrics) - len(in_window)
+    # `until` is a day: a post published any time on it is in the window.
+    end = None if until is None else until + timedelta(days=1)
+    earlier = later = 0
+    in_window = []
+    for m in metrics:
+        when = _parse_date(m.published_at)
+        if since is not None and (when is None or when < since):
+            earlier += 1
+        elif end is not None and (when is None or when >= end):
+            later += 1
+        else:
+            in_window.append(m)
     unplaced = [m.post_id for m in in_window if arm_by_post.get(m.post_id) is None]
     placed = {
         arm: [m for m in in_window if arm_by_post.get(m.post_id) == arm]
@@ -935,8 +941,10 @@ def readout_by_arm(
     lines = [
         f"Reach readout by arm on {'+'.join(platforms)}"
         + (f" since {since.date().isoformat()}" if since else "")
+        + (f" until {until.date().isoformat()}" if until else "")
         + f": {len(in_window)} post(s), {len(unplaced)} with no arm"
-        + (f", {excluded} earlier left out" if excluded else "")
+        + (f", {earlier} earlier left out" if earlier else "")
+        + (f", {later} later left out" if later else "")
     ]
     if unplaced:
         lines.append(f"  no arm: {', '.join(unplaced)}")

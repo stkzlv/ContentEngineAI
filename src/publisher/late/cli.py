@@ -246,7 +246,10 @@ def _iso_date(value: str) -> datetime:
 
 
 def _log_arm_readout(
-    outputs_dir: Path, since: datetime | None, analytics_config
+    outputs_dir: Path,
+    since: datetime | None,
+    analytics_config,
+    until: datetime | None = None,
 ) -> None:
     """The reach-test readout over stored metrics (REQ-PUB-150)."""
     from src.publisher.product_registry import load_registry
@@ -265,6 +268,7 @@ def _log_arm_readout(
         load_metrics(outputs_dir),
         arm_by_post,
         since=since,
+        until=until,
         platforms=analytics_config.readout_platforms,
         breakout_multiple=analytics_config.breakout_multiple,
     ):
@@ -476,7 +480,12 @@ async def cmd_analytics(
 
     _log_quality_segments(outputs_dir, config.analytics_config.duration_bands_sec)
     if args.by_arm:
-        _log_arm_readout(outputs_dir, args.since, config.analytics_config)
+        _log_arm_readout(
+            outputs_dir,
+            args.since,
+            config.analytics_config,
+            until=args.until,
+        )
 
     logger.info("%-26s %8s %8s %8s %10s", "post", "day2", "day7", "total", "durability")
     for m in rank_by_durability(metrics):
@@ -1786,6 +1795,12 @@ Examples:
         type=_iso_date,
         default=None,
         help="With --by-arm, only posts published on or after DATE (YYYY-MM-DD)",
+    )
+    analytics_parser.add_argument(
+        "--until",
+        type=_iso_date,
+        default=None,
+        help="With --by-arm, only posts published on or before DATE (YYYY-MM-DD)",
     )
     analytics_parser.add_argument(
         "--rank-only",

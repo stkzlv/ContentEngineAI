@@ -46,11 +46,12 @@ def _post(post_id: str, youtube: int | None, tiktok: int | None, **kw) -> PostMe
     )
 
 
-def _readout(metrics, arms, since=None, platforms=("youtube", "tiktok")):
+def _readout(metrics, arms, since=None, platforms=("youtube", "tiktok"), until=None):
     return readout_by_arm(
         metrics,
         arms,
         since=since,
+        until=until,
         platforms=list(platforms),
         breakout_multiple=2.0,
     )
@@ -211,6 +212,26 @@ class TestTheReadout:
         )
         assert "topic [1 post(s)]" in _line(lines, "topic [")
 
+    def test_until_drops_later_posts_and_keeps_its_whole_day(self) -> None:
+        metrics = [
+            _post("old", 1, 1, published_at="2026-09-13T20:00:00"),
+            _post("last", 1, 1, published_at="2026-09-30T23:30:00"),
+            _post("late", 1, 1, published_at="2026-10-01T08:00:00"),
+        ]
+
+        lines = _readout(
+            metrics,
+            {"old": "topic", "last": "topic", "late": "topic"},
+            since=datetime(2026, 9, 14),
+            until=datetime(2026, 9, 30),
+        )
+
+        assert lines[0].endswith(
+            "since 2026-09-14 until 2026-09-30: 1 post(s), 0 with no arm, "
+            "1 earlier left out, 1 later left out"
+        )
+        assert "topic [1 post(s)]" in _line(lines, "topic [")
+
     def test_an_empty_arm_reads_not_measurable(self) -> None:
         lines = _readout([_post("t", 1, 1)], {"t": "topic"})
 
@@ -311,6 +332,7 @@ class TestTheCommand:
             rank_only=True,
             by_arm=True,
             since=_iso_date("2026-09-14"),
+            until=_iso_date("2026-09-30"),
             outputs_dir=tmp_path,
             debug=False,
         )
@@ -323,7 +345,10 @@ class TestTheCommand:
         with caplog.at_level(logging.INFO):
             await cmd_analytics(args, config, MagicMock())
 
-        assert "Reach readout by arm on tiktok since 2026-09-14" in caplog.text
+        assert (
+            "Reach readout by arm on tiktok since 2026-09-14 until 2026-09-30"
+            in caplog.text
+        )
         assert "ratio day 7: 0.47" in caplog.text
 
     def test_since_takes_a_date(self) -> None:
