@@ -68,8 +68,6 @@ The switch ships off, since a cover changes how posts appear on the profile and 
 
 ## Open questions
 
-- Whether the TikTok cover timestamp lands on the same frame as ffmpeg's seek: TikTok may round to a keyframe. The verification post answers it.
-- Whether Instagram uses the uploaded cover for the profile grid as well as the Reels tab: the API names only the Reels tab.
 - With the hook overlay off, the cover has no headline (REQ-VID-014's Gap); whether such renders should send a cover at all.
 
 ## As built
@@ -78,5 +76,5 @@ The switch ships off, since a cover changes how posts appear on the profile and 
 - Each video gets its own cover beside it, `<video>.cover.jpg`, because a product renders once per profile and a platform may be sent any of those videos. `<video>.cover.json` records the image, the video and the frame time in milliseconds, which a timestamp-based platform can use.
 - A whole render writes it, and so does a `--step` run of the profile's final step, which is how topic batches finish a video. `--clean` removes it with the video.
 - A cover that can't be written is logged and skipped, and an earlier render's cover is removed first so it never outlives a failed write.
-- The publish side is built behind `covers.enabled`, off (REQ-PUB-154 to REQ-PUB-156, REQ-PUB-158 and REQ-PUB-159 `held`; REQ-PUB-157 `shipped`). The publisher remembers which video each upload came from, so `publish` finds the cover for any path that uploads the video and then posts it, with no per-path wiring. A cover image is uploaded once per video and reused by that video's per-platform posts, and only when an Instagram post needs it.
+- The publish side is built behind `covers.enabled`, which ships on (REQ-PUB-154 to REQ-PUB-159 `shipped`). A verification post showed the cover on both platforms: the TikTok profile grid shows the frame at the record's time, and Instagram uses the uploaded image for the profile grid as well as the Reels tab. The publisher remembers which video each upload came from, so `publish` finds the cover for any path that uploads the video and then posts it, with no per-path wiring. A cover image is uploaded once per video and reused by that video's per-platform posts, and only when an Instagram post needs it.
 - A cover image over the provider's 4 MB direct upload is skipped with a warning rather than sent through the large-file upload; a render's cover is about 0.3 MB.

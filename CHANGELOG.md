@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.216.0] - 2026-10-18
+
+### Changed
+
+- Covers are on: an Instagram Reel gets its render's cover image and a TikTok post the same frame, by default.
+
 ## [0.215.0] - 2026-10-15
 
 ### Changed
