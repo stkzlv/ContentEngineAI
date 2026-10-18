@@ -78,11 +78,14 @@ def _step_start_words(
     the step ("Now, find Auto-Lock. Open the list. Select 30."), so the
     screen moves back to the earliest segment named since the previous step,
     then to the start of that word's sentence. It never starts at or before
-    the previous step's matched word, so each screen holds its own key word.
+    the previous step's matched word, so each screen holds its own key word,
+    and never in the first sentence, which names the topic and often a
+    step's segment ("... in Accessibility settings.").
     """
     sentences = sentence_starts(spoken)
     starts: list[int] = []
-    previous = -1
+    # The first sentence's last word, where `find_step_words` starts too.
+    previous = sentences[1] - 1 if len(sentences) > 1 else -1
     for number, step in enumerate(steps, start=1):
         key = found[number]
         earliest = first_segment_word(step, spoken, previous, key)

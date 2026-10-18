@@ -469,8 +469,9 @@ class StepVisualsSettings(BaseModel):
         ge=0.0,
         le=6.0,
         description=(
-            "Shortest time the closing recap of every step's path holds; it "
-            "starts earlier where the spoken recap does."
+            "Shortest time the closing recap of every step's path holds, "
+            "unless that would leave the last step under a second; it starts "
+            "earlier where the spoken recap does."
         ),
     )
 

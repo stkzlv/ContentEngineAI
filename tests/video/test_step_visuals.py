@@ -104,6 +104,28 @@ class TestThePlan:
         assert (screens[-2].start, screens[-2].end) == (10.0, 11.0)
         assert (screens[-1].start, screens[-1].end) == (11.0, 12.5)
 
+    def test_the_topic_sentence_never_opens_a_step(self) -> None:
+        steps = [{"ui_path": "Settings > Accessibility"}, {"ui_path": "Touch"}]
+        text = (
+            "Your iPhone hides a button in Accessibility settings. First open "
+            "Settings and tap Accessibility. Then tap Touch now. It opens. "
+            "So that is it done."
+        )
+        screens = plan_step_visuals(
+            steps,
+            _spoken(text),
+            start_screen="Home",
+            video_end=14.0,
+            opening_max_sec=3.0,
+            recap_sec=2.0,
+        )
+
+        # The stock opening, then the start screen, then step 1 at "First".
+        assert [(s.kind, s.start) for s in screens[:2]] == [
+            ("start", 3.0),
+            ("step", 4.0),
+        ]
+
     def test_an_earlier_segment_opens_the_step(self) -> None:
         steps = [{"ui_path": "Auto-Lock > Period > 30", "action": "Select 30"}]
         text = (
