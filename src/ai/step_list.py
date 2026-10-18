@@ -67,7 +67,7 @@ class StepList:
     mistake_step: int | None = None
     mistake: str | None = None
     # The mistake as a "don't" and its fix as a "do", for the checklist
-    # graphic (REQ-VID-124); asked for only when that graphic is on.
+    # graphic (REQ-VID-164); asked for only when that graphic is on.
     mistake_dont: str | None = None
     mistake_do: str | None = None
     refused: list[Step] = field(default_factory=list)

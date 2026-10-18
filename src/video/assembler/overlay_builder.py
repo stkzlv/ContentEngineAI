@@ -620,25 +620,33 @@ def build_step_card_drawtext(
         if card.kind == "checklist":
             # Two lines at the path's size, each in its own colour, stacked
             # in every layout: "Don't: x: Do: y" on one line reads as one.
-            for row, (label, text, tint) in enumerate(
+            rows = [
                 (
-                    (
-                        settings.checklist_dont_label,
-                        card.counter,
-                        settings.checklist_dont_color,
-                    ),
-                    (
-                        settings.checklist_do_label,
-                        card.path,
-                        settings.checklist_do_color,
-                    ),
-                )
+                    f"{settings.checklist_dont_label}: {card.dont}",
+                    settings.checklist_dont_color,
+                ),
+                (
+                    f"{settings.checklist_do_label}: {card.do}",
+                    settings.checklist_do_color,
+                ),
+            ]
+            floor = int(counter_px * 0.8)
+            sizes = [_fit_font(t, path_px_start, max_px, floor) for t, _ in rows]
+            if all(
+                _estimate_hook_text_width(t, size) <= max_px
+                for (t, _), size in zip(rows, sizes, strict=True)
             ):
-                line = f"{label}: {text}"
-                size = _fit_font(line, path_px_start, max_px, int(counter_px * 0.8))
-                offset = f"+{int(path_px_start * 1.6) * row}" if row else ""
-                lines.append((line, size, f"{y}{offset}", card.start, card.end, tint))
-            continue
+                for row, ((line, tint), size) in enumerate(
+                    zip(rows, sizes, strict=True)
+                ):
+                    offset = f"+{int(path_px_start * 1.6) * row}" if row else ""
+                    lines.append(
+                        (line, size, f"{y}{offset}", card.start, card.end, tint)
+                    )
+                continue
+            # Eight words can still be wider than the frame, and drawtext
+            # doesn't wrap: the step's own card shows instead (REQ-VID-164).
+            logger.info("Checklist skipped: a line is wider than the frame")
         if layout == "inline":
             text = f"{card.counter}: {card.path}" if card.path else card.counter
             size = _fit_font(text, path_px_start, max_px, int(counter_px * 0.8))

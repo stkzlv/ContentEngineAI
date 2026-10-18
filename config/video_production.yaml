@@ -270,6 +270,7 @@ video_settings:
     layouts: ["centred", "inline"]
     # "Don't" / "Do" at the step the step list names a common mistake at
     # (REQ-VID-164): the mistake and its fix, after the step's card.
+    # A line wider than the frame leaves the step's card in its place.
     checklist: false
     checklist_dont_label: "Don't"
     checklist_do_label: "Do"

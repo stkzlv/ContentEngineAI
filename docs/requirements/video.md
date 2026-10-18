@@ -235,10 +235,10 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
 - **REQ-VID-153** `shipped` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.
+- **REQ-VID-164** `held` Where the checklist graphic is on, at the step a topic's step list names a common mistake at, the tutorial shows the mistake and what to do instead as two lines ("Don't" and "Do"), each at most eight words, after that step's card, or in place of it when the step is too short for both, and a mistake without both short lines, or with a line wider than the frame, gets no checklist.
+  - On when: `video_settings.graphics.checklist` is set after a look at a sample tutorial render with it on (#561).
 
 ## Media validation
 
-- **REQ-VID-164** `held` Where the checklist graphic is on, at the step a topic's step list names a common mistake at, the tutorial shows the mistake and what to do instead as two lines ("Don't" and "Do"), each at most eight words, after that step's card, and a mistake without both short lines gets no checklist.
-  - On when: `video_settings.graphics.checklist` is set after a look at a sample tutorial render with it on (#561).
 - **REQ-VID-125** `shipped` The scraper checks each product's media against the producer profile's requirements.
 - **REQ-VID-126** `shipped` If a product has too little media, it is skipped, not failed.

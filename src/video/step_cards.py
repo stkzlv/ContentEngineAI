@@ -48,8 +48,9 @@ _STOPWORDS = frozenset(
 class StepCard:
     """One card: its two lines and when it is on screen, in seconds.
 
-    A `checklist` card carries the step's common mistake as its first line
-    and the fix as its second, each drawn in its own colour.
+    A `checklist` card shows the step's common mistake (`dont`) and the fix
+    (`do`) instead of its counter and path, which it keeps for when the
+    checklist can't fit the frame.
     """
 
     counter: str
@@ -57,6 +58,8 @@ class StepCard:
     start: float
     end: float
     kind: str = "step"
+    dont: str = ""
+    do: str = ""
 
 
 def add_checklist(
@@ -71,9 +74,9 @@ def add_checklist(
     """The cards with the mistake step's second half given to a checklist.
 
     A step's card shows first and the checklist ("Don't" / "Do") for the
-    rest of that step's time, one graphic at a time. A step too short to
-    hold both for `min_sec` each shows only the checklist; a step with no
-    card, or no "don't" and "do", leaves the cards as they are.
+    rest of that step's time, one graphic at a time (REQ-VID-164). A step
+    too short to hold both for `min_sec` each shows only the checklist; a
+    step with no card, or no "don't" and "do", leaves the cards as they are.
     """
     if not (mistake_step and dont and do):
         return cards
@@ -87,7 +90,17 @@ def add_checklist(
         start = middle if middle - card.start >= min_sec else card.start
         if start > card.start:
             out.append(StepCard(card.counter, card.path, card.start, start))
-        out.append(StepCard(dont, do, start, card.end, kind="checklist"))
+        out.append(
+            StepCard(
+                card.counter,
+                card.path,
+                start,
+                card.end,
+                kind="checklist",
+                dont=dont,
+                do=do,
+            )
+        )
     return out
 
 

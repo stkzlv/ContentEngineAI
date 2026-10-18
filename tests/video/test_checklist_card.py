@@ -146,7 +146,13 @@ class TestTheCards:
 
         assert cards[:2] == [CARDS[0], StepCard("Step 2 of 2", "Storage", 5.0, 8.0)]
         assert cards[2] == StepCard(
-            "Tap Clear storage", "Tap Clear cache", 8.0, 11.0, kind="checklist"
+            "Step 2 of 2",
+            "Storage",
+            8.0,
+            11.0,
+            kind="checklist",
+            dont="Tap Clear storage",
+            do="Tap Clear cache",
         )
 
     def test_a_short_step_shows_only_the_checklist(self) -> None:
@@ -154,7 +160,9 @@ class TestTheCards:
             CARDS, mistake_step=1, dont="a", do="b", total=2, min_sec=2.0
         )
 
-        assert cards[0] == StepCard("a", "b", 2.0, 5.0, kind="checklist")
+        assert cards[0] == StepCard(
+            "Step 1 of 2", "Apps", 2.0, 5.0, kind="checklist", dont="a", do="b"
+        )
         assert cards[1] == CARDS[1]
 
     @pytest.mark.parametrize(
@@ -205,7 +213,15 @@ def test_drawn_as_two_coloured_lines_in_every_layout(
     tmp_path: Path, layout: str
 ) -> None:
     settings = GraphicsSettings(enabled=True, checklist=True)
-    card = StepCard("Tap Clear storage", "Tap Clear cache", 1.0, 2.0, "checklist")
+    card = StepCard(
+        "Step 2 of 2",
+        "Storage",
+        1.0,
+        2.0,
+        "checklist",
+        dont="Tap Clear storage",
+        do="Tap Clear cache",
+    )
 
     chain = build_step_card_drawtext(
         [card], settings, 96, 1080, tmp_path, "[in]", "[out]", layout=layout
@@ -224,3 +240,27 @@ def test_the_checklist_ships_off() -> None:
     from src.video.config import load_video_config_modular
 
     assert load_video_config_modular().video_settings.graphics.checklist is False
+
+
+@pytest.mark.unit
+@pytest.mark.req("REQ-VID-164")
+def test_a_line_wider_than_the_frame_shows_the_step_card(tmp_path: Path) -> None:
+    settings = GraphicsSettings(enabled=True, checklist=True)
+    # Eight words, but too wide for 1080 px at the smallest size.
+    card = StepCard(
+        "Step 2 of 2",
+        "Storage",
+        1.0,
+        2.0,
+        "checklist",
+        dont="Uninstall WhatsApp before exporting conversations to Google Drive",
+        do="Export first",
+    )
+
+    chain = build_step_card_drawtext(
+        [card], settings, 96, 1080, tmp_path, "[in]", "[out]"
+    )
+
+    texts = sorted(p.read_text() for p in tmp_path.glob("step_card_line_*.txt"))
+    assert texts == ["Step 2 of 2", "Storage"]
+    assert settings.checklist_dont_color not in chain
