@@ -40,6 +40,14 @@ EXPLAINER_WORDS = (100, 160)
 # table (docs/explanation/tutorials.md, "Length").
 SHORT_WORDS = (40, 80)
 LONG_WORDS = (110, 200)
+# A checklist graphic's line is read in a glance (design 0019: about eight
+# words a graphic), so a longer "do" or "don't" is dropped, not cut.
+CHECKLIST_MAX_WORDS = 8
+CHECKLIST_RULE = """
+- When you give a `common_mistake`, also give in it `"dont"`: the mistake in
+  at most 8 words, and `"do"`: what to do instead at that step, in at most 8
+  words, each as an instruction ("Tap Clear storage" / "Tap Clear cache").
+"""
 
 
 @dataclass(frozen=True)
@@ -58,6 +66,10 @@ class StepList:
     steps: list[Step]
     mistake_step: int | None = None
     mistake: str | None = None
+    # The mistake as a "don't" and its fix as a "do", for the checklist
+    # graphic (REQ-VID-124); asked for only when that graphic is on.
+    mistake_dont: str | None = None
+    mistake_do: str | None = None
     refused: list[Step] = field(default_factory=list)
     # The topic filter's failed criteria; None when no check came back.
     topic_failures: list[str] | None = None
@@ -95,6 +107,18 @@ def _topic_failures(check: Any) -> list[str] | None:
     elif advice.strip().lower() != "none":
         failures.append(f"asks for {advice.strip().lower()} advice")
     return failures
+
+
+def _checklist_pair(mistake: Any) -> tuple[str | None, str | None]:
+    """The mistake's short "don't" and "do".
+
+    Neither when one is missing or longer than a glance.
+    """
+    if not isinstance(mistake, dict):
+        return None, None
+    dont, do = _text(mistake.get("dont")), _text(mistake.get("do"))
+    fits = all(0 < len(t.split()) <= CHECKLIST_MAX_WORDS for t in (dont, do))
+    return (dont, do) if fits else (None, None)
 
 
 def parse_step_list(answer: str | None) -> StepList | None:
@@ -136,6 +160,7 @@ def parse_step_list(answer: str | None) -> StepList | None:
     # A mistake whose own step was refused, or that names no step, is dropped.
     mistake_step = position.get(raw_step) if isinstance(raw_step, int) else None
     mistake_text = _text(mistake.get("mistake")) if isinstance(mistake, dict) else ""
+    dont, do = _checklist_pair(mistake) if mistake_step else (None, None)
     return StepList(
         start_screen=_text(data.get("start_screen")),
         platform=_text(data.get("platform")),
@@ -143,6 +168,8 @@ def parse_step_list(answer: str | None) -> StepList | None:
         steps=kept,
         mistake_step=mistake_step,
         mistake=(mistake_text or None) if mistake_step else None,
+        mistake_dont=dont,
+        mistake_do=do,
         refused=refused,
         topic_failures=_topic_failures(data.get("topic_check")),
     )
@@ -228,10 +255,26 @@ def fill(prompt: str, fills: dict[str, str]) -> str:
     return prompt
 
 
+def step_list_prompt(
+    topic: str, detail: str, max_steps: int, *, checklist: bool = False
+) -> str:
+    """The step-list call's prompt; `checklist` adds the short "don't" and "do"."""
+    prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
+        TOPIC_TITLE=topic, TOPIC_DETAIL=detail, MAX_STEPS=max_steps
+    )
+    if checklist:
+        prompt = prompt.rstrip("\n") + "\n" + CHECKLIST_RULE
+    return prompt
+
+
 async def build_step_list(
-    topic: str, detail: str, *, api_key: str, settings: Any
+    topic: str, detail: str, *, api_key: str, settings: Any, checklist: bool = False
 ) -> StepList | None:
-    """One grounded call for the topic's steps; None when it fails."""
+    """One grounded call for the topic's steps; None when it fails.
+
+    With `checklist`, the call also asks for the mistake's short "don't" and
+    "do"; without it the prompt is unchanged.
+    """
     try:
         from google import genai
         from google.genai import errors as genai_errors
@@ -244,9 +287,7 @@ async def build_step_list(
     except (ImportError, ValueError, OSError, RuntimeError) as e:
         logger.warning("Step list unavailable: %s", e)
         return None
-    prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
-        TOPIC_TITLE=topic, TOPIC_DETAIL=detail, MAX_STEPS=settings.max_steps
-    )
+    prompt = step_list_prompt(topic, detail, settings.max_steps, checklist=checklist)
     # A timeout, a dropped connection or a server error is retried: about
     # one grounded call in five ran past the timeout, and a topic day lost to
     # it posts nothing. A 4xx (bad request, no credit) would fail again.

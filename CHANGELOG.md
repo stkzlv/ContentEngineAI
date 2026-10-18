@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.0] - 2026-10-18
+
+### Added
+
+- A tutorial can show its common mistake and the fix as a "Don't" / "Do" checklist at the step the mistake belongs to; off by default behind `video_settings.graphics.checklist`.
+
 ## [0.218.0] - 2026-10-18
 
 ### Added

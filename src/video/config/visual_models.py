@@ -432,6 +432,25 @@ class GraphicsSettings(BaseModel):
     box_color: str = Field(
         default="black@0.6", description="Colour of the box behind each line."
     )
+    checklist: bool = Field(
+        default=False,
+        description=(
+            "At the step a topic's step list names a common mistake at, show "
+            "the mistake and its fix as a two-line checklist (REQ-VID-164)."
+        ),
+    )
+    checklist_dont_label: str = Field(
+        default="Don't", description="Word before the checklist's mistake line."
+    )
+    checklist_do_label: str = Field(
+        default="Do", description="Word before the checklist's fix line."
+    )
+    checklist_dont_color: str = Field(
+        default="0xff8a80", description="Colour of the checklist's mistake line."
+    )
+    checklist_do_color: str = Field(
+        default="0x9be7a8", description="Colour of the checklist's fix line."
+    )
     layouts: list[StepCardLayout] = Field(
         default_factory=_centred_only,
         min_length=1,

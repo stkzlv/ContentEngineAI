@@ -268,6 +268,13 @@ video_settings:
     # Step-card layouts, one per video from a hash of the product id:
     # centred, left, inline. One entry keeps every card the same (REQ-VID-153).
     layouts: ["centred", "inline"]
+    # "Don't" / "Do" at the step the step list names a common mistake at
+    # (REQ-VID-164): the mistake and its fix, after the step's card.
+    checklist: false
+    checklist_dont_label: "Don't"
+    checklist_do_label: "Do"
+    checklist_dont_color: "0xff8a80"
+    checklist_do_color: "0x9be7a8"
 
   # A screen per tutorial step (REQ-VID-123): each step on a mockup with its
   # exact menu labels, timed to its narration; the start screen before the

@@ -613,18 +613,41 @@ def build_step_card_drawtext(
         if layout == "left"
         else "(w-text_w)/2"
     )
-    lines: list[tuple[str, int, str, float, float]] = []
+    lines: list[tuple[str, int, str, float, float, str]] = []
+    colour = settings.font_color
     for card in cards:
         y = f"h*{settings.y_percent}"
+        if card.kind == "checklist":
+            # Two lines at the path's size, each in its own colour, stacked
+            # in every layout: "Don't: x: Do: y" on one line reads as one.
+            for row, (label, text, tint) in enumerate(
+                (
+                    (
+                        settings.checklist_dont_label,
+                        card.counter,
+                        settings.checklist_dont_color,
+                    ),
+                    (
+                        settings.checklist_do_label,
+                        card.path,
+                        settings.checklist_do_color,
+                    ),
+                )
+            ):
+                line = f"{label}: {text}"
+                size = _fit_font(line, path_px_start, max_px, int(counter_px * 0.8))
+                offset = f"+{int(path_px_start * 1.6) * row}" if row else ""
+                lines.append((line, size, f"{y}{offset}", card.start, card.end, tint))
+            continue
         if layout == "inline":
             text = f"{card.counter}: {card.path}" if card.path else card.counter
             size = _fit_font(text, path_px_start, max_px, int(counter_px * 0.8))
             # A line that still overflows at the floor would run off the
             # frame; that card is stacked instead.
             if _estimate_hook_text_width(text, size) <= max_px:
-                lines.append((text, size, y, card.start, card.end))
+                lines.append((text, size, y, card.start, card.end, colour))
                 continue
-        lines.append((card.counter, counter_px, y, card.start, card.end))
+        lines.append((card.counter, counter_px, y, card.start, card.end, colour))
         if card.path:
             path_px = _fit_font(card.path, path_px_start, max_px, int(counter_px * 0.8))
             lines.append(
@@ -634,10 +657,11 @@ def build_step_card_drawtext(
                     f"{y}+{int(counter_px * 1.6)}",
                     card.start,
                     card.end,
+                    colour,
                 )
             )
     drawtexts: list[str] = []
-    for i, (text, size, y_expr, start, end) in enumerate(lines):
+    for i, (text, size, y_expr, start, end, tint) in enumerate(lines):
         stream_in = input_stream if i == 0 else f"[v_scl{i}]"
         stream_out = output_stream if i == len(lines) - 1 else f"[v_scl{i + 1}]"
         line_file = temp_dir / f"step_card_line_{i}.txt"
@@ -650,7 +674,7 @@ def build_step_card_drawtext(
                     f"textfile='{text_path}':",
                     _fontfile_part(text),
                     f"fontsize={size}:",
-                    f"fontcolor={settings.font_color}:",
+                    f"fontcolor={tint}:",
                     f"box=1:boxcolor={settings.box_color}:boxborderw=14:",
                     f"x={x_expr}:y={y_expr}:",
                     f"enable=between(t\\,{start:.3f}\\,{end:.3f}){stream_out}",

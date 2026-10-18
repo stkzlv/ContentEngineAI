@@ -230,7 +230,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-123** `held` Where step visuals are on, each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
   - On when: `video_settings.step_visuals.enabled` is set after a look at a sample tutorial render with it on (#560).
 - **REQ-VID-124** `partial` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
-  - Gap: only the step card is built, on in the bundled config: a counter over the step's menu path, timed to the step's narration, skipped when the narration can't be found (#561).
+  - Gap: the step card is built and on in the bundled config (a counter over the step's menu path, timed to the step's narration, skipped when the narration can't be found), and the checklist is built and off (REQ-VID-164); the breadcrumb, the callout, the spec card and before/after are not built (#561).
 - **REQ-VID-151** `shipped` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome, or for a "why" question one symptom whose usual causes the steps check), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
   - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
@@ -238,5 +238,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 ## Media validation
 
+- **REQ-VID-164** `held` Where the checklist graphic is on, at the step a topic's step list names a common mistake at, the tutorial shows the mistake and what to do instead as two lines ("Don't" and "Do"), each at most eight words, after that step's card, and a mistake without both short lines gets no checklist.
+  - On when: `video_settings.graphics.checklist` is set after a look at a sample tutorial render with it on (#561).
 - **REQ-VID-125** `shipped` The scraper checks each product's media against the producer profile's requirements.
 - **REQ-VID-126** `shipped` If a product has too little media, it is skipped, not failed.

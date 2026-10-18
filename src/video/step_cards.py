@@ -46,12 +46,49 @@ _STOPWORDS = frozenset(
 
 @dataclass(frozen=True)
 class StepCard:
-    """One card: its two lines and when it is on screen, in seconds."""
+    """One card: its two lines and when it is on screen, in seconds.
+
+    A `checklist` card carries the step's common mistake as its first line
+    and the fix as its second, each drawn in its own colour.
+    """
 
     counter: str
     path: str
     start: float
     end: float
+    kind: str = "step"
+
+
+def add_checklist(
+    cards: list[StepCard],
+    *,
+    mistake_step: int | None,
+    dont: str | None,
+    do: str | None,
+    total: int,
+    min_sec: float,
+) -> list[StepCard]:
+    """The cards with the mistake step's second half given to a checklist.
+
+    A step's card shows first and the checklist ("Don't" / "Do") for the
+    rest of that step's time, one graphic at a time. A step too short to
+    hold both for `min_sec` each shows only the checklist; a step with no
+    card, or no "don't" and "do", leaves the cards as they are.
+    """
+    if not (mistake_step and dont and do):
+        return cards
+    counter = f"Step {mistake_step} of {total}"
+    out: list[StepCard] = []
+    for card in cards:
+        if card.counter != counter or card.kind != "step":
+            out.append(card)
+            continue
+        middle = (card.start + card.end) / 2
+        start = middle if middle - card.start >= min_sec else card.start
+        if start > card.start:
+            out.append(StepCard(card.counter, card.path, card.start, start))
+        out.append(StepCard(dont, do, start, card.end, kind="checklist"))
+    return out
 
 
 def _tokens(text: str) -> list[str]:
@@ -254,8 +291,13 @@ def load_step_cards(
     min_sec: float,
     max_sec: float,
     max_path_words: int = 4,
+    checklist: bool = False,
 ) -> list[StepCard]:
-    """Cards for a render, or none when it has no step list or no timings."""
+    """Cards for a render, or none when it has no step list or no timings.
+
+    With `checklist`, the step the list names a common mistake at also
+    shows the mistake and its fix (`add_checklist`).
+    """
     if not step_list_file.exists():
         return []
     if not spoken:
@@ -273,11 +315,22 @@ def load_step_cards(
     if not isinstance(steps, list) or not steps:
         return []
     steps = [s for s in steps if isinstance(s, dict)]
-    return plan_step_cards(
+    cards = plan_step_cards(
         steps,
         spoken,
         not_before=not_before,
         min_sec=min_sec,
         max_sec=max_sec,
         max_path_words=max_path_words,
+    )
+    if not checklist:
+        return cards
+    mistake_step = data.get("mistake_step")
+    return add_checklist(
+        cards,
+        mistake_step=mistake_step if isinstance(mistake_step, int) else None,
+        dont=data.get("mistake_dont") or None,
+        do=data.get("mistake_do") or None,
+        total=len(steps),
+        min_sec=min_sec,
     )
