@@ -44,7 +44,7 @@ None recorded.
 
 On in the bundled config, since a look at a sample tutorial render with it on. The model default stays `false`, so a config with no `step_visuals` section draws no screens.
 
-Remove the switch when: `video_settings.step_visuals.enabled` has been on in the bundled config for two weekly batches with topic-render swipe-away and completion (#551) no worse than without it; the key, its holdout check and the single-search path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
+Remove the switch when: `video_settings.step_visuals.enabled` has been on in the bundled config for two weekly batches with topic-render swipe-away and completion (#551) no worse than without it; the key and the single-search path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
 
 ## Open questions
 
