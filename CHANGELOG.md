@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.0] - 2026-10-18
+
+### Changed
+
+- Step screens are on in the bundled config: a tutorial render shows each step on a mockup of its screen instead of stock footage, and no step cards over them.
+
 ## [0.219.0] - 2026-10-18
 
 ### Added

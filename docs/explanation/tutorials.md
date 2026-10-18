@@ -69,7 +69,8 @@ Published guidance agrees that stock alone underperforms for instructional conte
 Planned:
 
 - A stock clip or image used in a recent render loses to a fresh one that is relevant enough (REQ-VID-110, [design 0013](../design/0013-stock-clip-reuse-guard.md)).
-- Each step gets its own visual, timed to its narration ([Visuals that show the spoken step](#visuals-that-show-the-spoken-step)); built as UI mockups, off by default.
+
+Each step gets its own visual, timed to its narration, on a tutorial with a step list ([Visuals that show the spoken step](#visuals-that-show-the-spoken-step)); stock keeps only the opening there.
 
 ## Search discovery
 
@@ -165,7 +166,7 @@ Effect sizes from Mayer's 2017 review [A, [Mayer](https://doi.org/10.1111/jcal.1
 
 Beyond the table:
 
-- **Show the task done, then recap it [A, small sample].** Demonstration tutorials built procedural skill, and a short recap beat demonstration alone ([van der Meij 2016](https://doi.org/10.1007/s11251-016-9394-9)). In a Short the recap is the last 2-3 s: the whole path on one card. Planned in REQ-VID-123.
+- **Show the task done, then recap it [A, small sample].** Demonstration tutorials built procedural skill, and a short recap beat demonstration alone ([van der Meij 2016](https://doi.org/10.1007/s11251-016-9394-9)). In a Short the recap is the last 2-3 s: the whole path on one card. Built in REQ-VID-123: the video ends on a recap of every step's path and the result.
 - **First-person view, not a presenter [A].** Showing an instructor did not improve learning; showing the task as the viewer sees it did ([Fiorella and Mayer 2018](https://doi.org/10.1016/j.chb.2018.07.015)). Faceless is not the problem.
 - **Be specific [C].** An exact menu path plus the device and OS version, said once and shown on screen, separates a tutorial from advice and makes it checkable. Shipped as REQ-CNT-030 for the script.
 - **Show the result, and name the common mistake [C].** "Don't hold Power too long, or you get the power menu" adds information stock footage cannot carry. The scripts close on the result (REQ-CNT-031); `topic_symptom_cause` names one thing the viewer might wrongly blame, and `topic_mistake_fix` is built around a common mistake.
@@ -174,7 +175,7 @@ Beyond the table:
 
 ## Visuals that show the spoken step
 
-Built in part, behind `video_settings.step_visuals.enabled` (default false; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not built. In order of preference:
+Built in part, behind `video_settings.step_visuals.enabled` (default false, on in the bundled config; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not built. In order of preference:
 
 1. **A real screen capture** where it can be automated. On Android, an emulator driven over adb records with `screenrecord` (MP4, 180 s maximum) and draws each touch with Developer options > Show taps. Stock Android differs from Samsung and Pixel skins, and routers, Windows and iOS need another source.
 2. **A rendered UI mockup** with the exact labels from the source page, rendered in the headless Chromium the caption engine already runs, generic in its phone chrome and exact in its labels.
@@ -187,7 +188,7 @@ Why: temporal contiguity (d = 1.30) and coherence (d = 0.70) in [What makes a sh
 
 ## Explanatory graphics
 
-Built in part, behind `video_settings.graphics.enabled` (default false, on in the bundled config; [design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124): the step card, a counter over the step's menu path, timed to the step's narration, and the checklist, built off (`graphics.checklist`, REQ-VID-164). The other types below are planned. Graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
+Built in part, behind `video_settings.graphics.enabled` (default false, on in the bundled config; [design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124): the step card, a counter over the step's menu path, timed to the step's narration, and the checklist, built off (`graphics.checklist`, REQ-VID-164). Neither is drawn on a render that draws step screens, which carry the counter themselves. The other types below are planned. Graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
 
 Why:
 

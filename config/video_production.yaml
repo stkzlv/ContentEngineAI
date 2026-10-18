@@ -282,7 +282,7 @@ video_settings:
   # first step and a recap of the paths at the end. Stock keeps only the
   # opening. Replaces the step cards on a render that draws it.
   step_visuals:
-    enabled: false
+    enabled: true
     opening_max_sec: 3.0
     recap_sec: 2.5
 

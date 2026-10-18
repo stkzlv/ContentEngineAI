@@ -227,16 +227,15 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-121** `shipped` Where step lists are on, a topic script is written from a sourced step list (action, exact UI path, expected result and source per step), its length set by the step count, and a topic that forks by device or needs more steps than a short video holds is set aside for a series rather than rendered.
 - **REQ-VID-161** `shipped` Where step lists are on, a topic whose title asks why ("Why ...") is written as a concept explainer: its usual cause first, then the sourced checks as actions the viewer can take, in 100-160 words whatever the step count.
 - **REQ-VID-122** `shipped` Where step lists are on, a step with no source is refused, and a topic that can't be sourced is dropped.
-- **REQ-VID-123** `held` Where step visuals are on, each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
-  - On when: `video_settings.step_visuals.enabled` is set after a look at a sample tutorial render with it on (#560).
+- **REQ-VID-123** `shipped` Where step visuals are on (bundled on), each tutorial step is shown as it is spoken by a screen capture, a UI mockup with the exact labels or a diagram, stock footage covers only the opening symptom, and the video ends on the result and a path recap.
 - **REQ-VID-124** `partial` Where explanatory graphics are on, a tutorial carries templated graphics (menu-path breadcrumb, step card, callout on a real capture, spec card, before/after, checklist) from a validated spec, one at a time, each tied to a script fact, and a failed graphic is skipped rather than failing the render.
-  - Gap: the step card is built and on in the bundled config (a counter over the step's menu path, timed to the step's narration, skipped when the narration can't be found), and the checklist is built and off (REQ-VID-164); the breadcrumb, the callout, the spec card and before/after are not built (#561).
+  - Gap: the step card is built and on in the bundled config (a counter over the step's menu path, timed to the step's narration, skipped when the narration can't be found, and not drawn where step screens are), and the checklist is built and off (REQ-VID-164); the breadcrumb, the callout, the spec card and before/after are not built (#561).
 - **REQ-VID-151** `shipped` Where step lists are on, a topic enters the pool only when it is specific (one device family or app and one outcome, or for a "why" question one symptom whose usual causes the steps check), searchable, demonstrable and non-default, and a topic that asks for health, financial or legal advice is excluded.
 - **REQ-VID-152** `planned #560` Where step visuals are on, a step marked error-prone stays on screen longer than an obvious one.
-  - On when: `video_settings.step_visuals.enabled` is set after the reach-test readout (#540).
+  - On when: a way to hold a step's screen past its narration is chosen (#560).
 - **REQ-VID-153** `shipped` Where explanatory graphics are on, each graphic type has two or three layout variants, and each video draws its variant reproducibly.
 - **REQ-VID-164** `held` Where the checklist graphic is on, at the step a topic's step list names a common mistake at, the tutorial shows the mistake and what to do instead as two lines ("Don't" and "Do"), each at most eight words, after that step's card, or in place of it when the step is too short for both, and a mistake without both short lines, or with a line wider than the frame, gets no checklist.
-  - On when: `video_settings.graphics.checklist` is set after a look at a sample tutorial render with it on (#561).
+  - On when: `video_settings.graphics.checklist` is set after a look at a sample tutorial render with it on (#561). It draws only where step cards do, so not on a render that draws step screens.
 
 ## Media validation
 
