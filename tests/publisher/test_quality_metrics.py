@@ -166,6 +166,7 @@ async def _sweep(tmp_path: Path, analytics_side_effect) -> None:
         rank_only=False,
         by_arm=False,
         since=None,
+        until=None,
         outputs_dir=tmp_path,
         debug=False,
     )

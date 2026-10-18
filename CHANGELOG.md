@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.217.0] - 2026-10-18
+
+### Added
+
+- The reach readout takes `--until`, so a comparison can end on a date while posting carries on.
+
 ## [0.216.0] - 2026-10-18
 
 ### Changed
