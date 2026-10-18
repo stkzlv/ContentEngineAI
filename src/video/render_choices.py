@@ -163,6 +163,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "beat_snap_moved": assembly.get("beat_snap_moved"),
         "sound_effects": assembly.get("sound_effects"),
         "step_card_layout": assembly.get("step_card_layout"),
+        "step_visuals": assembly.get("step_visuals"),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),

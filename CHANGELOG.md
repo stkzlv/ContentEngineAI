@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.218.0] - 2026-10-18
+
+### Added
+
+- A tutorial render can show each step on a mockup of its screen with the step's exact labels, timed to its narration, ending on a recap of the paths; off by default behind `video_settings.step_visuals.enabled`.
+
 ## [0.217.0] - 2026-10-18
 
 ### Added

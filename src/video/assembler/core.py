@@ -33,6 +33,7 @@ from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
     apply_step_card_overlay,
+    apply_step_visuals,
     apply_upper_line_overlay,
     pick_step_card_layout,
     resolve_hook_line,
@@ -118,6 +119,7 @@ class VideoAssembler:
         self.sound_effects_placed: list[str] = []
         # The step-card layout the last render drew, None with no cards.
         self.step_card_layout: str | None = None
+        self.step_visual_count: int | None = None
         self.subtitle_builder: SubtitleGraphBuilder | None = None
         self.strategy_factory: VideoStrategyFactory | None = None
 
@@ -678,7 +680,8 @@ class VideoAssembler:
 
         The still-motion move per still, the cuts beat snapping moved, and
         each sound effect as "kind:file" (designs 0001, 0005, 0003), and the
-        step-card layout (REQ-VID-153).
+        step-card layout (REQ-VID-153) and how many step screens were
+        drawn (REQ-VID-123).
         """
         builder = self.visual_builder
         return {
@@ -686,6 +689,7 @@ class VideoAssembler:
             "beat_snap_moved": builder.beat_snap_moved if builder else None,
             "sound_effects": list(self.sound_effects_placed) or None,
             "step_card_layout": self.step_card_layout,
+            "step_visuals": self.step_visual_count,
         }
 
     def _disclosure_settings(self) -> DisclosureSettings:
@@ -711,6 +715,7 @@ class VideoAssembler:
         speech_end_sec: float | None = None,
         spoken_words: list[dict[str, Any]] | None = None,
         step_cards: list[StepCard] | None = None,
+        step_visuals: list[tuple[Path, float, float]] | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -741,6 +746,10 @@ class VideoAssembler:
                 call-to-action sound effects; None places the hook effect only.
             step_cards: The tutorial's step cards, drawn after the hook when
                 `video_settings.graphics` is on (REQ-VID-124).
+            step_visuals: The tutorial's step screens and their times, laid
+                over the footage when `video_settings.step_visuals` is on
+                (REQ-VID-123); they carry the step counter, so the cards are
+                not drawn over them.
 
         Returns:
         -------
@@ -784,6 +793,14 @@ class VideoAssembler:
                 video_settings_dict,
                 temp_dir=temp_dir,
             )
+            visual_chain_result = apply_step_visuals(
+                visual_chain_result, step_visuals or []
+            )
+            self.step_visual_count = len(step_visuals) if step_visuals else None
+            if step_visuals:
+                # One graphic at a time (design 0019): the screen shows the
+                # counter and the path itself.
+                step_cards = None
 
             if subtitle_upper_path and subtitle_upper_path.exists():
                 logger.info("Two-part subtitle mode: rendering dual subtitle lines")

@@ -269,6 +269,15 @@ video_settings:
     # centred, left, inline. One entry keeps every card the same (REQ-VID-153).
     layouts: ["centred", "inline"]
 
+  # A screen per tutorial step (REQ-VID-123): each step on a mockup with its
+  # exact menu labels, timed to its narration; the start screen before the
+  # first step and a recap of the paths at the end. Stock keeps only the
+  # opening. Replaces the step cards on a render that draws it.
+  step_visuals:
+    enabled: false
+    opening_max_sec: 3.0
+    recap_sec: 2.5
+
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by
   # variant. Variant name is selected deterministically per product (salted
