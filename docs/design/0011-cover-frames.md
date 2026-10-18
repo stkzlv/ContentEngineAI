@@ -45,7 +45,7 @@ The provider's TikTok image cover is not TikTok's: TikTok's API takes no image. 
 
 **Render** (REQ-VID-014). As built, below.
 
-**Publish** (REQ-PUB-154 to REQ-PUB-159), behind `covers.enabled` in the publisher config, bundled off:
+**Publish** (REQ-PUB-154 to REQ-PUB-159), behind `covers.enabled` in the publisher config:
 
 - Read `<video>.cover.json` beside the video being published. No record, or no image, means no cover and a warning (REQ-PUB-159).
 - **Instagram:** upload `<video>.cover.jpg` through the provider's media upload (a cover is about 0.3 MB, within the direct upload's 4 MB) and send the returned URL as `instagramThumbnail` in the Instagram platform data.
@@ -64,7 +64,9 @@ The provider's TikTok image cover is not TikTok's: TikTok's API takes no image. 
 
 ## Rollout
 
-The switch ships off, since a cover changes how posts appear on the profile and in search. It turns on after one real post on each of Instagram and TikTok shows the rendered cover; the provider's field descriptions are the only evidence that it reaches the platform as described. A queued post is never changed.
+On in the bundled config, since one real post on each of Instagram and TikTok showed the rendered cover. The model default stays `false`, so a config without the `covers` section sends no cover. A queued post is never changed.
+
+Remove the switch when: covers have been on in the bundled config for two weekly batches with no cover warning in the publisher log; the key then goes in a minor release with a `**Breaking**:` CHANGELOG entry.
 
 ## Open questions
 

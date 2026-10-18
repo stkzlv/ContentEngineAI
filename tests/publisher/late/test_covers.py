@@ -288,14 +288,15 @@ def test_the_bundled_config_ships_covers_on(monkeypatch):
 
 
 @pytest.mark.req("REQ-PUB-154")
-def test_the_setting_reaches_the_publisher(tmp_path, monkeypatch):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_the_setting_reaches_the_publisher(tmp_path, monkeypatch, enabled):
     import yaml
 
     from src.publisher.config import load_publisher_config
     from src.publisher.registry import create_publisher_from_config
 
     shipped = yaml.safe_load(Path("config/publisher.yaml").read_text())
-    shipped["covers"] = {"enabled": False}
+    shipped["covers"] = {"enabled": enabled}
     path = tmp_path / "publisher.yaml"
     path.write_text(yaml.safe_dump(shipped))
     monkeypatch.delenv("LATE_API_KEY", raising=False)
@@ -303,7 +304,7 @@ def test_the_setting_reaches_the_publisher(tmp_path, monkeypatch):
         config_path=path, cli_overrides={"api_key": "sk_test_" + "x" * 40}
     )
 
-    assert create_publisher_from_config(config).covers_enabled is False
+    assert create_publisher_from_config(config).covers_enabled is enabled
 
 
 def _metadata():

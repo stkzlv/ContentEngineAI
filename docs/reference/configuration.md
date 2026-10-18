@@ -121,7 +121,7 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 - **`config/performance.yaml`** - Resource limits and optimization
 - **`config/scraper.yaml`** - Web scraping and browser settings
 - **`config/pipeline.yaml`** - Batch processing and global pipeline settings
-- **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK), plus the `analytics` sweep size and the `--by-arm` readout's platforms (`readout_platforms`) and breakout multiple (`breakout_multiple`), and `youtube_profile_pointer` (default `false`), which says the profiles carry a link: on, a product video's YouTube description ends on "Link in bio." and the metadata prompts ask for it, and `covers.enabled` (default `true`), which sends each render's cover with its post
+- **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK), plus the `analytics` sweep size and the `--by-arm` readout's platforms (`readout_platforms`) and breakout multiple (`breakout_multiple`), and `youtube_profile_pointer` (default `false`), which says the profiles carry a link: on, a product video's YouTube description ends on "Link in bio." and the metadata prompts ask for it, and `covers.enabled` (default `false`; the bundled config ships it on), which sends each render's cover with its post
 - **`config/url_shortener.yaml`** - URL shortening providers and integration
 
 Machine-specific settings for the scheduled analytics sweep are separate, in a
