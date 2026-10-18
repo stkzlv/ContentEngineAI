@@ -338,10 +338,9 @@ youtube_profile_pointer: false
 
 # Send each render's cover (written beside the video) with its post: the
 # cover image on Instagram, the same frame by its time on TikTok, nothing on
-# YouTube Shorts. Off until one real post on each of Instagram and TikTok
-# shows the rendered cover.
+# YouTube Shorts. A post with no usable cover publishes without one.
 covers:
-  enabled: false
+  enabled: true
 
 # ============================================================================
 # TIKTOK CONTENT SETTINGS

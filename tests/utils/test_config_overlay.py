@@ -97,9 +97,9 @@ class TestEveryLoaderReadsTheOverlay:
 
         monkeypatch.setenv("LATE_API_KEY", "sk_test_overlay")
         path = config_dir / "publisher.yaml"
-        assert load_publisher_config(config_path=path).covers_config.enabled is False
-        _overlay(config_dir, "publisher", {"covers": {"enabled": True}})
         assert load_publisher_config(config_path=path).covers_config.enabled is True
+        _overlay(config_dir, "publisher", {"covers": {"enabled": False}})
+        assert load_publisher_config(config_path=path).covers_config.enabled is False
 
     @pytest.mark.req("REQ-OPS-116")
     def test_batch_config(self, config_dir: Path) -> None:

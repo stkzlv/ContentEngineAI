@@ -1654,8 +1654,8 @@ class CoversConfig:
     """Send each render's cover with its post (design 0011).
 
     Instagram gets the cover image, TikTok the same frame by its time in the
-    video, YouTube Shorts nothing. Off by default: a cover changes how posts
-    look on the profile and in search.
+    video, YouTube Shorts nothing. Off when the section is absent; the bundled
+    config turns it on.
 
     Attributes
     ----------

@@ -45,7 +45,7 @@ The provider's TikTok image cover is not TikTok's: TikTok's API takes no image. 
 
 **Render** (REQ-VID-014). As built, below.
 
-**Publish** (REQ-PUB-154 to REQ-PUB-159), behind `covers.enabled` in the publisher config, bundled off:
+**Publish** (REQ-PUB-154 to REQ-PUB-159), behind `covers.enabled` in the publisher config:
 
 - Read `<video>.cover.json` beside the video being published. No record, or no image, means no cover and a warning (REQ-PUB-159).
 - **Instagram:** upload `<video>.cover.jpg` through the provider's media upload (a cover is about 0.3 MB, within the direct upload's 4 MB) and send the returned URL as `instagramThumbnail` in the Instagram platform data.
@@ -64,12 +64,12 @@ The provider's TikTok image cover is not TikTok's: TikTok's API takes no image. 
 
 ## Rollout
 
-The switch ships off, since a cover changes how posts appear on the profile and in search. It turns on after one real post on each of Instagram and TikTok shows the rendered cover; the provider's field descriptions are the only evidence that it reaches the platform as described. A queued post is never changed.
+On in the bundled config, since one real post on each of Instagram and TikTok showed the rendered cover. The model default stays `false`, so a config without the `covers` section sends no cover. A queued post is never changed.
+
+Remove the switch when: covers have been on in the bundled config for two weekly batches with no cover warning in the publisher log; the key then goes in a minor release with a `**Breaking**:` CHANGELOG entry.
 
 ## Open questions
 
-- Whether the TikTok cover timestamp lands on the same frame as ffmpeg's seek: TikTok may round to a keyframe. The verification post answers it.
-- Whether Instagram uses the uploaded cover for the profile grid as well as the Reels tab: the API names only the Reels tab.
 - With the hook overlay off, the cover has no headline (REQ-VID-014's Gap); whether such renders should send a cover at all.
 
 ## As built
@@ -78,5 +78,5 @@ The switch ships off, since a cover changes how posts appear on the profile and 
 - Each video gets its own cover beside it, `<video>.cover.jpg`, because a product renders once per profile and a platform may be sent any of those videos. `<video>.cover.json` records the image, the video and the frame time in milliseconds, which a timestamp-based platform can use.
 - A whole render writes it, and so does a `--step` run of the profile's final step, which is how topic batches finish a video. `--clean` removes it with the video.
 - A cover that can't be written is logged and skipped, and an earlier render's cover is removed first so it never outlives a failed write.
-- The publish side is built behind `covers.enabled`, off (REQ-PUB-154 to REQ-PUB-156, REQ-PUB-158 and REQ-PUB-159 `held`; REQ-PUB-157 `shipped`). The publisher remembers which video each upload came from, so `publish` finds the cover for any path that uploads the video and then posts it, with no per-path wiring. A cover image is uploaded once per video and reused by that video's per-platform posts, and only when an Instagram post needs it.
+- The publish side is built behind `covers.enabled`, which ships on (REQ-PUB-154 to REQ-PUB-159 `shipped`). A verification post showed the cover on both platforms: the TikTok profile grid shows the frame at the record's time, and Instagram uses the uploaded image for the profile grid as well as the Reels tab. The publisher remembers which video each upload came from, so `publish` finds the cover for any path that uploads the video and then posts it, with no per-path wiring. A cover image is uploaded once per video and reused by that video's per-platform posts, and only when an Instagram post needs it.
 - A cover image over the provider's 4 MB direct upload is skipped with a warning rather than sent through the large-file upload; a render's cover is about 0.3 MB.
