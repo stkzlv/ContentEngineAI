@@ -19,9 +19,3 @@ from src.video.config import load_video_config_modular
 def test_the_signature_sting_is_off() -> None:
     """No sting file ships, so the sting stays held."""
     assert load_video_config_modular().audio_settings.signature_sting is None
-
-
-@pytest.mark.req("REQ-VID-123")
-def test_step_visuals_are_off() -> None:
-    """Step screens wait on a look at a sample render (design 0018)."""
-    assert load_video_config_modular().video_settings.step_visuals.enabled is False

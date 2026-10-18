@@ -1,6 +1,6 @@
 # 0018. A visual per step
 
-- **Status:** Held
+- **Status:** Implemented
 - **Issue:** #560
 - **Requirements:** REQ-VID-123
 
@@ -24,7 +24,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 - Visual planning moves from one keyword search over the script to one plan per step, timed from the Whisper word timings.
 - Source order: a real capture, a UI mockup with exact labels, a diagram, and stock only for the opening symptom.
-- Behind `video_settings.step_visuals.enabled` (default false).
+- Behind `video_settings.step_visuals.enabled`.
 
 ## As built
 
@@ -42,7 +42,7 @@ None recorded.
 
 ## Rollout
 
-Ships off: `video_settings.step_visuals.enabled` defaults to false. Set it after a look at a sample tutorial render with it on; `tests/test_reach_test_holdout.py` keeps it off until then.
+On in the bundled config, since a look at a sample tutorial render with it on. The model default stays `false`, so a config with no `step_visuals` section draws no screens.
 
 Remove the switch when: `video_settings.step_visuals.enabled` has been on in the bundled config for two weekly batches with topic-render swipe-away and completion (#551) no worse than without it; the key, its holdout check and the single-search path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
 

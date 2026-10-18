@@ -69,7 +69,7 @@ Published guidance agrees that stock alone underperforms for instructional conte
 Planned:
 
 - A stock clip or image used in a recent render loses to a fresh one that is relevant enough (REQ-VID-110, [design 0013](../design/0013-stock-clip-reuse-guard.md)).
-- Each step gets its own visual, timed to its narration ([Visuals that show the spoken step](#visuals-that-show-the-spoken-step)); built as UI mockups, off by default.
+- Each step gets its own visual, timed to its narration ([Visuals that show the spoken step](#visuals-that-show-the-spoken-step)); built as UI mockups.
 
 ## Search discovery
 
@@ -174,7 +174,7 @@ Beyond the table:
 
 ## Visuals that show the spoken step
 
-Built in part, behind `video_settings.step_visuals.enabled` (default false; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not built. In order of preference:
+Built in part, behind `video_settings.step_visuals.enabled` (default false, on in the bundled config; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not built. In order of preference:
 
 1. **A real screen capture** where it can be automated. On Android, an emulator driven over adb records with `screenrecord` (MP4, 180 s maximum) and draws each touch with Developer options > Show taps. Stock Android differs from Samsung and Pixel skins, and routers, Windows and iOS need another source.
 2. **A rendered UI mockup** with the exact labels from the source page, rendered in the headless Chromium the caption engine already runs, generic in its phone chrome and exact in its labels.

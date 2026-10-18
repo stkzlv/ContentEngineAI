@@ -362,3 +362,12 @@ def test_the_producer_draws_them_only_when_on(tmp_path: Path) -> None:
     assert _step_visuals(ctx(False), 15.0) is None
     drawn = _step_visuals(ctx(True), 15.0)
     assert drawn and drawn[-1][2] == 15.0
+
+
+@pytest.mark.req("REQ-VID-123")
+def test_the_bundled_config_turns_step_screens_on() -> None:
+    from src.video.config import load_video_config_modular
+
+    assert load_video_config_modular().video_settings.step_visuals.enabled is True
+    # A config with no `step_visuals` section draws none.
+    assert StepVisualsSettings().enabled is False
