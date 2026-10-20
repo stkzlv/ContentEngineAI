@@ -293,12 +293,14 @@ def _next_step_word(
     after: int,
     window: int,
 ) -> int | None:
-    """Where `step` would be found by its labels or first action word."""
+    """Where `step` is found by its last label, else by its fallbacks."""
     if not step:
         return None
+    # In the matcher's own order: the last label, then the fallbacks.
     primary = _primary_key(step)
-    keys = [primary] if primary else []
-    hit = _earliest(words, [*keys, *_fallback_keys(step, next_step)], after, window)
+    hit = _find(words, primary, after, window) if primary else None
+    if hit is None:
+        hit = _earliest(words, _fallback_keys(step, next_step), after, window)
     return hit[0] if hit else None
 
 

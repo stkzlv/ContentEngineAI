@@ -423,6 +423,29 @@ class TestWhenTheLastLabelIsNotSpoken:
         assert by_counter["Step 3 of 3"] == "Pair"
         assert by_counter.get("Step 2 of 3") in (None, "remote")
 
+    def test_the_stop_is_where_the_next_step_is_found(self) -> None:
+        """The next step's parent label spoken early is not where it is found."""
+        text = (
+            "Intro here. Open Settings. Open Bluetooth and wake the remote up. "
+            "Then tap Pair. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "", "action": "Press a key on the remote"},
+                {"ui_path": "Bluetooth > Pair", "action": "Tap Pair"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        by_counter = {c.counter: _word_at(text, c.start) for c in cards}
+        assert by_counter == {
+            "Step 1 of 3": "Settings.",
+            "Step 2 of 3": "remote",
+            "Step 3 of 3": "Pair.",
+        }
+
     def test_the_last_resort_words_come_after_the_fallbacks(self) -> None:
         """As equal fallbacks they found the previous step's result sentence."""
         text = (
