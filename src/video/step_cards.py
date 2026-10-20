@@ -39,6 +39,8 @@ _ACTION_VERBS = frozenset(
 # the steps in between are lost.
 _SEARCH_WINDOW_WORDS = 60
 _VERB_LOOKBACK_WORDS = 3
+# How many of the action's content words a step is looked for by, at most.
+_ACTION_KEY_WORDS = 5
 _STOPWORDS = frozenset(
     "a an the to on in of your you and then tap open go select turn "
     "it its this that for from with at or is".split()
@@ -142,19 +144,30 @@ def display_path(ui_path: str, max_words: int) -> str:
     return prefix + " > ".join(kept)
 
 
-def _action_key(step: dict[str, Any]) -> str:
-    """The action's first content word: "Restart the router" -> "restart".
+def _action_words(step: dict[str, Any], *, from_verb: bool = False) -> list[str]:
+    """The action's content words in order: "Restart the router" -> restart, router.
 
     Action verbs are passed over too ("Click the trash icon" -> "trash"): a
     script says "click" for every step, so the verb finds the wrong one.
+    With `from_verb`, the words start after the first action verb, so a
+    leading purpose clause ("To finish the capture, press ...") is skipped.
     """
     # Whole words joined, as `_matches` joins the spoken ones: "Wi-Fi" is
     # "wifi", not "wi". A slash separates words ("Power/Side"), and a
     # possessive is dropped ("app's" is spoken "app").
     text = re.sub(r"['\u2019]s\b", "", str(step.get("action") or ""))
     words = ["".join(_tokens(w)) for w in re.split(r"[\s/]+", text)]
+    if from_verb:
+        verb = next((i for i, w in enumerate(words) if w in _ACTION_VERBS), None)
+        words = words[verb + 1 :] if verb is not None else words
     action = [w for w in words if w and w not in _STOPWORDS | _ACTION_VERBS]
-    return action[0] if action else ""
+    return list(dict.fromkeys(action))
+
+
+def _action_key(step: dict[str, Any]) -> str:
+    """The action's first content word."""
+    words = _action_words(step)
+    return words[0] if words else ""
 
 
 def _segment_keys(ui_path: str) -> list[str]:
@@ -200,16 +213,30 @@ def _fallback_keys(
     return keys
 
 
+def _last_resort_keys(
+    step: dict[str, Any], next_step: dict[str, Any] | None = None
+) -> list[str]:
+    """The action's other content words, for when nothing else is spoken.
+
+    A step list's wording often differs from the script's in one word
+    ("any area outside the toolbar" spoken as "anywhere outside the
+    toolbar"). Counted from the first action verb, up to
+    `_ACTION_KEY_WORDS`, and tried only after every other key misses,
+    because a later word is more often in the previous step's result
+    sentence too.
+    """
+    taken = {_primary_key(step), *_fallback_keys(step, next_step)}
+    shared = set(_segment_keys(str((next_step or {}).get("ui_path") or "")))
+    words = _action_words(step, from_verb=True)[:_ACTION_KEY_WORDS]
+    return [w for w in words if w not in taken and w not in shared]
+
+
 def step_keys(
     step: dict[str, Any], next_step: dict[str, Any] | None = None
 ) -> list[str]:
     """Every key a step is looked for by, for the log: the last segment first."""
-    primary = _primary_key(step)
-    return (
-        [primary, *_fallback_keys(step, next_step)]
-        if primary
-        else (_fallback_keys(step, next_step))
-    )
+    keys = [_primary_key(step), *_fallback_keys(step, next_step)]
+    return [k for k in keys if k] + _last_resort_keys(step, next_step)
 
 
 def _matches(
@@ -277,13 +304,19 @@ def find_step_words(
             # label with no verb before it is often the last step's result
             # ("The Display screen opens").
             next_step = steps[number] if number < len(steps) else None
-            hits = [
-                m
-                for key in _fallback_keys(step, next_step)
-                if (m := _find(words, key, cursor, window)) is not None
-            ]
-            led = [m for m in hits if _verb_led(words, cursor, m[0])]
-            match = min(led or hits) if hits else None
+            for keys in (
+                _fallback_keys(step, next_step),
+                _last_resort_keys(step, next_step),
+            ):
+                hits = [
+                    m
+                    for key in keys
+                    if (m := _find(words, key, cursor, window)) is not None
+                ]
+                led = [m for m in hits if _verb_led(words, cursor, m[0])]
+                match = min(led or hits) if hits else None
+                if match is not None:
+                    break
         if match is None:
             missed += 1
             continue

@@ -314,8 +314,11 @@ class TestWhenTheLastLabelIsNotSpoken:
             min_sec=0.1,
         )
 
-        assert "Step 2 of 3" not in [c.counter for c in cards]
-        assert _word_at(text, cards[-1].start) == "Battery"
+        by_counter = {c.counter: c.start for c in cards}
+        step_3 = text.split().index("Battery") * 0.4
+        # Step 2 lands on its own sentence, never on step 3's narration.
+        assert by_counter.get("Step 2 of 3", 0.0) < step_3
+        assert by_counter["Step 3 of 3"] == pytest.approx(step_3)
         assert cards[-1].counter == "Step 3 of 3"
 
     def test_a_verb_led_fallback_beats_an_earlier_result_sentence(self) -> None:
@@ -360,8 +363,46 @@ class TestWhenTheLastLabelIsNotSpoken:
             min_sec=0.1,
         )
 
-        assert "Step 2 of 3" not in [c.counter for c in cards]
-        assert _word_at(text, cards[-1].start) == "Battery"
+        by_counter = {c.counter: c.start for c in cards}
+        step_3 = text.split().index("Battery") * 0.4
+        # Step 2 lands on its own sentence, never on step 3's narration.
+        assert by_counter.get("Step 2 of 3", 0.0) < step_3
+        assert by_counter["Step 3 of 3"] == pytest.approx(step_3)
+
+    def test_a_later_action_word_finds_a_reworded_step(self) -> None:
+        """The list says "any area", the script "anywhere"."""
+        text = "Intro here. Open Settings. Now tap anywhere outside the panel. Done."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "", "action": "Tap any area outside the panel"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "outside"
+
+    def test_a_purpose_clause_before_the_verb_is_skipped(self) -> None:
+        text = "Intro here. Open Settings. Now press anywhere outside the panel."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {
+                    "ui_path": "",
+                    "action": (
+                        "To close the whole quick menu fully, press any part "
+                        "outside the panel"
+                    ),
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "outside"
 
     def test_a_possessive_action_word_matches_the_plain_word(self) -> None:
         text = "Intro here. Now open the app menu and wait."

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.2] - 2026-10-20
+
+### Fixed
+
+- Step screens and step cards find a step whose script rewords its action ("anywhere outside the toolbar" for "any area outside the toolbar"), trying the action's words after its verb when nothing else matches.
+
 ## [0.220.1] - 2026-10-20
 
 ### Fixed
