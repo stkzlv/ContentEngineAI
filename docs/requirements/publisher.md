@@ -14,7 +14,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-008** `shipped` Where `description_settings.short_product_titles` is on, product videos publish to YouTube with a short written title within `platform_metadata.youtube.title_length_max`, keyword first (the search phrase; a product scraped from its id has none and gets the headline alone), not the store listing title.
 - **REQ-PUB-112** `shipped` The `list-accounts` command lists each connected social account with its platform, account id and username.
 - **REQ-PUB-113** `shipped` If authentication with the provider fails, `list-accounts` exits non-zero.
-- **REQ-PUB-114** `shipped` The `delete POST_ID` command deletes that post from the provider.
+- **REQ-PUB-114** `shipped` The `delete POST_ID` command deletes that post from the provider and, once the provider has deleted it, from the local schedule.
 - **REQ-PUB-115** `shipped` If the provider refuses a `delete`, the command exits non-zero.
 
 ## Accounts and configuration

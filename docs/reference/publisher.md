@@ -115,15 +115,16 @@ The summary line reads `Products: <n> cleaned, <n> skipped, <size> freed`.
 
 ### `delete`
 
-Deletes a post from the provider.
+Deletes a post from the provider, then removes it from the local schedule so its slot is free for the next `single` or `schedule`.
 
 ```bash
-python -m src.publisher.late delete <post_id> [--debug]
+python -m src.publisher.late delete <post_id> [--outputs-dir DIR] [--debug]
 ```
 
 | Option | Description |
 |---|---|
 | `post_id` | The provider's post id. |
+| `--outputs-dir` | Outputs root whose local schedule drops the post (default: `OUTPUTS_DIR`, else the repo `outputs/`). |
 
 ### `registry`
 

@@ -1757,6 +1757,20 @@ class ScheduleManager:
 
         return removed_count
 
+    def remove_post(self, post_id: str) -> int:
+        """Remove the entries recorded for one provider post, and save.
+
+        A post deleted on the provider but left here keeps its slot taken,
+        since a slot counts as taken when either side holds a post.
+        """
+        original_count = len(self.entries)
+        self.entries = [e for e in self.entries if e.post_id != post_id]
+        removed_count = original_count - len(self.entries)
+        if removed_count:
+            self._save_schedule()
+            logger.info("Removed post %s from the local schedule", post_id)
+        return removed_count
+
     def find_duplicates(self) -> list[tuple[ScheduleEntry, ScheduleEntry]]:
         """Find duplicate entries in the schedule.
 
