@@ -8,7 +8,7 @@ kept its slot: a replacement scheduled right after went days later.
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -20,10 +20,10 @@ from src.publisher.models import Platform, ScheduleConfig, ScheduleEntry
 from src.publisher.schedule import ScheduleManager
 
 
-def _entry(product_id: str, post_id: str) -> ScheduleEntry:
+def _entry(product_id: str, post_id: str, days_ahead: int = 3) -> ScheduleEntry:
     return ScheduleEntry(
         product_id=product_id,
-        scheduled_time=datetime(2026, 10, 23, 8, 0, tzinfo=UTC),
+        scheduled_time=datetime.now(UTC) + timedelta(days=days_ahead),
         platforms=[Platform.YOUTUBE],
         post_id=post_id,
         status="scheduled",
@@ -73,3 +73,41 @@ async def test_delete_frees_the_slot_only_when_the_provider_deleted(
                 await cli.cmd_delete(args, config, session=None)
 
     assert [e.post_id for e in _manager(tmp_path).entries] == kept
+
+
+@pytest.mark.req("REQ-PUB-114")
+def test_a_past_entry_stays_for_the_readouts(tmp_path: Path) -> None:
+    """A post that went live keeps the entry that maps it to its product."""
+    manager = _manager(tmp_path)
+    manager.record_entry(_entry("topic-a", "post-live", days_ahead=-5))
+
+    assert manager.remove_post("post-live") == 0
+    assert [e.post_id for e in _manager(tmp_path).entries] == ["post-live"]
+
+
+@pytest.mark.req("REQ-PUB-115")
+@pytest.mark.asyncio
+async def test_a_schedule_write_failure_does_not_fail_the_delete(
+    tmp_path: Path, caplog
+) -> None:
+    """Exit 1 means the provider refused; here it deleted the post."""
+    _manager(tmp_path).record_entry(_entry("topic-a", "post-old"))
+    state = tmp_path / "state"
+    state.chmod(0o555)
+    publisher = SimpleNamespace(
+        authenticate=AsyncMock(return_value=True),
+        delete_post=AsyncMock(return_value=True),
+    )
+    args = argparse.Namespace(post_id="post-old", debug=False, outputs_dir=tmp_path)
+    config = SimpleNamespace(schedule_config=ScheduleConfig())
+
+    try:
+        with patch(
+            "src.publisher.late.cli._create_publisher_from_config",
+            return_value=publisher,
+        ):
+            await cli.cmd_delete(args, config, session=None)
+    finally:
+        state.chmod(0o755)
+
+    assert "local schedule was not updated" in caplog.text

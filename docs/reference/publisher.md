@@ -115,7 +115,7 @@ The summary line reads `Products: <n> cleaned, <n> skipped, <size> freed`.
 
 ### `delete`
 
-Deletes a post from the provider, then removes it from the local schedule so its slot is free for the next `single` or `schedule`.
+Deletes a post from the provider, then removes its upcoming entries from the local schedule so its slot is free for the next `single` or `schedule`. A past entry stays for the readouts. If the local schedule can't be written, the command warns and still exits 0, since the post is gone; rerunning it frees the slot.
 
 ```bash
 python -m src.publisher.late delete <post_id> [--outputs-dir DIR] [--debug]

@@ -311,7 +311,9 @@ class ScheduleManager:
             "last_updated": datetime.now(UTC).isoformat(),
         }
 
-        # Atomic write: write to temp file, then rename
+        # Atomic write: write to temp file, then rename. Bound before the
+        # `try`, or a failure to create the file raises UnboundLocalError.
+        tmp_path: Path | None = None
         try:
             # Create temp file in same directory as target
             with tempfile.NamedTemporaryFile(
@@ -333,7 +335,7 @@ class ScheduleManager:
         except OSError as e:
             logger.error("Failed to save schedule: %s", e)
             # Clean up temp file if it exists
-            if tmp_path.exists():
+            if tmp_path is not None and tmp_path.exists():
                 tmp_path.unlink()
             raise
 
@@ -1758,13 +1760,18 @@ class ScheduleManager:
         return removed_count
 
     def remove_post(self, post_id: str) -> int:
-        """Remove the entries recorded for one provider post, and save.
+        """Remove one provider post's upcoming entries, and save.
 
         A post deleted on the provider but left here keeps its slot taken,
-        since a slot counts as taken when either side holds a post.
+        since a slot counts as taken when either side holds a post. A past
+        entry stays: it is what maps a superseded post to its product for
+        the reach readouts, and its slot no longer matters.
         """
+        now = datetime.now(UTC)
         original_count = len(self.entries)
-        self.entries = [e for e in self.entries if e.post_id != post_id]
+        self.entries = [
+            e for e in self.entries if e.post_id != post_id or e.scheduled_time <= now
+        ]
         removed_count = original_count - len(self.entries)
         if removed_count:
             self._save_schedule()
