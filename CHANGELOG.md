@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.3] - 2026-10-20
+
+### Fixed
+
+- `delete` also removes the post's upcoming entries from the local schedule, so the freed slot is taken by the next `single` or `schedule` instead of being skipped.
+
 ## [0.220.2] - 2026-10-20
 
 ### Fixed

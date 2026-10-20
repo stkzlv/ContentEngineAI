@@ -1398,6 +1398,22 @@ async def cmd_delete(args: argparse.Namespace, config, session: aiohttp.ClientSe
 
         if success:
             logger.info("Successfully deleted post: %s", args.post_id)
+            # Otherwise the local schedule keeps the freed slot taken. The post
+            # is gone either way, so a failed write is a warning: exit 1 means
+            # the provider refused (REQ-PUB-115).
+            schedule_path = _schedule_path(args)
+            try:
+                ScheduleManager(
+                    schedule_path=schedule_path, config=config.schedule_config
+                ).remove_post(args.post_id)
+            except OSError as e:
+                logger.warning(
+                    "Post %s deleted, but the local schedule was not updated "
+                    "(%s): %s; rerun delete to free its slot",
+                    args.post_id,
+                    schedule_path,
+                    e,
+                )
         else:
             logger.error("Failed to delete post: %s", args.post_id)
             sys.exit(1)
@@ -1726,6 +1742,15 @@ Examples:
     delete_parser.add_argument(
         "post_id",
         help="The ID of the post to delete",
+    )
+    delete_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Outputs root whose local schedule drops the post "
+            "(default: OUTPUTS_DIR, else the repo outputs/)"
+        ),
     )
     delete_parser.add_argument(
         "--debug",
