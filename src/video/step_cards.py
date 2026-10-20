@@ -195,7 +195,7 @@ def _fallback_keys(
         if key and key != primary and key not in shared and key not in keys:
             keys.append(key)
     action = _action_key(step)
-    if action and action != primary and action not in keys:
+    if action and action != primary and action not in shared and action not in keys:
         keys.append(action)
     return keys
 
@@ -229,6 +229,12 @@ def _matches(
     return found
 
 
+def _verb_led(words: list[str], after: int, index: int) -> bool:
+    """Whether an action verb is within three words before `index`."""
+    lookback = words[max(after, index - _VERB_LOOKBACK_WORDS) : index]
+    return any(w in _ACTION_VERBS for w in lookback)
+
+
 def _find(
     words: list[str], key: str, after: int, window: int
 ) -> tuple[int, int] | None:
@@ -239,8 +245,7 @@ def _find(
     """
     matches = _matches(words, key, after, window)
     for index, count in matches:
-        lookback = words[max(after, index - _VERB_LOOKBACK_WORDS) : index]
-        if any(w in _ACTION_VERBS for w in lookback):
+        if _verb_led(words, after, index):
             return index, count
     return matches[0] if matches else None
 
@@ -267,15 +272,18 @@ def find_step_words(
         primary = _primary_key(step)
         match = _find(words, primary, cursor, window) if primary else None
         if match is None:
-            # The earliest fallback, not the first in the list: a later key
-            # can be spoken well before an earlier one turns up again.
+            # The earliest verb-led fallback, else the earliest: a later key
+            # can be spoken well before an earlier one turns up again, and a
+            # label with no verb before it is often the last step's result
+            # ("The Display screen opens").
             next_step = steps[number] if number < len(steps) else None
             hits = [
                 m
                 for key in _fallback_keys(step, next_step)
                 if (m := _find(words, key, cursor, window)) is not None
             ]
-            match = min(hits) if hits else None
+            led = [m for m in hits if _verb_led(words, cursor, m[0])]
+            match = min(led or hits) if hits else None
         if match is None:
             missed += 1
             continue

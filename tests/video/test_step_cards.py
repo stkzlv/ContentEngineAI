@@ -318,6 +318,51 @@ class TestWhenTheLastLabelIsNotSpoken:
         assert _word_at(text, cards[-1].start) == "Battery"
         assert cards[-1].counter == "Step 3 of 3"
 
+    def test_a_verb_led_fallback_beats_an_earlier_result_sentence(self) -> None:
+        """The sentence "The Display screen opens" is step 1's result."""
+        text = (
+            "Here is how. Open Settings and tap Display. The Display screen "
+            "opens with more options. Scroll to Night Shift and set the times. "
+            "Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings > Display", "action": "Tap Display"},
+                {
+                    "ui_path": "Display > Night Shift > Scheduled",
+                    "action": "Set the times",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert _word_at(text, cards[-1].start) == "Night"
+
+    def test_an_action_word_the_next_step_shares_is_not_a_fallback(self) -> None:
+        text = (
+            "Intro here. Open Settings first. Switch off the power saver toggle "
+            "now. Then tap Battery Health to check the battery. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {
+                    "ui_path": "Settings > Battery > Low Power Mode",
+                    "action": "Go to Battery and switch on Low Power Mode",
+                },
+                {
+                    "ui_path": "Settings > Battery > Battery Health",
+                    "action": "Tap Battery Health",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert "Step 2 of 3" not in [c.counter for c in cards]
+        assert _word_at(text, cards[-1].start) == "Battery"
+
     def test_a_possessive_action_word_matches_the_plain_word(self) -> None:
         text = "Intro here. Now open the app menu and wait."
         cards = _plan([{"ui_path": "", "action": "Open the app's menu"}], text)
