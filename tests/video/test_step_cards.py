@@ -220,6 +220,67 @@ class TestWhenACardShows:
 
 
 @pytest.mark.unit
+@pytest.mark.req("REQ-VID-123")
+@pytest.mark.req("REQ-VID-124")
+class TestWhenTheLastLabelIsNotSpoken:
+    """Scripts name an earlier label or describe the control instead."""
+
+    def test_an_earlier_segment_finds_the_step(self) -> None:
+        text = "Intro here. Open Settings. Then go back to Display and wait."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Display > Night Shift", "action": "Turn on Night Shift"},
+            ],
+            text,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "Display"
+
+    def test_the_last_segment_still_wins_when_spoken(self) -> None:
+        text = "Intro here. Open Settings. The Settings list opens. Tap Privacy now."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Settings > Privacy", "action": "Tap Privacy"},
+            ],
+            text,
+        )
+
+        assert _word_at(text, cards[1].start) == "Privacy"
+
+    def test_the_action_finds_a_described_control(self) -> None:
+        text = "Intro here. Open Settings. Find the Wi-Fi printer and tap the small i."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Details", "action": "Find the Wi-Fi printer, tap Details"},
+            ],
+            text,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "Wi-Fi"
+
+    def test_the_action_passes_over_its_verb(self) -> None:
+        """Every step says "click", so the verb would find the wrong one."""
+        text = "Intro here. Do not click Delete yet. Click the trash icon instead."
+        cards = _plan([{"ui_path": "", "action": "Click the trash icon"}], text)
+
+        assert _word_at(text, cards[0].start) == "trash"
+
+    def test_a_miss_names_the_words_searched(self, caplog) -> None:
+        with caplog.at_level("INFO", logger="src.video.step_cards"):
+            _plan(
+                [{"ui_path": "Display > Night Shift", "action": "Turn it on"}],
+                "Intro here. Nothing relevant is said here.",
+            )
+
+        assert "searched nightshift, display" in caplog.text
+
+
+@pytest.mark.unit
 @pytest.mark.req("REQ-VID-124")
 class TestThePathShown:
     def test_placeholders_and_repeats(self) -> None:

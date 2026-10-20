@@ -32,6 +32,7 @@ from src.video.step_cards import (
     first_segment_word,
     path_segments,
     sentence_starts,
+    step_keys,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,8 @@ def plan_step_visuals(
     if not steps or missing:
         logger.info(
             "Step visuals skipped: narration of step(s) %s not found",
-            ", ".join(str(n) for n in missing) or "-",
+            "; ".join(f"{n} ({', '.join(step_keys(steps[n - 1]))})" for n in missing)
+            or "-",
         )
         return []
     starts = [

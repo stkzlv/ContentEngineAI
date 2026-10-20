@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.1] - 2026-10-20
+
+### Fixed
+
+- Step screens and step cards find a step whose narration names an earlier menu label or describes the control instead of saying the path's last label, so far fewer tutorials fall back to stock, and a skipped step's log line names the words searched.
+
 ## [0.220.0] - 2026-10-18
 
 ### Changed

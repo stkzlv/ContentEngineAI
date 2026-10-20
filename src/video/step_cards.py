@@ -40,7 +40,8 @@ _ACTION_VERBS = frozenset(
 _SEARCH_WINDOW_WORDS = 60
 _VERB_LOOKBACK_WORDS = 3
 _STOPWORDS = frozenset(
-    "a an the to on in of your you and then tap open go select turn".split()
+    "a an the to on in of your you and then tap open go select turn "
+    "it its this that for from with at or is".split()
 )
 
 
@@ -141,23 +142,44 @@ def display_path(ui_path: str, max_words: int) -> str:
     return prefix + " > ".join(kept)
 
 
-def _key(step: dict[str, Any]) -> str:
-    """The letters that mark a step's narration, spaces and punctuation dropped.
+def _action_key(step: dict[str, Any]) -> str:
+    """The action's first content word: "Restart the router" -> "restart".
+
+    Action verbs are passed over too ("Click the trash icon" -> "trash"): a
+    script says "click" for every step, so the verb finds the wrong one.
+    """
+    # Whole words joined, as `_matches` joins the spoken ones: "Wi-Fi" is
+    # "wifi", not "wi". A slash separates words ("Power/Side").
+    text = str(step.get("action") or "")
+    words = ["".join(_tokens(w)) for w in re.split(r"[\s/]+", text)]
+    action = [w for w in words if w and w not in _STOPWORDS | _ACTION_VERBS]
+    return action[0] if action else ""
+
+
+def step_keys(step: dict[str, Any]) -> list[str]:
+    """The letters that mark a step's narration, most specific first.
 
     The path's last segment ("Back Tap" -> "backtap"), matched against the
     spoken words joined the same way, so Whisper's "BackTap" or "Wi-Fi"
-    still match. Falls back to the action's first content words when the
-    path is empty ("Restart the router" -> "restart").
+    still match. Scripts often name an earlier segment or describe the
+    control instead ("Go back to iPhone Storage" for "iPhone Storage >
+    Enable", "the little blue i button" for "Info"), so the earlier
+    segments follow, last first, then the action's first content word.
     """
     segments = [s for s in _PATH_SPLIT.split(str(step.get("ui_path") or "")) if s]
-    # A segment that is only a placeholder ("[App Name]") is never spoken as
-    # written, so the step is found by its action instead.
-    if segments and not _PLACEHOLDER.fullmatch(segments[-1].strip()):
-        key = "".join(_tokens(segments[-1]))
-        if key:
-            return key
-    action = [t for t in _tokens(str(step.get("action") or "")) if t not in _STOPWORDS]
-    return action[0] if action else ""
+    keys: list[str] = []
+    for segment in reversed(segments):
+        # A segment that is only a placeholder ("[App Name]") is never spoken
+        # as written.
+        if _PLACEHOLDER.fullmatch(segment.strip()):
+            continue
+        key = "".join(_tokens(segment))
+        if key and key not in keys:
+            keys.append(key)
+    action = _action_key(step)
+    if action and action not in keys:
+        keys.append(action)
+    return keys
 
 
 def _matches(
@@ -211,9 +233,15 @@ def find_step_words(
     cursor = next((i + 1 for i, w in enumerate(raw) if _SENTENCE_END.search(w)), 0)
     missed = 0
     for number, step in enumerate(steps, start=1):
-        key = _key(step)
         window = _SEARCH_WINDOW_WORDS * (1 + missed)
-        match = _find(words, key, cursor, window) if key else None
+        match = next(
+            (
+                m
+                for key in step_keys(step)
+                if (m := _find(words, key, cursor, window)) is not None
+            ),
+            None,
+        )
         if match is None:
             missed += 1
             continue
@@ -272,7 +300,10 @@ def plan_step_cards(
     for number, step in enumerate(steps, start=1):
         if number not in starts:
             logger.info(
-                "Step card %d of %d skipped: narration not found", number, total
+                "Step card %d of %d skipped: narration not found (searched %s)",
+                number,
+                total,
+                ", ".join(step_keys(step)) or "-",
             )
             continue
         path = display_path(str(step.get("ui_path") or ""), max_path_words)
