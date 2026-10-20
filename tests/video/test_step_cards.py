@@ -270,6 +270,60 @@ class TestWhenTheLastLabelIsNotSpoken:
 
         assert _word_at(text, cards[0].start) == "trash"
 
+    def test_a_placeholder_step_is_not_found_past_the_next(self) -> None:
+        """An earlier label spoken later must not beat the action word."""
+        text = (
+            "Here is how. Open Settings now. Scroll and tap the app name in the "
+            "list. Then tap Notifications for alerts in Settings. Done. Recap."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Settings > [App Name]", "action": "Tap the app name"},
+                {"ui_path": "[App Name] > Notifications", "action": "Tap it"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert [_word_at(text, c.start) for c in cards] == [
+            "Settings",
+            "app",
+            "Notifications",
+        ]
+
+    def test_a_label_the_next_step_shares_is_not_a_fallback(self) -> None:
+        """The next step names its shared parent; that is not this step."""
+        text = (
+            "Intro here. Open Settings first. Switch off the power saver toggle "
+            "now. Then tap Battery Health to check the battery. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {
+                    "ui_path": "Settings > Battery > Low Power Mode",
+                    "action": "Turn on Low Power Mode",
+                },
+                {
+                    "ui_path": "Settings > Battery > Battery Health",
+                    "action": "Tap Battery Health",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert "Step 2 of 3" not in [c.counter for c in cards]
+        assert _word_at(text, cards[-1].start) == "Battery"
+        assert cards[-1].counter == "Step 3 of 3"
+
+    def test_a_possessive_action_word_matches_the_plain_word(self) -> None:
+        text = "Intro here. Now open the app menu and wait."
+        cards = _plan([{"ui_path": "", "action": "Open the app's menu"}], text)
+
+        assert cards and _word_at(text, cards[0].start) == "app"
+
     def test_a_miss_names_the_words_searched(self, caplog) -> None:
         with caplog.at_level("INFO", logger="src.video.step_cards"):
             _plan(
