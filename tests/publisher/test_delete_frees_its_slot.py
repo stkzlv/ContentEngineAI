@@ -111,3 +111,20 @@ async def test_a_schedule_write_failure_does_not_fail_the_delete(
         state.chmod(0o755)
 
     assert "local schedule was not updated" in caplog.text
+
+
+def test_a_failed_write_leaves_no_temp_file(tmp_path: Path) -> None:
+    """A write that fails mid-dump removes its temp file and raises OSError."""
+    manager = _manager(tmp_path)
+    manager.record_entry(_entry("topic-a", "post-old"))
+
+    def full_disk(*_args, **_kwargs):
+        raise OSError(28, "No space left on device")
+
+    with (
+        patch("src.publisher.schedule.json.dump", side_effect=full_disk),
+        pytest.raises(OSError),
+    ):
+        manager.remove_post("post-old")
+
+    assert [p.name for p in (tmp_path / "state").iterdir()] == ["schedule.json"]

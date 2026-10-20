@@ -323,8 +323,8 @@ class ScheduleManager:
                 suffix=".tmp",
                 delete=False,
             ) as tmp_file:
-                json.dump(data, tmp_file, indent=2, default=str)
                 tmp_path = Path(tmp_file.name)
+                json.dump(data, tmp_file, indent=2, default=str)
 
             # Atomic rename
             tmp_path.replace(self.schedule_path)
