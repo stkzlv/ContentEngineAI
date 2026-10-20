@@ -277,6 +277,31 @@ def _find(
     return matches[0] if matches else None
 
 
+def _earliest(
+    words: list[str], keys: list[str], after: int, window: int
+) -> tuple[int, int] | None:
+    """The earliest verb-led match of any key, else the earliest match."""
+    hits = [m for key in keys if (m := _find(words, key, after, window)) is not None]
+    led = [m for m in hits if _verb_led(words, after, m[0])]
+    return min(led or hits) if hits else None
+
+
+def _next_step_word(
+    words: list[str],
+    step: dict[str, Any] | None,
+    next_step: dict[str, Any] | None,
+    after: int,
+    window: int,
+) -> int | None:
+    """Where `step` would be found by its labels or first action word."""
+    if not step:
+        return None
+    primary = _primary_key(step)
+    keys = [primary] if primary else []
+    hit = _earliest(words, [*keys, *_fallback_keys(step, next_step)], after, window)
+    return hit[0] if hit else None
+
+
 def find_step_words(
     steps: list[dict[str, Any]], spoken: list[dict[str, Any]]
 ) -> dict[int, int]:
@@ -304,19 +329,15 @@ def find_step_words(
             # label with no verb before it is often the last step's result
             # ("The Display screen opens").
             next_step = steps[number] if number < len(steps) else None
-            for keys in (
-                _fallback_keys(step, next_step),
-                _last_resort_keys(step, next_step),
-            ):
-                hits = [
-                    m
-                    for key in keys
-                    if (m := _find(words, key, cursor, window)) is not None
-                ]
-                led = [m for m in hits if _verb_led(words, cursor, m[0])]
-                match = min(led or hits) if hits else None
-                if match is not None:
-                    break
+            match = _earliest(words, _fallback_keys(step, next_step), cursor, window)
+            if match is None and (keys := _last_resort_keys(step, next_step)):
+                # Generic words ("button", "screen") are spoken in the next
+                # step's sentence too, so the last tier stops where the next
+                # step is found by its own labels.
+                after = steps[number + 1] if number + 1 < len(steps) else None
+                ahead = _next_step_word(words, next_step, after, cursor, window)
+                limit = window if ahead is None else min(window, ahead - cursor)
+                match = _earliest(words, keys, cursor, limit)
         if match is None:
             missed += 1
             continue

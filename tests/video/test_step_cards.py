@@ -404,6 +404,42 @@ class TestWhenTheLastLabelIsNotSpoken:
         assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
         assert _word_at(text, cards[1].start) == "outside"
 
+    def test_a_last_resort_word_never_takes_the_next_steps_sentence(self) -> None:
+        text = (
+            "Intro here. Open Settings. Give the remote a quick wake up. "
+            "Then tap the Pair button. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "", "action": "Press any button on the remote"},
+                {"ui_path": "Bluetooth > Pair", "action": "Tap Pair"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        by_counter = {c.counter: _word_at(text, c.start) for c in cards}
+        assert by_counter["Step 3 of 3"] == "Pair"
+        assert by_counter.get("Step 2 of 3") in (None, "remote")
+
+    def test_the_last_resort_words_come_after_the_fallbacks(self) -> None:
+        """As equal fallbacks they found the previous step's result sentence."""
+        text = (
+            "Intro here. Open Settings. The toolbar appears below. "
+            "Your trash can sits at its end."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "", "action": "Click the trash icon in the toolbar"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert _word_at(text, cards[1].start) == "trash"
+
     def test_a_possessive_action_word_matches_the_plain_word(self) -> None:
         text = "Intro here. Now open the app menu and wait."
         cards = _plan([{"ui_path": "", "action": "Open the app's menu"}], text)
