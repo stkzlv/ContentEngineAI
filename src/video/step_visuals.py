@@ -32,6 +32,7 @@ from src.video.step_cards import (
     first_segment_word,
     path_segments,
     sentence_starts,
+    step_keys,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ def _step_start_words(
 ) -> list[int]:
     """Where each step's screen starts: the sentence that first names it.
 
-    The matched word is the path's last segment, often spoken at the end of
+    The matched word is usually the path's last segment, often spoken at the end of
     the step ("Now, find Auto-Lock. Open the list. Select 30."), so the
     screen moves back to the earliest segment named since the previous step,
     then to the start of that word's sentence. It never starts at or before
@@ -128,7 +129,11 @@ def plan_step_visuals(
     if not steps or missing:
         logger.info(
             "Step visuals skipped: narration of step(s) %s not found",
-            ", ".join(str(n) for n in missing) or "-",
+            "; ".join(
+                f"{n} ({', '.join(step_keys(steps[n - 1], (steps + [{}])[n]))})"
+                for n in missing
+            )
+            or "-",
         )
         return []
     starts = [

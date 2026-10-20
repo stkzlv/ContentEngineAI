@@ -40,7 +40,8 @@ _ACTION_VERBS = frozenset(
 _SEARCH_WINDOW_WORDS = 60
 _VERB_LOOKBACK_WORDS = 3
 _STOPWORDS = frozenset(
-    "a an the to on in of your you and then tap open go select turn".split()
+    "a an the to on in of your you and then tap open go select turn "
+    "it its this that for from with at or is".split()
 )
 
 
@@ -141,23 +142,74 @@ def display_path(ui_path: str, max_words: int) -> str:
     return prefix + " > ".join(kept)
 
 
-def _key(step: dict[str, Any]) -> str:
-    """The letters that mark a step's narration, spaces and punctuation dropped.
+def _action_key(step: dict[str, Any]) -> str:
+    """The action's first content word: "Restart the router" -> "restart".
 
-    The path's last segment ("Back Tap" -> "backtap"), matched against the
-    spoken words joined the same way, so Whisper's "BackTap" or "Wi-Fi"
-    still match. Falls back to the action's first content words when the
-    path is empty ("Restart the router" -> "restart").
+    Action verbs are passed over too ("Click the trash icon" -> "trash"): a
+    script says "click" for every step, so the verb finds the wrong one.
+    """
+    # Whole words joined, as `_matches` joins the spoken ones: "Wi-Fi" is
+    # "wifi", not "wi". A slash separates words ("Power/Side"), and a
+    # possessive is dropped ("app's" is spoken "app").
+    text = re.sub(r"['\u2019]s\b", "", str(step.get("action") or ""))
+    words = ["".join(_tokens(w)) for w in re.split(r"[\s/]+", text)]
+    action = [w for w in words if w and w not in _STOPWORDS | _ACTION_VERBS]
+    return action[0] if action else ""
+
+
+def _segment_keys(ui_path: str) -> list[str]:
+    """Each segment's letters, placeholders ("[App Name]") left out."""
+    segments = [s for s in _PATH_SPLIT.split(ui_path) if s]
+    return [
+        "".join(_tokens(s)) for s in segments if not _PLACEHOLDER.fullmatch(s.strip())
+    ]
+
+
+def _primary_key(step: dict[str, Any]) -> str:
+    """The path's last segment ("Back Tap" -> "backtap"), unless a placeholder.
+
+    Matched against the spoken words joined the same way, so Whisper's
+    "BackTap" or "Wi-Fi" still match.
     """
     segments = [s for s in _PATH_SPLIT.split(str(step.get("ui_path") or "")) if s]
-    # A segment that is only a placeholder ("[App Name]") is never spoken as
-    # written, so the step is found by its action instead.
-    if segments and not _PLACEHOLDER.fullmatch(segments[-1].strip()):
-        key = "".join(_tokens(segments[-1]))
-        if key:
-            return key
-    action = [t for t in _tokens(str(step.get("action") or "")) if t not in _STOPWORDS]
-    return action[0] if action else ""
+    if not segments or _PLACEHOLDER.fullmatch(segments[-1].strip()):
+        return ""
+    return "".join(_tokens(segments[-1]))
+
+
+def _fallback_keys(
+    step: dict[str, Any], next_step: dict[str, Any] | None = None
+) -> list[str]:
+    """What else marks a step when its last segment isn't spoken.
+
+    Scripts often name an earlier segment or describe the control instead
+    ("Go back to Display" for "Display > Night Shift", "the small i" for
+    "Details"): the earlier segments, last first, then the action's first
+    content word. A segment the next step's path also has is left out,
+    since the next step's narration names it too.
+    """
+    primary = _primary_key(step)
+    shared = set(_segment_keys(str((next_step or {}).get("ui_path") or "")))
+    keys: list[str] = []
+    for key in reversed(_segment_keys(str(step.get("ui_path") or ""))):
+        if key and key != primary and key not in shared and key not in keys:
+            keys.append(key)
+    action = _action_key(step)
+    if action and action != primary and action not in shared and action not in keys:
+        keys.append(action)
+    return keys
+
+
+def step_keys(
+    step: dict[str, Any], next_step: dict[str, Any] | None = None
+) -> list[str]:
+    """Every key a step is looked for by, for the log: the last segment first."""
+    primary = _primary_key(step)
+    return (
+        [primary, *_fallback_keys(step, next_step)]
+        if primary
+        else (_fallback_keys(step, next_step))
+    )
 
 
 def _matches(
@@ -177,6 +229,12 @@ def _matches(
     return found
 
 
+def _verb_led(words: list[str], after: int, index: int) -> bool:
+    """Whether an action verb is within three words before `index`."""
+    lookback = words[max(after, index - _VERB_LOOKBACK_WORDS) : index]
+    return any(w in _ACTION_VERBS for w in lookback)
+
+
 def _find(
     words: list[str], key: str, after: int, window: int
 ) -> tuple[int, int] | None:
@@ -187,8 +245,7 @@ def _find(
     """
     matches = _matches(words, key, after, window)
     for index, count in matches:
-        lookback = words[max(after, index - _VERB_LOOKBACK_WORDS) : index]
-        if any(w in _ACTION_VERBS for w in lookback):
+        if _verb_led(words, after, index):
             return index, count
     return matches[0] if matches else None
 
@@ -211,9 +268,22 @@ def find_step_words(
     cursor = next((i + 1 for i, w in enumerate(raw) if _SENTENCE_END.search(w)), 0)
     missed = 0
     for number, step in enumerate(steps, start=1):
-        key = _key(step)
         window = _SEARCH_WINDOW_WORDS * (1 + missed)
-        match = _find(words, key, cursor, window) if key else None
+        primary = _primary_key(step)
+        match = _find(words, primary, cursor, window) if primary else None
+        if match is None:
+            # The earliest verb-led fallback, else the earliest: a later key
+            # can be spoken well before an earlier one turns up again, and a
+            # label with no verb before it is often the last step's result
+            # ("The Display screen opens").
+            next_step = steps[number] if number < len(steps) else None
+            hits = [
+                m
+                for key in _fallback_keys(step, next_step)
+                if (m := _find(words, key, cursor, window)) is not None
+            ]
+            led = [m for m in hits if _verb_led(words, cursor, m[0])]
+            match = min(led or hits) if hits else None
         if match is None:
             missed += 1
             continue
@@ -272,7 +342,11 @@ def plan_step_cards(
     for number, step in enumerate(steps, start=1):
         if number not in starts:
             logger.info(
-                "Step card %d of %d skipped: narration not found", number, total
+                "Step card %d of %d skipped: narration not found (searched %s)",
+                number,
+                total,
+                ", ".join(step_keys(step, steps[number] if number < total else None))
+                or "-",
             )
             continue
         path = display_path(str(step.get("ui_path") or ""), max_path_words)

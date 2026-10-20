@@ -148,10 +148,21 @@ class TestThePlan:
         assert screens[-1].kind == "recap"
         assert screens[-1].start == 9.5
 
-    def test_a_step_not_found_keeps_the_stock_visuals(self) -> None:
+    def test_a_step_not_found_keeps_the_stock_visuals(self, caplog) -> None:
         steps = [*STEPS[:2], {"ui_path": "Bluetooth", "action": "Tap Bluetooth"}]
 
-        assert _plan(steps) == []
+        with caplog.at_level("INFO", logger="src.video.step_visuals"):
+            assert _plan(steps) == []
+        assert "step(s) 3 (bluetooth) not found" in caplog.text
+
+    def test_a_step_named_by_its_parent_label_still_gets_screens(self) -> None:
+        """The script says "tap Name", never the path's last label."""
+        steps = [*STEPS[:2], {"ui_path": "Name > Device name", "action": "Rename"}]
+
+        screens = [s for s in _plan(steps) if s.kind == "step"]
+
+        assert len(screens) == 3
+        assert screens[2].start == 10.0
 
 
 @pytest.mark.unit

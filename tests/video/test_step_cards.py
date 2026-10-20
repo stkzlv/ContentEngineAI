@@ -220,6 +220,166 @@ class TestWhenACardShows:
 
 
 @pytest.mark.unit
+@pytest.mark.req("REQ-VID-123")
+@pytest.mark.req("REQ-VID-124")
+class TestWhenTheLastLabelIsNotSpoken:
+    """Scripts name an earlier label or describe the control instead."""
+
+    def test_an_earlier_segment_finds_the_step(self) -> None:
+        text = "Intro here. Open Settings. Then go back to Display and wait."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Display > Night Shift", "action": "Turn on Night Shift"},
+            ],
+            text,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "Display"
+
+    def test_the_last_segment_still_wins_when_spoken(self) -> None:
+        text = "Intro here. Open Settings. The Settings list opens. Tap Privacy now."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Settings > Privacy", "action": "Tap Privacy"},
+            ],
+            text,
+        )
+
+        assert _word_at(text, cards[1].start) == "Privacy"
+
+    def test_the_action_finds_a_described_control(self) -> None:
+        text = "Intro here. Open Settings. Find the Wi-Fi printer and tap the small i."
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Details", "action": "Find the Wi-Fi printer, tap Details"},
+            ],
+            text,
+        )
+
+        assert [c.counter for c in cards] == ["Step 1 of 2", "Step 2 of 2"]
+        assert _word_at(text, cards[1].start) == "Wi-Fi"
+
+    def test_the_action_passes_over_its_verb(self) -> None:
+        """Every step says "click", so the verb would find the wrong one."""
+        text = "Intro here. Do not click Delete yet. Click the trash icon instead."
+        cards = _plan([{"ui_path": "", "action": "Click the trash icon"}], text)
+
+        assert _word_at(text, cards[0].start) == "trash"
+
+    def test_a_placeholder_step_is_not_found_past_the_next(self) -> None:
+        """An earlier label spoken later must not beat the action word."""
+        text = (
+            "Here is how. Open Settings now. Scroll and tap the app name in the "
+            "list. Then tap Notifications for alerts in Settings. Done. Recap."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {"ui_path": "Settings > [App Name]", "action": "Tap the app name"},
+                {"ui_path": "[App Name] > Notifications", "action": "Tap it"},
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert [_word_at(text, c.start) for c in cards] == [
+            "Settings",
+            "app",
+            "Notifications",
+        ]
+
+    def test_a_label_the_next_step_shares_is_not_a_fallback(self) -> None:
+        """The next step names its shared parent; that is not this step."""
+        text = (
+            "Intro here. Open Settings first. Switch off the power saver toggle "
+            "now. Then tap Battery Health to check the battery. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {
+                    "ui_path": "Settings > Battery > Low Power Mode",
+                    "action": "Turn on Low Power Mode",
+                },
+                {
+                    "ui_path": "Settings > Battery > Battery Health",
+                    "action": "Tap Battery Health",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert "Step 2 of 3" not in [c.counter for c in cards]
+        assert _word_at(text, cards[-1].start) == "Battery"
+        assert cards[-1].counter == "Step 3 of 3"
+
+    def test_a_verb_led_fallback_beats_an_earlier_result_sentence(self) -> None:
+        """The sentence "The Display screen opens" is step 1's result."""
+        text = (
+            "Here is how. Open Settings and tap Display. The Display screen "
+            "opens with more options. Scroll to Night Shift and set the times. "
+            "Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings > Display", "action": "Tap Display"},
+                {
+                    "ui_path": "Display > Night Shift > Scheduled",
+                    "action": "Set the times",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert _word_at(text, cards[-1].start) == "Night"
+
+    def test_an_action_word_the_next_step_shares_is_not_a_fallback(self) -> None:
+        text = (
+            "Intro here. Open Settings first. Switch off the power saver toggle "
+            "now. Then tap Battery Health to check the battery. Done."
+        )
+        cards = _plan(
+            [
+                {"ui_path": "Settings", "action": "Open Settings"},
+                {
+                    "ui_path": "Settings > Battery > Low Power Mode",
+                    "action": "Go to Battery and switch on Low Power Mode",
+                },
+                {
+                    "ui_path": "Settings > Battery > Battery Health",
+                    "action": "Tap Battery Health",
+                },
+            ],
+            text,
+            min_sec=0.1,
+        )
+
+        assert "Step 2 of 3" not in [c.counter for c in cards]
+        assert _word_at(text, cards[-1].start) == "Battery"
+
+    def test_a_possessive_action_word_matches_the_plain_word(self) -> None:
+        text = "Intro here. Now open the app menu and wait."
+        cards = _plan([{"ui_path": "", "action": "Open the app's menu"}], text)
+
+        assert cards and _word_at(text, cards[0].start) == "app"
+
+    def test_a_miss_names_the_words_searched(self, caplog) -> None:
+        with caplog.at_level("INFO", logger="src.video.step_cards"):
+            _plan(
+                [{"ui_path": "Display > Night Shift", "action": "Turn it on"}],
+                "Intro here. Nothing relevant is said here.",
+            )
+
+        assert "searched nightshift, display" in caplog.text
+
+
+@pytest.mark.unit
 @pytest.mark.req("REQ-VID-124")
 class TestThePathShown:
     def test_placeholders_and_repeats(self) -> None:
