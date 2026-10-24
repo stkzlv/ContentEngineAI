@@ -166,6 +166,27 @@ class TestThePlan:
 
 
 @pytest.mark.unit
+@pytest.mark.req("REQ-VID-152")
+def test_the_mistake_sentence_stays_on_its_step_screen() -> None:
+    """A mistake named after step 2's action keeps step 2 on screen through it."""
+    text = TEXT.replace("here. Last", "here. Do not skip the restart first. Last")
+
+    screens = plan_step_visuals(
+        STEPS,
+        _spoken(text),
+        start_screen="Home screen",
+        video_end=18.0,
+        opening_max_sec=2.0,
+        recap_sec=2.5,
+    )
+    steps = [s for s in screens if s.kind == "step"]
+
+    # "Do not skip" starts at 10.0 s, "Last" at 13.0 s.
+    assert (steps[1].start, steps[1].end) == (7.0, 13.0)
+    assert steps[2].start == 13.0
+
+
+@pytest.mark.unit
 @pytest.mark.req("REQ-VID-123")
 class TestTheDrawing:
     def test_a_screen_is_an_opaque_frame(self) -> None:
