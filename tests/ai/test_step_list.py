@@ -130,7 +130,7 @@ def test_length_follows_the_step_count() -> None:
     assert not too_short("word " * 33, 2)
 
 
-@pytest.mark.req("REQ-CNT-146", "REQ-CNT-147")
+@pytest.mark.req("REQ-CNT-146", "REQ-CNT-147", "REQ-VID-152")
 def test_the_prompt_names_the_start_and_the_mistake_at_its_step() -> None:
     sl = _sl(3)
     sl.mistake, sl.mistake_step = "skipping the restart", 2
