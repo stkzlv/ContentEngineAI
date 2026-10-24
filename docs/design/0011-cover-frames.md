@@ -70,7 +70,7 @@ Remove the switch when: covers have been on in the bundled config for two weekly
 
 ## Open questions
 
-- With the hook overlay off, the cover has no headline (REQ-VID-014's Gap); whether such renders should send a cover at all.
+None. With the hook overlay off, the cover has no headline (REQ-VID-014's Gap), and that is accepted: every bundled profile has the hook overlay on, and drawing the headline on the cover image alone would give Instagram a headline and TikTok, which takes a frame time, none, against "the same picture on both".
 
 ## As built
 

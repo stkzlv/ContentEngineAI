@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.4] - 2026-10-24
+
+### Documentation
+
+- The requirements record that a tutorial step with a common mistake already stays on screen for the extra sentence the script spends naming the mistake, and that a cover with the hook overlay off stays a plain frame.
+
 ## [0.220.3] - 2026-10-20
 
 ### Fixed
