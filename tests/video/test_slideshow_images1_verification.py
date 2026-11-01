@@ -444,20 +444,20 @@ class TestSlideshowImagesVerification:
     @pytest.fixture
     def real_video_data(self) -> dict[str, Any]:
         """Get real pipeline-generated video data for testing."""
-        # Use the existing B0BTYCRJSS slideshow_images1 video.
+        # Use the existing B0TEST0001 slideshow_images1 video.
         # Repo root is two levels above tests/video/ -- parents[2], not
         # parent.parent, which after the move into the subdir pointed at
         # tests/ and grew a stray tests/outputs tree.
         project_root = Path(__file__).parents[2]
         base_path = (
-            project_root / "outputs" / "videos" / "B0BTYCRJSS" / "slideshow_images1"
+            project_root / "outputs" / "videos" / "B0TEST0001" / "slideshow_images1"
         )
         video_base_path = Path(base_path)
 
         return {
-            "product_id": "B0BTYCRJSS",
+            "product_id": "B0TEST0001",
             "profile_name": "slideshow_images1",
-            "video_path": video_base_path / "B0BTYCRJSS_slideshow_images1.mp4",
+            "video_path": video_base_path / "B0TEST0001_slideshow_images1.mp4",
             "pipeline_state": video_base_path / "pipeline_state.json",
             "temp_dir": video_base_path / "temp",
             "verification_dir": video_base_path / "temp" / "verification",

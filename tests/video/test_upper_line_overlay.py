@@ -235,7 +235,7 @@ class TestTheLineHasToFitTheFrame:
         1080px frame. This is the shipped default source.
         """
         text, reason = self._drawable(
-            "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
+            "https://www.amazon.com/dp/B0TEST0001?tag=mytag-20"
         )
         assert text is None and "px wide" in reason
 

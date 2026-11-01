@@ -84,7 +84,7 @@ class TestVoiceProfileSelection:
 
     def test_deterministic_by_product_id(self):
         cfg = _make_tts_config(profiles=SAMPLE_PROFILES)
-        mgr = TTSManager(cfg, {}, product_id="B09S8WMJY9")
+        mgr = TTSManager(cfg, {}, product_id="B0TEST0004")
         name1, _ = mgr._select_voice_profile()
         name2, _ = mgr._select_voice_profile()
         assert name1 == name2, "Same product_id should always pick the same profile"

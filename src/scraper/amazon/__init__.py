@@ -14,7 +14,7 @@ Usage:
     from src.scraper.amazon import BotasaurusAmazonScraper
 
     scraper = BotasaurusAmazonScraper()
-    products = scraper.scrape_products(["B0BTYCRJSS"])  # ASIN
+    products = scraper.scrape_products(["B0CTTZJRL6"])  # ASIN
     products = scraper.scrape_products(["wireless headphones"])  # Search
 
 **The re-exports resolve on first access, not at import.** A package's

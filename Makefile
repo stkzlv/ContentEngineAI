@@ -378,7 +378,7 @@ all: full-check
 # Scraper-specific commands
 scrape-test: ## Run scraper with test ASIN (Botasaurus)
 	@echo "$(BLUE)Running Botasaurus scraper test...$(NC)"
-	poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
+	poetry run python -m src.scraper.amazon.scraper --keywords "B0CTTZJRL6" --debug --clean
 
 scrape-advanced: ## Run scraper with advanced search parameters
 	@echo "$(BLUE)Running advanced scraper test...$(NC)"

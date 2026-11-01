@@ -17,10 +17,10 @@ echo "LATE_VERCEL_TOKEN=vercel_blob_rw_xxx" >> .env  # For videos over 4 MB
 poetry run python -m src.publisher.late list-accounts --debug
 
 # 5. Publish one product into the next free slot
-poetry run python -m src.publisher.late single B0BTYCRJSS --debug
+poetry run python -m src.publisher.late single B0CTTZJRL6 --debug
 
 # Or publish it at once to two platforms
-poetry run python -m src.publisher.late single B0BTYCRJSS \
+poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube --platform tiktok --immediate --debug
 
 # 6. Publish every product in outputs/ at once
@@ -85,25 +85,25 @@ poetry run python -m src.publisher.late verify-comments --limit 25 --debug
 
 ```bash
 # Schedule into the next free recurring slot
-poetry run python -m src.publisher.late single B0BTYCRJSS --debug
+poetry run python -m src.publisher.late single B0CTTZJRL6 --debug
 
 # Publish at once to YouTube
-poetry run python -m src.publisher.late single B0BTYCRJSS \
+poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube --immediate
 
 # Publish at once to three platforms
-poetry run python -m src.publisher.late single B0BTYCRJSS \
+poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube --platform tiktok --platform instagram \
   --immediate --debug
 
 # Schedule for a specific time (UTC)
-poetry run python -m src.publisher.late single B0BTYCRJSS \
+poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube \
   --schedule "2025-01-20 14:00:00" \
   --debug
 ```
 
-The same command runs through make: `make publish ARGS="single B0BTYCRJSS --debug"`.
+The same command runs through make: `make publish ARGS="single B0CTTZJRL6 --debug"`.
 
 ## Publish a product from scratch
 
@@ -117,14 +117,14 @@ The same command runs through make: `make publish ARGS="single B0BTYCRJSS --debu
 3. Scrape the product and render a video. The producer writes `metadata.json`; add `--metadata-mode optimized` to write per-platform `metadata_<platform>.json` files instead.
 
    ```bash
-   make scrape-lowpri ARGS="--keywords B0BTYCRJSS --debug"
-   make produce-lowpri ARGS="outputs/B0BTYCRJSS/data.json slideshow_images1 --metadata-mode optimized --debug"
+   make scrape-lowpri ARGS="--keywords B0CTTZJRL6 --debug"
+   make produce-lowpri ARGS="outputs/B0CTTZJRL6/data.json slideshow_images1 --metadata-mode optimized --debug"
    ```
 
 4. Publish at once to test:
 
    ```bash
-   poetry run python -m src.publisher.late single B0BTYCRJSS \
+   poetry run python -m src.publisher.late single B0CTTZJRL6 \
      --platform youtube --immediate --debug
    ```
 
@@ -381,7 +381,7 @@ With `cleanup.enabled` on, every publish run removes the directories of products
 
    # One product
    poetry run python -m src.publisher.late cleanup \
-     --product-id B0BTYCRJSS \
+     --product-id B0CTTZJRL6 \
      --debug
    ```
 

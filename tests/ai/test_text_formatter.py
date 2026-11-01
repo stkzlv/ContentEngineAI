@@ -19,7 +19,7 @@ def sample_youtube_metadata():
         keywords=["smart posture corrector", "back pain relief"],
         character_counts={"title": 44, "description": 50},
         generated_at=datetime.now(UTC).isoformat(),
-        product_id="B0DNTC69V6",
+        product_id="B0TEST0002",
         validation_status="valid",
         validation_messages=[],
     )
@@ -36,7 +36,7 @@ def sample_tiktok_metadata():
         keywords=["posture corrector", "vibration reminder"],
         character_counts={"description": 85},
         generated_at=datetime.now(UTC).isoformat(),
-        product_id="B0DNTC69V6",
+        product_id="B0TEST0002",
         validation_status="valid",
         validation_messages=[],
     )
@@ -53,7 +53,7 @@ def sample_instagram_metadata():
         keywords=["smart posture corrector", "back posture"],
         character_counts={"description": 50},
         generated_at=datetime.now(UTC).isoformat(),
-        product_id="B0DNTC69V6",
+        product_id="B0TEST0002",
         validation_status="valid",
         validation_messages=[],
     )
@@ -71,16 +71,16 @@ def test_format_upload_instructions_all_platforms(
 
     result = format_upload_instructions(
         metadata_results=metadata_results,
-        product_id="B0DNTC69V6",
-        video_filename="video_B0DNTC69V6.mp4",
+        product_id="B0TEST0002",
+        video_filename="video_B0TEST0002.mp4",
         product_name="Smart Posture Corrector",
-        product_url="https://www.amazon.com/dp/B0DNTC69V6",
+        product_url="https://www.amazon.com/dp/B0TEST0002",
     )
 
     # Header
-    assert "UPLOAD INSTRUCTIONS - B0DNTC69V6" in result
-    assert "Video: video_B0DNTC69V6.mp4" in result
-    assert "URL: https://www.amazon.com/dp/B0DNTC69V6" in result
+    assert "UPLOAD INSTRUCTIONS - B0TEST0002" in result
+    assert "Video: video_B0TEST0002.mp4" in result
+    assert "URL: https://www.amazon.com/dp/B0TEST0002" in result
 
     # YouTube section
     assert "YOUTUBE SHORTS" in result

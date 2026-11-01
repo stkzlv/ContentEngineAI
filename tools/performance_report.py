@@ -7,7 +7,7 @@ regression detection.
 
 Usage:
     python tools/performance_report.py --report-type summary
-    python tools/performance_report.py --report-type trends --product-id B0BTYCRJSS
+    python tools/performance_report.py --report-type trends --product-id B0CTTZJRL6
     python tools/performance_report.py --report-type detailed --limit 10
     python tools/performance_report.py --report-type comparison
     python tools/performance_report.py --report-type detailed --format csv --limit 5
@@ -617,7 +617,7 @@ Examples:
   python tools/performance_report.py --report-type summary
 
   # Generate trends for specific product
-  python tools/performance_report.py --report-type trends --product-id B0BTYCRJSS
+  python tools/performance_report.py --report-type trends --product-id B0CTTZJRL6
 
   # Generate detailed report with last 20 runs
   python tools/performance_report.py --report-type detailed --limit 20

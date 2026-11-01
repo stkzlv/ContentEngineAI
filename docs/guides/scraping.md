@@ -13,13 +13,13 @@ A full scrape drives Chromium and holds memory for the whole search. On a machin
 ## Scrape one product
 
 ```bash
-poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
+poetry run python -m src.scraper.amazon.scraper --product-ids B0CTTZJRL6 --debug
 ```
 
 Pass several ids to scrape them all in one run:
 
 ```bash
-poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS B08DTZM7LM B07ZPC9QD4
+poetry run python -m src.scraper.amazon.scraper --product-ids B0CTTZJRL6 B08DTZM7LM B07ZPC9QD4
 ```
 
 Every id is processed, whatever `max_products` is set to.
@@ -29,7 +29,7 @@ Every id is processed, whatever `max_products` is set to.
 `--product-ids` also takes full or shortened Amazon URLs. The scraper follows the redirect and reads the ASIN from the product page URL:
 
 ```bash
-poetry run python -m src.scraper.amazon.scraper --product-ids "https://tr.ee/mUk1eH" --output-dir tmp --debug
+poetry run python -m src.scraper.amazon.scraper --product-ids "https://tr.ee/<code>" --output-dir tmp --debug
 ```
 
 ## Search by keyword

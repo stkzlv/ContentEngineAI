@@ -36,7 +36,7 @@ class TestSelectProfileForProduct:
 
     def test_deterministic_selection_same_product_id(self, mock_config):
         """Test that same product ID always gets same profile."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool = ["slideshow_images1", "video_sequential", "mixed_media"]
 
         # Call multiple times with same product ID
@@ -68,7 +68,7 @@ class TestSelectProfileForProduct:
 
     def test_single_profile_pool(self, mock_config):
         """Test selection with single profile in pool."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool = ["slideshow_images1"]
 
         result = select_profile_for_product(product_id, profile_pool, mock_config)
@@ -77,7 +77,7 @@ class TestSelectProfileForProduct:
 
     def test_empty_pool_raises_error(self, mock_config):
         """Test that empty pool raises ValueError."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool: list[str] = []
 
         with pytest.raises(ValueError, match="Profile pool cannot be empty"):
@@ -85,7 +85,7 @@ class TestSelectProfileForProduct:
 
     def test_invalid_profile_in_pool_raises_error(self, mock_config):
         """Test that invalid profile in pool raises ValueError with helpful message."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool = ["slideshow_images1", "invalid_profile", "video_sequential"]
 
         with pytest.raises(ValueError) as exc_info:
@@ -97,7 +97,7 @@ class TestSelectProfileForProduct:
 
     def test_all_invalid_profiles_raises_error(self, mock_config):
         """Test that pool with all invalid profiles raises ValueError."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool = ["nonexistent1", "nonexistent2"]
 
         with pytest.raises(ValueError) as exc_info:
@@ -109,7 +109,7 @@ class TestSelectProfileForProduct:
 
     def test_reproducible_across_runs(self, mock_config):
         """Test that selection is reproducible across different test runs."""
-        product_id = "B0BTYCRJSS"
+        product_id = "B0TEST0001"
         profile_pool = ["slideshow_images1", "video_sequential", "mixed_media"]
 
         # First "run"

@@ -428,7 +428,7 @@ The JSON fields the publisher reads:
   "description": "Check out these incredible wireless earbuds! 30-hour battery life, active noise cancellation and premium sound.",
   "hashtags": ["WirelessEarbuds", "TechReview", "AudioGear"],
   "keywords": ["wireless earbuds", "tech review"],
-  "product_id": "B0BTYCRJSS",
+  "product_id": "B0CTTZJRL6",
   "carries_affiliate_content": true
 }
 ```
