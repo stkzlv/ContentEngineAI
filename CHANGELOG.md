@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.220.5] - 2026-11-01
+## [0.220.5] - 2026-11-02
 
 ### Documentation
 
 - Examples, test fixtures and code comments use neutral sample product ids and a placeholder short link instead of ids and a link taken from real published posts.
+
+### Fixed
+
+- The CI test job runs on Ubuntu 24.04, because Playwright cannot install Chromium on the Ubuntu 26.04 image that `ubuntu-latest` moved to.
 
 ## [0.220.4] - 2026-10-24
 
