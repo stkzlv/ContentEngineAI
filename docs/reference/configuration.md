@@ -454,21 +454,21 @@ output_structure:
 
 ```
 outputs/
-├── B0DLKB5V35/                    # Product directory
+├── B0CTTZJRL6/                    # Product directory
 │   ├── data.json                  # Scraped data
 │   ├── script.json                # Script and sign-off, kept when temp/ is removed
 │   ├── voiceover.wav              # Generated audio
 │   ├── subtitles.srt              # Generated subtitles
-│   ├── video_B0DLKB5V35_slideshow_images1.mp4 # Final video
-│   ├── video_B0DLKB5V35_slideshow_images1.cover.jpg  # Its cover: a frame with the hook on screen (REQ-VID-014)
-│   ├── video_B0DLKB5V35_slideshow_images1.cover.json # The cover's video and frame time (at_ms)
+│   ├── video_B0CTTZJRL6_slideshow_images1.mp4 # Final video
+│   ├── video_B0CTTZJRL6_slideshow_images1.cover.jpg  # Its cover: a frame with the hook on screen (REQ-VID-014)
+│   ├── video_B0CTTZJRL6_slideshow_images1.cover.json # The cover's video and frame time (at_ms)
 │   ├── metadata.json              # Pipeline metadata
 │   ├── ffmpeg_command.log         # FFmpeg execution log
 │   ├── images/                    # Product images
-│   │   ├── B0DLKB5V35_image_1.jpg
+│   │   ├── B0CTTZJRL6_image_1.jpg
 │   │   └── ...
 │   ├── videos/                    # Product videos
-│   │   ├── B0DLKB5V35_video_1.mp4
+│   │   ├── B0CTTZJRL6_video_1.mp4
 │   │   └── ...
 │   ├── music/                     # Background music
 │   └── temp/                      # Temporary files
@@ -2422,7 +2422,7 @@ Profile settings can be overridden at runtime using command-line arguments with 
 
 # Example: Override slideshow_images2 settings
 poetry run python -m src.video.producer \
-  outputs/B0BTYCRJSS/data.json \
+  outputs/B0CTTZJRL6/data.json \
   slideshow_images2 \
   --image-top-position-percent 0.30 \
   --preset bold \

@@ -389,15 +389,15 @@ class TestTheFallbackPathIsCompliantToo:
         """
         caption = _caption(
             {
-                "description": "A comfy tilted bowl.",
-                "hashtags": ["Andoll", "Cat"],
+                "description": "A sturdy desk lamp.",
+                "hashtags": ["Brand", "Lamp"],
                 "carries_affiliate_content": True,
             },
-            "B0DF7H6SGZ",
+            "B0TEST0005",
             Platform.YOUTUBE,
         )
 
-        assert caption == ("#ad\n\nA comfy tilted bowl.\n\n#Andoll #Cat #B0DF7H6SGZ")
+        assert caption == ("#ad\n\nA sturdy desk lamp.\n\n#Brand #Lamp #B0TEST0005")
 
     def test_a_topic_youtube_entry_with_no_title_still_loses_the_token(self):
         caption = _caption(

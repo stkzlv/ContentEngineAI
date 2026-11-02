@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.5] - 2026-11-02
+
+### Documentation
+
+- Examples, test fixtures and code comments use neutral sample product ids and a placeholder short link instead of ids and a link taken from real published posts.
+
+### Fixed
+
+- The CI test job runs on Ubuntu 24.04, because Playwright cannot install Chromium on the Ubuntu 26.04 image that `ubuntu-latest` moved to.
+
 ## [0.220.4] - 2026-10-24
 
 ### Documentation
@@ -3004,7 +3014,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/promotional-video-best-practices.md` §1 splits the hook into a static title-card shape (1.0-1.5 s, hard cut to motion) and a text-over-mid-action-frame shape (1.5-3.0 s). Adds the 0.3-0.5 s pre-motion guidance for static product photos and the 2-3 cold-open variants per pillar requirement. §3 clarifies the corner conflict between the centre-upper hook overlay and the top-left/right `#ad` disclosure. New §6 covers AI-content disclosure (YouTube July 2025 monetization revocation, TikTok C2PA auto-flagging); the existing "Honest gaps" section is renumbered to §7.
 - `docs/video-producer.md` adds the `slideshow_short_20s` profile to the example block and a Hook Overlay and Pre-Motion subsection covering the new `first_frame_pre_motion`, `pre_motion_peak_zoom`, `hook_overlay`, and `cold_open_variant_pool` knobs.
 - `docs/publisher.md` adds a Per-Platform Profile Routing section covering the new `profiles` mapping and the unified-upload caveat.
-- `docs/roadmap.md` and `docs/roadmap.private.md` Phase 1.2 entries rewrite to reference the title-card / text-over-frame split, the pre-motion rule, and the cold-open variant rotation. Phase 1.3 notes the TikTok CRP 60s+ eligibility constraint and pins the per-platform routing field shape.
+- `docs/roadmap.md` Phase 1.2 entries rewrite to reference the title-card / text-over-frame split, the pre-motion rule, and the cold-open variant rotation. Phase 1.3 notes the TikTok CRP 60s+ eligibility constraint and pins the per-platform routing field shape.
 - `CLAUDE.md` Video Module Notes gain three new LLM-prompt-class gotchas: rule-assumes-property (a required rule that doesn't fit the product class makes the LLM fabricate), FFmpeg filter-expression comma escaping (backslash, not single-quote, inside chains), and multi-filter-chain apostrophe escaping (exit/reenter pattern).
 
 ## [0.49.0] - 2026-05-15

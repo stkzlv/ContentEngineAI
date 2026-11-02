@@ -364,21 +364,21 @@ def build_affiliate_url(
 
     Args:
     ----
-        url: Amazon URL (e.g., "https://www.amazon.com/dp/B0BTYCRJSS")
+        url: Amazon URL (e.g., "https://www.amazon.com/dp/B0CTTZJRL6")
         associate_tag: Amazon Associates tag (loads from config if None)
         asin: The product's ASIN, used when the URL's path carries none
 
     Returns:
     -------
-        Clean URL with tag parameter (e.g., "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20")
+        Clean URL with tag parameter (e.g., "https://www.amazon.com/dp/B0CTTZJRL6?tag=mytag-20")
 
     Examples:
     --------
-        >>> build_affiliate_url("https://www.amazon.com/dp/B0BTYCRJSS")
-        "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
+        >>> build_affiliate_url("https://www.amazon.com/dp/B0CTTZJRL6")
+        "https://www.amazon.com/dp/B0CTTZJRL6?tag=mytag-20"
 
-        >>> build_affiliate_url("https://www.amazon.com/product/dp/B0BTYCRJSS?dib=...")
-        "https://www.amazon.com/dp/B0BTYCRJSS?tag=mytag-20"
+        >>> build_affiliate_url("https://www.amazon.com/product/dp/B0CTTZJRL6?dib=...")
+        "https://www.amazon.com/dp/B0CTTZJRL6?tag=mytag-20"
 
     """
     if not url:

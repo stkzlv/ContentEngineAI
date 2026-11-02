@@ -83,7 +83,8 @@ jobs:
   # to main it runs nothing when the merged tree is the one its pull request's
   # test job already passed (tools/merge_was_tested.py decides).
   test:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright has no Chromium build for ubuntu-latest's 26.04 image.
+    runs-on: ubuntu-24.04
     # Reading the merged pull request and its check runs.
     permissions:
       contents: read

@@ -68,7 +68,7 @@ def _record(scraper, monkeypatch):
         "B0B2Z8J1MJ",
         "https://www.amazon.com/dp/B0B2Z8J1MJ",
         "https://amzn.to/4pvapDs",
-        "http://tr.ee/mUk1eH",
+        "http://tr.ee/example",
     ],
     ids=["asin", "full-url", "shortened-https", "shortened-http"],
 )

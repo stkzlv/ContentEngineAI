@@ -1,6 +1,6 @@
 """A product photo does not cover a 9:16 frame; something has to fill the rest.
 
-Measured on a real render (`B0FC5S16YM`, `slideshow_images4`), the frame was
+Measured on a real render (`slideshow_images4`), the frame was
 42-52% pure black across four samples: `image_width_percent: 1.0` scales the
 image to the frame width, and a landscape source then occupies only its
 natural height. Nothing filled the remainder -- there was no option to.

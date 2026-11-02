@@ -29,7 +29,7 @@ pytestmark = pytest.mark.integration
 
 # Test ASINs known to have video content (as of design phase)
 TEST_ASINS_WITH_VIDEOS = [
-    "B0BTYCRJSS",  # Known to have product videos
+    "B0CTTZJRL6",  # Test ASIN with product videos
     "B0D6GZF3T4",  # Alternate test ASIN with videos
 ]
 

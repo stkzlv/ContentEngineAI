@@ -17,7 +17,7 @@ class TestProducerCleanup:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = None
-        self.product_id = "B0BTYCRJSS"
+        self.product_id = "B0TEST0001"
         self.profile_name = "slideshow_images1"
 
     def teardown_method(self):

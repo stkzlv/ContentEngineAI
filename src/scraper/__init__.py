@@ -16,7 +16,7 @@ Usage:
     # Direct platform import
     from src.scraper.amazon import BotasaurusAmazonScraper
     scraper = BotasaurusAmazonScraper()
-    products = scraper.scrape_products(["B0BTYCRJSS"])
+    products = scraper.scrape_products(["B0CTTZJRL6"])
 """
 
 import contextlib

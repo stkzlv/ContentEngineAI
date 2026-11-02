@@ -70,7 +70,7 @@ class TwoPartSubtitleHandler:
         # If ctx.scraped_images is empty, try to find images from outputs directory
         # (subtitle generation may run before gather_visuals completes)
         if not has_images and not has_videos:
-            # run_root is the product directory (e.g., outputs/B0BPH6S4DN/)
+            # run_root is the product directory (e.g., outputs/B0CTTZJRL6/)
             images_dir = Path(self.ctx.run_paths["run_root"]) / "images"
             if images_dir.exists():
                 image_files = list(images_dir.glob("*.jpg")) + list(

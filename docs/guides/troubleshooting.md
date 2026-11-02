@@ -527,7 +527,7 @@ find outputs/ -name "data.json" -type f
 python -m json.tool outputs/PRODUCT_ID/data.json
 
 # Run scraper to generate valid data
-poetry run python -m src.scraper.amazon.scraper --keywords "B0BTYCRJSS" --debug --clean
+poetry run python -m src.scraper.amazon.scraper --keywords "B0CTTZJRL6" --debug --clean
 ```
 
 ### Batch Processing Fails on Some Products

@@ -11,17 +11,17 @@ import pytest
 
 from src.scraper.amazon.utils import build_affiliate_url
 
-CANONICAL = "https://www.amazon.com/dp/B0BTYCRJSS?tag=tag-20"
+CANONICAL = "https://www.amazon.com/dp/B0TEST0001?tag=tag-20"
 
 
 @pytest.mark.req("REQ-SCR-051")
 @pytest.mark.parametrize(
     "url",
     [
-        "https://www.amazon.com/dp/B0BTYCRJSS",
-        "https://www.amazon.com/Lamp-Name/dp/B0BTYCRJSS/ref=sr_1_3?th=1",
-        "https://www.amazon.com/gp/product/B0BTYCRJSS?psc=1",
-        "https://www.amazon.com/gp/aw/d/B0BTYCRJSS#reviews",
+        "https://www.amazon.com/dp/B0TEST0001",
+        "https://www.amazon.com/Lamp-Name/dp/B0TEST0001/ref=sr_1_3?th=1",
+        "https://www.amazon.com/gp/product/B0TEST0001?psc=1",
+        "https://www.amazon.com/gp/aw/d/B0TEST0001#reviews",
     ],
 )
 def test_every_product_form_is_canonical(url: str) -> None:
@@ -31,13 +31,13 @@ def test_every_product_form_is_canonical(url: str) -> None:
 @pytest.mark.req("REQ-SCR-051")
 def test_a_url_without_an_asin_uses_the_product_s() -> None:
     url = "https://www.amazon.com/s?k=desk+lamp&ref=nb"
-    assert build_affiliate_url(url, "tag-20", asin="B0BTYCRJSS") == CANONICAL
+    assert build_affiliate_url(url, "tag-20", asin="B0TEST0001") == CANONICAL
 
 
 def test_the_marketplace_host_is_kept() -> None:
     assert (
-        build_affiliate_url("https://www.amazon.co.uk/gp/product/B0BTYCRJSS", "t-21")
-        == "https://www.amazon.co.uk/dp/B0BTYCRJSS?tag=t-21"
+        build_affiliate_url("https://www.amazon.co.uk/gp/product/B0TEST0001", "t-21")
+        == "https://www.amazon.co.uk/dp/B0TEST0001?tag=t-21"
     )
 
 

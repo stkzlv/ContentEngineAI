@@ -433,7 +433,7 @@ batch:
   # Can be overridden by CLI arguments (--product-ids, --keywords)
 
   # List of product IDs (ASINs) to scrape in batch mode
-  # Example: ["B0BTYCRJSS", "B0CPSY5HJY", "B0CTTZJRL6"]
+  # Example: ["B0CTTZJRL6", "B0D6GZF3T4"]
   # Empty list means no batch processing via product IDs
   product_ids: []
 

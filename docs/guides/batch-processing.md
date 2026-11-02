@@ -23,7 +23,7 @@ Scrape specific products by ASIN:
 ```bash
 # CLI: Multiple product IDs
 poetry run python -m src.scraper.amazon.scraper \
-  --product-ids B0BTYCRJSS B0D6GZF3T4 B0CTTZJRL6 \
+  --product-ids B0CTTZJRL6 B0D6GZF3T4 B0CTTZJRL6 \
   --debug
 ```
 
@@ -31,7 +31,7 @@ poetry run python -m src.scraper.amazon.scraper \
 ```yaml
 batch:
   product_ids:
-    - B0BTYCRJSS
+    - B0CTTZJRL6
     - B0D6GZF3T4
     - B0CTTZJRL6
 ```
@@ -92,7 +92,7 @@ Scrape from full or shortened Amazon URLs (e.g. tr.ee, amzn.to):
 
 ```bash
 poetry run python -m src.scraper.amazon.scraper \
-  --product-ids "https://tr.ee/mUk1eH" "https://www.amazon.com/dp/B0CZ6TVK4Y" \
+  --product-ids "https://tr.ee/<code>" "https://www.amazon.com/dp/B0D6GZF3T4" \
   --output-dir tmp \
   --debug
 ```
@@ -105,7 +105,7 @@ Override the default `outputs/` directory:
 
 ```bash
 poetry run python -m src.scraper.amazon.scraper \
-  --product-ids B0BTYCRJSS \
+  --product-ids B0CTTZJRL6 \
   --output-dir tmp \
   --debug
 ```
@@ -127,7 +127,7 @@ Combine product IDs and keywords in a single batch:
 
 ```bash
 poetry run python -m src.scraper.amazon.scraper \
-  --product-ids B0BTYCRJSS \
+  --product-ids B0CTTZJRL6 \
   --keywords "wireless earbuds" \
   --debug
 ```
@@ -294,7 +294,7 @@ and are not rotated.
 
 ```bash
 poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS B0D6GZF3T4 \
+  --product-ids B0CTTZJRL6 B0D6GZF3T4 \
   --profile slideshow_images1 \
   --debug
 ```
@@ -427,7 +427,7 @@ poetry run python -m src.pipeline.global_batch \
 
 ```bash
 poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS \
+  --product-ids B0CTTZJRL6 \
   --keywords "smart watch" \
   --min-price 20 --max-price 100 \
   --min-rating 4.0 \
@@ -487,7 +487,7 @@ poetry run python -m src.pipeline.global_batch \
 
 # Explicit schedule time
 poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS \
+  --product-ids B0CTTZJRL6 \
   --profile slideshow_images1 \
   --platforms youtube tiktok instagram \
   --schedule-time "2025-01-20T10:00:00+00:00" \
@@ -507,7 +507,7 @@ Define persistent pipeline settings in `config/pipeline.yaml`:
 global_batch:
   # Input Configuration
   product_ids:
-    - B0BTYCRJSS
+    - B0CTTZJRL6
     - B0D6GZF3T4
   # Empty draws the pool from config/scraper.yaml::batch.keywords. A
   # non-empty value REPLACES that pool for batch runs, so one entry here
@@ -550,7 +550,7 @@ Remove stale product directories before starting a fresh run:
 ```bash
 # Clean specific products
 poetry run python -m src.pipeline.global_batch \
-  --product-ids B0BTYCRJSS B0D6GZF3T4 \
+  --product-ids B0CTTZJRL6 B0D6GZF3T4 \
   --profile slideshow_images1 \
   --clean \
   --debug

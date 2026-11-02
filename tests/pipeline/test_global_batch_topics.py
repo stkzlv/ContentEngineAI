@@ -124,7 +124,7 @@ class TestCleanCoversTopicDirectories:
     @pytest.mark.parametrize(
         "name,matches",
         [
-            ("B0FC5S16YM", True),
+            ("B0TEST0003", True),
             ("TESTABC123", True),
             ("topic-why-your-wifi-keeps-dropping-1a2b3c4d", True),
             ("logs", False),
@@ -149,12 +149,12 @@ class TestCleanCoversTopicDirectories:
     def test_clean_selects_a_topic_directory(self, tmp_path):
         pid = topic_product_id("Why your wifi keeps dropping")
         (tmp_path / pid).mkdir()
-        (tmp_path / "B0FC5S16YM").mkdir()
+        (tmp_path / "B0TEST0003").mkdir()
         (tmp_path / "logs").mkdir()
 
         targets = {p.name for p in _clean_targets(tmp_path, None)}
 
-        assert targets == {pid, "B0FC5S16YM"}
+        assert targets == {pid, "B0TEST0003"}
 
 
 class TestDiscoveryReturnsTopicsOnlyWhenAsked:
@@ -418,7 +418,7 @@ class TestCleanRemovesOnlyWhatTheRunNamed:
 
     @staticmethod
     def _tree(root):
-        for name in ("B0ABCDEFGH", "B0FC5S16YM", "logs"):
+        for name in ("B0ABCDEFGH", "B0TEST0003", "logs"):
             (root / name).mkdir()
         (root / topic_product_id("Why wifi drops")).mkdir()
         (root / topic_product_id("Some other topic")).mkdir()
@@ -439,11 +439,11 @@ class TestCleanRemovesOnlyWhatTheRunNamed:
         from src.pipeline.global_batch import _clean_targets, _named_run_ids
 
         self._tree(tmp_path)
-        config = GlobalBatchConfig(product_ids=["B0FC5S16YM"], outputs_dir=tmp_path)
+        config = GlobalBatchConfig(product_ids=["B0TEST0003"], outputs_dir=tmp_path)
 
         targets = {p.name for p in _clean_targets(tmp_path, _named_run_ids(config))}
 
-        assert targets == {"B0FC5S16YM"}
+        assert targets == {"B0TEST0003"}
 
     def test_a_run_naming_nothing_still_sweeps_every_run_directory(self, tmp_path):
         """The keyword-run behaviour this must not break."""
@@ -457,7 +457,7 @@ class TestCleanRemovesOnlyWhatTheRunNamed:
         assert "logs" not in targets
         assert targets == {
             "B0ABCDEFGH",
-            "B0FC5S16YM",
+            "B0TEST0003",
             topic_product_id("Why wifi drops"),
             topic_product_id("Some other topic"),
         }

@@ -37,8 +37,8 @@ cp .env.example .env  # Configure API keys
 poetry install --with pycaps && poetry run playwright install chromium
 
 # 2. Generate a video
-poetry run python -m src.scraper.amazon.scraper --product-ids B0BTYCRJSS --debug
-poetry run python -m src.video.producer outputs/B0BTYCRJSS/data.json slideshow_images1 --debug
+poetry run python -m src.scraper.amazon.scraper --product-ids B0CTTZJRL6 --debug
+poetry run python -m src.video.producer outputs/B0CTTZJRL6/data.json slideshow_images1 --debug
 
 # Or render a topic, with no scraper run and no product directory.
 # The same flags work on the global batch, which also publishes it.
