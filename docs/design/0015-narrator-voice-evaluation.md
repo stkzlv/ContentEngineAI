@@ -24,7 +24,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 ## Non-goals
 
-- Changing the voice. A voice change waits for the reach-test readout (#540).
+- Changing the shipped default voice. An installation pins its chosen voice in its own config overlay (decision 0017).
 
 ## Design
 
@@ -39,7 +39,7 @@ None recorded.
 
 ## Rollout
 
-Nothing ships from the evaluation itself. A voice change it recommends waits for the reach-test readout (#540).
+Nothing ships from the evaluation itself. An installation applies the voice it picks through `tts_config.default_voice_profile` in its overlay.
 
 ## Open questions
 

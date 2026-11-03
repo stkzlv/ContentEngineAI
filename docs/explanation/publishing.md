@@ -184,7 +184,7 @@ The trade is deliberate. A missing figure is visible and can be excluded; a quie
 
 ### Reading by format arm
 
-`analytics --by-arm` answers the reach test's question: does one format arm reach as many people as the other. It compares median day-7 views, topic over product, because daily views on a small channel range over an order of magnitude and one spike would swamp a mean (`REQ-PUB-150`). The medians count the platforms in `analytics.readout_platforms` and nothing else, from each platform's own day-N figure (`REQ-PUB-149`); a sum over every platform weights a platform the protocol leaves out, and on this channel moved the ratio from 1.04 to 1.21.
+`analytics --by-arm` compares two content kinds: does one reach as many people as the other. It compares median day-7 views, topic over product, because daily views on a small channel range over an order of magnitude and one spike would swamp a mean (`REQ-PUB-150`). The medians count the platforms in `analytics.readout_platforms` and nothing else, from each platform's own day-N figure (`REQ-PUB-149`); a sum over every platform weights a platform the comparison leaves out, and one platform's skew can move the ratio by a fifth.
 
 A post is placed in an arm through its product's registry row. Posts the readout can't place are counted and named rather than dropped, so a gap in the labelling shows up beside the result (`REQ-PUB-151`). Per-platform medians and the breakout rate follow as secondary lines: both arms can sit on the same floor while one of them breaks out more often, which the median can't see (`REQ-PUB-152`).
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.6] - 2026-11-03
+
+### Documentation
+
+- The roadmap has a phase for a recurring-narrator commentary format: a commentary template, a narrator identity that stays the same across renders, audience metrics, a script review before voiceover, and slots per content kind; the comment-reply and series items no longer need a product or a pillar.
+- The README describes topic videos as well as product videos, and the voice-profiles page says the bundled config pins one voice for every render.
+- Text tied to the finished reach test now describes switches enabled on measured results, and the signature sting's "on" condition is an installation's overlay.
+- A decision record, the publishing explanation and a guide example no longer carry dates or a ratio from one installation's test.
+
 ## [0.220.5] - 2026-11-02
 
 ### Documentation

@@ -445,8 +445,8 @@ Day-2 and day-7 figures can be captured only while a post is inside the provider
    # Re-rank stored figures without contacting the provider
    python -m src.publisher.late analytics --rank-only
 
-   # Reach readout by format arm over posts published in a date range
-   python -m src.publisher.late analytics --rank-only --by-arm --since 2026-09-14 --until 2026-09-30
+   # Compare the two content kinds over posts published in a date range
+   python -m src.publisher.late analytics --rank-only --by-arm --since 2025-01-06 --until 2025-01-31
    ```
 
    Pass `--until` whenever posting continues after the comparison ends, or later posts join the arms as they mature. A post's day-7 figure is stored only once the provider's timeline has a row past day 7, which can be a day after the post turns seven days old, so read the readout a day after the last post matures.

@@ -5,7 +5,7 @@
 
 ## Context and problem
 
-[Decision 0002](0002-output-changes-ship-off-by-default.md) held every output change behind a switch until the reach test read out, and kept the prompt templates byte-identical, so each arm's script, voice and visuals stayed constant. The test's last post is rendered and scheduled for 2026-10-10, and the readout on 2026-10-17 reads only posts already queued. A render made now cannot enter the test, so the hold protects nothing and keeps about twenty finished features off. Tracked in #540.
+[Decision 0002](0002-output-changes-ship-off-by-default.md) held every output change behind a switch until the reach test read out, and kept the prompt templates byte-identical, so each arm's script, voice and visuals stayed constant. The test's last post is already rendered and scheduled, and the readout reads only posts already queued. A render made now cannot enter the test, so the hold protects nothing and keeps about twenty finished features off. Tracked in #540.
 
 ## Options considered
 

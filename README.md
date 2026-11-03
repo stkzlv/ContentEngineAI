@@ -7,7 +7,7 @@
 
 **License**: MIT | **Status**: Pre-Production
 
-**ContentEngineAI** is an AI-powered pipeline for generating short, vertical (9:16) promotional videos for e-commerce products. It automates the complete workflow from scraping product data to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
+**ContentEngineAI** is an AI-powered pipeline that turns a product listing or a topic into a short, vertical (9:16) video with a narrated script, captions and music, and schedules it on social platforms. It automates the complete workflow from scraping product data or reading a topic list to delivering final videos with AI-generated scripts, voiceovers, and content-aware subtitles.
 
 ## Key Features
 
