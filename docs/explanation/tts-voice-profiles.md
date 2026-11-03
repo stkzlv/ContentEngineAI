@@ -1,6 +1,6 @@
 # TTS Voice Profiles
 
-Voice profiles give each product video a distinct vocal identity through deterministic voice-name selection (the same product always gets the same voice), plus optional inline pauses measured as silent. Voice character comes from the selected voice name, not from a text style prompt.
+Voice profiles name a TTS voice and its delivery, plus optional inline pauses measured as silent. The bundled config pins one profile for every render, so a recurring narrator keeps one voice; a non-empty pool instead draws one per video, deterministically, so the same video always gets the same voice. Voice character comes from the selected voice name, not from a text style prompt.
 
 ## How it works
 

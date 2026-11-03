@@ -51,7 +51,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 
 - **REQ-VID-026** `shipped` The render drops the source videos' audio; the mix is the voiceover and the background music.
 - **REQ-VID-027** `held` Where a signature sting is configured, the render plays it at the start or the end of the video, mastered with the rest of the mix.
-  - On when: `audio_settings.signature_sting` is set to a local file after the reach-test readout (#540), turned on in stages.
+  - On when: `audio_settings.signature_sting` is set to a local file in an installation's config overlay. The shipped config carries none (decision 0017).
 
 ## Caption step
 

@@ -45,7 +45,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 ## Rollout
 
-The label changes reach for both reach-test arms, so the config change to `tiktok_settings.video_made_with_ai` waits for the reach-test readout (#540). The optional AI-role statement ships off behind its config key.
+The reach-test readout this waited on has passed ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)), and an installation sets `tiktok_settings.video_made_with_ai` in its overlay. A render type that shows a realistic synthetic person needs the label back on. The optional AI-role statement ships off behind its config key.
 
 Remove the switch when: never; it is a lasting option, because the AI-role statement is truthful only where a person reviews each video, which differs from operator to operator.
 

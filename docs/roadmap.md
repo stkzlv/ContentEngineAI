@@ -4,15 +4,49 @@ Where ContentEngineAI is going, grouped into phases by horizon: **Now**, **Next*
 
 Issues and pull requests are welcome on any item. To pick one up, open an issue first so the scope can be agreed.
 
-Output-changing items ship behind a switch ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md)); the reach-test hold that kept them off ended once the test's posts were queued ([decision 0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)).
+Output-changing items ship behind a switch, so each can be turned off and introduced one at a time ([decision 0002](decisions/0002-output-changes-ship-off-by-default.md), amended by [decision 0014](decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)).
 
 ## Phase 0: Disclosure compliance baseline (Now, gates 1.0.0)
 
 Affiliate creators carry disclosure obligations under the FTC Endorsement Guides, the Amazon Associates Operating Agreement and each platform's policy, so compliance is the default render output rather than a per-video checklist. The on-frame overlay, caption disclosure, platform tags, the affiliate phrase and the language-matched disclosure have shipped; see [docs/explanation/compliance.md](explanation/compliance.md).
 
+## Phase H: Recurring narrator format (Now)
+
+Short commentary videos on any subject, voiced by one recurring narrator, beside the product and tutorial videos. The pieces are a commentary template, a narrator identity that stays the same across renders, audience metrics that show whether viewers come back, a script review before voiceover, and slots per content kind.
+
+### H.1 Commentary script template
+
+A commentary template family for topic records, with its own narrator profile, call-to-action list and length target, and without the tutorial-only steps. #782.
+
+**Done when:** a topic entry marked as commentary renders with its own template and no step visuals, and publishes with no disclosure overlay.
+
+### H.2 Narrator identity
+
+One identity block per content kind (voice, a sign-off on every render, sting, music, caption template), with shipped defaults left empty and the variety report treating pinned dimensions as intentional. #783.
+
+**Done when:** two renders of the kind on different subjects share every pinned element, and the variety report doesn't alert on them.
+
+### H.3 Audience metrics
+
+Daily follower counts and views per account, YouTube average percentage viewed and subscribers gained, and Instagram profile views, reported as rates per 1,000 views over a date range. #781.
+
+**Done when:** the report prints the rates for a `--since` / `--until` range, with a figure the provider doesn't return shown as unknown.
+
+### H.4 Script review before voiceover
+
+Stop a run after the script, edit it, and resume, with every later step following the edit. #784.
+
+**Done when:** an edited script is what the voiceover speaks and the captions show, and the producer guide describes the procedure.
+
+### H.5 Slots per content kind (Next)
+
+A recurring slot names a content kind, so an additional post never takes the main kind's slot. Until then, an additional post takes an explicit `--schedule` time. More than one post a day also needs the analytics sweep sized to it (`REQ-PUB-081`).
+
+**Done when:** two kinds scheduled on one day each land in their own slot. No issue yet.
+
 ## Phase 1: Hook and retention (Now)
 
-Hold the viewer past the opening seconds and keep output varied enough that platforms don't treat it as mass-produced.
+Hold the viewer past the opening seconds and keep output varied enough that platforms don't treat it as mass-produced: vary the subject and the script, keep a recurring narrator's identity constant (H.2).
 
 ### 1.4 High-density cut profile
 
@@ -34,7 +68,7 @@ End on the peak, with an optional seamless loop to the opening frame. [Design 00
 
 ### 1.10 Output-variety guard
 
-Selection spreads renders across the variant dimensions (hook, template, voice, cut density, cold open), and a report shows recent-render variety. [Design 0006](design/0006-render-choices-and-variety-report.md), #547.
+Selection spreads renders across the variant dimensions a content kind doesn't pin (hook, template, voice, cut density, cold open), and a report shows recent-render variety. [Design 0006](design/0006-render-choices-and-variety-report.md), #547.
 
 **Done when:** a batch spreads renders across the variant dimensions and a report shows their distribution.
 
@@ -80,7 +114,7 @@ Scripts built from a sourced step list and sized by step count (#559), a visual 
 
 ## Phase 3: Conversion infrastructure (Next)
 
-Make attribution and calls to action measurable.
+Make attribution and calls to action measurable. These items serve product and affiliate renders.
 
 ### 3.1 UTM tagging at publish
 
@@ -146,9 +180,9 @@ Each Reel is re-shared as a Story with a link sticker, opt-in per pillar.
 
 ### 4.3 Comment-reply video mode
 
-A producer mode that renders a short reply clip from a comment, a product and a parent video, into a drafts folder for manual review.
+A producer mode that renders a short reply video from a viewer comment and its parent video, in the narrator's identity, with a product optional, into a drafts folder for review.
 
-**Done when:** the producer renders a reply clip to a drafts folder. No issue yet.
+**Done when:** the producer renders a reply video from a comment, with no product needed, to a drafts folder. No issue yet.
 
 ### 4.4 Amazon Influencer Storefront target
 
@@ -176,9 +210,9 @@ A cover image per render, set as the poster where the platform accepts one: an i
 
 ### 4.8 Episodic series framing
 
-A per-pillar episode counter in titles and captions, with each episode standing alone.
+A named recurring series as config, each with its own episode counter and title prefix, chosen per render, with each episode standing alone.
 
-**Done when:** titles and captions carry a per-pillar episode number. No issue yet.
+**Done when:** a series name and episode number reach the script, the title and the caption. No issue yet.
 
 ### 4.9 Product titles per platform
 
@@ -192,7 +226,7 @@ A short written YouTube title for product videos, keyword first. [Design 0009](d
 
 A local store owns per-post performance history, captured on a schedule that follows each source's expiry. [Design 0020](design/0020-analytics-history.md).
 
-**Done when:** a scheduled capture writes readings without losing figures already taken, and one command reports performance by content format.
+**Done when:** a scheduled capture writes readings without losing figures already taken, and one command reports performance by content kind.
 
 ### 5.2 Listing drift diagnostic
 
@@ -208,7 +242,7 @@ Reports per pillar, template, voice, caption variant and hook style over rolling
 
 ### 5.6 First-seconds metrics
 
-Store every first-seconds and quality metric the platforms expose, segmented by format arm and render choice. [Design 0010](design/0010-first-seconds-metrics.md), #551.
+Store every first-seconds and quality metric the platforms expose, segmented by content kind and render choice. [Design 0010](design/0010-first-seconds-metrics.md), #551.
 
 **Done when:** the store carries each available metric per post, unavailable ones as unknown, and the reports segment them.
 
@@ -261,7 +295,7 @@ Most of the feature surface is built. What stands between the pre-production lin
 
 **Roadmap items in scope**
 - Every Phase 0 item.
-- Every Phase 1, 2 and 3 item, except the experiments held for the reach-test readout (1.4, 1.8, 1.11, 1.12, 1.13, 1.14, 2.5, 3.8 and 3.9), which ship off and are enabled only on measured results.
+- Every Phase H item except H.5, and every Phase 1, 2 and 3 item, except the optional experiments (1.4, 1.8, 1.11, 1.12, 1.13, 1.14, 2.5, 3.8 and 3.9), which ship behind switches and are enabled only on measured results.
 - At least half of Phase 4 shipped or in review.
 - Phase 6 is out of scope.
 
