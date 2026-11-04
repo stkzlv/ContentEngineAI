@@ -1701,6 +1701,7 @@ async def step_download_music(ctx: PipelineContext):
                 if p.exists()
             ],
             budget_sec=ctx.config.audio_settings.music_search_budget_sec,
+            allowed_licences=ctx.config.audio_settings.allowed_music_licenses,
         )
 
         music_info = await manager.find_music(

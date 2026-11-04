@@ -112,6 +112,12 @@ class AudioSettings(BaseModel):
     # The whole provider chain, searches and downloads together; under the
     # 180 s per-step warning. When spent, local files are used.
     music_search_budget_sec: float = Field(120.0, gt=0)
+    # Licence codes a provider's track may carry (`src/audio/licence.py`);
+    # the default allows commercial use and derivatives. Null takes every
+    # licence. Local stock files are not filtered.
+    allowed_music_licenses: list[str] | None = Field(
+        default_factory=lambda: ["cc0", "by", "by-sa", "fal"]
+    )
     # Fallback lifetime when a token response states none, and how early
     # before expiry the client refreshes.
     freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC, gt=0)

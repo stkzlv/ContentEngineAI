@@ -1756,7 +1756,12 @@ audio_settings:
   # every provider); when spent, a local file from background_music_paths
   # is used. Keep it under the 180 s per-step warning.
   music_search_budget_sec: 120
+
+  # Licence codes a provider's track may carry; null takes every licence
+  allowed_music_licenses: [cc0, by, by-sa, fal]
 ```
+
+**Licences.** `allowed_music_licenses` (default `[cc0, by, by-sa, fal]`) filters every music provider's results before a track is chosen. Each track's licence (a Creative Commons URL from Jamendo and Freesound) is read as a code: `cc0`, `by`, `by-sa`, `by-nc`, `by-nd`, `by-nc-sa`, `by-nc-nd`, or `fal` for the Free Art License. The default keeps the licences that allow commercial use and derivatives, so NonCommercial and NoDerivatives tracks are dropped, as is a licence that can't be read. A provider whose results all fall outside the list reports no tracks and the chain moves to the next one. Jamendo also filters at its API (`ccnc`, `ccnd`) when the list has no NonCommercial or NoDerivatives code. Null turns the filter off. Local files in `background_music_paths` are not filtered.
 
 **Setup:**
 1. Get free API key: https://freesound.org/apiv2/apply/
