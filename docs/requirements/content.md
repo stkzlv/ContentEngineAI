@@ -137,6 +137,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-079** `shipped` The producer requests tracks whose duration matches the voiceover length.
 - **REQ-CNT-080** `shipped` Each music provider has its own circuit breaker.
 - **REQ-CNT-081** `shipped` The producer records the chosen track's attribution: source, author, license URL and track id.
+- **REQ-CNT-165** `shipped` The music chain accepts a provider's track only under a licence `audio_settings.allowed_music_licenses` lists; by default CC0, CC BY, CC BY-SA and the Free Art License, which allow commercial use and derivatives. A track whose licence can't be read is refused, a provider left with none moves the chain on (REQ-CNT-077), and local stock files are not filtered ([design 0028](../design/0028-music-licence-filter.md)).
 - **REQ-CNT-082** `shipped` A candidate track is downloaded once within a bounded timeout, and a failed download moves to the next candidate rather than retrying the same URL.
 - **REQ-CNT-083** `shipped` The music step has a total time budget below the pipeline's per-step warning threshold; when the budget is spent, the chain falls back to local stock files.
 - **REQ-CNT-084** `shipped` Where a provider ranks by popularity or rating alone, the producer accepts a candidate only when the query's terms match the track's tags or title.

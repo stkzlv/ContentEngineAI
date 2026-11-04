@@ -12,6 +12,7 @@ from src.utils import ensure_dirs_exist, sanitize_filename
 from src.utils.circuit_breaker import CircuitBreaker
 
 from .base import AudioTrack, BaseAudioProvider
+from .licence import jamendo_licence_params
 from .registry import AudioProvider, register_audio_provider
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,11 @@ class JamendoProvider(BaseAudioProvider):
         self._search_mode: str = settings.get("search_mode", "fuzzytags")
         # Optional list of queries; one picked randomly per search for variety
         self._search_queries: list[str] = settings.get("search_queries", [])
+        # The configured licence allow-list, applied at the API as well.
+        audio_settings = getattr(kwargs.get("config"), "audio_settings", None)
+        self._licence_params = jamendo_licence_params(
+            getattr(audio_settings, "allowed_music_licenses", None)
+        )
 
         if self._client_id:
             logger.debug("Jamendo provider configured with client_id")
@@ -177,6 +183,7 @@ class JamendoProvider(BaseAudioProvider):
             "limit": str(min(max_results, JAMENDO_MAX_RESULTS)),
             "audiodlformat": "mp32",
             "include": "musicinfo",
+            **self._licence_params,
         }
 
         if self._search_mode == "tags":

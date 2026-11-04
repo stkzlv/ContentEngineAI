@@ -15,6 +15,7 @@ from src.utils import ensure_dirs_exist
 from src.utils.circuit_breaker import CircuitBreakerError
 
 from .base import AudioTrack, BaseAudioProvider
+from .licence import is_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +79,13 @@ class AudioManager:
         providers: list[BaseAudioProvider],
         local_paths: list[Path] | None = None,
         budget_sec: float | None = None,
+        allowed_licences: list[str] | None = None,
     ) -> None:
         self._providers = providers
         self._local_paths = local_paths or []
         self._budget_sec = budget_sec
+        # None takes every licence; the producer passes the configured list.
+        self._allowed_licences = allowed_licences
         self._deadline: float | None = None
 
     def _remaining(self) -> float | None:
@@ -226,7 +230,22 @@ class AudioManager:
             )
             return None
 
-        eligible = [t for t in tracks if t.duration >= min_duration]
+        licensed = [t for t in tracks if is_allowed(t.license, self._allowed_licences)]
+        if len(licensed) < len(tracks):
+            logger.info(
+                "Dropped %d of %d tracks from %s outside the allowed licences",
+                len(tracks) - len(licensed),
+                len(tracks),
+                provider.provider_name,
+            )
+        if not licensed:
+            logger.info(
+                "No tracks from %s under an allowed licence, trying next provider",
+                provider.provider_name,
+            )
+            return None
+
+        eligible = [t for t in licensed if t.duration >= min_duration]
         if not eligible:
             logger.info(
                 "No tracks from %s meet min duration %.0fs",

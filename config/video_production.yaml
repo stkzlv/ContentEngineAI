@@ -537,6 +537,16 @@ audio_settings:
   # file from background_music_paths. Keep it under the 180 s step warning.
   music_search_budget_sec: 120
 
+  # Licences a provider's track may carry. The default allows commercial use
+  # and derivatives (syncing music to video may count as one): CC0, CC BY,
+  # CC BY-SA and the Free Art License. NonCommercial (by-nc) and
+  # NoDerivatives (by-nd) tracks are dropped, as is a licence that can't be
+  # read. A provider whose results all fall outside the list reports no
+  # tracks, and the chain moves on. Null takes every licence. Local files in
+  # background_music_paths are not filtered; check their licences when you
+  # add them.
+  allowed_music_licenses: [cc0, by, by-sa, fal]
+
   # --- Timeout Configuration ---
   # API request timeout (seconds)
   # Covers: search operations (the token refresh has its own built-in 5 s)

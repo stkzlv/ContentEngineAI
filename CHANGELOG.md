@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.221.1] - 2026-11-04
+
+### Fixed
+
+- The music chain no longer picks NonCommercial or NoDerivatives tracks: `allowed_music_licenses` (default CC0, CC BY, CC BY-SA and the Free Art License) filters every provider's results, Jamendo also filters at its API so the pool stays full, and a track whose licence can't be read is refused.
+
 ## [0.221.0] - 2026-11-04
 
 ### Added
