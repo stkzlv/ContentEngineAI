@@ -49,8 +49,10 @@ def licence_code(licence: str | None) -> str | None:
     short = text.removeprefix("cc-")
     if short in _SHORT:
         return short
-    name = _VERSION.sub("", re.sub(r"[\s_-]+", " ", text)).strip()
-    return _NAMES.get(name)
+    # The whole name first: "creative commons 0" ends in what looks like a
+    # version.
+    spaced = re.sub(r"[\s_-]+", " ", text).strip()
+    return _NAMES.get(spaced) or _NAMES.get(_VERSION.sub("", spaced))
 
 
 def jamendo_licence_params(allowed: list[str] | None) -> dict[str, str]:

@@ -54,6 +54,8 @@ def _track(name: str, licence: str) -> AudioTrack:
         ("CC-BY", "by"),
         ("Attribution NonCommercial", "by-nc"),
         ("Attribution 3.0", "by"),
+        ("Creative Commons 0", "cc0"),
+        ("Creative Commons 0 1.0", "cc0"),
         ("Attribution-NonCommercial", "by-nc"),
         ("Attribution NoDerivs", "by-nd"),
         ("Attribution-NoDerivatives 4.0", "by-nd"),
