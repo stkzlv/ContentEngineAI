@@ -836,6 +836,11 @@ class PublisherConfig:
     # footage of a real place. Both are properties of what a provider returns,
     # so this can become true without any change here.
     synthetic_media_disclosure: bool = False
+    # Instagram's AI-generated-media label, sent as `isAiGenerated` on every
+    # Instagram post. Meta requires it for photorealistic video or
+    # realistic-sounding audio that was digitally created, which can include
+    # AI narration. Off by default; only a YAML `true` turns it on.
+    instagram_ai_label: bool = False
     # A YouTube Shorts description can't carry a clickable link, so with
     # this on a product video's YouTube description ends on "Link in bio."
     # when it names no profile link of its own; off, a bare pointer line is

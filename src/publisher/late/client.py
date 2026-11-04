@@ -120,6 +120,7 @@ class LatePublisher(BasePublisher):
         tiktok_settings: TikTokContentSettings | None = None,
         first_comment_config: FirstCommentConfig | None = None,
         synthetic_media_disclosure: bool = False,
+        instagram_ai_label: bool = False,
         youtube_profile_pointer: bool = False,
         covers_enabled: bool = False,
     ):
@@ -137,6 +138,8 @@ class LatePublisher(BasePublisher):
             synthetic_media_disclosure: Declare YouTube's altered-or-synthetic
                 content flag. Off by default; the policy excludes AI narration,
                 AI scripts and stock footage (optional)
+            instagram_ai_label: Send Instagram's AI-generated-media label
+                on every Instagram post (default off)
             youtube_profile_pointer: End a product video's YouTube
                 description on "Link in bio."; off removes a bare pointer line
                 (default off)
@@ -175,6 +178,7 @@ class LatePublisher(BasePublisher):
         self.tiktok_settings = tiktok_settings or TikTokContentSettings()
         self.first_comment_config = first_comment_config or FirstCommentConfig()
         self.synthetic_media_disclosure = synthetic_media_disclosure
+        self.instagram_ai_label = instagram_ai_label
         self.youtube_profile_pointer = youtube_profile_pointer
         self.covers_enabled = covers_enabled
         # Which video each upload came from, so a post finds its cover
@@ -1293,6 +1297,16 @@ class LatePublisher(BasePublisher):
                     "tiktokSettings": tiktok_settings.to_sdk_dict(),
                     **tiktok_settings.to_platform_data(),
                 }
+
+            # Like the YouTube flag, the Instagram label is sent on every
+            # Instagram payload, merged into whatever platform data the
+            # entry already carries (its first comment).
+            if platform_name == "instagram":
+                psd = platform_entry.get("platformSpecificData")
+                if not isinstance(psd, dict):
+                    psd = {}
+                    platform_entry["platformSpecificData"] = psd
+                psd["isAiGenerated"] = self.instagram_ai_label
 
             # The cover merges into whatever platform data the entry already
             # carries (Instagram's first comment, TikTok's settings).
