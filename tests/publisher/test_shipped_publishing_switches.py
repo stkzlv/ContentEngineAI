@@ -1,4 +1,4 @@
-"""The bundled config turns the TikTok AI label off and short titles on."""
+"""The bundled config sets the AI-label switches and short titles."""
 
 from __future__ import annotations
 
@@ -45,3 +45,12 @@ def test_the_bundled_config_names_no_installation() -> None:
     for line in templates.cta_options + templates.cta_options_topic:
         assert "bio" not in line.lower() and "link" not in line.lower(), line
     assert templates.signature.enabled is False
+
+
+@pytest.mark.req("REQ-CMP-025", "REQ-CMP-015")
+def test_the_bundled_config_ships_the_instagram_and_youtube_labels_off() -> None:
+    """Both are held switches; an installation turns them on in its overlay."""
+    raw = yaml.safe_load((ROOT / "config" / "publisher.yaml").read_text())
+
+    assert raw["instagram_ai_label"] is False
+    assert raw["synthetic_media_disclosure"] is False
