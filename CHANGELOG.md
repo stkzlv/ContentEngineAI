@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.221.0] - 2026-11-04
+
+### Added
+
+- The publisher can send Instagram's AI-generated-media label on every Instagram post with `instagram_ai_label`, off by default; the label can only be set when a post is created.
+
 ## [0.220.6] - 2026-11-03
 
 ### Documentation

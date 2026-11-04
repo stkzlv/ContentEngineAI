@@ -328,6 +328,15 @@ affiliate_disclosure:
 # either can become true without any change to this project.
 synthetic_media_disclosure: false
 
+# Instagram's AI-generated-media label ("AI info"), sent on every Instagram
+# payload as `isAiGenerated`. It can only be set when a post is created; a
+# published post can't be labelled afterwards. Meta requires it for
+# photorealistic video or realistic-sounding audio that was digitally created
+# or altered, which can include AI narration. Off by default; turn it on in
+# the private overlay for an installation whose renders meet that bar or that
+# labels its posts voluntarily.
+instagram_ai_label: false
+
 # A link in a YouTube Shorts description can't be clicked. A product video's
 # YouTube description has its URLs removed and, with this on, ends on
 # "Link in bio." when it names no profile link already; the metadata and
