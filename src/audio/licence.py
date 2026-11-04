@@ -10,14 +10,27 @@ import re
 
 _CC_URL = re.compile(r"creativecommons\.org/(licenses|publicdomain)/([a-z-]+)", re.I)
 _SHORT = {"cc0", "by", "by-sa", "by-nc", "by-nd", "by-nc-sa", "by-nc-nd"}
-# Older licence names, longest first so "attribution noncommercial" is not
-# read as plain "attribution".
-_NAMES = (
-    ("attribution noncommercial", "by-nc"),
-    ("attribution", "by"),
-    ("creative commons 0", "cc0"),
-    ("free art", "fal"),
-)
+# The codes `allowed_music_licenses` may list.
+KNOWN_CODES = frozenset(_SHORT | {"fal", "mark", "sampling", "nc-sampling"})
+# Whole licence names, after separators collapse to spaces and a trailing
+# version is dropped. Matched exactly: a prefix match read
+# "Attribution-NonCommercial" as plain "by".
+_NAMES = {
+    "attribution": "by",
+    "attribution sharealike": "by-sa",
+    "attribution share alike": "by-sa",
+    "attribution noncommercial": "by-nc",
+    "attribution noderivs": "by-nd",
+    "attribution noderivatives": "by-nd",
+    "attribution noncommercial sharealike": "by-nc-sa",
+    "attribution noncommercial share alike": "by-nc-sa",
+    "attribution noncommercial noderivs": "by-nc-nd",
+    "attribution noncommercial noderivatives": "by-nc-nd",
+    "creative commons 0": "cc0",
+    "free art": "fal",
+    "free art license": "fal",
+}
+_VERSION = re.compile(r"\s+\d+(\.\d+)*$")
 
 
 def licence_code(licence: str | None) -> str | None:
@@ -36,10 +49,8 @@ def licence_code(licence: str | None) -> str | None:
     short = text.removeprefix("cc-")
     if short in _SHORT:
         return short
-    for name, code in _NAMES:
-        if text.startswith(name):
-            return code
-    return None
+    name = _VERSION.sub("", re.sub(r"[\s_-]+", " ", text)).strip()
+    return _NAMES.get(name)
 
 
 def jamendo_licence_params(allowed: list[str] | None) -> dict[str, str]:

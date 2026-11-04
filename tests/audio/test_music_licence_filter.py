@@ -54,6 +54,14 @@ def _track(name: str, licence: str) -> AudioTrack:
         ("CC-BY", "by"),
         ("Attribution NonCommercial", "by-nc"),
         ("Attribution 3.0", "by"),
+        ("Attribution-NonCommercial", "by-nc"),
+        ("Attribution NoDerivs", "by-nd"),
+        ("Attribution-NoDerivatives 4.0", "by-nd"),
+        ("Attribution-NonCommercial-ShareAlike 3.0", "by-nc-sa"),
+        ("Attribution ShareAlike", "by-sa"),
+        ("Attribution Something Else", None),
+        ("http://creativecommons.org/licenses/by-nc/3.0/deed.en", "by-nc"),
+        ("https://creativecommons.org/licenses/sampling+/1.0/", "sampling"),
         ("Creative Commons", None),
         ("https://creativecommons.org/", None),
         ("", None),
@@ -192,3 +200,29 @@ async def test_the_jamendo_request_carries_the_configured_filters(mock_aiorespon
 
     urls = [str(url) for (_, url) in mock_aioresponses.requests]
     assert urls and all("ccnc=false" in u and "ccnd=false" in u for u in urls)
+
+
+@pytest.mark.req("REQ-CNT-165")
+def test_an_unknown_code_in_the_config_is_refused():
+    """A code like `CC-BY` matches nothing, so every track would be refused."""
+    from pydantic import ValidationError
+
+    base = AudioSettings.model_validate(
+        {
+            "music_volume_db": -24,
+            "voiceover_volume_db": 0,
+            "background_music_paths": [],
+            "freesound_api_key_env_var": "K",
+            "freesound_search_query": "q",
+            "freesound_filters": "",
+            "freesound_max_results": 5,
+        }
+    ).model_dump()
+    with pytest.raises(ValidationError, match="unknown licence codes"):
+        AudioSettings.model_validate({**base, "allowed_music_licenses": ["CC-BY"]})
+    assert (
+        AudioSettings.model_validate(
+            {**base, "allowed_music_licenses": None}
+        ).allowed_music_licenses
+        is None
+    )

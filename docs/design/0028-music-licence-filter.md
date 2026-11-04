@@ -30,7 +30,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 Jamendo also filters at the API: when the list has no NonCommercial or NoDerivatives code, the search sends `ccnc=false` and `ccnd=false` (`jamendo_licence_params`). Filtering only the results left one or two usable tracks of twenty, since most of Jamendo's catalogue is NonCommercial; with the API filter a page of 50 came back entirely under CC BY or CC BY-SA. The manager still checks every track.
 
-Config: `allowed_music_licenses`, default `[cc0, by, by-sa, fal]`, in the model and the bundled YAML.
+Config: `allowed_music_licenses`, default `[cc0, by, by-sa, fal]`, in the model and the bundled YAML. A code the parser doesn't know is refused at load. Licence names are matched whole, after separators and a trailing version are normalised, so "Attribution-NonCommercial" reads as `by-nc`, not `by`.
 
 Tests: `tests/audio/test_music_licence_filter.py`.
 

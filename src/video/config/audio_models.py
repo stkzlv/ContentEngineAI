@@ -118,6 +118,21 @@ class AudioSettings(BaseModel):
     allowed_music_licenses: list[str] | None = Field(
         default_factory=lambda: ["cc0", "by", "by-sa", "fal"]
     )
+
+    @field_validator("allowed_music_licenses")
+    @classmethod
+    def _known_licence_codes(cls, value: list[str] | None) -> list[str] | None:
+        # A code that matches nothing ("CC-BY") would refuse every track and
+        # send each render to the local files without a word.
+        from src.audio.licence import KNOWN_CODES
+
+        unknown = [c for c in value or [] if c.lower() not in KNOWN_CODES]
+        if unknown:
+            raise ValueError(
+                f"unknown licence codes {unknown}; use {sorted(KNOWN_CODES)}"
+            )
+        return value
+
     # Fallback lifetime when a token response states none, and how early
     # before expiry the client refreshes.
     freesound_token_expiry_sec: int = Field(FREESOUND_TOKEN_EXPIRY_SEC, gt=0)

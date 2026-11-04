@@ -23,7 +23,7 @@ Why:
 - A product video is narration-led: the viewer needs to hear the product claim and the call to action, and a song cannot carry them.
 - Original spoken audio had the largest modelled effect on likes in a 9,654-video brand study [B] ([arXiv 2606.16053](https://arxiv.org/html/2606.16053)).
 - TikTok's feed avoids showing consecutive videos with the same sound [A] ([TikTok transparency center](https://www.tiktok.com/transparency/en/recommendation-system)).
-- Borrowed commercial music carries takedown and monetization risk for a commercial pipeline, which is why the providers are Creative Commons sources.
+- Borrowed commercial music carries takedown and monetization risk for a commercial pipeline, which is why the providers are Creative Commons sources. Not every Creative Commons licence fits, though: NonCommercial terms bar commercial use and NoDerivatives terms bar adapted material, so the chain keeps only tracks under a licence `allowed_music_licenses` lists, by default CC0, CC BY, CC BY-SA and the Free Art License (REQ-CNT-165).
 - Generic or mood-mismatched music is one of the tells that make an automated video read as AI slop [C]. This is why the chain matches tracks on mood words; [the audio module notes](../notes/audio.md) record the drill instrumental that a calm query once returned.
 
 Not supported: "trending sound boosts reach by X%" figures are vendor claims, not controlled trials, and almost all come from non-narration content. The often-quoted 3-7 day window in which a trending sound gives lift ([Metricool](https://metricool.com/tiktok-trends/)) is directional at best.
