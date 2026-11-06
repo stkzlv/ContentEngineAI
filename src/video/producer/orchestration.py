@@ -521,6 +521,9 @@ async def create_video_for_product(
                             f"'{step_to_load}' "
                             f"is not complete. Run it first."
                         )
+                # The same stale-hook check the full run makes (REQ-VID-165).
+                if STEP_GENERATE_SCRIPT in required and ctx.script is not None:
+                    await refresh_stale_hook_headline(ctx)
                 steps_to_run = [debug_step_target]
             else:
                 steps_to_run = resolved_step_order(ctx.profile)

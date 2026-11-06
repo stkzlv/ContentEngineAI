@@ -790,13 +790,16 @@ def _hook_headline(ctx: PipelineContext) -> str | None:
     on a run that starts after the script step. A headline recorded for other
     script text (the operator edited the script before resuming, REQ-VID-165)
     is none: it would show a hook for a script that is no longer voiced. A
-    headline recorded before the digest existed is kept.
+    headline recorded before the digest existed is kept, and so is any headline
+    when the run hasn't loaded the script (a `--step` that doesn't need it).
     """
     headline = _recorded(ctx, "hook_headline")
     if not (isinstance(headline, str) and headline):
         return None
     digest = _recorded(ctx, "hook_headline_script")
-    if isinstance(digest, str) and digest != script_digest(ctx.script):
+    script = getattr(ctx, "script", None)
+    stale = isinstance(script, str) and digest != script_digest(script)
+    if isinstance(digest, str) and stale:
         return None
     return headline
 
@@ -816,6 +819,13 @@ async def refresh_stale_hook_headline(ctx: PipelineContext) -> None:
                 entry.pop(key, None)
         pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
         await _ensure_hook_headline(ctx, pillar)
+        # The skipped step won't mirror these, and its entry is the copy a
+        # truncating resume keeps.
+        entry = ctx.state.get(STEP_GENERATE_SCRIPT)
+        if isinstance(entry, dict):
+            for key in ("hook_headline", "hook_headline_script"):
+                if ctx.state.get(key):
+                    entry[key] = ctx.state[key]
 
 
 async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> None:
