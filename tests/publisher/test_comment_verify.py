@@ -170,3 +170,50 @@ async def test_sent_flag_from_the_sdk_models_get_post_platforms_reads():
         ("i2", False),
         ("t1", False),
     ]
+
+
+@pytest.mark.asyncio
+async def test_verify_comments_counts_unsent_legs_apart(monkeypatch, caplog, tmp_path):
+    # REQ-PUB-044, REQ-PUB-161: the command, not only the function, keeps a leg
+    # sent without a comment out of the missing count.
+    import argparse
+
+    from src.publisher.late.cli import cmd_verify_comments
+
+    pub = AsyncMock()
+    pub.authenticate = AsyncMock(return_value=True)
+    pub.list_posts = AsyncMock(return_value=[{"id": "post1"}])
+    pub.get_post_platforms = AsyncMock(
+        return_value=[
+            {
+                "platform": "instagram",
+                "platform_post_id": "ig1",
+                "account_id": "acc",
+                "first_comment_sent": False,
+            },
+            {
+                "platform": "youtube",
+                "platform_post_id": "vid1",
+                "account_id": "acc",
+                "first_comment_sent": True,
+            },
+        ]
+    )
+    pub.get_post_comments = AsyncMock(return_value=[_viewer_comment()])
+    monkeypatch.setattr(
+        "src.publisher.late.cli._create_publisher_from_config", lambda *_: pub
+    )
+    monkeypatch.setattr("src.publisher.late.cli._load_product_map", lambda _: {})
+
+    args = argparse.Namespace(limit=5, outputs_dir=tmp_path)
+    with caplog.at_level("INFO", logger="src.publisher.late.cli"):
+        await cmd_verify_comments(args, config=None, session=None)
+
+    missing = [r for r in caplog.records if "First comment MISSING" in r.message]
+    unsent = [r for r in caplog.records if "No first comment sent" in r.message]
+    assert [r.levelname for r in missing] == ["WARNING"]
+    assert "youtube" in missing[0].getMessage()
+    assert [r.levelname for r in unsent] == ["INFO"]
+    assert "1 missing of 1 checked across 1 post(s); 1 leg(s) sent without one" in (
+        caplog.text
+    )
