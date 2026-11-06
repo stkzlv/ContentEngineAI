@@ -83,6 +83,37 @@ def extract_closing_line(script: str, signoff: str | None = None) -> str | None:
     return sentences[-1] if sentences else None
 
 
+def first_comment_override(product_dir: Path, platform: str) -> tuple[bool, str | None]:
+    """Read a post's own first comment for ``platform`` from its metadata.json.
+
+    ``first_comment`` maps a platform to a string, which replaces the template,
+    or to null or "", which skips the comment (REQ-PUB-161). Returns
+    ``(False, None)`` when the post sets nothing for the platform, and for a
+    malformed field, which is logged and ignored.
+    """
+    path = product_dir / "metadata.json"
+    if not path.exists():
+        return False, None
+    try:
+        field = json.loads(path.read_text(encoding="utf-8")).get("first_comment")
+    except (json.JSONDecodeError, OSError, AttributeError):
+        return False, None
+    if field is None:
+        return False, None
+    if not isinstance(field, dict):
+        logger.warning("Ignoring first_comment in %s: not a platform map", path)
+        return False, None
+    if platform not in field:
+        return False, None
+    value = field[platform]
+    if value is None:
+        return True, None
+    if not isinstance(value, str):
+        logger.warning("Ignoring first_comment.%s in %s: not text", platform, path)
+        return False, None
+    return True, value.strip() or None
+
+
 def build_first_comment(
     config: FirstCommentConfig,
     platform: str,
@@ -108,6 +139,12 @@ def build_first_comment(
 
     if platform == "tiktok":
         return None
+
+    overridden, own = first_comment_override(outputs_dir / product_id, platform)
+    if overridden:
+        if own is None:
+            logger.info("First comment on %s skipped by the post's metadata", platform)
+        return own
 
     template = config.platforms.get(platform)
     if not template:

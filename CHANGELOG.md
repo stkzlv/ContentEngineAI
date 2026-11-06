@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.223.0] - 2026-11-06
+
+### Added
+
+- A post's `metadata.json` can set its own first comment per platform with `first_comment`: a string replaces the template and `null` posts none; `verify-comments` no longer reports a leg that was sent without a first comment.
+
 ## [0.222.0] - 2026-11-06
 
 ### Changed

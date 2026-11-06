@@ -80,3 +80,38 @@ def test_first_comment_platforms_excludes_tiktok():
     assert "youtube" in FIRST_COMMENT_PLATFORMS
     assert "instagram" in FIRST_COMMENT_PLATFORMS
     assert "tiktok" not in FIRST_COMMENT_PLATFORMS
+
+
+@pytest.mark.asyncio
+async def test_a_leg_sent_without_a_first_comment_is_not_checked():
+    # REQ-PUB-161: a post whose metadata skipped the comment carries none, so
+    # its absence is not a miss. A leg that doesn't say is still checked.
+    client = _client(
+        [
+            {
+                "platform": "instagram",
+                "platform_post_id": "ig1",
+                "account_id": "acc",
+                "first_comment_sent": False,
+            },
+            {"platform": "youtube", "platform_post_id": "vid1", "account_id": "acc"},
+        ],
+        {},
+    )
+    checks = await verify_post_first_comments(client, "post1")
+    assert [(c.platform, c.present) for c in checks] == [("youtube", False)]
+
+
+@pytest.mark.parametrize(
+    ("specific", "sent"),
+    [
+        ({"firstComment": "Which one?"}, True),
+        ({"firstComment": ""}, False),
+        ({"title": "t"}, False),
+        (None, None),
+    ],
+)
+def test_first_comment_sent_reads_the_leg(specific, sent):
+    from src.publisher.late.client import _first_comment_sent
+
+    assert _first_comment_sent(specific) is sent

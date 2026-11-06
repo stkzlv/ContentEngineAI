@@ -174,7 +174,7 @@ A failed per-post analytics call keeps the post's views and stored metrics, and 
 
 ### `verify-comments`
 
-Checks the most recent published posts and warns on every YouTube or Instagram post that is missing its first comment.
+Checks the most recent published posts and warns on every YouTube or Instagram post that is missing its first comment. A leg the provider reports as sent without a first comment, such as one a post's `first_comment` skipped, is not checked.
 
 ```bash
 python -m src.publisher.late verify-comments [--limit N] [--outputs-dir PATH]
@@ -421,6 +421,7 @@ The JSON fields the publisher reads:
 | `hashtags` | list | Hashtags, with or without the leading `#`. |
 | `keywords` | list | Keywords. |
 | `carries_affiliate_content` | bool | Whether the render has a material connection to disclose. Absent means `true`. |
+| `first_comment` | object | This post's own first comment per platform, read from `metadata.json` only: `{"instagram": null, "youtube": "Which one would you keep?"}`. A string replaces the template, `null` or `""` posts none, and a platform it doesn't name keeps the template. Applies only where first comments are on, and never on TikTok. A value that isn't a map of text or null is ignored with a warning. |
 
 ```json
 {

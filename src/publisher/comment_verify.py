@@ -56,6 +56,8 @@ async def verify_post_first_comments(
         account_id = platform.get("account_id")
         if not platform_post_id or not account_id:
             continue  # not live yet, nothing to check
+        if platform.get("first_comment_sent") is False:
+            continue  # the post was sent without one (REQ-PUB-161)
         comments = await client.get_post_comments(platform_post_id, account_id)
         checks.append(
             CommentCheck(

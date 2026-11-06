@@ -409,3 +409,70 @@ class TestClosingLineTemplate:
         result = build_first_comment(self._config(), "youtube", "B0TEST005", tmp_path)
         assert result is not None
         assert "http" not in result
+
+
+class TestPerPostOverride:
+    """REQ-PUB-161: a post's metadata.json overrides or skips its first comment."""
+
+    def _meta(self, outputs_dir: Path, first_comment: object) -> None:
+        path = outputs_dir / "B0TEST001" / "metadata.json"
+        path.write_text(json.dumps({"title": "t", "first_comment": first_comment}))
+
+    def test_string_replaces_the_template(self, enabled_config, outputs_dir):
+        self._meta(outputs_dir, {"instagram": "Which one would you keep?"})
+        assert (
+            build_first_comment(enabled_config, "instagram", "B0TEST001", outputs_dir)
+            == "Which one would you keep?"
+        )
+        # A platform the map doesn't name keeps its template.
+        youtube = build_first_comment(
+            enabled_config, "youtube", "B0TEST001", outputs_dir
+        )
+        assert youtube is not None
+        assert youtube.startswith("Get it here:")
+
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_null_or_empty_skips_the_comment(self, enabled_config, outputs_dir, value):
+        self._meta(outputs_dir, {"instagram": value})
+        assert (
+            build_first_comment(enabled_config, "instagram", "B0TEST001", outputs_dir)
+            is None
+        )
+
+    def test_override_needs_no_template_data(self, enabled_config, tmp_path):
+        # No data.json: the template would be skipped, the override is not.
+        product_dir = tmp_path / "B0TEST002"
+        product_dir.mkdir()
+        (product_dir / "metadata.json").write_text(
+            json.dumps({"first_comment": {"youtube": "Own words"}})
+        )
+        assert (
+            build_first_comment(enabled_config, "youtube", "B0TEST002", tmp_path)
+            == "Own words"
+        )
+
+    def test_comments_off_or_tiktok_ignore_the_override(self, outputs_dir):
+        self._meta(outputs_dir, {"youtube": "x", "tiktok": "y"})
+        off = FirstCommentConfig(
+            enabled=False, platforms={"youtube": "{product_title}"}
+        )
+        on = FirstCommentConfig(enabled=True, platforms={})
+        assert build_first_comment(off, "youtube", "B0TEST001", outputs_dir) is None
+        assert build_first_comment(on, "tiktok", "B0TEST001", outputs_dir) is None
+
+    @pytest.mark.parametrize("bad", ["just a string", ["a"], {"instagram": 3}])
+    def test_malformed_field_falls_back_to_the_template(
+        self, enabled_config, outputs_dir, bad
+    ):
+        self._meta(outputs_dir, bad)
+        assert (
+            build_first_comment(enabled_config, "instagram", "B0TEST001", outputs_dir)
+            == "https://short.link/x"
+        )
+
+    def test_without_the_field_nothing_changes(self, enabled_config, outputs_dir):
+        (outputs_dir / "B0TEST001" / "metadata.json").write_text('{"title": "t"}')
+        assert (
+            build_first_comment(enabled_config, "instagram", "B0TEST001", outputs_dir)
+            == "https://short.link/x"
+        )

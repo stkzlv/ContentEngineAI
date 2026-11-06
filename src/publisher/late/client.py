@@ -88,6 +88,15 @@ def _as_utc(value: Any) -> Any:
     return value
 
 
+def _first_comment_sent(specific: Any) -> bool | None:
+    """Whether a leg was sent with a first comment; None when the post omits it."""
+    if specific is None:
+        return None
+    if isinstance(specific, dict):
+        return bool(specific.get("firstComment"))
+    return bool(getattr(specific, "firstComment", None))
+
+
 @register_publisher(PublisherProvider.LATE)
 class LatePublisher(BasePublisher):
     """Late.dev implementation of video publishing service.
@@ -828,6 +837,7 @@ class LatePublisher(BasePublisher):
                 status = p.get("status")
                 error_message = p.get("errorMessage")
                 error_category = p.get("errorCategory")
+                specific = p.get("platformSpecificData")
             else:
                 platform = str(getattr(p, "platform", "")).split(".")[-1].lower()
                 ppid = getattr(p, "platformPostId", None)
@@ -836,6 +846,7 @@ class LatePublisher(BasePublisher):
                 status = str(raw_status).split(".")[-1].lower() if raw_status else None
                 error_message = getattr(p, "errorMessage", None)
                 error_category = getattr(p, "errorCategory", None)
+                specific = getattr(p, "platformSpecificData", None)
             out.append(
                 {
                     "platform": platform,
@@ -844,6 +855,7 @@ class LatePublisher(BasePublisher):
                     "status": status,
                     "error_message": error_message,
                     "error_category": error_category,
+                    "first_comment_sent": _first_comment_sent(specific),
                 }
             )
         return out
