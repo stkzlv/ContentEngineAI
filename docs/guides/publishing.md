@@ -303,7 +303,8 @@ The provider reports a post accepted, not delivered, and a first comment can fai
 # Warn on every recent post with a failed platform leg
 poetry run python -m src.publisher.late verify-delivery --limit 25
 
-# Warn on every recent YouTube or Instagram post missing its first comment
+# Warn on every recent YouTube or Instagram post missing its first comment;
+# legs sent without one are counted apart in the summary
 poetry run python -m src.publisher.late verify-comments --limit 25
 ```
 

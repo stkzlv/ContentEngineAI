@@ -35,6 +35,10 @@ class CommentCheck:
     platform: str
     present: bool
     platform_post_id: str
+    # False when the provider reports the leg was sent without a first
+    # comment (a post's own `first_comment: null`, or a template skipped for
+    # missing data): nothing to find, but still worth counting (REQ-PUB-161).
+    sent: bool = True
 
 
 async def verify_post_first_comments(
@@ -56,6 +60,16 @@ async def verify_post_first_comments(
         account_id = platform.get("account_id")
         if not platform_post_id or not account_id:
             continue  # not live yet, nothing to check
+        if platform.get("first_comment_sent") is False:
+            checks.append(
+                CommentCheck(
+                    platform=name,
+                    present=False,
+                    platform_post_id=platform_post_id,
+                    sent=False,
+                )
+            )
+            continue
         comments = await client.get_post_comments(platform_post_id, account_id)
         checks.append(
             CommentCheck(

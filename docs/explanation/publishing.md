@@ -113,7 +113,7 @@ The publisher can post a first comment on each YouTube and Instagram post instea
 
 The bundled templates spend the YouTube comment on the script's closing line, because YouTube renders URLs in Shorts comments as plain text, and spend the Instagram comment on it too; an installation with a bio link sets its own Instagram template (`REQ-PUB-037`).
 
-1. After the metadata loads, `build_first_comment()` renders the platform's template with data from `outputs/<product_id>/data.json`.
+1. After the metadata loads, `build_first_comment()` takes the post's own comment for that platform from the `first_comment` field of its `metadata.json` when it sets one (a `null` skips the comment), and otherwise renders the platform's template with data from `outputs/<product_id>/data.json` (`REQ-PUB-161`). One post can change or drop its comment without a config edit.
 2. Each platform gets its own comment from its template in `first_comment.platforms`.
 3. The comments travel in `platform_contents` to `publisher.publish()`, alongside each platform's caption and title. That dict is the authoritative per-platform payload, not a comment side channel: the client reads `content` and `title` from the same entry, so an entry carrying only a comment blanks the caption and sends no title.
 4. The provider receives each one as `firstComment` in that platform's `platformSpecificData`.

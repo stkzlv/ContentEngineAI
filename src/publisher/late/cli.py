@@ -485,6 +485,7 @@ async def cmd_verify_comments(
 
     checked = 0
     missing = 0
+    unsent = 0
     for post in posts:
         post_id = post.get("id")
         if not post_id:
@@ -496,6 +497,17 @@ async def cmd_verify_comments(
             logger.warning("Could not check post %s (%s): %s", product, post_id, exc)
             continue
         for check in checks:
+            if not check.sent:
+                # Not a miss: the post went out without one. A run of these on
+                # posts that should carry one means templates are being skipped.
+                unsent += 1
+                logger.info(
+                    "No first comment sent: %s on %s (post %s)",
+                    product,
+                    check.platform,
+                    post_id,
+                )
+                continue
             checked += 1
             if not check.present:
                 missing += 1
@@ -506,10 +518,12 @@ async def cmd_verify_comments(
                     post_id,
                 )
     logger.info(
-        "First-comment check: %d missing of %d checked across %d post(s)",
+        "First-comment check: %d missing of %d checked across %d post(s); "
+        "%d leg(s) sent without one",
         missing,
         checked,
         len(posts),
+        unsent,
     )
 
 
