@@ -155,6 +155,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-077** `shipped` Where the hook overlay is on (the bundled default), the render shows a short headline as static centre-upper text for the first 1.5 s (configurable), sized relative to the captions, with no per-word reveal.
 - **REQ-VID-154** `partial` The hook headline renders larger than the narration captions on every caption engine.
   - Gap: the hook is `hook_overlay.size_factor` (1.1) times 5% of the frame height, about 106 px on 1920. Pycaps captions take the template's size (about 78 px for `explosive`, 72 px for `word-focus`) and ASS captions are capped at 100 px, so both sit below it; SRT captions are 7.5% of the frame height times `font_size_scale`, about 144 px, larger than the hook, and the bundled `subtitle_format` is `ass`.
+- **REQ-VID-165** `shipped` When a run resumes over a script edited since its hook headline was derived, the producer derives a new headline from the edited script; the voiceover, captions and description already follow the script file.
 - **REQ-VID-078** `shipped` The on-frame disclosure is drawn above the hook overlay.
 - **REQ-VID-079** `shipped` FFmpeg captions sit below the hook overlay; pycaps captions are burned after assembly and sit above both overlays.
 - **REQ-VID-080** `shipped` When the hook headline is too long, the overlay wraps it to a configurable number of lines, each within a configurable share of the frame width, and shrinks the font when wrapping alone doesn't fit.
