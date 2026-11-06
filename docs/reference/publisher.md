@@ -166,11 +166,27 @@ Per-platform quality metrics come from the provider's per-post analytics and are
 
 | Platform | Stored | Stored as unknown |
 |---|---|---|
-| YouTube | `views`, `likes`, `comments` | `engagedViews`, `viewedVsSwipedAway`, `averageViewDuration` |
+| YouTube | `views`, `likes`, `comments`; from the per-video daily stats, `avgViewPercentage` and `avgViewDurationSec` (view-weighted) and `subscribersGained` (unknown until the video has views) | `engagedViews`, `viewedVsSwipedAway`, `averageViewDuration` |
 | TikTok | `views`, `likes`, `comments`, `shares` | `averageWatchTime`, `completionRate` |
 | Instagram | `views`, `reach`, `likes`, `comments`, `shares`, `saves`, `igReelsAvgWatchTime` (ms), `igReelsVideoViewTotalTime` (ms), `reelsSkipRate` (%) | |
 
-A failed per-post analytics call keeps the post's views and stored metrics, and so does a platform whose figures are not synced yet or whose post failed. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
+After the per-post figures, the sweep stores account-level figures in `audience_metrics.json` (design 0029): daily followers per platform (accounts on one platform added up) and views plus the interactions each platform exposes, per platform by publish day, both for the last 30 days, and Instagram profile views and link taps per day for the last 7, for the first connected Instagram account. A failed call keeps the other readings and never fails the sweep. A failed per-post analytics call keeps the post's views and stored metrics, and so does a platform whose figures are not synced yet or whose post failed. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
+
+### `audience`
+
+Prints audience rates for a date range from the figures `analytics` stored, with no network call.
+
+```bash
+python -m src.publisher.late audience --since YYYY-MM-DD --until YYYY-MM-DD [--outputs-dir PATH]
+```
+
+Per platform and summed: views of posts published in the range, net follows (followers at `--until` minus the day before `--since`), follows per 1,000 views, shares plus saves per 1,000 views (of those the platform exposes: none on YouTube, shares only on TikTok, so the summed row's figure is unknown whenever YouTube is in it) and comments per 1,000 views. Then the median YouTube average view percentage of posts published in the range, and Instagram profile views per 1,000 Instagram views, unknown unless every day of the range has profile figures. A figure whose inputs are missing prints `-`; the summed row is unknown when any platform's input is.
+
+| Option | Default | Description |
+|---|---|---|
+| `--since DATE` | required | First day. |
+| `--until DATE` | required | Last day. |
+| `--outputs-dir PATH` | the outputs root | Outputs root; `audience_metrics.json` and `post_metrics.json` live under its `state/` directory. |
 
 ### `verify-comments`
 
@@ -444,6 +460,7 @@ The publisher keeps its state in `outputs/state/`. A legacy copy at the outputs 
 | `publish_history.json` | One record per product and platform (`product_id`, `platform`, `post_id`, `published_at`), the retry queue, and webhook state. Backs the duplicate guard. `published_at` is the time the post was queued, not the time it went live. |
 | `schedule.json` | The local schedule `calendar` lists. Written by `single`, `schedule` and the global batch. |
 | `post_metrics.json` | Figures captured by `analytics`, merged per field. |
+| `audience_metrics.json` | Account-level figures captured by `analytics` (followers, daily totals, Instagram profile views), overlaid by day. |
 | `published_products.json`, `published_products.csv` | The published-products registry. Each write keeps the previous file as `<name>.bak`. |
 
 The producer adds `render_choices.jsonl` there, one row per finished render ([Render choices](video-producer.md#render-choices)).

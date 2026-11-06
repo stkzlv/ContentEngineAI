@@ -87,3 +87,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0026](0026-private-config-overlays.md) | Private config overlays | #754 | Implemented |
 | [0027](0027-instagram-ai-label.md) | Instagram AI label | #787 | Held |
 | [0028](0028-music-licence-filter.md) | Music licence filter | #786 | Implemented |
+| [0029](0029-audience-metrics.md) | Audience metrics | #781 | Implemented |
