@@ -41,6 +41,17 @@ from src.publisher.analytics import (
     summarize_post,
     timeline_resource,
 )
+from src.publisher.audience import (
+    instagram_profile_views_per_1k,
+    load_audience,
+    median_view_percentage,
+    platform_rates,
+    save_audience,
+    summed_rates,
+    sweep_audience,
+    youtube_leg,
+    youtube_retention,
+)
 from src.publisher.base import PublisherError
 from src.publisher.batch import BatchPublisher
 from src.publisher.blob_retention import run_blob_retention
@@ -328,6 +339,121 @@ def _analytics_limit(args: argparse.Namespace, config: PublisherConfig) -> int:
     return config.analytics_config.limit
 
 
+def _with_youtube_retention(
+    resource: Any, measured: Any, platforms: Any, published: str
+) -> Any:
+    """Add YouTube watch figures from the per-video daily stats (REQ-PUB-163).
+
+    A failed call keeps the post's other figures; the fields stay as stored.
+    """
+    leg = youtube_leg(platforms)
+    if leg is None:
+        return measured
+    video_id, account_id = leg
+    start = (published or "")[:10] or None
+    try:
+        raw = resource.get_you_tube_daily_views(
+            video_id=video_id,
+            account_id=account_id,
+            start_date=start,
+            end_date=str(datetime.now(UTC).date()),
+        )
+    except (LateError, httpx.HTTPError, ValueError) as exc:
+        logger.warning("No YouTube daily stats for %s: %s", measured.post_id, exc)
+        return measured
+    rows = raw.get("dailyViews") if isinstance(raw, dict) else None
+    figures = dict(measured.platform_metrics)
+    figures["youtube"] = {**figures.get("youtube", {}), **youtube_retention(rows)}
+    return replace(measured, platform_metrics=figures)
+
+
+def _sweep_audience(publisher: Any, outputs_dir: Path) -> None:
+    """Store account-level audience figures (REQ-PUB-162, REQ-PUB-164).
+
+    Never fails the sweep: the per-post figures are already saved.
+    """
+    from late.resources._generated.accounts import AccountsResource
+
+    def guard(label: str, call: Any) -> Any:
+        try:
+            result = call()
+        except (LateError, httpx.HTTPError, ValueError) as exc:
+            logger.warning("No %s: %s", label, exc)
+            return None
+        return result if isinstance(result, dict) else None
+
+    fresh = sweep_audience(
+        AccountsResource(publisher.client),
+        timeline_resource(publisher.client),
+        datetime.now(UTC).date(),
+        guard,
+    )
+    try:
+        save_audience(fresh, outputs_dir)
+    except OSError as exc:
+        logger.warning("Audience figures not saved: %s", exc)
+        return
+    logger.info(
+        "Stored audience figures: %s",
+        ", ".join(sorted(fresh)) or "none returned",
+    )
+
+
+def cmd_audience(args: argparse.Namespace) -> None:
+    """Print audience rates for a date range from stored figures (no network)."""
+    since, until = args.since.date(), args.until.date()
+    if since > until:
+        logger.error("--since %s is after --until %s", since, until)
+        sys.exit(2)
+    try:
+        store = load_audience(args.outputs_dir)
+    except (OSError, ValueError) as exc:
+        logger.error("Can't read the audience figures: %s", exc)
+        sys.exit(1)
+    if not store:
+        logger.warning("No stored audience figures; run `analytics` first")
+        return
+    platforms = sorted(
+        set(store.get("followers") or {}) | set(store.get("daily") or {})
+    )
+
+    def fmt(value: Any) -> str:
+        return "-" if value is None else f"{value:g}"
+
+    logger.info(
+        "Audience %s to %s (views of posts published in the range)", since, until
+    )
+    logger.info(
+        "%-10s %8s %8s %12s %14s %12s",
+        "platform",
+        "views",
+        "net",
+        "follows/1k",
+        "shares+saves/1k",
+        "comments/1k",
+    )
+    rows = [platform_rates(store, p, since, until) for p in platforms]
+    rows.append(summed_rates(store, platforms, since, until))
+    for r in rows:
+        logger.info(
+            "%-10s %8s %8s %12s %14s %12s",
+            r.platform,
+            fmt(r.views),
+            fmt(r.net_follows),
+            fmt(r.follows_per_1k),
+            fmt(r.shares_saves_per_1k),
+            fmt(r.comments_per_1k),
+        )
+    logger.info(
+        "YouTube median average view percentage: %s",
+        fmt(median_view_percentage(load_metrics(args.outputs_dir), since, until)),
+    )
+    logger.info(
+        "Instagram profile views per 1k views: %s",
+        fmt(instagram_profile_views_per_1k(store, since, until)),
+    )
+
+
 async def cmd_analytics(
     args: argparse.Namespace, config, session: aiohttp.ClientSession
 ):
@@ -397,6 +523,7 @@ async def cmd_analytics(
             measured = summarize_post(post_id, publish_time(post), rows)
             # The per-platform figures come from a second call. Its failure
             # keeps the views: an empty dict merges as "nothing new".
+            platforms = None
             try:
                 detail = resource.get_analytics(post_id=post_id)
                 platforms = (
@@ -412,6 +539,9 @@ async def cmd_analytics(
             # JSON decode error.
             except (LateError, httpx.HTTPError, ValueError) as exc:
                 logger.warning("No per-platform analytics for %s: %s", post_id, exc)
+            measured = _with_youtube_retention(
+                resource, measured, platforms, publish_time(post)
+            )
             metrics.append(measured)
         # Every post failing is a broken sweep, not a quiet one, and the whole
         # scheduled setup detects trouble only through a failed unit: exiting 0
@@ -441,6 +571,7 @@ async def cmd_analytics(
         regressed = save_metrics(metrics, outputs_dir)
         if regressed:
             _record_regression(regressed, len(metrics))
+        _sweep_audience(publisher, outputs_dir)
         logger.info("Captured metrics for %d post(s) in %s", len(metrics), outputs_dir)
 
     _log_quality_segments(outputs_dir, config.analytics_config.duration_bands_sec)
@@ -1835,6 +1966,29 @@ Examples:
         help="Enable debug logging",
     )
 
+    audience_parser = subparsers.add_parser(
+        "audience",
+        help="Print follow, share and watch rates for a date range (no network)",
+    )
+    audience_parser.add_argument(
+        "--since", type=_iso_date, required=True, help="First day (YYYY-MM-DD)"
+    )
+    audience_parser.add_argument(
+        "--until", type=_iso_date, required=True, help="Last day (YYYY-MM-DD)"
+    )
+    audience_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Outputs root; audience_metrics.json lives under its state/ "
+            "subdirectory (default: OUTPUTS_DIR, else the repo outputs/)"
+        ),
+    )
+    audience_parser.add_argument(
+        "--debug", action="store_true", help="Enable debug logging"
+    )
+
     verify_parser = subparsers.add_parser(
         "verify-comments",
         help="Check that first comments landed on recent published posts",
@@ -1999,6 +2153,8 @@ async def main():
             cmd_registry(args)
         elif args.command == "analytics":
             await cmd_analytics(args, config, session)
+        elif args.command == "audience":
+            cmd_audience(args)
         elif args.command == "verify-comments":
             await cmd_verify_comments(args, config, session)
         elif args.command == "verify-delivery":

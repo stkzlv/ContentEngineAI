@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.0] - 2026-11-06
+
+### Added
+
+- The analytics sweep stores daily followers, views and interactions per platform, YouTube average view percentage, duration and subscribers gained per post, and Instagram profile views and link taps per day; the new `audience` command prints follows, shares and saves, and comments per 1,000 views for a date range.
+
 ## [0.223.0] - 2026-11-06
 
 ### Added
