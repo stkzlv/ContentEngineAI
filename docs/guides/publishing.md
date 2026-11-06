@@ -96,7 +96,8 @@ poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube --platform tiktok --platform instagram \
   --immediate --debug
 
-# Schedule for a specific time (UTC)
+# Schedule for a specific time: without an offset it is read in
+# recurring_schedule.timezone; add one (+01:00, Z) to pin it
 poetry run python -m src.publisher.late single B0CTTZJRL6 \
   --platform youtube \
   --schedule "2025-01-20 14:00:00" \

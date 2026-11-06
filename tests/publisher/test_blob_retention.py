@@ -1,5 +1,6 @@
 """Tests for Vercel Blob retention policy."""
 
+import warnings
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
@@ -113,3 +114,40 @@ async def test_run_swallows_errors(monkeypatch):
     pub = _publisher()
     pub.get_unpublished_media_urls = AsyncMock(side_effect=RuntimeError("api down"))
     await run_blob_retention(pub, BlobRetentionConfig(enabled=True))
+
+
+@pytest.mark.asyncio
+async def test_unpublished_urls_read_without_serializer_warnings(monkeypatch):
+    # REQ-PUB-059: the provider returns YouTube's `visibility` as a plain string,
+    # which makes pydantic warn once per union member when the list is dumped.
+    from late.models import PostsListResponse
+    from late.models._generated.models import (
+        PlatformTarget,
+        Post2,
+        YouTubePlatformData,
+    )
+
+    from src.publisher.late.client import LatePublisher
+
+    target = PlatformTarget.model_construct(
+        platform="youtube",
+        accountId="acc",
+        platformSpecificData=YouTubePlatformData.model_construct(
+            title="t", visibility="public"
+        ),
+    )
+    post = Post2.model_construct(
+        status="scheduled",
+        platforms=[target],
+        mediaItems=[{"type": "video", "url": "https://blob.test/v.mp4"}],
+    )
+    page = PostsListResponse.model_construct(posts=[post], pagination=None)
+    pub = LatePublisher(api_key="test")  # noqa: S106 - test stub
+    monkeypatch.setattr(pub, "_posts_list_safe", lambda **_: page)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        urls = await pub.get_unpublished_media_urls()
+
+    assert urls == {"https://blob.test/v.mp4"}
+    assert not [w for w in caught if "serializer" in str(w.message)]

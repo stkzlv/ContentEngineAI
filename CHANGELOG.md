@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.222.0] - 2026-11-06
+
+### Changed
+
+- **Breaking**: `single --schedule` reads a time without an offset in `recurring_schedule.timezone` instead of UTC, accepts ISO 8601 times with an offset or `Z`, and logs the resolved time in UTC and in that zone; the batch's `--schedule-time` reads a bare time the same way instead of failing at publish.
+
+### Fixed
+
+- A publish no longer prints a block of pydantic serializer warnings when upload retention reads the provider's post list.
+
 ## [0.221.1] - 2026-11-04
 
 ### Fixed

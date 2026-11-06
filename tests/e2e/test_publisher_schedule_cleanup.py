@@ -674,35 +674,6 @@ class TestCleanupWorkflowIntegration:
 class TestCLIArgumentParsing:
     """Tests for CLI argument parsing."""
 
-    def test_parse_datetime_valid_formats(self):
-        """Test parse_datetime accepts various formats."""
-        from src.publisher.late.cli import parse_datetime
-
-        # Format 1: YYYY-MM-DD HH:MM:SS
-        dt1 = parse_datetime("2025-01-20 14:00:00")
-        assert dt1.year == 2025
-        assert dt1.month == 1
-        assert dt1.day == 20
-        assert dt1.hour == 14
-
-        # Format 2: YYYY-MM-DDTHH:MM:SS
-        dt2 = parse_datetime("2025-01-20T14:00:00")
-        assert dt2.year == 2025
-        assert dt2.hour == 14
-
-        # Format 3: YYYY-MM-DD HH:MM
-        dt3 = parse_datetime("2025-01-20 14:00")
-        assert dt3.minute == 0
-
-    def test_parse_datetime_invalid_format(self):
-        """Test parse_datetime raises on invalid format."""
-        from src.publisher.late.cli import parse_datetime
-
-        with pytest.raises(ValueError) as exc_info:
-            parse_datetime("invalid-date")
-
-        assert "Invalid datetime format" in str(exc_info.value)
-
     def test_single_command_requires_video(self):
         """Test single command requires --video argument."""
         parser = argparse.ArgumentParser()

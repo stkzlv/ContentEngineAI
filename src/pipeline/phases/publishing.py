@@ -62,7 +62,7 @@ async def run_publishing_phase(
     from src.pipeline.global_batch import _publisher_settings
     from src.publisher.late.client import LatePublisher
     from src.publisher.registry import create_publisher_from_config
-    from src.publisher.schedule import ScheduleManager
+    from src.publisher.schedule import ScheduleManager, resolve_schedule_time
 
     phase_start = time.monotonic()
 
@@ -152,8 +152,9 @@ async def run_publishing_phase(
 
     schedule_time_str = batch_config.schedule_time or published.schedule_time
     if schedule_time_str:
-        schedule_time = datetime.fromisoformat(schedule_time_str.replace("Z", "+00:00"))
-        logger.info("Using explicit schedule time: %s", schedule_time)
+        schedule_time = resolve_schedule_time(
+            schedule_time_str, published.schedule_config.timezone
+        )
     else:
         immediate_publish = published.immediate_publish
         recurring_config = published.schedule_config

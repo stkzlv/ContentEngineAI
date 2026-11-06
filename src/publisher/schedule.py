@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.publisher.base import PublisherError, PublishError
 from src.publisher.constants import (
@@ -46,6 +47,52 @@ if TYPE_CHECKING:
     from src.publisher.base import BasePublisher
 
 logger = logging.getLogger(__name__)
+
+
+def parse_schedule_time(value: str, timezone: str) -> datetime:
+    """Parse an explicit schedule time (REQ-PUB-018, REQ-BAT-062).
+
+    ISO 8601, with a ``T`` or a space, seconds optional. A time with an offset
+    or ``Z`` keeps it; a time without one is read in ``timezone``, the zone of
+    the recurring slots.
+
+    Raises
+    ------
+        ValueError: The time or the timezone can't be read.
+
+    """
+    text = value.strip()
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        raise ValueError(
+            f"Invalid datetime format: {value}. Use ISO 8601, for example "
+            "'2025-01-20 14:00' or '2025-01-20T14:00:00+01:00'"
+        ) from None
+    if parsed.tzinfo is not None:
+        return parsed
+    try:
+        zone = ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError(f"Unknown schedule timezone: {timezone}") from None
+    return parsed.replace(tzinfo=zone)
+
+
+def resolve_schedule_time(value: str, timezone: str) -> datetime:
+    """Parse an explicit schedule time and log it in UTC and in ``timezone``.
+
+    The one reader for `single --schedule` and the batch's `schedule_time`.
+    """
+    parsed = parse_schedule_time(value, timezone)
+    logger.info(
+        "Explicit schedule time: %s UTC (%s %s)",
+        parsed.astimezone(UTC).strftime("%Y-%m-%d %H:%M"),
+        parsed.astimezone(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M"),
+        timezone,
+    )
+    return parsed
 
 
 def _listing_title(product_dir: Path) -> str:
