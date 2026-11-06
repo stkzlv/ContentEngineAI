@@ -41,7 +41,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-024** `shipped` In the publishing phase, the batch uploads and schedules each rendered video to the target platforms.
 - **REQ-BAT-060** `shipped` When `--platforms` is passed, the batch publishes only to the named platforms; without it, the batch targets the publisher's `default_platforms`.
 - **REQ-BAT-061** `shipped` If publishing is on and `--platforms` names a platform other than `youtube`, `tiktok` or `instagram`, the batch refuses to start.
-- **REQ-BAT-062** `shipped` When `--schedule-time` is passed, or `global_batch.schedule_time` or the publisher's `schedule_time` is set, the batch schedules every video at that time.
+- **REQ-BAT-062** `shipped` When `--schedule-time` is passed, or `global_batch.schedule_time` or the publisher's `schedule_time` is set, the batch schedules every video at that time, read in `recurring_schedule.timezone` when it carries no offset.
 - **REQ-BAT-063** `shipped` If publishing is on and the schedule time isn't a valid ISO 8601 timestamp, the batch refuses to start.
 - **REQ-BAT-064** `shipped` Without a schedule time, the batch schedules each product into the next free recurring slot, counting the provider's existing posts and the local schedule as taken.
 - **REQ-BAT-065** `shipped` Without a schedule time, the batch publishes immediately when `immediate_publish` is on, when `recurring_schedule.enabled` is off, when no slots are defined, when reading slot occupancy fails, or when every slot is taken.

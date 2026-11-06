@@ -61,7 +61,12 @@ from src.publisher.product_registry import (
 )
 from src.publisher.publish_modes import accounts_for_platforms
 from src.publisher.registry import create_publisher_from_config
-from src.publisher.schedule import ScheduleManager, record_scheduled_posts
+from src.publisher.schedule import (
+    ScheduleManager,
+    parse_schedule_time,
+    record_scheduled_posts,
+    resolve_schedule_time,
+)
 from src.publisher.tracking import (
     get_retry_queue,
     is_already_published,
@@ -124,46 +129,6 @@ async def _provider_upcoming_count(publisher: Any) -> int | None:
         if scheduled_dt >= now:
             upcoming += 1
     return upcoming
-
-
-def parse_datetime(datetime_str: str) -> datetime:
-    """Parse datetime string in ISO format or common formats.
-
-    Args:
-    ----
-        datetime_str: Datetime string (e.g., "2025-01-20 14:00:00"
-            or "2025-01-20T14:00:00")
-
-    Returns:
-    -------
-        datetime object
-
-    Raises:
-    ------
-        ValueError: If datetime string is invalid
-
-    """
-    formats = [
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%d %H:%M",
-        "%Y-%m-%dT%H:%M",
-    ]
-
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(datetime_str, fmt)
-            # Assume UTC if no timezone provided
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
-            return dt
-        except ValueError:
-            continue
-
-    raise ValueError(
-        f"Invalid datetime format: {datetime_str}. "
-        f"Use format like '2025-01-20 14:00:00' or '2025-01-20T14:00:00'"
-    )
 
 
 async def cmd_list_accounts(
@@ -682,7 +647,15 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                 sys.exit(1)
 
             # Auto-discover next slot if --schedule not provided (and not --immediate)
-            schedule_time = args.schedule
+            schedule_time: datetime | None = None
+            if args.schedule:
+                try:
+                    schedule_time = resolve_schedule_time(
+                        args.schedule, config.schedule_config.timezone
+                    )
+                except ValueError as e:
+                    logger.error("%s", e)
+                    sys.exit(1)
             slot_index: int | None = None
             schedule_mgr: ScheduleManager | None = None
             if not schedule_time and not args.immediate:
@@ -1526,8 +1499,9 @@ Examples:
         type=str,
         metavar="DATETIME",
         help=(
-            "Schedule for specific time (format: 'YYYY-MM-DD HH:MM:SS'). "
-            "Without this, uses next available calendar slot"
+            "Schedule for this time, ISO 8601 ('2025-01-20 14:00' or "
+            "'2025-01-20T14:00:00+01:00'). A time without an offset is read in "
+            "recurring_schedule.timezone. Without this, uses the next free slot"
         ),
     )
     single_parser.add_argument(
@@ -1921,8 +1895,10 @@ async def main():
 
     elif args.command == "single":
         if args.schedule:
+            # Format check only: the time is read in the schedule's zone once
+            # the config is loaded (cmd_single).
             try:
-                args.schedule = parse_datetime(args.schedule)
+                parse_schedule_time(args.schedule, "UTC")
             except ValueError as e:
                 parser.error(str(e))
         # Note: If neither --schedule nor --immediate, auto-discover next slot

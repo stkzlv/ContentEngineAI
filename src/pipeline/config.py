@@ -1641,8 +1641,12 @@ def validate_global_batch_config(
 
         # Validate schedule_time format if specified
         if config.schedule_time:
+            from src.publisher.schedule import parse_schedule_time
+
             try:
-                datetime.fromisoformat(config.schedule_time.replace("Z", "+00:00"))
+                # The publishing phase's reader, so a time it would refuse
+                # stops the batch here, before the render (REQ-BAT-063).
+                parse_schedule_time(config.schedule_time, "UTC")
             except (ValueError, AttributeError) as e:
                 raise ValueError(
                     f"Invalid schedule_time format: '{config.schedule_time}'\n"

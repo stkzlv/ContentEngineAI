@@ -866,8 +866,10 @@ class LatePublisher(BasePublisher):
                 )
 
             resp = await self._retry_with_backoff(_fetch, f"List posts page {page}")
+            # warnings=False: the provider sends YouTube's visibility as a plain
+            # string, and pydantic warns once per platform union member.
             data = (
-                resp.model_dump(by_alias=True, mode="json")
+                resp.model_dump(by_alias=True, mode="json", warnings=False)
                 if hasattr(resp, "model_dump")
                 else resp
             )

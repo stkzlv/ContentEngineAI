@@ -72,7 +72,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--skip-publish` / `--no-skip-publish` | switch | off | Skips the publishing phase. |
 | `--force` | switch | off | Renders and publishes products already recorded as published. Without it the batch skips them before the render. |
 | `--platforms` | one or more `PLATFORM` | `default_platforms` in `config/publisher.yaml` | The platforms to publish to. |
-| `--schedule-time` | `ISO8601` | none | Schedules the posts for this time instead of the next free slot. |
+| `--schedule-time` | `ISO8601` | none | Schedules the posts for this time instead of the next free slot. A time without an offset is read in `recurring_schedule.timezone`. |
 | `--fail-fast-publish` / `--no-fail-fast-publish` | switch | off | Stops publishing at the first failure. |
 | `--link-in-bio` / `--no-link-in-bio` | switch | `link_in_bio.enabled` in `config/publisher.yaml` | Updates, or skips, the link-in-bio page after each publish. With both, the last one wins. |
 | `--platform-specific` / `--no-platform-specific` | switch | off | Creates a separate post per platform with that platform's metadata, instead of one post for all platforms. |

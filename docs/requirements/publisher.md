@@ -39,7 +39,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 
 ## Scheduling
 
-- **REQ-PUB-018** `shipped` The `single` command publishes a product immediately with `--immediate`, or at a given time with `--schedule "YYYY-MM-DD HH:MM:SS"`.
+- **REQ-PUB-018** `shipped` The `single` command publishes a product immediately with `--immediate`, or at a given time with `--schedule`: an ISO 8601 time, read in `recurring_schedule.timezone` when it carries no offset.
 - **REQ-PUB-019** `shipped` Recurring slots are configured under `recurring_schedule.slots` as a day of the week, a time and a timezone, which defaults to `recurring_schedule.timezone`.
 - **REQ-PUB-020** `shipped` When no publish time is given, the publisher schedules the post into the next free recurring slot.
 - **REQ-PUB-021** `shipped` The `schedule` command schedules every unpublished product in the outputs directory into recurring slots.

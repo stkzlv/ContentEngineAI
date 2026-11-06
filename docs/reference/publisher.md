@@ -36,7 +36,7 @@ python -m src.publisher.late single <product_id> [options]
 |---|---|---|
 | `product_id` | required | Product id, such as an ASIN. The product directory must exist under the outputs root. |
 | `--platform NAME` | `default_platforms` | Target platform. Repeat for several. One of `youtube`, `tiktok`, `instagram`, `facebook`, `twitter`, `linkedin`. |
-| `--schedule DATETIME` | none | Publish at this time. Accepts `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM` and `YYYY-MM-DDTHH:MM`, read as UTC. Takes precedence over `--immediate`. |
+| `--schedule DATETIME` | none | Publish at this time, in ISO 8601 with a space or a `T`, seconds optional (`2025-01-20 14:00`, `2025-01-20T14:00:00+01:00`). A date with no time is refused. A time with an offset or `Z` keeps it; one without is read in `recurring_schedule.timezone`. The log shows the time in UTC and in that zone. Takes precedence over `--immediate`. |
 | `--immediate` | off | Publish at once. |
 | `--force` / `--no-force` | `--no-force` | Republish a product that is already published to every requested platform. Without it, the command skips platforms already published. |
 | `--no-cleanup` | off | Skip post-publication cleanup for this run. |

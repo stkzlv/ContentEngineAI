@@ -496,7 +496,7 @@ poetry run python -m src.pipeline.global_batch \
 
 **Publishing Behavior**:
 - **Auto-Scheduling** (default): Finds first available unoccupied slot in `config/publisher.yaml` recurring schedule
-- **Explicit Scheduling**: Use `--schedule-time` with ISO 8601 format to override auto-scheduling
+- **Explicit Scheduling**: Use `--schedule-time` with ISO 8601 format to override auto-scheduling; a time without an offset is read in `recurring_schedule.timezone`
 - **Cleanup**: Removes product directories after a successful multi-platform publish, through the same age and verification checks as the publisher CLI; an immediate publish waits up to `settle_timeout_sec` per product for the post to leave `publishing` (configurable in `config/publisher.yaml`)
 
 ### YAML Configuration
