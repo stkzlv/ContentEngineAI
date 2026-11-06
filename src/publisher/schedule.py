@@ -8,7 +8,7 @@ import json
 import logging
 import tempfile
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -61,23 +61,28 @@ def parse_schedule_time(value: str, timezone: str) -> datetime:
         ValueError: The time or the timezone can't be read.
 
     """
-    text = value.strip()
-    if text.endswith(("Z", "z")):
-        text = text[:-1] + "+00:00"
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        raise ValueError(
-            f"Invalid datetime format: {value}. Use ISO 8601, for example "
-            "'2025-01-20 14:00' or '2025-01-20T14:00:00+01:00'"
-        ) from None
-    if parsed.tzinfo is not None:
-        return parsed
     try:
         zone = ZoneInfo(timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise ValueError(f"Unknown schedule timezone: {timezone}") from None
-    return parsed.replace(tzinfo=zone)
+    text = value.strip()
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    invalid = ValueError(
+        f"Invalid datetime format: {value}. Use ISO 8601 with a time, for example "
+        "'2025-01-20 14:00' or '2025-01-20T14:00:00+01:00'"
+    )
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        pass
+    else:
+        raise invalid  # a bare date would schedule for midnight
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        raise invalid from None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=zone)
 
 
 def resolve_schedule_time(value: str, timezone: str) -> datetime:

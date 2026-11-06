@@ -37,15 +37,20 @@ def test_bare_time_in_utc_zone_is_unchanged():
     assert dt.astimezone(UTC) == datetime(2026, 1, 20, 14, 0, tzinfo=UTC)
 
 
-@pytest.mark.parametrize("value", ["tomorrow", "2026-13-01 10:00", ""])
+@pytest.mark.parametrize(
+    "value", ["tomorrow", "2026-13-01 10:00", "", "2026-01-20", "20260120"]
+)
 def test_invalid_time_raises(value):
     with pytest.raises(ValueError, match="Invalid datetime format"):
         parse_schedule_time(value, "UTC")
 
 
-def test_unknown_zone_raises():
+@pytest.mark.parametrize("value", ["2026-01-20 14:00", "2026-01-20 14:00+01:00"])
+def test_unknown_zone_raises(value):
+    # An offset time too: the resolver logs it in the zone, so a bad zone must
+    # fail here as the ValueError `single` reports, not later as a KeyError.
     with pytest.raises(ValueError, match="Unknown schedule timezone"):
-        parse_schedule_time("2026-01-20 14:00", "Mars/Olympus")
+        parse_schedule_time(value, "Mars/Olympus")
 
 
 def test_resolver_logs_utc_and_schedule_zone(caplog):
