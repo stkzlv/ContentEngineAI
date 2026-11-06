@@ -111,6 +111,9 @@ class BaseProductData:
     # listing. Its presence is what distinguishes the two, since a topic record
     # still uses this class and still gets a platform stamped on it.
     topic: str | None = None
+    # "commentary" for a topic rendered as an opinion take rather than a
+    # tutorial (REQ-CNT-166); None for a tutorial topic and for a product.
+    topic_kind: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and setup."""
@@ -154,6 +157,7 @@ class BaseProductData:
             "shortened_affiliate_link": self.shortened_affiliate_link,
             "pillar": self.pillar,
             "topic": self.topic,
+            "topic_kind": self.topic_kind,
         }
 
 

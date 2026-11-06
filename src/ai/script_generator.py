@@ -606,8 +606,10 @@ def select_script_template(
     # directory and the default pool is a glob over it, so without this a
     # scraped product can draw a template that asks the model not to mention a
     # product.
-    if not is_topic and templates_cfg.topic_templates:
-        without_topic = [t for t in pool if t not in templates_cfg.topic_templates]
+    # The commentary family lives there too (REQ-CNT-166).
+    not_product = [*templates_cfg.topic_templates, *templates_cfg.commentary_templates]
+    if not is_topic and not_product:
+        without_topic = [t for t in pool if t not in not_product]
         if without_topic:
             pool = without_topic
 

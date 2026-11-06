@@ -266,6 +266,10 @@ llm_settings:
       topic:
         seconds: [30, 40]
         words: [75, 100]
+      # A commentary topic: a hook, a turn, an opinion and a question.
+      commentary:
+        seconds: [35, 45]
+        words: [90, 115]
     # Channel-wide voice direction prepended to every script prompt above any
     # pillar preamble. Carries the rules every template would otherwise repeat
     # (banned words, word target, narrator persona, anti-AI-tells). Override
@@ -338,6 +342,12 @@ llm_settings:
       - "Follow for more fixes like this."
       - "Drop a comment if this worked."
       - "Save this for the next time it happens."
+    # For commentary topics, which close on a question to the viewer; each
+    # line starts with an opener the publisher strips, so the YouTube first
+    # comment is the question rather than the CTA.
+    cta_options_commentary:
+      - "Follow for more takes like this."
+      - "Drop a comment with your answer."
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one
     # self-correction. Never in the first sentence, a number, name or claim,
@@ -394,6 +404,12 @@ llm_settings:
       enabled: true
       task_templates:
         - topic_answer_first
+    # The commentary family (REQ-CNT-166): a topic marked `kind: commentary`
+    # draws these instead of topic_templates, with the commentary narrator,
+    # CTAs and length, and no step list. An installation lists its own in its
+    # overlay.
+    commentary_templates:
+      - commentary_take
 
     # Narrator direction for topic scripts. The default profile below is
     # written for someone describing a thing they bought. A topic script has
@@ -432,6 +448,35 @@ llm_settings:
       - Never imply the viewer should buy something unless the topic detail names a specific tool. No "this thing", no "I picked one up", no "if you want one".
       - Do not invent a product, a brand, or a price. If the detail does not name one, there is not one.
       - Banned phrases: "game changer", "next-level", "ultimate", "must-have", "revolutionary".
+
+    # Narrator direction for commentary topics: one person with an opinion,
+    # not a helper walking through a fix. Generic; an installation sets its
+    # own narrator in its overlay.
+    narrator_profile_commentary: |-
+      Narrator profile: every video on this channel is voiced by the same person. Keep that voice consistent.
+
+      Who: one person with a clear view on technology, talking to someone who follows the subject casually. Use "I" for the opinion and "you" for the viewer.
+
+      Voice: direct, dry, plain. An opinion said once and backed by one reason, not a lecture and not a hot take for its own sake.
+
+      Specificity: concrete beats vague. A number from the detail beats "a lot"; a named change beats "things are shifting".
+
+      Imperfection: contractions and sentence fragments are fine. Vary sentence length.
+
+      CTA: the script ends on the exact call to action the template gives you, word for word, right after the closing question. It never implies something to buy.
+
+      Things to avoid because they read as AI:
+      - Connectors: "Moreover", "Furthermore", "Additionally", "What's more", "It's worth noting".
+      - Empty intensifiers: "incredibly", "absolutely", "literally", "honestly".
+      - Three parallel adjectives or three parallel phrases in a row.
+      - Generic closers: "In essence", "Ultimately", "At the end of the day".
+
+      Universal rules:
+      - Write the actual spoken words only. No stage directions or camera notes.
+      - Target {TARGET_SECONDS} seconds at normal speaking pace (roughly {TARGET_WORDS} words).
+      - No emojis, no hashtags, no greetings, no markdown in the output.
+      - Plain text only, suitable for direct text-to-speech.
+      - Do not invent a figure, a source, a product or a price. If the detail does not state it, it is not in the script.
 
     # Pillar -> preamble string prepended to the LLM prompt at runtime, after
     # the narrator profile. Templates stay pillar-agnostic; the preamble nudges

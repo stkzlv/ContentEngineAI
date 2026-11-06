@@ -184,6 +184,8 @@ class TargetLengths(BaseModel):
 
     product: TargetLength = Field(default_factory=TargetLength)
     topic: TargetLength = Field(default_factory=TargetLength)
+    # A commentary topic (REQ-CNT-166) replaces `topic` with this one.
+    commentary: TargetLength = Field(default_factory=TargetLength)
 
 
 class ScriptTemplateConfig(BaseModel):
@@ -234,6 +236,13 @@ class ScriptTemplateConfig(BaseModel):
     # something to buy.
     cta_options: list[str] = Field(default_factory=list)
     cta_options_topic: list[str] = Field(default_factory=list)
+    # The commentary family (REQ-CNT-166): a topic record marked commentary
+    # renders with these in place of the topic templates, narrator and CTAs.
+    # Empty narrator or CTA lists keep the topic ones; empty templates refuse
+    # the render, since a tutorial template would write a how-to.
+    commentary_templates: list[str] = Field(default_factory=list)
+    narrator_profile_commentary: str = ""
+    cta_options_commentary: list[str] = Field(default_factory=list)
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
@@ -244,7 +253,7 @@ class ScriptTemplateConfig(BaseModel):
     hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)
     topic_routing: TopicRoutingConfig = Field(default_factory=TopicRoutingConfig)
 
-    @field_validator("cta_options", "cta_options_topic")
+    @field_validator("cta_options", "cta_options_topic", "cta_options_commentary")
     @classmethod
     def _each_option_carries_words(cls, options: list[str]) -> list[str]:
         """Refuse an option the ending check could never match sensibly.

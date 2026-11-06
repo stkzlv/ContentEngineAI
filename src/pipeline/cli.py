@@ -101,6 +101,16 @@ Examples:
         ),
     )
     input_group.add_argument(
+        "--topic-kind",
+        choices=("tutorial", "commentary"),
+        default=None,
+        help=(
+            "With --topic: 'tutorial' (default) renders a how-to from a sourced "
+            "step list; 'commentary' renders an opinion take with the commentary "
+            "templates and no step visuals."
+        ),
+    )
+    input_group.add_argument(
         "--topics-file",
         type=Path,
         metavar="FILE",

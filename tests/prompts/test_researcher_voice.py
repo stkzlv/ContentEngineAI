@@ -19,7 +19,7 @@ from src.video.config import config
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "src" / "ai" / "prompts" / "scripts"
 PRODUCT_TEMPLATES = sorted(
-    p for p in SCRIPTS.glob("*.md") if not p.stem.startswith("topic_")
+    p for p in SCRIPTS.glob("*.md") if not p.stem.startswith(("topic_", "commentary_"))
 )
 
 
