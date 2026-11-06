@@ -99,7 +99,12 @@ async def test_a_leg_sent_without_a_first_comment_is_not_checked():
         {},
     )
     checks = await verify_post_first_comments(client, "post1")
-    assert [(c.platform, c.present) for c in checks] == [("youtube", False)]
+    assert [(c.platform, c.sent, c.present) for c in checks] == [
+        ("instagram", False, False),
+        ("youtube", True, False),
+    ]
+    # The inbox is read only for the leg that was sent with a comment.
+    client.get_post_comments.assert_awaited_once_with("vid1", "acc")
 
 
 @pytest.mark.parametrize(
@@ -115,3 +120,53 @@ def test_first_comment_sent_reads_the_leg(specific, sent):
     from src.publisher.late.client import _first_comment_sent
 
     assert _first_comment_sent(specific) is sent
+
+
+@pytest.mark.asyncio
+async def test_sent_flag_from_the_sdk_models_get_post_platforms_reads():
+    # REQ-PUB-161: real runs read pydantic models, not dicts. The SDK's
+    # platformSpecificData is an undiscriminated union, so check the parsed
+    # leg still exposes firstComment for each shape we send.
+    from unittest.mock import patch
+
+    from late.models import PostGetResponse
+
+    from src.publisher.late.client import LatePublisher
+
+    def leg(platform: str, ppid: str, data: dict) -> dict:
+        return {
+            "platform": platform,
+            "accountId": "acc",
+            "platformPostId": ppid,
+            "status": "published",
+            "platformSpecificData": data,
+        }
+
+    resp = PostGetResponse.model_validate(
+        {
+            "post": {
+                "_id": "p1",
+                "platforms": [
+                    leg("youtube", "y1", {"title": "t", "firstComment": "Which?"}),
+                    leg(
+                        "youtube", "y2", {"title": "t", "containsSyntheticMedia": True}
+                    ),
+                    leg(
+                        "instagram", "i1", {"isAiGenerated": True, "firstComment": "x"}
+                    ),
+                    leg("instagram", "i2", {"isAiGenerated": True}),
+                    leg("tiktok", "t1", {"videoMadeWithAi": True}),
+                ],
+            }
+        }
+    )
+    pub = LatePublisher(api_key="test")  # noqa: S106 - test stub
+    with patch.object(pub, "_posts_get_safe", return_value=resp):
+        legs = await pub.get_post_platforms("p1")
+    assert [(x["platform_post_id"], x["first_comment_sent"]) for x in legs] == [
+        ("y1", True),
+        ("y2", False),
+        ("i1", True),
+        ("i2", False),
+        ("t1", False),
+    ]
