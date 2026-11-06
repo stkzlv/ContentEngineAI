@@ -8,7 +8,7 @@ import json
 import logging
 import tempfile
 from collections.abc import Iterable
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -73,15 +73,14 @@ def parse_schedule_time(value: str, timezone: str) -> datetime:
         "'2025-01-20 14:00' or '2025-01-20T14:00:00+01:00'"
     )
     try:
-        date.fromisoformat(text)
-    except ValueError:
-        pass
-    else:
-        raise invalid  # a bare date would schedule for midnight
-    try:
         parsed = datetime.fromisoformat(text)
     except ValueError:
         raise invalid from None
+    # A date needs a time after it: fromisoformat reads "2026-01-20" as
+    # midnight and takes any character after the date as the separator.
+    date_len = 10 if text[4:5] == "-" else 8
+    if text[date_len : date_len + 1] not in ("T", "t", " "):
+        raise invalid
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=zone)
 
 

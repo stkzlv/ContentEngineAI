@@ -32,13 +32,28 @@ def test_bare_time_is_read_in_schedule_zone(value, utc_hour):
     assert dt.astimezone(UTC).hour == utc_hour
 
 
+def test_compact_form_with_time_is_accepted():
+    dt = parse_schedule_time("20260120T2200", "Europe/Madrid")
+    assert dt.astimezone(UTC) == datetime(2026, 1, 20, 21, 0, tzinfo=UTC)
+
+
 def test_bare_time_in_utc_zone_is_unchanged():
     dt = parse_schedule_time("2026-01-20 14:00", "UTC")
     assert dt.astimezone(UTC) == datetime(2026, 1, 20, 14, 0, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(
-    "value", ["tomorrow", "2026-13-01 10:00", "", "2026-01-20", "20260120"]
+    "value",
+    [
+        "tomorrow",
+        "2026-13-01 10:00",
+        "",
+        "2026-01-20",
+        "20260120",
+        "2026-01-20Z",
+        "2026-01-20+01:00",
+        "2026-01-20-05:00",
+    ],
 )
 def test_invalid_time_raises(value):
     with pytest.raises(ValueError, match="Invalid datetime format"):
@@ -60,6 +75,15 @@ def test_resolver_logs_utc_and_schedule_zone(caplog):
         dt = resolve_schedule_time("2026-01-20 22:00", "Europe/Madrid")
     assert dt.astimezone(UTC).hour == 21
     assert "2026-01-20 21:00 UTC (2026-01-20 22:00 Europe/Madrid)" in caplog.text
+
+
+def test_batch_startup_check_uses_the_same_reader():
+    # REQ-BAT-063: a time the publishing phase would refuse stops the batch at
+    # startup, not after the render.
+    from src.utils.outputs_paths import get_project_root
+
+    source = (get_project_root() / "src/pipeline/config.py").read_text()
+    assert "parse_schedule_time(config.schedule_time" in source
 
 
 @pytest.mark.parametrize(
