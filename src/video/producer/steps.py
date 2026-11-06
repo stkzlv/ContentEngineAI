@@ -2,6 +2,7 @@
 """Pipeline step implementations for video production."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import random
@@ -769,17 +770,62 @@ async def _ensure_fact_checked(ctx: PipelineContext, pillar: str | None) -> None
         logger.warning("Could not write the fact-check record: %s", e)
 
 
+def script_digest(script: str | None) -> str:
+    """A short digest of the script text a hook headline was derived from."""
+    return hashlib.sha256((script or "").encode("utf-8")).hexdigest()[:16]
+
+
+def _recorded(ctx: PipelineContext, key: str) -> Any:
+    value = ctx.state.get(key)
+    if not value:
+        entry = ctx.state.get(STEP_GENERATE_SCRIPT)
+        value = entry.get(key) if isinstance(entry, dict) else None
+    return value
+
+
 def _hook_headline(ctx: PipelineContext) -> str | None:
     """The authored hook headline, from the state or the script step's entry.
 
     A truncating resume keeps only step entries, so the top-level key is gone
-    on a run that starts after the script step.
+    on a run that starts after the script step. A headline recorded for other
+    script text (the operator edited the script before resuming, REQ-VID-165)
+    is none: it would show a hook for a script that is no longer voiced. A
+    headline recorded before the digest existed is kept, and so is any headline
+    when the run hasn't loaded the script (a `--step` that doesn't need it).
     """
-    headline = ctx.state.get("hook_headline")
-    if not headline:
+    headline = _recorded(ctx, "hook_headline")
+    if not (isinstance(headline, str) and headline):
+        return None
+    digest = _recorded(ctx, "hook_headline_script")
+    script = getattr(ctx, "script", None)
+    stale = isinstance(script, str) and digest != script_digest(script)
+    if isinstance(digest, str) and stale:
+        return None
+    return headline
+
+
+async def refresh_stale_hook_headline(ctx: PipelineContext) -> None:
+    """Re-derive the hook headline when the script changed after it was made.
+
+    The script step is skipped on a resume, so its own headline check never
+    runs; this is the same check for that path (REQ-VID-165).
+    """
+    if _recorded(ctx, "hook_headline") and _hook_headline(ctx) is None:
+        logger.info("Script edited since its hook headline; deriving a new one")
+        for key in ("hook_headline", "hook_headline_script"):
+            ctx.state.pop(key, None)
+            entry = ctx.state.get(STEP_GENERATE_SCRIPT)
+            if isinstance(entry, dict):
+                entry.pop(key, None)
+        pillar = ctx.state.get("pillar") or getattr(ctx.product, "pillar", None)
+        await _ensure_hook_headline(ctx, pillar)
+        # The skipped step won't mirror these, and its entry is the copy a
+        # truncating resume keeps.
         entry = ctx.state.get(STEP_GENERATE_SCRIPT)
-        headline = entry.get("hook_headline") if isinstance(entry, dict) else None
-    return headline if isinstance(headline, str) and headline else None
+        if isinstance(entry, dict):
+            for key in ("hook_headline", "hook_headline_script"):
+                if ctx.state.get(key):
+                    entry[key] = ctx.state[key]
 
 
 async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> None:
@@ -832,6 +878,7 @@ async def _ensure_hook_headline(ctx: PipelineContext, pillar: str | None) -> Non
     )
     if headline:
         ctx.state["hook_headline"] = headline
+        ctx.state["hook_headline_script"] = script_digest(ctx.script)
         logger.info("Authored hook headline: %s", headline)
     else:
         logger.info("No authored hook headline; hook falls back to script sentence")

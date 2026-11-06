@@ -113,6 +113,22 @@ Before you run a step, note the following; [What a partial run keeps](../explana
 - To iterate on pycaps caption styling, re-run `--step assemble_video` first; `burn_pycaps_subtitles` does not burn over its own output.
 - On `slideshow_stock`, `generate_script` runs before `gather_visuals`, so `--step gather_visuals` needs a completed `generate_script`.
 
+## Review a script before it is voiced
+
+To read and edit the script before any voice is paid for, stop the render after the script and resume it:
+
+1. Run the script step only. `--debug` keeps `temp/`, where the script lives:
+
+   ```bash
+   poetry run python -m src.video.producer slideshow_stock --topic "..." \
+     --topic-description "..." --topic-keywords "..." --debug --step generate_script
+   ```
+
+2. Edit `outputs/<id>/temp/script.txt`.
+3. Run the same command without `--step` (heavy: through `make produce-lowpri`). The run skips the script step and reads the edited file, so the voiceover, the captions and the description follow the edit. A hook headline derived from the old text is derived again from the new one (`REQ-VID-165`).
+
+Edit only before the voiceover exists: a script edited after a full `--debug` run changes nothing that was already voiced. The same works for a product render with its `data.json` and profile.
+
 ## Start a render over
 
 Delete the cached artifacts and render from scratch:

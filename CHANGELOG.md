@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.1] - 2026-11-06
+
+### Fixed
+
+- A script edited between the script step and the rest of a render now gets a hook headline derived from the edit, and the producer guide describes how to review a script before it is voiced.
+
 ## [0.224.0] - 2026-11-06
 
 ### Added

@@ -587,6 +587,9 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # read in later steps that a resume can run on their own.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("hook_headline"):
         step_state["hook_headline"] = ctx.state["hook_headline"]
+        # The digest of the script it was derived from (REQ-VID-165).
+        if ctx.state.get("hook_headline_script"):
+            step_state["hook_headline_script"] = ctx.state["hook_headline_script"]
     # Why a subtitle step legitimately produced nothing: subtitles switched
     # off in config, or the engine was unavailable and the policy is to skip.
     # Without it, verification cannot tell either from a step that produced

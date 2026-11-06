@@ -61,6 +61,7 @@ from src.video.producer.state import (
     resolved_step_order,
 )
 from src.video.producer.steps import (
+    refresh_stale_hook_headline,
     step_assemble_video,
     step_burn_pycaps_subtitles,
     step_create_voiceover,
@@ -278,6 +279,9 @@ async def execute_pipeline_parallel(
 
                 # Load artifacts for skipped steps via registry
                 load_artifacts_for_step(step_name, ctx)
+        # A script edited between runs keeps no stale hook (REQ-VID-165).
+        if STEP_GENERATE_SCRIPT in completed_steps:
+            await refresh_stale_hook_headline(ctx)
 
     # Execute pipeline with parallel execution
     try:
@@ -517,6 +521,9 @@ async def create_video_for_product(
                             f"'{step_to_load}' "
                             f"is not complete. Run it first."
                         )
+                # The same stale-hook check the full run makes (REQ-VID-165).
+                if STEP_GENERATE_SCRIPT in required and ctx.script is not None:
+                    await refresh_stale_hook_headline(ctx)
                 steps_to_run = [debug_step_target]
             else:
                 steps_to_run = resolved_step_order(ctx.profile)
