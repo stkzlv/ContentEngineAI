@@ -31,8 +31,8 @@ A read-only check of the publishing provider's API found these available and unu
 
 - **Per post.** For each swept post with a YouTube leg, the sweep reads the video's daily stats from its publish date to today. It stores view-weighted `avgViewPercentage` and `avgViewDurationSec`, and the summed `subscribersGained`, in that post's `platform_metrics["youtube"]` beside the existing counts. The existing per-field merge keeps a stored value when a later reading is unknown. With no views to weigh by, each field is unknown.
 - **Per account.** After the per-post figures are saved, the sweep stores `outputs/state/audience_metrics.json`, which holds three maps:
-  - `followers`: platform to day to count, for the last 30 days.
-  - `daily`: platform to publish day to views, comments, shares, saves and post count, for the last 30 days.
+  - `followers`: platform to day to count, for the last 30 days. Two accounts on one platform add up; one outputs dir holds one API account's figures, as its other state files do.
+  - `daily`: platform to publish day to views, post count and the interactions the platform exposes, for the last 30 days. The provider fills a field a platform doesn't expose with 0 (YouTube shares and saves, TikTok saves), so only the fields `QUALITY_METRICS` lists as exposed are kept.
   - `instagram_profile`: day to profile views and link taps. These are read as one-day windows over the last 7 days, since Instagram reports up to 48 hours late.
   
   Each sweep overlays its readings on the file. A day the provider omits keeps its stored value, and an unreadable file is refused rather than overwritten. Each call is guarded, so one endpoint failing keeps the others' readings and never fails the sweep.
@@ -40,6 +40,8 @@ A read-only check of the publishing provider's API found these available and unu
   - Net follows are the count at `--until` minus the count the day before `--since`.
   - Views are those of posts published in the range, as the provider groups them.
   - A rate whose inputs are missing prints `-`, and the summed row is unknown when any platform's input is.
+  - Shares plus saves counts the fields a platform exposes, so it is unknown on YouTube.
+  - Instagram profile views per 1,000 views needs profile figures for every day of the range: a partial sum over the whole range's views would read low.
 
 ## Alternatives considered
 

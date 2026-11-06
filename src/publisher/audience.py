@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from src.publisher.analytics import QUALITY_METRICS
 from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,8 @@ def follower_history(raw: Any) -> dict[str, dict[str, int]]:
         for a in raw.get("accounts") or []
         if isinstance(a, dict)
     }
+    # Two accounts on one platform add up: the store and the report are per
+    # platform, and a later account must not overwrite an earlier one's day.
     out: dict[str, dict[str, int]] = {}
     for account_id, points in (raw.get("stats") or {}).items():
         platform = platform_of.get(account_id)
@@ -119,7 +122,8 @@ def follower_history(raw: Any) -> dict[str, dict[str, int]]:
             count = _number(point.get("followers"))
             day = point.get("date")
             if count is not None and isinstance(day, str):
-                out.setdefault(platform, {})[day[:10]] = int(count)
+                days = out.setdefault(platform, {})
+                days[day[:10]] = days.get(day[:10], 0) + int(count)
     return out
 
 
@@ -139,10 +143,14 @@ def daily_totals(raw: Any) -> dict[str, dict[str, dict[str, float]]]:
         for platform, figures in (day_row.get("platformMetrics") or {}).items():
             if not isinstance(figures, dict):
                 continue
+            # A field the platform doesn't expose comes back as 0, as in the
+            # per-post analytics; keep only the exposed ones (QUALITY_METRICS).
+            exposed = QUALITY_METRICS.get(str(platform).lower(), {})
             row = {
                 name: value
                 for name in ("views", "comments", "shares", "saves", "postCount")
-                if (value := _number(figures.get(name))) is not None
+                if (name == "postCount" or exposed.get(name))
+                and (value := _number(figures.get(name))) is not None
             }
             if row:
                 out.setdefault(str(platform).lower(), {})[day] = row
@@ -248,7 +256,7 @@ def sweep_audience(
         fresh["daily"] = daily_totals(raw)
 
     profile: dict[str, dict[str, float]] = {}
-    for account_id in ig_accounts[:1]:
+    for account_id in ig_accounts:
         for back in range(INSTAGRAM_PROFILE_LOOKBACK_DAYS, 0, -1):
             day = today - timedelta(days=back)
             raw = guard(
@@ -261,9 +269,9 @@ def sweep_audience(
                     until=str(day + timedelta(days=1)),
                 ),
             )
-            figures = instagram_profile_day(raw)
-            if figures:
-                profile[str(day)] = figures
+            for name, value in instagram_profile_day(raw).items():
+                day_row = profile.setdefault(str(day), {})
+                day_row[name] = day_row.get(name, 0.0) + value
     if profile:
         fresh["instagram_profile"] = profile
     return fresh
@@ -279,6 +287,12 @@ class PlatformRates:
     follows_per_1k: float | None
     shares_saves_per_1k: float | None
     comments_per_1k: float | None
+
+
+def _shares_saves(rows: list[dict[str, float]]) -> float | None:
+    """Shares plus saves the platform exposes; None when it exposes neither."""
+    found = [r[name] for r in rows for name in ("shares", "saves") if name in r]
+    return sum(found) if found else None
 
 
 def _per_1k(count: float | None, views: float | None) -> float | None:
@@ -312,9 +326,7 @@ def platform_rates(
     follows = net_follows(
         (store.get("followers") or {}).get(platform) or {}, since, until
     )
-    shares_saves = (
-        sum(r.get("shares", 0.0) + r.get("saves", 0.0) for r in rows) if rows else None
-    )
+    shares_saves = _shares_saves(rows)
     comments = sum(r.get("comments", 0.0) for r in rows) if rows else None
     return PlatformRates(
         platform=platform,
@@ -344,11 +356,7 @@ def summed_rates(
     for p in platforms:
         daily = (store.get("daily") or {}).get(p) or {}
         rows = [daily[d] for d in _days(since, until) if d in daily]
-        shares_saves.append(
-            sum(r.get("shares", 0.0) + r.get("saves", 0.0) for r in rows)
-            if rows
-            else None
-        )
+        shares_saves.append(_shares_saves(rows))
         comments.append(sum(r.get("comments", 0.0) for r in rows) if rows else None)
     return PlatformRates(
         platform="all",
@@ -380,8 +388,11 @@ def instagram_profile_views_per_1k(
     store: dict[str, Any], since: date, until: date
 ) -> float | None:
     profile = store.get("instagram_profile") or {}
-    days = [profile[d] for d in _days(since, until) if d in profile]
-    if not days:
+    wanted = list(_days(since, until))
+    # Every day or none: profile views over part of the range divided by the
+    # whole range's views would read low, not unknown.
+    if any(d not in profile for d in wanted):
         return None
+    days = [profile[d] for d in wanted]
     views = platform_rates(store, "instagram", since, until).views
     return _per_1k(sum(d.get("profile_views", 0.0) for d in days), views)

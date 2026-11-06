@@ -420,6 +420,9 @@ def cmd_audience(args: argparse.Namespace) -> None:
     def fmt(value: Any) -> str:
         return "-" if value is None else f"{value:g}"
 
+    def count(value: Any) -> str:
+        return "-" if value is None else f"{value:.0f}"
+
     logger.info(
         "Audience %s to %s (views of posts published in the range)", since, until
     )
@@ -438,8 +441,8 @@ def cmd_audience(args: argparse.Namespace) -> None:
         logger.info(
             "%-10s %8s %8s %12s %14s %12s",
             r.platform,
-            fmt(r.views),
-            fmt(r.net_follows),
+            count(r.views),
+            count(r.net_follows),
             fmt(r.follows_per_1k),
             fmt(r.shares_saves_per_1k),
             fmt(r.comments_per_1k),

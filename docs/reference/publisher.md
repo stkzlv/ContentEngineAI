@@ -170,7 +170,7 @@ Per-platform quality metrics come from the provider's per-post analytics and are
 | TikTok | `views`, `likes`, `comments`, `shares` | `averageWatchTime`, `completionRate` |
 | Instagram | `views`, `reach`, `likes`, `comments`, `shares`, `saves`, `igReelsAvgWatchTime` (ms), `igReelsVideoViewTotalTime` (ms), `reelsSkipRate` (%) | |
 
-After the per-post figures, the sweep stores account-level figures in `audience_metrics.json` (design 0029): daily followers per platform and views, comments, shares and saves per platform by publish day, both for the last 30 days, and Instagram profile views and link taps per day for the last 7. A failed call keeps the other readings and never fails the sweep. A failed per-post analytics call keeps the post's views and stored metrics, and so does a platform whose figures are not synced yet or whose post failed. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
+After the per-post figures, the sweep stores account-level figures in `audience_metrics.json` (design 0029): daily followers per platform (accounts on one platform added up) and views plus the interactions each platform exposes, per platform by publish day, both for the last 30 days, and Instagram profile views and link taps per day for the last 7. A failed call keeps the other readings and never fails the sweep. A failed per-post analytics call keeps the post's views and stored metrics, and so does a platform whose figures are not synced yet or whose post failed. The sweep then logs the mean of each stored metric for every value of `content_format` and of the recorded render choices (`profile`, `script_template`, `voice_profile`, `caption_template`, `cold_open_variant`, from `state/render_choices.jsonl`), leaving unknown readings out and showing how many posts each mean rests on.
 
 ### `audience`
 
@@ -180,7 +180,7 @@ Prints audience rates for a date range from the figures `analytics` stored, with
 python -m src.publisher.late audience --since YYYY-MM-DD --until YYYY-MM-DD [--outputs-dir PATH]
 ```
 
-Per platform and summed: views of posts published in the range, net follows (followers at `--until` minus the day before `--since`), follows per 1,000 views, shares plus saves per 1,000 views and comments per 1,000 views. Then the median YouTube average view percentage of posts published in the range, and Instagram profile views per 1,000 Instagram views. A figure whose inputs are missing prints `-`; the summed row is unknown when any platform's input is.
+Per platform and summed: views of posts published in the range, net follows (followers at `--until` minus the day before `--since`), follows per 1,000 views, shares plus saves per 1,000 views (of those the platform exposes: none on YouTube, shares only on TikTok) and comments per 1,000 views. Then the median YouTube average view percentage of posts published in the range, and Instagram profile views per 1,000 Instagram views, unknown unless every day of the range has profile figures. A figure whose inputs are missing prints `-`; the summed row is unknown when any platform's input is.
 
 | Option | Default | Description |
 |---|---|---|

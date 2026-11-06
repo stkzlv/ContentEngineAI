@@ -82,6 +82,38 @@ class TestParsers:
             "instagram": {"2026-01-09": 50},
         }
 
+    def test_unexposed_fields_are_dropped_not_zero(self):
+        # The provider zero-fills fields a platform doesn't expose.
+        raw = {
+            "dailyData": [
+                {
+                    "date": "2026-01-10",
+                    "platformMetrics": {
+                        "youtube": {"views": 9, "comments": 1, "shares": 0, "saves": 0},
+                        "tiktok": {"views": 9, "shares": 2, "saves": 0},
+                    },
+                }
+            ]
+        }
+        out = daily_totals(raw)
+        assert out["youtube"]["2026-01-10"] == {"views": 9, "comments": 1}
+        assert out["tiktok"]["2026-01-10"] == {"views": 9, "shares": 2}
+        store = {"daily": out}
+        assert platform_rates(store, "youtube", D, D).shares_saves_per_1k is None
+
+    def test_two_accounts_on_one_platform_add_up(self):
+        raw = {
+            "accounts": [
+                {"_id": "a", "platform": "tiktok"},
+                {"_id": "b", "platform": "tiktok"},
+            ],
+            "stats": {
+                "a": [{"date": "2026-01-09", "followers": 10}],
+                "b": [{"date": "2026-01-09", "followers": 5}],
+            },
+        }
+        assert follower_history(raw) == {"tiktok": {"2026-01-09": 15}}
+
     def test_daily_totals_by_platform_and_day(self):
         out = daily_totals(_daily_raw())
         assert out["tiktok"]["2026-01-10"]["views"] == 1000
@@ -240,7 +272,11 @@ def _store() -> dict[str, Any]:
     return {
         "followers": follower_history(_followers_raw()),
         "daily": daily_totals(_daily_raw()),
-        "instagram_profile": {"2026-01-10": {"profile_views": 5}},
+        "instagram_profile": {
+            "2026-01-10": {"profile_views": 2},
+            "2026-01-11": {"profile_views": 0},
+            "2026-01-12": {"profile_views": 3},
+        },
     }
 
 
@@ -254,7 +290,8 @@ class TestReport:
         # REQ-PUB-165.
         r = platform_rates(_store(), "tiktok", D, date(2026, 1, 12))
         assert (r.views, r.net_follows, r.follows_per_1k) == (2000, 6, 3.0)
-        assert (r.shares_saves_per_1k, r.comments_per_1k) == (2.0, 1.0)
+        # TikTok exposes shares but not saves, so its saves are dropped.
+        assert (r.shares_saves_per_1k, r.comments_per_1k) == (1.5, 1.0)
 
     def test_unknown_inputs_give_unknown_rates(self):
         r = platform_rates(_store(), "instagram", D, date(2026, 1, 12))
@@ -290,6 +327,15 @@ class TestReport:
         ]
         assert median_view_percentage(posts, D, date(2026, 1, 12)) == 30.0
         assert median_view_percentage(posts, date(2026, 3, 1), date(2026, 3, 2)) is None
+
+    def test_profile_views_over_part_of_the_range_are_unknown(self):
+        # Partial days over the whole range's views would read low.
+        assert (
+            instagram_profile_views_per_1k(
+                _store(), date(2026, 1, 9), date(2026, 1, 12)
+            )
+            is None
+        )
 
     def test_instagram_profile_views_per_1k(self):
         assert instagram_profile_views_per_1k(_store(), D, date(2026, 1, 12)) == 10.0
@@ -358,6 +404,23 @@ class TestCli:
             cmd_audience(args)
         lines = [r.getMessage() for r in caplog.records]
         tiktok = next(line for line in lines if line.startswith("tiktok"))
-        assert tiktok.split() == ["tiktok", "2000", "6", "3", "2", "1"]
+        assert tiktok.split() == ["tiktok", "2000", "6", "3", "1.5", "1"]
         assert any("Instagram profile views per 1k views: 10" in line for line in lines)
+
         assert json.loads(audience_path(tmp_path).read_text())["followers"]
+
+    def test_large_counts_print_whole(self, tmp_path: Path, caplog):
+        from src.publisher.late.cli import cmd_audience
+
+        store = {"daily": {"tiktok": {"2026-01-10": {"views": 1234567.0}}}}
+        save_audience(store, tmp_path)
+        args = argparse.Namespace(
+            since=datetime(2026, 1, 10),
+            until=datetime(2026, 1, 10),
+            outputs_dir=tmp_path,
+        )
+        with caplog.at_level("INFO", logger="src.publisher.late.cli"):
+            cmd_audience(args)
+        assert any(
+            r.getMessage().split()[:2] == ["tiktok", "1234567"] for r in caplog.records
+        )
