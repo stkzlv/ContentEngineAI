@@ -82,6 +82,7 @@ def test_first_comment_platforms_excludes_tiktok():
     assert "tiktok" not in FIRST_COMMENT_PLATFORMS
 
 
+@pytest.mark.req("REQ-PUB-161", "REQ-PUB-044")
 @pytest.mark.asyncio
 async def test_a_leg_sent_without_a_first_comment_is_not_checked():
     # REQ-PUB-161: a post whose metadata skipped the comment carries none, so
@@ -116,12 +117,14 @@ async def test_a_leg_sent_without_a_first_comment_is_not_checked():
         (None, None),
     ],
 )
+@pytest.mark.req("REQ-PUB-161")
 def test_first_comment_sent_reads_the_leg(specific, sent):
     from src.publisher.late.client import _first_comment_sent
 
     assert _first_comment_sent(specific) is sent
 
 
+@pytest.mark.req("REQ-PUB-161")
 @pytest.mark.asyncio
 async def test_sent_flag_from_the_sdk_models_get_post_platforms_reads():
     # REQ-PUB-161: real runs read pydantic models, not dicts. The SDK's
@@ -172,6 +175,7 @@ async def test_sent_flag_from_the_sdk_models_get_post_platforms_reads():
     ]
 
 
+@pytest.mark.req("REQ-PUB-044", "REQ-PUB-161")
 @pytest.mark.asyncio
 async def test_verify_comments_counts_unsent_legs_apart(monkeypatch, caplog, tmp_path):
     # REQ-PUB-044, REQ-PUB-161: the command, not only the function, keeps a leg

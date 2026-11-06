@@ -116,6 +116,7 @@ async def test_run_swallows_errors(monkeypatch):
     await run_blob_retention(pub, BlobRetentionConfig(enabled=True))
 
 
+@pytest.mark.req("REQ-PUB-059")
 @pytest.mark.asyncio
 async def test_unpublished_urls_read_without_serializer_warnings(monkeypatch):
     # REQ-PUB-059: the provider returns YouTube's `visibility` as a plain string,
