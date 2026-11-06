@@ -9,6 +9,8 @@ import pytest
 
 from src.publisher.schedule import parse_schedule_time
 
+pytestmark = pytest.mark.req("REQ-PUB-018", "REQ-BAT-062", "REQ-BAT-063")
+
 
 def test_offset_is_kept():
     dt = parse_schedule_time("2026-01-20 22:00:00+01:00", "UTC")

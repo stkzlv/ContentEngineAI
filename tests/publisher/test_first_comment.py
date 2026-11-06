@@ -411,6 +411,7 @@ class TestClosingLineTemplate:
         assert "http" not in result
 
 
+@pytest.mark.req("REQ-PUB-161")
 class TestPerPostOverride:
     """REQ-PUB-161: a post's metadata.json overrides or skips its first comment."""
 

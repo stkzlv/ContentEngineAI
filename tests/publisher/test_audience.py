@@ -31,6 +31,8 @@ from src.publisher.audience import (
     youtube_retention,
 )
 
+pytestmark = pytest.mark.req("REQ-PUB-162", "REQ-PUB-163", "REQ-PUB-164", "REQ-PUB-165")
+
 D = date(2026, 1, 10)
 
 

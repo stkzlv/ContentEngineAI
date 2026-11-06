@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.2] - 2026-11-06
+
+### Fixed
+
+- The tests for explicit schedule times, per-post first comments, unsent first-comment legs and audience metrics cite their requirements with the `req` marker, so the coverage report counts them.
+
 ## [0.224.1] - 2026-11-06
 
 ### Fixed
