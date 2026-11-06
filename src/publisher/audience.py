@@ -143,13 +143,18 @@ def daily_totals(raw: Any) -> dict[str, dict[str, dict[str, float]]]:
         for platform, figures in (day_row.get("platformMetrics") or {}).items():
             if not isinstance(figures, dict):
                 continue
-            # A field the platform doesn't expose comes back as 0, as in the
-            # per-post analytics; keep only the exposed ones (QUALITY_METRICS).
-            exposed = QUALITY_METRICS.get(str(platform).lower(), {})
+            # Shares and saves a platform doesn't expose come back as 0, as in
+            # the per-post analytics; drop those for the platforms
+            # QUALITY_METRICS describes. Views and comments always stay.
+            exposed = QUALITY_METRICS.get(str(platform).lower())
             row = {
                 name: value
                 for name in ("views", "comments", "shares", "saves", "postCount")
-                if (name == "postCount" or exposed.get(name))
+                if (
+                    name not in ("shares", "saves")
+                    or exposed is None
+                    or exposed.get(name)
+                )
                 and (value := _number(figures.get(name))) is not None
             }
             if row:
@@ -256,7 +261,9 @@ def sweep_audience(
         fresh["daily"] = daily_totals(raw)
 
     profile: dict[str, dict[str, float]] = {}
-    for account_id in ig_accounts:
+    # One Instagram account: with two, a failed call for one would store a
+    # partial day that overwrites a complete one.
+    for account_id in ig_accounts[:1]:
         for back in range(INSTAGRAM_PROFILE_LOOKBACK_DAYS, 0, -1):
             day = today - timedelta(days=back)
             raw = guard(
@@ -269,9 +276,9 @@ def sweep_audience(
                     until=str(day + timedelta(days=1)),
                 ),
             )
-            for name, value in instagram_profile_day(raw).items():
-                day_row = profile.setdefault(str(day), {})
-                day_row[name] = day_row.get(name, 0.0) + value
+            figures = instagram_profile_day(raw)
+            if figures:
+                profile[str(day)] = figures
     if profile:
         fresh["instagram_profile"] = profile
     return fresh

@@ -101,6 +101,23 @@ class TestParsers:
         store = {"daily": out}
         assert platform_rates(store, "youtube", D, D).shares_saves_per_1k is None
 
+    def test_a_platform_without_a_field_list_keeps_its_figures(self):
+        raw = {
+            "dailyData": [
+                {
+                    "date": "2026-01-10",
+                    "platformMetrics": {
+                        "facebook": {"views": 500, "comments": 2, "shares": 0}
+                    },
+                }
+            ]
+        }
+        assert daily_totals(raw)["facebook"]["2026-01-10"] == {
+            "views": 500,
+            "comments": 2,
+            "shares": 0,
+        }
+
     def test_two_accounts_on_one_platform_add_up(self):
         raw = {
             "accounts": [
@@ -259,6 +276,7 @@ class TestSweep:
         assert set(fresh) == {"followers", "daily", "instagram_profile"}
         assert len(fake.insight_calls) == 7
         assert fake.insight_calls[0] == "a2:2026-01-03"
+        assert {c.split(":")[0] for c in fake.insight_calls} == {"a2"}
         assert fresh["instagram_profile"]["2026-01-09"]["profile_views"] == 2
 
     def test_one_source_failing_keeps_the_rest(self):
