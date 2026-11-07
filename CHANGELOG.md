@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.226.1] - 2026-11-07
+
+### Fixed
+
+- The audio loudness and ducking tests retry an ffmpeg measurement killed by a signal under the parallel suite, and otherwise report ffmpeg's exit code instead of its build banner.
+
 ## [0.226.0] - 2026-11-07
 
 ### Added
