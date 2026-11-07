@@ -124,11 +124,10 @@ def _render(tmp_path: Path, voice: Path, music: Path, filters, label) -> Path:
 def _measure(args: list[str], pattern: str) -> float:
     """Run an ffmpeg measurement and return the number `pattern` captures.
 
-    Under the parallel suite in its memory-capped scope, an ffmpeg child can
-    be killed mid-run; it leaves only the start of its output, and the
-    measurement is missing (#801). A run killed by a signal is retried once;
-    any other miss fails with the return code and the end of stderr, which
-    the banner no longer crowds out.
+    Under the parallel suite this measurement has gone missing intermittently,
+    with only ffmpeg's banner in stderr; the cause is still open (#801). A run
+    that died on a signal is retried once; any other miss fails with the
+    return code and the end of stderr, which the banner no longer crowds out.
     """
     cmd = ["ffmpeg", "-hide_banner", "-nostats", *args, "-f", "null", "-"]
     for _ in range(2):
