@@ -9,9 +9,10 @@ overlay (decision 0017).
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.video.config.audio_models import SignatureSting
 
@@ -33,6 +34,20 @@ class NarratorIdentity(BaseModel):
     music_queries: list[str] = Field(default_factory=list)
     # A pycaps template name, used instead of drawing from the pool.
     caption_template: str | None = None
+
+    @field_validator("signoff")
+    @classmethod
+    def _one_sentence(cls, value: str | None) -> str | None:
+        """One sentence with words: the script step places it as one."""
+        if value is None:
+            return None
+        from src.utils.script_signoff import split_sentences
+
+        if not re.sub(r"[^a-z0-9]", "", value.lower()):
+            raise ValueError(f"signoff carries no words: {value!r}")
+        if len(split_sentences(value.strip())) != 1:
+            raise ValueError(f"signoff must be one sentence: {value!r}")
+        return value.strip()
 
     def pinned_dimensions(self) -> list[str]:
         """The variety-report dimensions this identity fixes to one value."""

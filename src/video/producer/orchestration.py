@@ -421,9 +421,12 @@ def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
     if identity.sting is not None:
         record.audio_settings.signature_sting = identity.sting
     if identity.music_files:
-        # The beds come from the list only: no provider is asked.
+        # The beds come from the list only: every provider is switched off
+        # rather than removed, since an empty list makes the music step
+        # build a legacy Freesound provider instead.
         record.audio_settings.background_music_paths = list(identity.music_files)
-        record.audio_settings.audio_providers = []
+        for provider in record.audio_settings.audio_providers:
+            provider.enabled = False
     elif identity.music_queries:
         for provider in record.audio_settings.audio_providers:
             if "search_queries" in provider.settings:

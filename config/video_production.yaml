@@ -650,7 +650,7 @@ stock_media_settings:
   # Note: Freesound integration removed - background music uses audio_settings instead
 
 # ============================================================================
-# VIDEO PROFILES
+# NARRATOR IDENTITY
 # ============================================================================
 # One recurring narrator identity per content kind (REQ-CNT-168): what every
 # render of the kind keeps the same. Each field is optional and empty here;
@@ -667,6 +667,9 @@ narrator_identity:
   topic: {}
   commentary: {}
 
+# ============================================================================
+# VIDEO PROFILES
+# ============================================================================
 video_profiles:
   # Base profile (shared defaults)
   base:

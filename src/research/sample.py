@@ -184,8 +184,13 @@ async def run_sample(
                 )
             if variant != "shipped":
                 continue
+            from src.video.producer.orchestration import config_for_record
+
             for product in products:
-                record = await sample_one(base, product, profile, secrets, session)
+                # A product's narrator identity too (REQ-CNT-168).
+                record = await sample_one(
+                    config_for_record(base, product), product, profile, secrets, session
+                )
                 records.append({"variant": variant, "kind": "product", **record})
     return records
 

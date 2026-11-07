@@ -655,7 +655,7 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 </details>
 
 <details>
-<summary><strong>4. Audio Settings</strong></summary>
+<summary><strong>3.2. Narrator Identity</strong></summary>
 
 ### 3.2. Narrator Identity
 
@@ -671,6 +671,11 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 | `caption_template` | str | The pycaps template for every render of the kind, instead of drawing from `template_pool`. A video profile that sets its own pycaps template still wins. |
 
 The variety report marks a pinned dimension (the voice, the caption template, a single music file) as pinned and leaves those renders out of its dominance alert (REQ-CNT-170).
+
+</details>
+
+<details>
+<summary><strong>4. Audio Settings</strong></summary>
 
 ### 4. Audio Settings
 

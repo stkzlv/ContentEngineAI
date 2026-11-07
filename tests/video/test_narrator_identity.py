@@ -69,12 +69,15 @@ class TestTheBlock:
         assert signature.topic.pinned_signoff == ""
         assert record.audio_settings.signature_sting.position == "end"
         assert record.audio_settings.background_music_paths == [bed]
-        assert record.audio_settings.audio_providers == []
+        from src.video.producer.steps import _build_audio_providers
+
+        # No provider is built, the legacy Freesound path included.
+        assert _build_audio_providers(record, {"FREESOUND_API_KEY": "x"}) == []
         assert record.subtitle_settings["pycaps"]["template_name"] == "pinned_template"
         assert record.subtitle_settings["pycaps"]["template_pool"] == []
         # The shared config is untouched for the next record.
         assert config.tts_config.default_voice_profile != "pinned_voice"
-        assert config.audio_settings.audio_providers
+        assert any(p.enabled for p in config.audio_settings.audio_providers)
 
     def test_music_queries_replace_the_providers_queries(self, config):
         config.narrator_identity.topic = NarratorIdentity(music_queries=["dark synth"])
@@ -164,3 +167,23 @@ class TestTheVarietyReport:
         ]
         two_beds = NarratorIdentity(music_files=[Path("a.mp3"), Path("b.mp3")])
         assert two_beds.pinned_dimensions() == []
+
+
+@pytest.mark.req("REQ-CNT-169")
+class TestTheSignoffShape:
+    @pytest.mark.parametrize("value", ["I'm Alex. See you tomorrow.", "...", ""])
+    def test_more_than_one_sentence_or_no_words_is_refused(self, value):
+        with pytest.raises(ValueError):
+            NarratorIdentity(signoff=value)
+
+    def test_a_signoff_folded_into_a_sentence_is_not_added_again(self):
+        script = f"Set it to six, and that's the take. {CTA}"
+        assert place_signoff(script, "That's the take.", CTA, insert=True) == script
+
+
+@pytest.mark.req("REQ-CNT-168")
+def test_research_product_samples_apply_the_identity():
+    from src.utils.outputs_paths import get_project_root
+
+    source = (get_project_root() / "src/research/sample.py").read_text()
+    assert "config_for_record(base, product)" in source
