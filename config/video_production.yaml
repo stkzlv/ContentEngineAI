@@ -285,6 +285,10 @@ video_settings:
     enabled: true
     opening_max_sec: 3.0
     recap_sec: 2.5
+    # A step with no menu path (pressing buttons) shows a short label such as
+    # "Power + Volume Down", asked for in the step-list call, instead of its
+    # action sentence cut to fit.
+    short_labels: true
 
   # Phase 1.2e cold-open variant rotation. Three named opening styles are
   # tracked per render so downstream analytics can segment retention by

@@ -107,6 +107,11 @@ def _recap_word(spoken: list[dict[str, Any]], last_key: int) -> int | None:
     return later[1] if len(later) > 1 else None
 
 
+def _no_path_label(step: dict[str, Any]) -> str:
+    """A step's row text without a menu path: its short label, else its action."""
+    return str(step.get("label") or step.get("action") or "")
+
+
 def plan_step_visuals(
     steps: list[dict[str, Any]],
     spoken: list[dict[str, Any]],
@@ -153,7 +158,7 @@ def plan_step_visuals(
         screens.append(Screen("start", opening_max_sec, starts[0], header=start_screen))
     for number, step in enumerate(steps, start=1):
         segments = path_segments(str(step.get("ui_path") or ""))
-        target = segments[-1] if segments else str(step.get("action") or "")
+        target = segments[-1] if segments else _no_path_label(step)
         # The screen the step happens on, where the step list names it: the
         # path's parent, or the start screen for the first step. Otherwise
         # the header stays blank rather than guessed.
@@ -183,7 +188,7 @@ def plan_step_visuals(
                 header="Recap",
                 rows=[
                     " > ".join(path_segments(str(s.get("ui_path") or "")))
-                    or str(s.get("action") or "")
+                    or _no_path_label(s)
                     for s in steps
                 ],
                 result=str(steps[-1].get("expected") or ""),

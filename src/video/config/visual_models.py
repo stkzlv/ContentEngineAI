@@ -493,6 +493,13 @@ class StepVisualsSettings(BaseModel):
             "earlier where the spoken recap does."
         ),
     )
+    short_labels: bool = Field(
+        default=False,
+        description=(
+            "Ask the step list for a short label (at most four words) on a "
+            "step with no menu path, and show it in place of the action."
+        ),
+    )
 
 
 class HookOverlaySettings(BaseModel):
