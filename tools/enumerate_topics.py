@@ -12,8 +12,8 @@ Output is written to a path, never to stdout, and every field is terminated
 rather than separated: a trailing empty field -- a last topic with no keywords
 -- would otherwise end the stream on a delimiter and be dropped by ``mapfile``.
 
-Record layout: the output root once, then four fields per topic (product id,
-title, description, comma-joined keywords).
+Record layout: the output root once, then five fields per topic (product id,
+title, description, comma-joined keywords, kind).
 """
 
 from __future__ import annotations

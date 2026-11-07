@@ -42,8 +42,8 @@ cd "$(dirname "$0")/.." || { echo "cannot reach the repo root" >&2; exit 1; }
 # where ffprobe is absent reports every good render as a failure.
 command -v ffprobe >/dev/null 2>&1 || { echo "ffprobe not found" >&2; exit 1; }
 
-# Enumerate through the project's loader: product id, title, description and
-# keywords per topic, NUL-delimited so no title can break the framing. The
+# Enumerate through the project's loader: product id, title, description,
+# keywords and kind per topic, NUL-delimited so no title can break the framing. The
 # output root comes from config rather than a hardcoded "outputs".
 # Via a temp file, not $(...): command substitution strips NUL bytes -- bash
 # cannot hold a NUL in a variable at all -- so routing the records through one
