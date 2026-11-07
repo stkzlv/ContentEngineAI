@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.227.0] - 2026-11-07
+
+### Added
+
+- `video_settings.step_visuals.short_labels` (on in the bundled config) asks the step list for a short label on a step with no menu path, so its step screen and the recap show "Power + Volume Down" instead of the action sentence cut to fit.
+
 ## [0.226.1] - 2026-11-07
 
 ### Fixed

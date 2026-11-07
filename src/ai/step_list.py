@@ -48,6 +48,15 @@ CHECKLIST_RULE = """
   at most 8 words, and `"do"`: what to do instead at that step, in at most 8
   words, each as an instruction ("Tap Clear storage" / "Tap Clear cache").
 """
+# A step screen shows a short label for a step with no menu path (REQ-VID-123),
+# where the whole action sentence would be cut to fit; a longer one is dropped.
+LABEL_MAX_WORDS = 4
+LABEL_RULE = """
+- For a step with an empty `ui_path` (a physical action, such as pressing
+  buttons), also give in it `"label"`: the control or keys the viewer uses, in
+  at most 4 words ("Power + Volume Down"). Leave `label` out of a step that has
+  a `ui_path`.
+"""
 
 
 @dataclass(frozen=True)
@@ -56,6 +65,8 @@ class Step:
     ui_path: str
     expected: str
     source: str
+    # A short label for a step with no `ui_path`; empty otherwise.
+    label: str = ""
 
 
 @dataclass
@@ -109,6 +120,15 @@ def _topic_failures(check: Any) -> list[str] | None:
     return failures
 
 
+def _label(raw: dict[str, Any], ui_path: str) -> str:
+    """The step's short label: only without a path, and only when it fits."""
+    label = _text(raw.get("label"))
+    # A "+" between keys is not a word: "Side button + Volume Up" is four.
+    words = [w for w in label.split() if any(c.isalnum() for c in w)]
+    fits = 0 < len(words) <= LABEL_MAX_WORDS
+    return label if fits and not ui_path else ""
+
+
 def _checklist_pair(mistake: Any) -> tuple[str | None, str | None]:
     """The mistake's short "don't" and "do".
 
@@ -144,11 +164,13 @@ def parse_step_list(answer: str | None) -> StepList | None:
             # A step with nothing to say is a missing step, like an unsourced one.
             refused.append(Step("", "", "", ""))
             continue
+        ui_path = _text(raw.get("ui_path"))
         step = Step(
             _text(raw.get("action")),
-            _text(raw.get("ui_path")),
+            ui_path,
             _text(raw.get("expected")),
             _text(raw.get("source")),
+            _label(raw, ui_path),
         )
         if step.action and _sourced(step.source):
             kept.append(step)
@@ -256,24 +278,42 @@ def fill(prompt: str, fills: dict[str, str]) -> str:
 
 
 def step_list_prompt(
-    topic: str, detail: str, max_steps: int, *, checklist: bool = False
+    topic: str,
+    detail: str,
+    max_steps: int,
+    *,
+    checklist: bool = False,
+    labels: bool = False,
 ) -> str:
-    """The step-list call's prompt; `checklist` adds the short "don't" and "do"."""
+    """The step-list call's prompt.
+
+    `checklist` adds the short "don't" and "do"; `labels` a short label for a
+    step with no menu path.
+    """
     prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
         TOPIC_TITLE=topic, TOPIC_DETAIL=detail, MAX_STEPS=max_steps
     )
     if checklist:
         prompt = prompt.rstrip("\n") + "\n" + CHECKLIST_RULE
+    if labels:
+        prompt = prompt.rstrip("\n") + "\n" + LABEL_RULE
     return prompt
 
 
 async def build_step_list(
-    topic: str, detail: str, *, api_key: str, settings: Any, checklist: bool = False
+    topic: str,
+    detail: str,
+    *,
+    api_key: str,
+    settings: Any,
+    checklist: bool = False,
+    labels: bool = False,
 ) -> StepList | None:
     """One grounded call for the topic's steps; None when it fails.
 
     With `checklist`, the call also asks for the mistake's short "don't" and
-    "do"; without it the prompt is unchanged.
+    "do", and with `labels` for a short label on a step with no menu path;
+    without them the prompt is unchanged.
     """
     try:
         from google import genai
@@ -287,7 +327,9 @@ async def build_step_list(
     except (ImportError, ValueError, OSError, RuntimeError) as e:
         logger.warning("Step list unavailable: %s", e)
         return None
-    prompt = step_list_prompt(topic, detail, settings.max_steps, checklist=checklist)
+    prompt = step_list_prompt(
+        topic, detail, settings.max_steps, checklist=checklist, labels=labels
+    )
     # A timeout, a dropped connection or a server error is retried: about
     # one grounded call in five ran past the timeout, and a topic day lost to
     # it posts nothing. A 4xx (bad request, no credit) would fail again.

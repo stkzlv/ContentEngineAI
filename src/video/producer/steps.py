@@ -556,6 +556,12 @@ def _checklist_on(graphics: Any) -> bool:
     return bool(graphics.enabled and graphics.checklist)
 
 
+def _short_labels_on(video_settings: Any) -> bool:
+    """Whether the step list asks for short labels: only for drawn screens."""
+    visuals = getattr(video_settings, "step_visuals", None)
+    return bool(visuals and visuals.enabled and visuals.short_labels)
+
+
 async def _topic_step_list(ctx: PipelineContext) -> Any:
     """The sourced step list for a topic, when step lists are on (design 0017).
 
@@ -576,6 +582,7 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
         api_key=api_key,
         settings=cfg,
         checklist=_checklist_on(ctx.config.video_settings.graphics),
+        labels=_short_labels_on(ctx.config.video_settings),
     )
     record = Path(ctx.run_paths["script_file"]).with_name("step_list.json")
     if step_list is not None:
@@ -1979,6 +1986,7 @@ def _step_visuals(
         video_end=total_duration,
         opening_max_sec=settings.opening_max_sec,
         recap_sec=settings.recap_sec,
+        short_labels=settings.short_labels,
     )
 
 
