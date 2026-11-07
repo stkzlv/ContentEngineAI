@@ -310,6 +310,16 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--topic-kind",
+        choices=("tutorial", "commentary"),
+        default=None,
+        help=(
+            "With --topic: 'tutorial' (default) renders a how-to from a sourced "
+            "step list; 'commentary' renders an opinion take with the commentary "
+            "templates and no step visuals."
+        ),
+    )
+    parser.add_argument(
         "--topics-file",
         type=Path,
         help=(
@@ -410,6 +420,9 @@ async def main():
     args = parser.parse_args()
 
     topic_mode = args.topic is not None or args.topics_file is not None
+    if getattr(args, "topic_kind", None) and not args.topic:
+        # A topics file sets `kind` per entry, and nothing else reads the flag.
+        parser.error("--topic-kind applies to --topic")
     if topic_mode and args.products_file and not args.profile:
         # Both positionals are optional, so argparse binds a lone profile name
         # to products_file. In topic mode there is no products_file, so the bare
@@ -607,6 +620,7 @@ async def main():
                 topic_description=args.topic_description,
                 topic_keywords=args.topic_keywords,
                 topics_file=args.topics_file,
+                topic_kind=getattr(args, "topic_kind", None),
             )
             # Materialises data.json so the run is inspectable and resumable in
             # the same shape as a scraped product's directory. Shared with the

@@ -62,12 +62,21 @@ TOPIC_TEMPLATES = {
 }
 
 
+# The commentary family (REQ-CNT-166): an opinion take on a topic, with its
+# own rules and none of the product or tutorial ones.
+COMMENTARY_TEMPLATES = {"commentary_take"}
+
+
 def _all_templates() -> list[Path]:
     return sorted(SCRIPTS_DIR.glob("*.md"))
 
 
 def _product_templates() -> list[Path]:
-    return [p for p in _all_templates() if p.stem not in TOPIC_TEMPLATES]
+    return [
+        p
+        for p in _all_templates()
+        if p.stem not in TOPIC_TEMPLATES | COMMENTARY_TEMPLATES
+    ]
 
 
 def _topic_templates() -> list[Path]:
@@ -93,7 +102,15 @@ def test_every_template_is_categorised() -> None:
     neither set would ship with none of either family's rules checked.
     """
     names = {p.stem for p in _all_templates()}
-    assert names == EXPECTED_TEMPLATES | TOPIC_TEMPLATES
+    assert names == EXPECTED_TEMPLATES | TOPIC_TEMPLATES | COMMENTARY_TEMPLATES
+
+
+@pytest.mark.req("REQ-CNT-166")
+def test_commentary_family_matches_the_config() -> None:
+    from src.video.config import config
+
+    templates = config.llm_settings.script_templates
+    assert set(templates.commentary_templates) == COMMENTARY_TEMPLATES
 
 
 @pytest.mark.parametrize("template", _product_templates(), ids=lambda p: p.stem)

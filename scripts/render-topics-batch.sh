@@ -42,8 +42,8 @@ cd "$(dirname "$0")/.." || { echo "cannot reach the repo root" >&2; exit 1; }
 # where ffprobe is absent reports every good render as a failure.
 command -v ffprobe >/dev/null 2>&1 || { echo "ffprobe not found" >&2; exit 1; }
 
-# Enumerate through the project's loader: product id, title, description and
-# keywords per topic, NUL-delimited so no title can break the framing. The
+# Enumerate through the project's loader: product id, title, description,
+# keywords and kind per topic, NUL-delimited so no title can break the framing. The
 # output root comes from config rather than a hardcoded "outputs".
 # Via a temp file, not $(...): command substitution strips NUL bytes -- bash
 # cannot hold a NUL in a variable at all -- so routing the records through one
@@ -62,7 +62,7 @@ PY_EXIT=$?
 
 mapfile -d '' -t fields < "$records_file"
 root=${fields[0]}
-total=$(( (${#fields[@]} - 1) / 4 ))
+total=$(( (${#fields[@]} - 1) / 5 ))
 [ "$total" -gt 0 ] || { echo "no topics in $TOPICS_FILE" >&2; exit 1; }
 
 ok=0; failed=0; summary=()
@@ -76,15 +76,16 @@ NO_MEMORY=75
 stopped=""
 
 for ((i = 0; i < total; i++)); do
-  pid=${fields[$((i * 4 + 1))]}
-  title=${fields[$((i * 4 + 2))]}
-  desc=${fields[$((i * 4 + 3))]}
-  kw=${fields[$((i * 4 + 4))]}
+  pid=${fields[$((i * 5 + 1))]}
+  title=${fields[$((i * 5 + 2))]}
+  desc=${fields[$((i * 5 + 3))]}
+  kw=${fields[$((i * 5 + 4))]}
+  kind=${fields[$((i * 5 + 5))]}
   echo "=== [$((i + 1))/$total] $title"
 
   rc=0
   run "$PROFILE" --topic "$title" --topic-description "$desc" \
-      --topic-keywords "$kw" --step generate_script || rc=$?
+      --topic-keywords "$kw" --topic-kind "$kind" --step generate_script || rc=$?
   if [ "$rc" -eq "$NO_MEMORY" ]; then
     summary+=("STOP  $title (not enough memory)"); failed=$((failed + 1)); stopped=1; break
   elif [ "$rc" -ne 0 ]; then

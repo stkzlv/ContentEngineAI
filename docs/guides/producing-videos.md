@@ -54,6 +54,8 @@ A topic render works from a subject rather than a listing, with a profile that s
    poetry run python -m src.video.producer slideshow_stock --topics-file topics.yaml
    ```
 
+4. Optional: render a topic as a commentary take, an opinion with a closing question and no steps, with `--topic-kind commentary` beside `--topic`, or `kind: commentary` on an entry in the file. It draws `script_templates.commentary_templates` and the commentary narrator, CTAs and length, and builds no step list, step cards or step screens.
+
 A topic render draws from its own template pool, written to answer a question rather than pitch a product, and uses a narrator profile whose calls to action offer nothing to buy. Length follows the script, so a short description yields a short video. For a long list, `make topics-batch` runs each step in its own process; see [Rendering a batch of topics](batch-processing.md#rendering-a-batch-of-topics).
 
 ## Render every scraped product

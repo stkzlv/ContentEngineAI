@@ -355,6 +355,43 @@ def apply_script_template_overrides(
         templates.fixed_cta = cli_overrides["cta"]
 
 
+def config_for_record(config: Any, product: Any) -> Any:
+    """The config a record renders with: a commentary topic swaps families.
+
+    A commentary topic (REQ-CNT-166) is a topic record, so every consumer that
+    branches on "is a topic" already does the right thing for disclosure and
+    voice. What differs is which topic family it draws, so the swap happens
+    here, on a copy for this record only: the commentary templates, narrator,
+    CTAs and length replace the topic ones, task-title routing is off, and the
+    sourced step list, which the step cards and screens read, is off. Any other
+    record gets the config unchanged.
+
+    Raises
+    ------
+        PipelineError: A commentary record with no commentary templates; a
+            tutorial template would write a how-to under a take's title.
+
+    """
+    if getattr(product, "topic_kind", None) != "commentary":
+        return config
+    templates = config.llm_settings.script_templates
+    if not templates.commentary_templates:
+        raise PipelineError(
+            "A commentary topic needs script_templates.commentary_templates"
+        )
+    record = config.model_copy(deep=True)
+    t = record.llm_settings.script_templates
+    t.topic_templates = list(t.commentary_templates)
+    if t.narrator_profile_commentary:
+        t.narrator_profile_topic = t.narrator_profile_commentary
+    if t.cta_options_commentary:
+        t.cta_options_topic = list(t.cta_options_commentary)
+    t.target_length.topic = t.target_length.commentary
+    t.topic_routing.enabled = False
+    record.llm_settings.topic_scripts.step_list.enabled = False
+    return record
+
+
 async def create_video_for_product(
     config: VideoConfig,
     product: ProductData,
@@ -422,6 +459,7 @@ async def create_video_for_product(
                 ) from e
 
         try:
+            config = config_for_record(config, product)
             profile = config.get_profile(profile_name)
             ensure_dirs_exist(run_paths["run_root"])
 

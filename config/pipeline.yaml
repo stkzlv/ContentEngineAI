@@ -50,7 +50,8 @@ global_batch:
   # a run with no input flags -- the repeatable path, and the one a scheduled
   # run uses -- produced product renders and nothing else.
   #
-  # Same shape as a `--topics-file`.
+  # Same shape as a `--topics-file`. An entry may set `kind: commentary` to
+  # render an opinion take instead of a tutorial (REQ-CNT-167).
   topics:
     - title: "Why your wifi keeps dropping"
       description: "Router placement, channel congestion, 2.4 vs 5GHz bands."

@@ -39,6 +39,9 @@ MAX_SLUG_LENGTH = 60
 TOPIC_ID_PREFIX = "topic-"
 
 
+TOPIC_KINDS = ("tutorial", "commentary")
+
+
 class TopicInputError(ValueError):
     """Raised when a topic file is malformed.
 
@@ -61,6 +64,8 @@ class TopicSpec:
         search: Optional search the content research measures this topic
             by, where the title is too long for Google Trends. No render
             reads it.
+        kind: "tutorial" (the default: a step list and a how-to script) or
+            "commentary" (an opinion take with no steps, REQ-CNT-166).
 
     """
 
@@ -68,6 +73,7 @@ class TopicSpec:
     description: str = ""
     keywords: list[str] = field(default_factory=list)
     search: str = ""
+    kind: str = "tutorial"
 
     def __post_init__(self) -> None:
         """Validate here so `--topic` and a topics file behave identically.
@@ -79,6 +85,10 @@ class TopicSpec:
         if not isinstance(self.title, str) or not self.title.strip():
             raise TopicInputError("Topic title is required and must not be blank")
         self.title = self.title.strip()
+        if self.kind not in TOPIC_KINDS:
+            raise TopicInputError(
+                f"Topic kind must be one of {', '.join(TOPIC_KINDS)}, got {self.kind!r}"
+            )
 
 
 def topic_slug(title: str) -> str:
@@ -140,6 +150,7 @@ def build_topic_product(spec: TopicSpec) -> ProductData:
         keyword=", ".join(spec.keywords),
         asin=topic_product_id(spec.title),
         topic=spec.title,
+        topic_kind="commentary" if spec.kind == "commentary" else None,
     )
 
 
@@ -169,7 +180,11 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     if not isinstance(search, str):
         raise TopicInputError(f"{where}: 'search' must be a string")
 
-    unknown = set(entry) - {"title", "description", "keywords", "search"}
+    kind = entry.get("kind", "tutorial")
+    if not isinstance(kind, str):
+        raise TopicInputError(f"{where}: 'kind' must be a string")
+
+    unknown = set(entry) - {"title", "description", "keywords", "search", "kind"}
     if unknown:
         # Strict, because a typo in a hand-written file would otherwise cost a
         # render before anyone noticed the field never applied.
@@ -177,12 +192,16 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
             f"{where}: unknown key(s): {', '.join(sorted(map(str, unknown)))}"
         )
 
-    return TopicSpec(
-        title=title.strip(),
-        description=description,
-        keywords=list(keywords),
-        search=search.strip(),
-    )
+    try:
+        return TopicSpec(
+            title=title.strip(),
+            description=description,
+            keywords=list(keywords),
+            search=search.strip(),
+            kind=kind.strip(),
+        )
+    except TopicInputError as exc:
+        raise TopicInputError(f"{where}: {exc}") from None
 
 
 def specs_from_mappings(raw: Any, source: str | Path) -> list[TopicSpec]:
@@ -239,6 +258,7 @@ def specs_from_args(
     topic_description: str | None,
     topic_keywords: str | None,
     topics_file: Path | None,
+    topic_kind: str | None = None,
 ) -> list[TopicSpec]:
     """Resolve the topic CLI flags into specs.
 
@@ -251,9 +271,17 @@ def specs_from_args(
         # The producer rejects this pair at the parser. Raising here as well
         # means the batch cannot quietly keep the file and drop the flag.
         raise TopicInputError("--topic and --topics-file cannot be used together")
+    if topics_file is not None and topic_kind:
+        # A file sets `kind` per entry; a flag that silently applied to none
+        # of them would render tutorials the operator asked to be takes.
+        raise TopicInputError(
+            "--topic-kind applies to --topic; set 'kind' per entry in a topics file"
+        )
     if topics_file is not None:
         return load_topics_file(topics_file)
     if topic is None:
+        if topic_kind:
+            raise TopicInputError("--topic-kind applies to --topic")
         return []
     return [
         TopicSpec(
@@ -262,6 +290,7 @@ def specs_from_args(
             keywords=[
                 k.strip() for k in (topic_keywords or "").split(",") if k.strip()
             ],
+            kind=topic_kind or "tutorial",
         )
     ]
 

@@ -28,6 +28,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-013** `shipped` A topic render draws its template only from `script_templates.topic_templates`, and a product render never draws a topic template.
 - **REQ-CNT-161** `shipped` Where `script_templates.topic_routing.enabled` is on, a topic whose title is a task (it starts "How to") draws its template only from `topic_routing.task_templates` (`topic_answer_first`), so the symptom-first and mistake-first templates are left to topics that are not tasks.
 - **REQ-CNT-014** `shipped` A topic render uses the topic narrator profile (`script_templates.narrator_profile_topic`) and the topic call-to-action list.
+- **REQ-CNT-166** `shipped` A topic marked commentary renders with `script_templates.commentary_templates`, `narrator_profile_commentary`, `cta_options_commentary` and `target_length.commentary` in place of the topic ones (an empty narrator or CTA list keeps the topic one), without the sourced step list and so without step cards or step screens, and with no disclosure overlay; a product never draws a commentary template, and a commentary topic with no commentary templates is refused.
+  - Gap: the length target is asked for in the prompt and not checked; a measured render came in under the commentary range.
+- **REQ-CNT-167** `shipped` A topic is marked commentary with `kind: commentary` in a topics file or the `topics:` block, or with `--topic-kind commentary` beside `--topic` on the producer or the global batch; `--topic-kind` without `--topic` is refused, and the record carries `topic_kind: commentary` in its `data.json`.
 - **REQ-CNT-015** `shipped` The producer does not shorten a topic title with the product-alias heuristic.
 
 ## Product script rules

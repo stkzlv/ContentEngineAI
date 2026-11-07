@@ -42,14 +42,15 @@ class TestEnumeration:
     ) -> None:
         records = enumerate_records(topics_file)
 
-        # One root plus four fields each; the count is what the shell divides
+        # One root plus five fields each; the count is what the shell divides
         # by to get the topic total, so a dropped field silently loses a topic.
-        assert len(records) == 1 + 4 * len(FIXTURE)
+        assert len(records) == 1 + 5 * len(FIXTURE)
         assert records[2] == "Topic A"
         assert records[4] == "kw a, kw b"
-        assert records[6] == "Café wifi tips"
-        assert records[10] == "Topic B without keywords"
-        assert records[12] == ""
+        assert records[5] == "tutorial"
+        assert records[7] == "Café wifi tips"
+        assert records[12] == "Topic B without keywords"
+        assert records[14] == ""
 
     def test_the_product_id_is_the_one_the_producer_will_use(
         self, topics_file: Path
@@ -64,8 +65,8 @@ class TestEnumeration:
         records = enumerate_records(topics_file)
 
         assert records[1] == topic_product_id("Topic A")
-        assert records[5] == topic_product_id("Café wifi tips")
-        assert records[9] == topic_product_id("Topic B without keywords")
+        assert records[6] == topic_product_id("Café wifi tips")
+        assert records[11] == topic_product_id("Topic B without keywords")
 
     def test_the_root_comes_from_config_not_a_hardcoded_outputs(
         self, topics_file: Path
@@ -107,7 +108,7 @@ class TestTheHandoff:
         # then derives a different id from that title, creates that directory,
         # and the run reports the topic missing -- after paying for its script
         # step. Asserting only on the returned list leaves that path untested.
-        assert fields[6].decode() == str(FIXTURE[1]["title"])
+        assert fields[7].decode() == str(FIXTURE[1]["title"])
         assert "\0" not in capsys.readouterr().out
 
     def test_a_nul_inside_a_field_is_refused(self, tmp_path: Path) -> None:
@@ -147,3 +148,18 @@ class TestTheScriptAndThePipelineAgree:
         # generate_script is run separately, with the topic flags, so it is
         # not in STEPS but is still covered by the target.
         assert steps | {"generate_script"} == set(VALID_STEPS)
+
+
+@pytest.mark.req("REQ-CNT-167")
+def test_a_commentary_entry_passes_its_kind(tmp_path: Path) -> None:
+    path = tmp_path / "topics.yaml"
+    path.write_text("- title: A take\n  kind: commentary\n", encoding="utf-8")
+    assert enumerate_records(path)[5] == "commentary"
+
+
+def test_the_batch_script_passes_the_kind() -> None:
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts/render-topics-batch.sh"
+    ).read_text()
+    assert "/ 5 ))" in script
+    assert '--topic-kind "$kind"' in script

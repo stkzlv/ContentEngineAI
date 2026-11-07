@@ -59,7 +59,11 @@ def _product() -> ProductData:
 def shipped_ctas() -> dict[str, list[str]]:
     raw = yaml.safe_load((REPO / "config" / "ai_services.yaml").read_text())
     block = raw["llm_settings"]["script_templates"]
-    return {"product": block["cta_options"], "topic": block["cta_options_topic"]}
+    return {
+        "product": block["cta_options"],
+        "topic": block["cta_options_topic"],
+        "commentary": block["cta_options_commentary"],
+    }
 
 
 @pytest.mark.unit

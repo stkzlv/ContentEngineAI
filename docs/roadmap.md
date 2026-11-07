@@ -16,7 +16,7 @@ Short commentary videos on any subject, voiced by one recurring narrator, beside
 
 ### H.1 Commentary script template
 
-A commentary template family for topic records, with its own narrator profile, call-to-action list and length target, and without the tutorial-only steps. #782.
+A commentary template family for topic records, with its own narrator profile, call-to-action list and length target, and without the tutorial-only steps. #782. Shipped: `kind: commentary` on a topic ([design 0030](design/0030-commentary-topics.md)).
 
 **Done when:** a topic entry marked as commentary renders with its own template and no step visuals, and publishes with no disclosure overlay.
 

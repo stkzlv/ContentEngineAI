@@ -165,10 +165,15 @@ async def run_sample(
             base = load(cli_overrides=with_outputs_root({}, root))
             secrets = collect_producer_secrets(base)
             for spec in topics:
-                config = variant_config(base, variant, spec.title)
-                record = await sample_one(
-                    config, build_topic_product(spec), profile, secrets, session
+                # The swap a render makes for a commentary topic (REQ-CNT-166),
+                # or the sample measures a script the render never writes.
+                from src.video.producer.orchestration import config_for_record
+
+                product = build_topic_product(spec)
+                config = config_for_record(
+                    variant_config(base, variant, spec.title), product
                 )
+                record = await sample_one(config, product, profile, secrets, session)
                 records.append(
                     {
                         "variant": variant,

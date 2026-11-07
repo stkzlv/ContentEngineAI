@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.225.0] - 2026-11-07
+
+### Added
+
+- A topic can render as a commentary take, an opinion with a closing question and no steps, with `kind: commentary` in a topics file or `--topic-kind commentary`; it draws the new commentary templates, narrator, calls to action and length, and builds no step list or step visuals.
+
 ## [0.224.2] - 2026-11-06
 
 ### Fixed
