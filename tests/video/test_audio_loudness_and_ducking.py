@@ -447,7 +447,8 @@ class TestTheMeasurementHelper:
         calls = self._fake(
             monkeypatch, [(-9, "Input #0"), (0, "mean_volume: -21.5 dB")]
         )
-        assert _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)") == -21.5
+        with pytest.warns(UserWarning, match="signal 9"):
+            assert _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)") == -21.5
         assert len(calls) == 2
         assert "-hide_banner" in calls[0]
 
@@ -459,5 +460,8 @@ class TestTheMeasurementHelper:
 
     def test_two_kills_fail(self, monkeypatch):
         self._fake(monkeypatch, [(-9, ""), (-9, "")])
-        with pytest.raises(AssertionError, match="ffmpeg exit -9"):
+        with (
+            pytest.warns(UserWarning, match="signal 9"),
+            pytest.raises(AssertionError, match="ffmpeg exit -9"),
+        ):
             _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)")
