@@ -22,6 +22,7 @@ import itertools
 import re
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 
 import pytest
@@ -121,52 +122,49 @@ def _render(tmp_path: Path, voice: Path, music: Path, filters, label) -> Path:
     return out
 
 
-def _integrated_lufs(path: Path) -> float:
-    proc = subprocess.run(
-        [
-            "ffmpeg",
-            "-nostats",
-            "-i",
-            str(path),
-            "-af",
-            "ebur128=peak=true",
-            "-f",
-            "null",
-            "-",
-        ],
-        capture_output=True,
-        text=True,
+def _measure(args: list[str], pattern: str) -> float:
+    """Run an ffmpeg measurement and return the number `pattern` captures.
+
+    Under the parallel suite this measurement has gone missing intermittently,
+    with only ffmpeg's banner in stderr; the cause is still open (#801). A run
+    that died on a signal is retried once; any other miss fails with the
+    return code and the end of stderr, which the banner no longer crowds out.
+    """
+    cmd = ["ffmpeg", "-hide_banner", "-nostats", *args, "-f", "null", "-"]
+    for _ in range(2):
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        match = re.search(pattern, proc.stderr)
+        if match:
+            return float(match.group(1))
+        if proc.returncode >= 0:
+            break
+        # Shown in pytest's warnings summary on a passing run, so a retried
+        # kill still reaches #801.
+        warnings.warn(
+            f"ffmpeg died on signal {-proc.returncode}, retrying (#801)", stacklevel=2
+        )
+    raise AssertionError(
+        f"no measurement (ffmpeg exit {proc.returncode}): {proc.stderr[-2000:]}"
     )
-    match = re.search(r"Integrated loudness:\s*\n\s*I:\s*(-?[\d.]+)", proc.stderr)
-    assert match, proc.stderr[-2000:]
-    return float(match.group(1))
+
+
+def _integrated_lufs(path: Path) -> float:
+    return _measure(
+        ["-i", str(path), "-af", "ebur128=peak=true"],
+        r"Integrated loudness:\s*\n\s*I:\s*(-?[\d.]+)",
+    )
 
 
 def _true_peak_dbfs(path: Path) -> float:
-    proc = subprocess.run(
-        [
-            "ffmpeg",
-            "-nostats",
-            "-i",
-            str(path),
-            "-af",
-            "ebur128=peak=true",
-            "-f",
-            "null",
-            "-",
-        ],
-        capture_output=True,
-        text=True,
+    return _measure(
+        ["-i", str(path), "-af", "ebur128=peak=true"],
+        r"True peak:\s*\n\s*Peak:\s*(-?[\d.]+)",
     )
-    match = re.search(r"True peak:\s*\n\s*Peak:\s*(-?[\d.]+)", proc.stderr)
-    assert match, proc.stderr[-2000:]
-    return float(match.group(1))
 
 
 def _mean_dbfs(path: Path, start: float, end: float) -> float:
-    proc = subprocess.run(
+    return _measure(
         [
-            "ffmpeg",
             "-v",
             "info",
             "-ss",
@@ -177,16 +175,9 @@ def _mean_dbfs(path: Path, start: float, end: float) -> float:
             str(path),
             "-af",
             "volumedetect",
-            "-f",
-            "null",
-            "-",
         ],
-        capture_output=True,
-        text=True,
+        r"mean_volume:\s*(-?[\d.]+)",
     )
-    match = re.search(r"mean_volume:\s*(-?[\d.]+)", proc.stderr)
-    assert match, proc.stderr[-2000:]
-    return float(match.group(1))
 
 
 @pytest.mark.integration
@@ -435,3 +426,42 @@ def test_the_bundled_ceiling_leaves_room_for_the_aac_encode() -> None:
 
     ceiling = load_video_config_modular().audio_settings.loudness_true_peak_db
     assert ceiling + 0.2 < -1.0
+
+
+@pytest.mark.unit
+class TestTheMeasurementHelper:
+    """#801: a killed ffmpeg is retried once; any other miss names its exit."""
+
+    def _fake(self, monkeypatch, results):
+        calls = []
+
+        def run(cmd, **_):
+            calls.append(cmd)
+            code, err = results[len(calls) - 1]
+            return subprocess.CompletedProcess(cmd, code, "", err)
+
+        monkeypatch.setattr(subprocess, "run", run)
+        return calls
+
+    def test_a_killed_run_is_retried(self, monkeypatch):
+        calls = self._fake(
+            monkeypatch, [(-9, "Input #0"), (0, "mean_volume: -21.5 dB")]
+        )
+        with pytest.warns(UserWarning, match="signal 9"):
+            assert _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)") == -21.5
+        assert len(calls) == 2
+        assert "-hide_banner" in calls[0]
+
+    def test_a_plain_failure_is_reported_with_its_exit(self, monkeypatch):
+        calls = self._fake(monkeypatch, [(1, "No such file")])
+        with pytest.raises(AssertionError, match="ffmpeg exit 1"):
+            _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)")
+        assert len(calls) == 1
+
+    def test_two_kills_fail(self, monkeypatch):
+        self._fake(monkeypatch, [(-9, ""), (-9, "")])
+        with (
+            pytest.warns(UserWarning, match="signal 9"),
+            pytest.raises(AssertionError, match="ffmpeg exit -9"),
+        ):
+            _measure(["-i", "x"], r"mean_volume:\s*(-?[\d.]+)")
