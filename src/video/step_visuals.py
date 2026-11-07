@@ -107,9 +107,10 @@ def _recap_word(spoken: list[dict[str, Any]], last_key: int) -> int | None:
     return later[1] if len(later) > 1 else None
 
 
-def _no_path_label(step: dict[str, Any]) -> str:
+def _no_path_label(step: dict[str, Any], short_labels: bool) -> str:
     """A step's row text without a menu path: its short label, else its action."""
-    return str(step.get("label") or step.get("action") or "")
+    label = step.get("label") if short_labels else None
+    return str(label or step.get("action") or "")
 
 
 def plan_step_visuals(
@@ -120,6 +121,7 @@ def plan_step_visuals(
     video_end: float,
     opening_max_sec: float,
     recap_sec: float,
+    short_labels: bool = False,
 ) -> list[Screen]:
     """The screens for a render, in order; none unless every step is found.
 
@@ -158,7 +160,7 @@ def plan_step_visuals(
         screens.append(Screen("start", opening_max_sec, starts[0], header=start_screen))
     for number, step in enumerate(steps, start=1):
         segments = path_segments(str(step.get("ui_path") or ""))
-        target = segments[-1] if segments else _no_path_label(step)
+        target = segments[-1] if segments else _no_path_label(step, short_labels)
         # The screen the step happens on, where the step list names it: the
         # path's parent, or the start screen for the first step. Otherwise
         # the header stays blank rather than guessed.
@@ -188,7 +190,7 @@ def plan_step_visuals(
                 header="Recap",
                 rows=[
                     " > ".join(path_segments(str(s.get("ui_path") or "")))
-                    or _no_path_label(s)
+                    or _no_path_label(s, short_labels)
                     for s in steps
                 ],
                 result=str(steps[-1].get("expected") or ""),
@@ -419,6 +421,7 @@ def load_step_visuals(
     video_end: float,
     opening_max_sec: float,
     recap_sec: float,
+    short_labels: bool = False,
 ) -> list[tuple[Path, float, float]]:
     """Each screen's image and its times, drawn into `out_dir`; none on any gap.
 
@@ -446,6 +449,7 @@ def load_step_visuals(
         video_end=video_end,
         opening_max_sec=opening_max_sec,
         recap_sec=recap_sec,
+        short_labels=short_labels,
     )
     drawn: list[tuple[Path, float, float]] = []
     for i, screen in enumerate(screens):

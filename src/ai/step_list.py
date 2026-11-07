@@ -123,7 +123,9 @@ def _topic_failures(check: Any) -> list[str] | None:
 def _label(raw: dict[str, Any], ui_path: str) -> str:
     """The step's short label: only without a path, and only when it fits."""
     label = _text(raw.get("label"))
-    fits = 0 < len(label.split()) <= LABEL_MAX_WORDS
+    # A "+" between keys is not a word: "Side button + Volume Up" is four.
+    words = [w for w in label.split() if any(c.isalnum() for c in w)]
+    fits = 0 < len(words) <= LABEL_MAX_WORDS
     return label if fits and not ui_path else ""
 
 

@@ -1986,6 +1986,7 @@ def _step_visuals(
         video_end=total_duration,
         opening_max_sec=settings.opening_max_sec,
         recap_sec=settings.recap_sec,
+        short_labels=settings.short_labels,
     )
 
 

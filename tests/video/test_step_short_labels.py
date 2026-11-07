@@ -45,6 +45,14 @@ class TestTheLabelIsParsed:
         assert parsed is not None
         assert parsed.steps[0].label == ""
 
+    @pytest.mark.parametrize(
+        "label", ["Side button + Volume Up", "Volume Up + Volume Down"]
+    )
+    def test_a_plus_between_keys_is_not_a_word(self, label: str) -> None:
+        parsed = parse_step_list(_answer(label=label))
+        assert parsed is not None
+        assert parsed.steps[0].label == label
+
     def test_a_step_with_a_path_keeps_no_label(self) -> None:
         parsed = parse_step_list(_answer(ui_path="Settings > Sound", label="Sound"))
         assert parsed is not None
@@ -103,7 +111,7 @@ class TestTheScreenShowsIt:
         "The screen flashes. That is the whole trick."
     )
 
-    def _plan(self, steps_: list[dict]) -> list:
+    def _plan(self, steps_: list[dict], short_labels: bool = True) -> list:
         spoken = [
             {"word": w, "start_time": i * 0.5, "end_time": i * 0.5 + 0.4}
             for i, w in enumerate(self.TEXT.split())
@@ -115,6 +123,7 @@ class TestTheScreenShowsIt:
             video_end=20.0,
             opening_max_sec=2.0,
             recap_sec=2.5,
+            short_labels=short_labels,
         )
 
     def test_the_step_and_the_recap_use_the_label(self) -> None:
@@ -128,6 +137,13 @@ class TestTheScreenShowsIt:
         unlabelled = [dict(s, label="") for s in self.STEPS]
         step = [s for s in self._plan(unlabelled) if s.kind == "step"][1]
         assert step.target == PHYSICAL
+
+    def test_with_the_switch_off_a_recorded_label_is_not_shown(self) -> None:
+        screens = self._plan(self.STEPS, short_labels=False)
+        step = [s for s in screens if s.kind == "step"][1]
+        recap = [s for s in screens if s.kind == "recap"][0]
+        assert step.target == PHYSICAL
+        assert recap.rows == ["Settings", PHYSICAL]
 
 
 @pytest.fixture
