@@ -21,7 +21,7 @@ from src.ai.step_list import (
     step_list_prompt,
 )
 from src.video.producer import steps
-from src.video.step_visuals import plan_step_visuals
+from src.video.step_visuals import load_step_visuals, plan_step_visuals
 
 SOURCE = "https://example.com/help"
 PHYSICAL = "Press the power and volume down buttons together"
@@ -144,6 +144,41 @@ class TestTheScreenShowsIt:
         recap = [s for s in screens if s.kind == "recap"][0]
         assert step.target == PHYSICAL
         assert recap.rows == ["Settings", PHYSICAL]
+
+
+@pytest.mark.req("REQ-VID-123")
+class TestTheSwitchReachesTheScreens:
+    def test_the_render_passes_it_to_the_loader(self, config, tmp_path: Path) -> None:
+        cfg = config.model_copy(deep=True)
+        cfg.video_settings.step_visuals.enabled = True
+        cfg.video_settings.step_visuals.short_labels = True
+        ctx = SimpleNamespace(
+            config=cfg,
+            run_paths={
+                "script_file": tmp_path / "script.txt",
+                "intermediate_base": tmp_path,
+            },
+        )
+        with patch("src.video.step_visuals.load_step_visuals") as load:
+            steps._step_visuals(ctx, 20.0)
+        assert load.call_args.kwargs["short_labels"] is True
+
+    def test_the_loader_passes_it_to_the_plan(self, tmp_path: Path) -> None:
+        record = tmp_path / "step_list.json"
+        record.write_text(json.dumps({"steps": TestTheScreenShowsIt.STEPS}))
+        spoken = [{"word": "x", "start_time": 0.0, "end_time": 0.4}]
+        with patch("src.video.step_visuals.plan_step_visuals", return_value=[]) as plan:
+            load_step_visuals(
+                record,
+                spoken,
+                tmp_path,
+                size=(1080, 1920),
+                video_end=20.0,
+                opening_max_sec=2.0,
+                recap_sec=2.5,
+                short_labels=True,
+            )
+        assert plan.call_args.kwargs["short_labels"] is True
 
 
 @pytest.fixture
