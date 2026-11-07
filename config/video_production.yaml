@@ -650,6 +650,24 @@ stock_media_settings:
   # Note: Freesound integration removed - background music uses audio_settings instead
 
 # ============================================================================
+# NARRATOR IDENTITY
+# ============================================================================
+# One recurring narrator identity per content kind (REQ-CNT-168): what every
+# render of the kind keeps the same. Each field is optional and empty here;
+# an installation sets its own in config/video_production.private.yaml.
+#   voice_profile:    a tts_config voice profile (empties the pool; --voice-profile still wins)
+#   signoff:          spoken on every render, inserted before the CTA if missing
+#   sting:            {path, position, offset_sec, volume_db}, as signature_sting
+#   music_files:      local beds used instead of the provider chain
+#   music_queries:    provider search queries, when music_files is empty
+#   caption_template: a pycaps template, instead of the pool
+# A commentary topic is `commentary`, not `topic`.
+narrator_identity:
+  product: {}
+  topic: {}
+  commentary: {}
+
+# ============================================================================
 # VIDEO PROFILES
 # ============================================================================
 video_profiles:

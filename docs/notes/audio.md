@@ -8,6 +8,7 @@ recognisable the next time. Add to it the same way: what broke, why it was
 invisible, and what now catches it.
 -->
 
+- **An empty `audio_providers` list does not mean no provider.** `_build_audio_providers` treats an empty list as the legacy setup and builds a Freesound provider from the `freesound_*` fields whenever `FREESOUND_API_KEY` is set. So a narrator identity's `music_files` first emptied the list, and every render still got a Freesound track while the variety report counted the music as pinned. To use only local beds, switch each provider's `enabled` off and blank `freesound_api_key_env_var`, which the builder now reads as "no legacy provider" (a config with no provider list at all takes that branch too). `tests/video/test_narrator_identity.py` builds the providers with a Freesound key set and asserts none.
 - **Provider platform**: `src/audio/` uses `BaseAudioProvider` ABC + `AudioProviderRegistry` + `AudioManager` chain pattern (same as publisher module)
 - **Adding a provider**: create `src/audio/<provider>.py` with `@register_audio_provider` decorator, add enum value to `AudioProvider`, import in `__init__.py`, enable in YAML
 - **Provider chain**: configured via `audio_providers` list in `video_production.yaml`. Tried in order; within a provider the candidates are ranked on the query's words and the first matching one that downloads wins; local files are last resort

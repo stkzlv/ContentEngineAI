@@ -296,8 +296,9 @@ def select_signature(
     than a random one, which would make the render irreproducible.
     """
     pools = signature.pools(is_topic)
+    pinned = pools.pinned_signoff.strip()
     if not product_id or not signature.enabled or not pools.configured:
-        return SignatureChoice()
+        return SignatureChoice(signoff=pinned)
 
     def draw(element: str, pool: list[str]) -> str:
         if not pool:
@@ -316,7 +317,8 @@ def select_signature(
     return SignatureChoice(
         opener=opener,
         transition=draw("transition", pools.transitions),
-        signoff=draw("signoff", pools.signoffs),
+        # The draw still runs, so pinning a sign-off moves no other draw.
+        signoff=pinned or draw("signoff", pools.signoffs),
     )
 
 

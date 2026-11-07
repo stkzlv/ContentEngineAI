@@ -57,6 +57,6 @@ def test_the_script_step_places_the_drawn_signoff() -> None:
 
     source = inspect.getsource(steps.step_generate_script)
     assert (
-        "place_signoff(\n                sanitize_script(script_text), signature.signoff"
-        in (source)
+        "place_signoff(\n                sanitize_script(script_text),\n"
+        "                signature.signoff," in (source)
     )

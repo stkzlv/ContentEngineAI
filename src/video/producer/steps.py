@@ -659,8 +659,14 @@ async def step_generate_script(ctx: PipelineContext):
                 is_topic=bool(getattr(ctx.product, "topic", None)),
                 template=template_name,
             )
+            pinned_signoff = ctx.config.llm_settings.script_templates.signature.pools(
+                bool(getattr(ctx.product, "topic", None))
+            ).pinned_signoff
             ctx.script = place_signoff(
-                sanitize_script(script_text), signature.signoff, cta_line
+                sanitize_script(script_text),
+                signature.signoff,
+                cta_line,
+                insert=bool(pinned_signoff),
             )
             ensure_dirs_exist(ctx.run_paths["script_file"].parent)
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
@@ -1802,8 +1808,10 @@ def _build_audio_providers(config: Any, secrets: dict[str, str]) -> list:
                 logger.info("Audio provider loaded: %s", pc.name)
             except ValueError as exc:
                 logger.warning("Skipping audio provider '%s': %s", pc.name, exc)
-    else:
-        # Legacy mode: auto-create FreesoundProvider from freesound_* fields
+    elif getattr(audio_settings, "freesound_api_key_env_var", ""):
+        # Legacy mode: auto-create FreesoundProvider from freesound_* fields.
+        # An empty key variable means no provider (a narrator identity's
+        # pinned music files set it so, REQ-CNT-168).
         try:
             provider = create_audio_provider(
                 "freesound",

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.226.0] - 2026-11-07
+
+### Added
+
+- `narrator_identity` pins a recurring narrator per content kind (product, topic, commentary): the voice, a sign-off spoken on every render, the sting, the music files or queries, and the caption template; the variety report marks pinned dimensions and no longer alerts on them.
+
 ## [0.225.0] - 2026-11-07
 
 ### Added

@@ -32,6 +32,7 @@ from src.video.config.constants import (
     FONT_FILE_EXTENSIONS,
     FONT_REGULAR_SUFFIXES,
 )
+from src.video.config.identity_models import NarratorIdentities
 from src.video.config.subtitle_models import (
     ColorPoolEntry,
     FontPoolEntry,
@@ -645,6 +646,9 @@ class VideoConfig(BaseModel):
     whisper_settings: WhisperSettings
     google_cloud_stt_settings: GoogleCloudSTTSettings | None = Field(None)
     video_profiles: dict[str, VideoProfile]
+    # One recurring narrator identity per content kind (REQ-CNT-168); empty
+    # in the bundled config.
+    narrator_identity: NarratorIdentities = Field(default_factory=NarratorIdentities)
     aspect_ratio: dict[str, Any] = Field(
         default_factory=lambda: {"smart_scale_tolerance": 0.10}
     )

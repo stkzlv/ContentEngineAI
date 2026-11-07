@@ -33,6 +33,7 @@ from src.video.config import (
     VideoConfig,
     VideoProfile,
 )
+from src.video.config.identity_models import content_kind
 from src.video.config_adapter import load_video_config_modular
 from src.video.config_validator import validate_config_and_exit_on_error
 from src.video.cover import cover_time_sec, write_cover
@@ -356,15 +357,21 @@ def apply_script_template_overrides(
 
 
 def config_for_record(config: Any, product: Any) -> Any:
-    """The config a record renders with: a commentary topic swaps families.
+    """The config a record renders with: its kind's family and identity.
 
     A commentary topic (REQ-CNT-166) is a topic record, so every consumer that
     branches on "is a topic" already does the right thing for disclosure and
-    voice. What differs is which topic family it draws, so the swap happens
-    here, on a copy for this record only: the commentary templates, narrator,
-    CTAs and length replace the topic ones, task-title routing is off, and the
-    sourced step list, which the step cards and screens read, is off. Any other
-    record gets the config unchanged.
+    voice. What differs is which topic family it draws: the commentary
+    templates, narrator, CTAs and length replace the topic ones, task-title
+    routing is off, and the sourced step list, which the step cards and screens
+    read, is off.
+
+    Then the kind's narrator identity (REQ-CNT-168) pins what it sets: the
+    voice, the sign-off, the sting, the music and the caption template.
+
+    Both happen on a copy for this record only, so the shared config is
+    untouched for the next record in a batch. A record with nothing to change
+    gets the config itself.
 
     Raises
     ------
@@ -372,24 +379,66 @@ def config_for_record(config: Any, product: Any) -> Any:
             tutorial template would write a how-to under a take's title.
 
     """
-    if getattr(product, "topic_kind", None) != "commentary":
+    kind = content_kind(product)
+    identity = config.narrator_identity.for_kind(kind)
+    pins = identity.model_dump(exclude_defaults=True)
+    if kind != "commentary" and not pins:
         return config
-    templates = config.llm_settings.script_templates
-    if not templates.commentary_templates:
+    if (
+        kind == "commentary"
+        and not config.llm_settings.script_templates.commentary_templates
+    ):
         raise PipelineError(
             "A commentary topic needs script_templates.commentary_templates"
         )
     record = config.model_copy(deep=True)
-    t = record.llm_settings.script_templates
-    t.topic_templates = list(t.commentary_templates)
-    if t.narrator_profile_commentary:
-        t.narrator_profile_topic = t.narrator_profile_commentary
-    if t.cta_options_commentary:
-        t.cta_options_topic = list(t.cta_options_commentary)
-    t.target_length.topic = t.target_length.commentary
-    t.topic_routing.enabled = False
-    record.llm_settings.topic_scripts.step_list.enabled = False
+    if kind == "commentary":
+        t = record.llm_settings.script_templates
+        t.topic_templates = list(t.commentary_templates)
+        if t.narrator_profile_commentary:
+            t.narrator_profile_topic = t.narrator_profile_commentary
+        if t.cta_options_commentary:
+            t.cta_options_topic = list(t.cta_options_commentary)
+        t.target_length.topic = t.target_length.commentary
+        t.topic_routing.enabled = False
+        record.llm_settings.topic_scripts.step_list.enabled = False
+    if pins:
+        _apply_identity(record, identity, is_topic=kind != "product")
+        logger.info("Narrator identity for %s pins %s", kind, ", ".join(sorted(pins)))
     return record
+
+
+def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
+    """Write a narrator identity's pins into a record's config copy."""
+    if identity.voice_profile:
+        # The pinned default with an empty pool is how a voice is pinned
+        # (REQ-CNT-066); `--voice-profile` still wins over it.
+        record.tts_config.default_voice_profile = identity.voice_profile
+        record.tts_config.voice_profile_pool = []
+    if identity.signoff:
+        signature = record.llm_settings.script_templates.signature
+        signature.pools(is_topic).pinned_signoff = identity.signoff
+    if identity.sting is not None:
+        record.audio_settings.signature_sting = identity.sting
+    if identity.music_files:
+        # The beds come from the list only: every provider is switched off
+        # rather than removed, since an empty list makes the music step
+        # build a legacy Freesound provider instead.
+        record.audio_settings.background_music_paths = list(identity.music_files)
+        for provider in record.audio_settings.audio_providers:
+            provider.enabled = False
+        # With no provider list at all the music step falls back to a legacy
+        # Freesound provider; with no key variable it refuses to build one.
+        record.audio_settings.freesound_api_key_env_var = ""
+    elif identity.music_queries:
+        for provider in record.audio_settings.audio_providers:
+            if "search_queries" in provider.settings:
+                provider.settings["search_queries"] = list(identity.music_queries)
+        record.audio_settings.freesound_search_query = identity.music_queries[0]
+    if identity.caption_template:
+        pycaps = record.subtitle_settings.setdefault("pycaps", {})
+        pycaps["template_name"] = identity.caption_template
+        pycaps["template_pool"] = []
 
 
 async def create_video_for_product(
