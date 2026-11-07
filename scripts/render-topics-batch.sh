@@ -62,7 +62,7 @@ PY_EXIT=$?
 
 mapfile -d '' -t fields < "$records_file"
 root=${fields[0]}
-total=$(( (${#fields[@]} - 1) / 4 ))
+total=$(( (${#fields[@]} - 1) / 5 ))
 [ "$total" -gt 0 ] || { echo "no topics in $TOPICS_FILE" >&2; exit 1; }
 
 ok=0; failed=0; summary=()
@@ -76,15 +76,16 @@ NO_MEMORY=75
 stopped=""
 
 for ((i = 0; i < total; i++)); do
-  pid=${fields[$((i * 4 + 1))]}
-  title=${fields[$((i * 4 + 2))]}
-  desc=${fields[$((i * 4 + 3))]}
-  kw=${fields[$((i * 4 + 4))]}
+  pid=${fields[$((i * 5 + 1))]}
+  title=${fields[$((i * 5 + 2))]}
+  desc=${fields[$((i * 5 + 3))]}
+  kw=${fields[$((i * 5 + 4))]}
+  kind=${fields[$((i * 5 + 5))]}
   echo "=== [$((i + 1))/$total] $title"
 
   rc=0
   run "$PROFILE" --topic "$title" --topic-description "$desc" \
-      --topic-keywords "$kw" --step generate_script || rc=$?
+      --topic-keywords "$kw" --topic-kind "$kind" --step generate_script || rc=$?
   if [ "$rc" -eq "$NO_MEMORY" ]; then
     summary+=("STOP  $title (not enough memory)"); failed=$((failed + 1)); stopped=1; break
   elif [ "$rc" -ne 0 ]; then

@@ -32,6 +32,7 @@ Every branch in the pipeline tests the same thing: whether the record is a topic
   - `topic_routing` and `topic_scripts.step_list` are turned off.
   
   Every consumer that asks "is this a topic" then behaves as it should for disclosure, voice, captions and the hook headline, and draws the commentary family. The step cards and screens read the step list, so they don't appear. The shared config is untouched for the next record in a batch. A commentary record with no commentary templates is refused, because a tutorial template would write a how-to under a take's title.
+- **Other routes into the script step.** `make topics-batch` enumerates each topic's kind and passes `--topic-kind`. The content research's samples call the script step directly, so they apply the same swap, or a commentary sample would measure a tutorial script.
 - **Products.** The product pool already excluded `topic_templates`. It now also excludes `commentary_templates`, because the default pool is a glob over the templates directory.
 - **Shipped defaults.** One generic template, `commentary_take`: a hook, a turn, an opinion and a closing question, using only facts the topic detail states. It comes with a commentary narrator, two commentary CTAs and a 35-45 s length target. Each CTA starts with an opener the publisher strips, so the YouTube first comment is the closing question.
 
@@ -50,4 +51,4 @@ A real commentary render drew `commentary_take`, built no step list, and closed 
 
 ## Open questions
 
-None recorded.
+None recorded. The kind is not part of the topic id, so re-marking a rendered tutorial topic as commentary resumes its directory; render it with `--clean`.

@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def enumerate_records(topics_file: Path) -> list[str]:
-    """Return the output root followed by four fields per topic."""
+    """Return the output root followed by five fields per topic."""
     from src.video.config import config
     from src.video.producer.topic_input import load_topics_file, topic_product_id
 
@@ -42,6 +42,9 @@ def enumerate_records(topics_file: Path) -> list[str]:
             spec.title,
             spec.description,
             ", ".join(spec.keywords),
+            # The producer's --topic-kind (REQ-CNT-167); dropping it renders
+            # a commentary entry as a tutorial.
+            spec.kind,
         ]
     return records
 

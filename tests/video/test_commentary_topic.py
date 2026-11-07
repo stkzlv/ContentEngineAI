@@ -137,3 +137,30 @@ def test_both_entry_points_pass_the_flag():
     for path in ("src/video/producer/cli.py", "src/pipeline/config.py"):
         assert "topic_kind" in (root / path).read_text()
     assert '"--topic-kind"' in (root / "src/pipeline/cli.py").read_text()
+
+
+def test_a_render_applies_the_swap_before_building_its_context():
+    # The tests above call config_for_record directly; this pins that the
+    # render path calls it, before the context that every step reads.
+    import ast
+    import inspect
+
+    from src.video.producer import orchestration
+
+    tree = ast.parse(inspect.getsource(orchestration.create_video_for_product))
+    calls = [
+        (node.lineno, node.func.id)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"config_for_record", "PipelineContext"}
+    ]
+    names = [name for _, name in sorted(calls)]
+    assert names.index("config_for_record") < names.index("PipelineContext")
+
+
+def test_research_samples_apply_the_swap():
+    from src.utils.outputs_paths import get_project_root
+
+    source = (get_project_root() / "src/research/sample.py").read_text()
+    assert "config_for_record(" in source
