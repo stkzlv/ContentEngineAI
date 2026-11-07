@@ -22,6 +22,7 @@ import itertools
 import re
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 
 import pytest
@@ -137,6 +138,11 @@ def _measure(args: list[str], pattern: str) -> float:
             return float(match.group(1))
         if proc.returncode >= 0:
             break
+        # Shown in pytest's warnings summary on a passing run, so a retried
+        # kill still reaches #801.
+        warnings.warn(
+            f"ffmpeg died on signal {-proc.returncode}, retrying (#801)", stacklevel=2
+        )
     raise AssertionError(
         f"no measurement (ffmpeg exit {proc.returncode}): {proc.stderr[-2000:]}"
     )
