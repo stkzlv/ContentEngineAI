@@ -427,6 +427,9 @@ def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
         record.audio_settings.background_music_paths = list(identity.music_files)
         for provider in record.audio_settings.audio_providers:
             provider.enabled = False
+        # With no provider list at all the music step falls back to a legacy
+        # Freesound provider; with no key variable it refuses to build one.
+        record.audio_settings.freesound_api_key_env_var = ""
     elif identity.music_queries:
         for provider in record.audio_settings.audio_providers:
             if "search_queries" in provider.settings:

@@ -171,7 +171,9 @@ class TestTheVarietyReport:
 
 @pytest.mark.req("REQ-CNT-169")
 class TestTheSignoffShape:
-    @pytest.mark.parametrize("value", ["I'm Alex. See you tomorrow.", "...", ""])
+    @pytest.mark.parametrize(
+        "value", ["Thanks for watching. See you tomorrow.", "...", ""]
+    )
     def test_more_than_one_sentence_or_no_words_is_refused(self, value):
         with pytest.raises(ValueError):
             NarratorIdentity(signoff=value)
@@ -187,3 +189,23 @@ def test_research_product_samples_apply_the_identity():
 
     source = (get_project_root() / "src/research/sample.py").read_text()
     assert "config_for_record(base, product)" in source
+
+
+@pytest.mark.req("REQ-CNT-169")
+def test_the_same_words_earlier_in_the_body_still_get_the_signoff():
+    script = f"Stay curious about what your router logs. Reboot it weekly. {CTA}"
+    placed = place_signoff(script, "Stay curious.", CTA, insert=True)
+    assert placed.endswith(f"Reboot it weekly. Stay curious. {CTA}")
+
+
+@pytest.mark.req("REQ-CNT-168")
+def test_pinned_music_builds_no_provider_on_a_legacy_config(config, tmp_path: Path):
+    from src.video.producer.steps import _build_audio_providers
+
+    config.audio_settings.audio_providers = []
+    config.narrator_identity.product = NarratorIdentity(
+        music_files=[tmp_path / "bed.mp3"]
+    )
+    record = config_for_record(config, _product())
+    secrets = {config.audio_settings.freesound_api_key_env_var: "x"}
+    assert _build_audio_providers(record, secrets) == []

@@ -141,8 +141,9 @@ def place_signoff(
     if normalise(sentences[-2]) == target:
         return script
     if not any(normalise(s) == target for s in sentences[:-2]):
-        # Folded into a sentence ("..., and that's the take.") counts as said.
-        if not insert or signature_in_script(signoff, script):
+        # Folded into the closing sentence ("..., and that's the take.")
+        # counts as said; the same words earlier in the body do not.
+        if not insert or signature_in_script(signoff, sentences[-2]):
             return script
         at = script.rfind(sentences[-1])
         if at < 0:

@@ -1808,8 +1808,10 @@ def _build_audio_providers(config: Any, secrets: dict[str, str]) -> list:
                 logger.info("Audio provider loaded: %s", pc.name)
             except ValueError as exc:
                 logger.warning("Skipping audio provider '%s': %s", pc.name, exc)
-    else:
-        # Legacy mode: auto-create FreesoundProvider from freesound_* fields
+    elif getattr(audio_settings, "freesound_api_key_env_var", ""):
+        # Legacy mode: auto-create FreesoundProvider from freesound_* fields.
+        # An empty key variable means no provider (a narrator identity's
+        # pinned music files set it so, REQ-CNT-168).
         try:
             provider = create_audio_provider(
                 "freesound",
