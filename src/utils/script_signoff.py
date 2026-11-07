@@ -121,22 +121,38 @@ def drop_signoff(script: str, signoff: str | None) -> str:
     return f"{before} {after}".strip()
 
 
-def place_signoff(script: str, signoff: str | None, cta: str | None) -> str:
+def place_signoff(
+    script: str, signoff: str | None, cta: str | None, insert: bool = False
+) -> str:
     """The script with its sign-off moved to directly before the CTA.
 
     The prompt asks for that place, and the model sometimes says the sign-off
-    a beat early, before its closing line (REQ-CNT-045). A script without the
-    sign-off, or not ending on the CTA, is returned unchanged.
+    a beat early, before its closing line (REQ-CNT-045). A script not ending
+    on the CTA is returned unchanged, and so is one without the sign-off
+    unless `insert` is set: a pinned sign-off is spoken on every render, so
+    it is added before the CTA when the model left it out (REQ-CNT-169).
     """
     if not signoff or not cta:
         return script
     sentences = split_sentences(script)
-    if len(sentences) < 3 or normalise(sentences[-1]) != normalise(cta):
+    if len(sentences) < 2 or normalise(sentences[-1]) != normalise(cta):
         return script
     target = normalise(signoff)
     if normalise(sentences[-2]) == target:
         return script
     if not any(normalise(s) == target for s in sentences[:-2]):
+        if not insert:
+            return script
+        at = script.rfind(sentences[-1])
+        if at < 0:
+            return script
+        head = script[:at].rstrip(" \t")
+        joiner = "" if head.endswith("\n") or not head else " "
+        line = signoff.strip()
+        if line[-1] not in ".!?":
+            line += "."
+        return f"{head}{joiner}{line} {script[at:]}"
+    if len(sentences) < 3:
         return script
     spoken = next(s for s in sentences[:-2] if normalise(s) == target)
     trimmed = drop_signoff(script, signoff)

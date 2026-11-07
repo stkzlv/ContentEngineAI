@@ -22,7 +22,7 @@ A commentary template family for topic records, with its own narrator profile, c
 
 ### H.2 Narrator identity
 
-One identity block per content kind (voice, a sign-off on every render, sting, music, caption template), with shipped defaults left empty and the variety report treating pinned dimensions as intentional. #783.
+One identity block per content kind (voice, a sign-off on every render, sting, music, caption template), with shipped defaults left empty and the variety report treating pinned dimensions as intentional. #783. Shipped: `narrator_identity` ([design 0031](design/0031-narrator-identity.md)).
 
 **Done when:** two renders of the kind on different subjects share every pinned element, and the variety report doesn't alert on them.
 

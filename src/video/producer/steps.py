@@ -659,8 +659,14 @@ async def step_generate_script(ctx: PipelineContext):
                 is_topic=bool(getattr(ctx.product, "topic", None)),
                 template=template_name,
             )
+            pinned_signoff = ctx.config.llm_settings.script_templates.signature.pools(
+                bool(getattr(ctx.product, "topic", None))
+            ).pinned_signoff
             ctx.script = place_signoff(
-                sanitize_script(script_text), signature.signoff, cta_line
+                sanitize_script(script_text),
+                signature.signoff,
+                cta_line,
+                insert=bool(pinned_signoff),
             )
             ensure_dirs_exist(ctx.run_paths["script_file"].parent)
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")

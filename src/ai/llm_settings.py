@@ -52,6 +52,10 @@ class SignaturePools(BaseModel):
     transitions: list[str] = Field(default_factory=list)
     # A full sentence spoken immediately before the call to action.
     signoffs: list[str] = Field(default_factory=list)
+    # Spoken on every render of the arm, whatever `use_rate` and `enabled`
+    # say, and inserted before the CTA when the model leaves it out
+    # (REQ-CNT-169). Set from a narrator identity's `signoff`.
+    pinned_signoff: str = ""
 
     @field_validator("openers", "transitions", "signoffs")
     @classmethod

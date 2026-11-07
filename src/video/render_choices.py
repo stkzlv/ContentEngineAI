@@ -31,6 +31,7 @@ from src.utils.render_choices_store import (
     latest_per_product,
     load_recent,
 )
+from src.video.config.identity_models import content_kind
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,16 @@ def _search_phrase_placement(ctx: Any) -> dict[str, Any] | None:
     )
 
 
+def _pinned(ctx: Any) -> list[str]:
+    """The dimensions the record's narrator identity fixes, if any."""
+    identities = getattr(ctx.config, "narrator_identity", None)
+    if identities is None:
+        return []
+    kind = content_kind(getattr(ctx, "product", None))
+    pinned: list[str] = identities.for_kind(kind).pinned_dimensions()
+    return pinned
+
+
 def choices_from_context(ctx: Any) -> dict[str, Any]:
     """The row for one finished render, read off its pipeline context."""
     state = ctx.state
@@ -164,6 +175,10 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "sound_effects": assembly.get("sound_effects"),
         "step_card_layout": assembly.get("step_card_layout"),
         "step_visuals": assembly.get("step_visuals"),
+        # The kind and what its narrator identity pins, so the report reads a
+        # pinned dimension as a setting rather than drift (REQ-CNT-170).
+        "content_kind": content_kind(getattr(ctx, "product", None)),
+        "pinned": _pinned(ctx),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),
@@ -199,11 +214,24 @@ def _values(value: Any) -> list[str]:
     return [str(value)]
 
 
-def distribution(rows: Sequence[dict[str, Any]]) -> dict[str, Counter]:
+def distribution(
+    rows: Sequence[dict[str, Any]], drop_pinned: bool = False
+) -> dict[str, Counter]:
+    """Each dimension's values; with `drop_pinned`, only from unpinned rows."""
     return {
-        dim: Counter(v for row in rows for v in _values(row.get(dim)))
+        dim: Counter(
+            v
+            for row in rows
+            if not (drop_pinned and dim in (row.get("pinned") or []))
+            for v in _values(row.get(dim))
+        )
         for dim in DIMENSIONS
     }
+
+
+def pinned_counts(rows: Sequence[dict[str, Any]]) -> Counter:
+    """How many rows pin each dimension (REQ-CNT-170)."""
+    return Counter(dim for row in rows for dim in (row.get("pinned") or []))
 
 
 def dominance_alerts(
@@ -213,12 +241,14 @@ def dominance_alerts(
 
     A dimension with one value in the whole window is a fixed setting (a
     pinned voice, a single profile), not drift, so it is listed in the
-    distribution but does not alert.
+    distribution but does not alert. A row whose narrator identity pins a
+    dimension is left out of that dimension's count (REQ-CNT-170), so a pinned
+    kind beside unpinned ones alerts only on what the unpinned ones drew.
     """
     if len(rows) < MIN_RENDERS_FOR_DOMINANCE:
         return []
     alerts = []
-    for dim, counts in distribution(rows).items():
+    for dim, counts in distribution(rows, drop_pinned=True).items():
         total = sum(counts.values())
         if total < MIN_RENDERS_FOR_DOMINANCE or len(counts) < 2:
             continue
@@ -292,10 +322,13 @@ def report(
 ) -> list[str]:
     rows = latest_per_product(rows)
     lines = [f"Render variety over the last {len(rows)} product(s)"]
+    pinned = pinned_counts(rows)
     for dim, counts in distribution(rows).items():
         if not counts:
             continue
         shown = ", ".join(f"{value} {count}" for value, count in counts.most_common())
+        if pinned[dim]:
+            shown += f" (pinned in {pinned[dim]})"
         lines.append(f"  {dim}: {shown}")
     alerts = dominance_alerts(rows, dominance)
     pairs = similar_scripts(rows, similarity)
