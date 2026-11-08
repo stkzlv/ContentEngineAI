@@ -26,7 +26,7 @@ A workable split for a 40-second tutorial; if the answer first appears past 8 se
 
 ## Length
 
-The topic narrator profile targets 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: published topic renders have run from 21 to 77 seconds, depending on how much the topic description gives the script. Platform limits, view counting and the cross-platform evidence are in [video length](video-length.md).
+The topic narrator rules (`narrator_rules_topic`) target 30-40 seconds, roughly 75-100 words, for every topic. That budget is a prompt instruction that nothing enforces: published topic renders have run from 21 to 77 seconds, depending on how much the topic description gives the script. Platform limits, view counting and the cross-platform evidence are in [video length](video-length.md).
 
 Length follows the number of steps, from a sourced step list (REQ-VID-121, [design 0017](../design/0017-tutorial-step-lists.md)). A fixed word count pads a one-step shortcut and cuts a six-step fix, which is part of why fixed-length renders feel generic. The bands the design works from are an inference [C]:
 

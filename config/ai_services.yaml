@@ -260,7 +260,7 @@ llm_settings:
         - question_driven
         - challenge_dare
     # Spoken-length target per content type, as low-high ranges filled into
-    # the narrator profiles' {TARGET_SECONDS} and {TARGET_WORDS} placeholders.
+    # the narrator rules' {TARGET_SECONDS} and {TARGET_WORDS} placeholders.
     # A video profile's `target_length` overrides it for that profile, and
     # then also sets the script lint's word cap from its upper seconds.
     target_length:

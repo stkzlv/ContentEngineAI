@@ -11,8 +11,10 @@ spells it.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import re
+import sys
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -208,6 +210,14 @@ def _warn(message: str, *args: str) -> None:
         logger.warning(message, *args)
     elif (message, args) not in _held_warnings:
         _held_warnings.append((message, args))
+
+
+@atexit.register
+def _flush_held_warnings() -> None:
+    # A tool that never sets up logging still shows the warning, on stderr.
+    for message, args in _held_warnings:
+        print(f"WARNING: {message % args}", file=sys.stderr)
+    _held_warnings.clear()
 
 
 def log_held_warnings() -> None:
