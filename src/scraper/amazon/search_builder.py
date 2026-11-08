@@ -34,7 +34,8 @@ class SearchParameterBuilder:
             )
 
         # Start with basic search parameters
-        url_params = {"k": keyword.replace(" ", "+")}
+        # urlencode encodes once; a "+" put in first would be sent as "%2B".
+        url_params = {"k": keyword}
         if page > 1:
             url_params["page"] = str(page)
 
