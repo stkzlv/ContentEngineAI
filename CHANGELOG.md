@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.227.2] - 2026-11-08
+
+### Added
+
+- Requirements, a design doc and a roadmap item for scraper block resilience: recognising the site's block pages after every navigation, stopping a run on a captcha or bare-title page, scraping batch inputs one at a time, bounded waits on a non-results page, and an optional consistent browser identity, plus a requirement to read gallery images and listing videos from the page's embedded image data.
+
 ## [0.227.1] - 2026-11-08
 
 ### Added

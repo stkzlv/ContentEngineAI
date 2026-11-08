@@ -37,6 +37,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-022** `shipped` Where the target profile uses no video, the scraper ignores downloaded videos when it checks the media minimums.
 - **REQ-SCR-023** `shipped` If a product fails the media minimums, the scraper removes its output directory and logs the reason.
 - **REQ-SCR-024** `shipped` The media counts in the scraper's summaries are validated files on disk per product, not URLs found on the page.
+- **REQ-SCR-086** `planned #816` The scraper reads a product page's gallery images and listing videos from the page's embedded image data, in gallery order, taking each image's high-resolution version and falling back to its large one where no high-resolution version is given, with the page's image elements as the fallback.
 - **REQ-SCR-067** `shipped` The scraper extracts at most `image_config.max_images_per_product` images (15 in the bundled config) and `video_config.max_videos_per_product` videos (default 10) per product.
 - **REQ-SCR-068** `shipped` Where `video_config.enable_m3u8_monitoring` is on (off by default), the scraper also captures product videos from the HLS streams the page loads when its video player starts.
 
@@ -52,6 +53,9 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-032** `shipped` The scraper's search log line states the filters in force.
 - **REQ-SCR-033** `shipped` When a keyword search yields fewer validated products than its per-keyword target, the scraper searches further result pages, up to a configured page limit.
 - **REQ-SCR-069** `shipped` If the resolved search parameters are invalid, such as a price or rating out of range, the scraper logs each error and refuses to run.
+- **REQ-SCR-080** `partial` The search request carries each keyword's words as typed, encoded once.
+  - Gap: spaces are encoded twice, so the site searches for the words joined by literal plus signs (#811).
+- **REQ-SCR-085** `planned #815` If a search page is not a results page, the scraper gives it up within a configured bound (a few seconds), without trying each result-card selector in turn.
 
 ## Product limits
 
@@ -61,6 +65,8 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
   - Check: other flags are not shared by name, for example the scraper's output directory flag is `--output-dir` and the batch's is `--outputs-dir`.
 - **REQ-SCR-037** `shipped` While `max_products` isn't reached, the scraper moves on to the next keyword.
 - **REQ-SCR-038** `shipped` When `max_products` is reached, the scraper stops, even if keywords remain.
+- **REQ-SCR-084** `planned #813` The global batch's scrape phase scrapes one input at a time, validating its media before the next search, and stops browsing as soon as the validated count reaches `max_products`.
+  - Why: browsing every input before validating makes about ten searches for one product, which is what trips the site's block.
 
 ## Detection and failures
 
@@ -68,6 +74,10 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-040** `shipped` The scraper pauses for a short random interval between page actions.
 - **REQ-SCR-041** `shipped` The scraper varies the browser window size but keeps it desktop-width (at least 1280 pixels wide).
   - Why: a narrow window gets the mobile layout, which has no extractable product cards.
+- **REQ-SCR-081** `planned #814` Where `scrapers.amazon.consistent_identity` is on, the scraper presents as one returning browser: the browser's own user agent, a persistent profile that keeps cookies between runs, a window size fixed per profile, and product pages opened from the results page rather than by a fresh navigation; REQ-SCR-039 then no longer applies, and the fixed window is still at least 1280 pixels wide (REQ-SCR-041).
+  - Why: the library's random user agents name a browser far older than the installed one while the client hints report the real version, and a cookie-less new visitor on every run is easy to flag.
+- **REQ-SCR-082** `planned #812` After every navigation (search, product page, return to the results), the scraper classifies the page as results, product, error page, captcha, interstitial, bare-title page, not found or unknown, and treats the error page, captcha, interstitial and bare-title page as blocks rather than as pages with no products.
+- **REQ-SCR-083** `planned #812` If a page is a captcha or a bare-title page, the scraper stops browsing for the run and names the block in its summary; an error page or an interstitial goes to the throttle tracker, which retries or rules the query dead as REQ-SCR-044 to REQ-SCR-046 state.
 - **REQ-SCR-042** `shipped` If one input fails, the scraper continues with the next input.
 - **REQ-SCR-043** `shipped` When `--fail-fast` is passed, the scraper stops at the first failed input.
 - **REQ-SCR-070** `shipped` `batch.fail_fast` in `scraper.yaml` sets whether the scraper stops at the first failed input, and `--fail-fast` or `--no-fail-fast` overrides it for one run.
@@ -78,6 +88,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-048** `shipped` The scraper's run summary lists dead queries and throttled inputs separately.
 - **REQ-SCR-049** `shipped` If a run scrapes no product, the scraper exits non-zero.
 - **REQ-SCR-050** `shipped` When `--strict` is passed, the scraper also exits non-zero if any product id or keyword produced nothing.
+- **REQ-SCR-087** `planned #812` When a search or product page yields nothing, the scraper logs at normal level which page kind it saw and, for a results page, how many cards it found and skipped.
 - **REQ-SCR-071** `shipped` When `--debug` or `--verbose` is passed, or `global_settings.debug_mode` is true, the scraper runs a visible browser and logs at debug level.
 - **REQ-SCR-072** `shipped` While debug mode is on, when the site shows its error page or a search page yields no product cards, the scraper saves a screenshot, unless `global_settings.debug_settings.save_error_screenshots` is false.
 
