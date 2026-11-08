@@ -34,6 +34,8 @@ def test_a_lone_count_up_to_ten_is_a_way_of_talking() -> None:
 def test_abbreviated_scales_halves_and_ranges_read_as_spoken() -> None:
     assert figures("Revenue hit $62B, 10K users, 1.5M views") == {62e9, 1e4, 1.5e6}
     assert figures("one and a half million") == {1.5e6}
+    assert figures("half a million, 1 and a half million") == {5e5, 1.5e6}
+    assert figures("a 401k plan") == figures("a 401(k) plan")
     assert figures("sixty-two and a half percent") == {62.5}
     assert figures("between twenty and thirty years") == {20.0, 30.0}
     assert unbacked_figure(["It hit sixty-two billion dollars."], "$62B") is None

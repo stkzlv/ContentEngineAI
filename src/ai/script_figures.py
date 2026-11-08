@@ -42,6 +42,14 @@ _HALVES = (
     (re.compile(r"\band a half\b"), "point five"),
     (re.compile(r"\band a quarter\b"), "point two five"),
 )
+# Rewritten before the digits are read: "1 and a half million", "half a
+# million", and "401(k)" spelled the way a script writes it, "401k".
+_SPOKEN_FORMS = (
+    (re.compile(r"(\d+) and a half\b"), r"\1.5"),
+    (re.compile(r"(\d+) and a quarter\b"), r"\1.25"),
+    (re.compile(r"\bhalf an? (thousand|million|billion)\b"), r"point five \1"),
+    (re.compile(r"(\d)\(k\)"), r"\1k"),
+)
 # A word, or one punctuation mark: punctuation ends a run of number words, so
 # "in twenty twenty-four, nineteen eighty-four" reads as two years.
 _TOKEN = re.compile(r"[a-z]+|[^\sa-z]")
@@ -105,6 +113,9 @@ def _year_pairs(words: list[str]) -> float | None:
 def figures(text: str) -> set[float]:
     """Every figure in the text, written in digits or in words."""
     found: set[float] = set()
+    text = text.lower()
+    for pattern, written_as in _SPOKEN_FORMS:
+        text = pattern.sub(written_as, text)
     for m in _DIGITS.finditer(text):
         try:
             value = float(m.group(1).replace(",", "").rstrip("."))
