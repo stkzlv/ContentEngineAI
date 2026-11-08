@@ -200,6 +200,12 @@ A lint for machine-writing tells and pace, and a report of where the search phra
 
 **Done when:** the lint rejects the listed shapes when enabled and the report counts placement per render.
 
+### 3.10 Scraper block resilience
+
+The scraper recognises the site's block pages after every navigation and stops browsing on one, the batch makes only the searches it needs, waits on a non-results page are bounded, and an optional consistent browser identity replaces the random one. [Design 0037](design/0037-scraper-block-resilience.md), #812, #813, #814, #815; the double-encoded search keyword is #811.
+
+**Done when:** a blocked search is reported as a block within seconds, a one-product batch run whose first input validates makes one search, and a week with the identity switch on is compared with the week before.
+
 ## Phase 4: Per-platform optimisations (Next)
 
 ### 4.1 Instagram Stories re-share with link sticker

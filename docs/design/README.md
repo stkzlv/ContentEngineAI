@@ -95,3 +95,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0034](0034-commentary-devices.md) | A comparison and a contrast in commentary scripts | #806 | Accepted |
 | [0035](0035-correction-topics.md) | Correction topics | #807 | Accepted |
 | [0036](0036-comment-reply-videos.md) | Comment-reply videos | #808 | Accepted |
+| [0037](0037-scraper-block-resilience.md) | Scraper block resilience | #812 | Accepted |
