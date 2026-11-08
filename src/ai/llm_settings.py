@@ -197,6 +197,28 @@ class TargetLengths(BaseModel):
 
 LENGTH_PLACEHOLDERS = ("{TARGET_SECONDS}", "{TARGET_WORDS}")
 
+# Narrator warnings raised before logging is set up (the config loads at
+# import), held once each and logged by `log_held_warnings` after setup, as
+# the overlay lines are; with no handler yet they would reach stderr only.
+_held_warnings: list[tuple[str, tuple[str, ...]]] = []
+
+
+def _warn(message: str, *args: str) -> None:
+    if logger.isEnabledFor(logging.WARNING) and logger.hasHandlers():
+        logger.warning(message, *args)
+    elif (message, args) not in _held_warnings:
+        _held_warnings.append((message, args))
+
+
+def log_held_warnings() -> None:
+    """Log the narrator warnings held from before logging was set up."""
+    if not logger.hasHandlers():
+        return
+    held = list(_held_warnings)
+    _held_warnings.clear()
+    for message, args in held:
+        logger.warning(message, *args)
+
 
 def reusable_examples(text: str) -> list[str]:
     """Quoted whole sentences or questions a script could reuse (REQ-CNT-159).
@@ -206,7 +228,7 @@ def reusable_examples(text: str) -> list[str]:
     line a model can speak verbatim; a shape keeps a slot ("[figure]").
     """
     found = []
-    for example in re.findall(r'"([^"]{12,})"', text):
+    for example in re.findall(r'["\u201c]([^"\u201d]{12,})["\u201d]', text):
         sentence = example[:1].isalpha() and example.rstrip()[-1:] in ".?!"
         if sentence and example.count(" ") >= 3 and "[" not in example:
             found.append(example)
@@ -360,13 +382,13 @@ class ScriptTemplateConfig(BaseModel):
             if not text:
                 continue
             if not any(p in text for p in LENGTH_PLACEHOLDERS):
-                logger.warning(
+                _warn(
                     "The %s narrator carries no length target "
                     "({TARGET_SECONDS} or {TARGET_WORDS})",
                     kind,
                 )
             for example in reusable_examples(text):
-                logger.warning(
+                _warn(
                     "The %s narrator quotes a line a script could reuse: %r",
                     kind,
                     example,

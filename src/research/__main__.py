@@ -15,6 +15,7 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
+from src.ai.llm_settings import log_held_warnings
 from src.research.checks import run_checks
 from src.research.config import DEFAULT_PATH, load_research_config
 from src.research.demand import run_demand
@@ -74,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv(get_project_root() / ".env")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     log_pending()
+    log_held_warnings()
     out = run_dir(args.out)
     out.mkdir(parents=True, exist_ok=True)
     demand_file = out / "demand.json"

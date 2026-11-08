@@ -97,3 +97,33 @@ def test_a_shape_with_a_slot_or_a_short_label_is_no_reusable_line() -> None:
     assert reusable_examples('"Steel beats plastic for clamps."') == [
         "Steel beats plastic for clamps."
     ]
+
+
+@pytest.mark.req("REQ-CNT-172")
+def test_a_curly_quoted_line_counts_too() -> None:
+    assert reusable_examples("\u201cSo who answers the next question?\u201d") == [
+        "So who answers the next question?"
+    ]
+
+
+@pytest.mark.req("REQ-CNT-172")
+def test_a_warning_before_logging_is_set_up_is_held_once_and_logged_after(
+    caplog, monkeypatch
+) -> None:
+    from src.ai import llm_settings
+
+    raw = config.llm_settings.script_templates.model_dump()
+    raw["narrator_profile_commentary"] = 'End: "So who answers the next question?"'
+    held: list = []
+    monkeypatch.setattr(llm_settings, "_held_warnings", held)
+    with monkeypatch.context() as no_handlers:
+        no_handlers.setattr(llm_settings.logger, "hasHandlers", lambda: False)
+        ScriptTemplateConfig(**raw)
+        ScriptTemplateConfig(**raw)  # a second load holds nothing new
+    assert len(held) == 1
+
+    with caplog.at_level(logging.WARNING, logger="src.ai.llm_settings"):
+        llm_settings.log_held_warnings()
+
+    assert caplog.text.count("So who answers the next question?") == 1
+    assert held == []
