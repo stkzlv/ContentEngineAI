@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.229.1] - 2026-11-08
+
+### Fixed
+
+- A multi-word search keyword reaches the site as typed; its spaces were encoded twice, so the site searched for the words joined by plus signs.
+
 ## [0.229.0] - 2026-11-08
 
 ### Added
