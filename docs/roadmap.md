@@ -46,7 +46,7 @@ A recurring slot names a content kind, so an additional post never takes the mai
 
 ### H.6 Narrator rules apart from the profile
 
-The rules every script of a kind follows (length target, anti-AI phrases, no invention) move out of the narrator profiles, so an installation's own narrator keeps them, and config loading warns on a narrator text with no length target or with a quoted example a script could reuse. #804, [design 0032](design/0032-narrator-rules.md).
+The rules every script of a kind follows (length target, anti-AI phrases, no invention) move out of the narrator profiles, so an installation's own narrator keeps them, and config loading warns on a narrator text with no length target or with a quoted example a script could reuse. #804, [design 0032](design/0032-narrator-rules.md). Shipped: `narrator_rules` and its topic and commentary keys.
 
 **Done when:** an overlay that sets only a narrator profile still gets the rules, and the bundled prompts are byte-identical.
 

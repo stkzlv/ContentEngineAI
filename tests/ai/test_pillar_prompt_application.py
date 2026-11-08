@@ -471,7 +471,8 @@ class TestApplyPromptPreambles:
             pytest.skip("ai_services.yaml not found (running outside project root)")
 
         cfg = yaml.safe_load(cfg_path.read_text())
-        profile = cfg["llm_settings"]["script_templates"].get("narrator_profile", "")
+        st = cfg["llm_settings"]["script_templates"]
+        profile = f"{st.get('narrator_profile', '')}\n\n{st.get('narrator_rules', '')}"
         assert isinstance(profile, str) and profile.strip()
         # Sanity-check that the profile carries the channel-voice anchors.
         assert "Narrator profile" in profile

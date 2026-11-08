@@ -1,6 +1,6 @@
 # 0032. Narrator rules apart from the narrator profile
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #804
 - **Requirements:** REQ-CNT-171, REQ-CNT-172
 
@@ -49,3 +49,10 @@ No switch: the bundled prompts don't change. An overlay that already copied the 
 ## Open questions
 
 None recorded.
+
+## As built
+
+- The rules keys start at the "CTA:" line, and `narrator_for` joins profile and rules with a blank line, so the bundled text is unchanged byte for byte; a YAML block scalar can't start with that blank line.
+- `config_for_record` copies `narrator_rules_commentary` over `narrator_rules_topic` beside the profile copy.
+- The warnings run in a model validator on `ScriptTemplateConfig`; the quoted-line rule is `reusable_examples` in `src/ai/llm_settings.py`, which the REQ-CNT-159 template test now calls too.
+- `tests/fixtures/narrator/` holds the pre-change assembled text per kind; the test compares the bundled config with it.

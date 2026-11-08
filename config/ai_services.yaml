@@ -260,7 +260,7 @@ llm_settings:
         - question_driven
         - challenge_dare
     # Spoken-length target per content type, as low-high ranges filled into
-    # the narrator profiles' {TARGET_SECONDS} and {TARGET_WORDS} placeholders.
+    # the narrator rules' {TARGET_SECONDS} and {TARGET_WORDS} placeholders.
     # A video profile's `target_length` overrides it for that profile, and
     # then also sets the script lint's word cap from its upper seconds.
     target_length:
@@ -289,7 +289,9 @@ llm_settings:
       Specificity: drop one concrete detail per script, taken from the product description: a number, a size, a material or a use it names. A stated figure beats "great battery life". Never invent a personal moment, a day, a trip or a test with the product; the description is the only source of facts.
 
       Imperfection: sentence fragments, contractions, one mild filler word ("so", "okay") per script are fine. None at all reads too clean. Vary sentence length. Mix one short punchy line with one longer compound sentence.
-
+    # The product rules every script follows, appended after narrator_profile
+    # (design 0032), so an overlay that sets only a profile keeps them.
+    narrator_rules: |-
       CTA: the script ends on the exact call to action the template gives you, word for word. There is one, and it is chosen for you.
 
       Things to avoid because they read as AI:
@@ -428,7 +430,8 @@ llm_settings:
       Specificity: concrete beats vague. "Change the channel to 1, 6, or 11" beats "adjust your settings". Name a menu path or a URL only if you can state it exactly for a platform you name; a wrong path costs more than a general one.
 
       Imperfection: contractions and sentence fragments are fine. Vary sentence length. One mild filler word per script at most.
-
+    # The topic rules, appended after narrator_profile_topic (design 0032).
+    narrator_rules_topic: |-
       CTA: the script ends on the exact call to action the template gives you, word for word. There is one, it is chosen for you, and it never implies something to buy.
 
       Things to avoid because they read as AI:
@@ -466,7 +469,9 @@ llm_settings:
       Specificity: concrete beats vague. A number from the detail beats "a lot"; a named change beats "things are shifting".
 
       Imperfection: contractions and sentence fragments are fine. Vary sentence length.
-
+    # The commentary rules, appended after narrator_profile_commentary
+    # (design 0032).
+    narrator_rules_commentary: |-
       CTA: the script ends on the exact call to action the template gives you, word for word, right after the closing question. It never implies something to buy.
 
       Things to avoid because they read as AI:

@@ -91,7 +91,7 @@ class TestTheRule:
         A rule that offered them would contradict the profile it sits under.
         """
         templates = load_video_config_modular().llm_settings.script_templates
-        for profile in (templates.narrator_profile, templates.narrator_profile_topic):
+        for profile in (templates.narrator_rules, templates.narrator_rules_topic):
             banned = next(
                 line for line in profile.splitlines() if "intensifiers" in line
             )

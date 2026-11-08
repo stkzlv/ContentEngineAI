@@ -753,7 +753,7 @@ class TestTheShippedConfig:
         """
         raw = (REPO / "config" / "ai_services.yaml").read_text()
         profiles = re.findall(
-            r"narrator_profile(?:_topic)?: \|-\n(.*?)\n    [a-z_]+:", raw, re.S
+            r"narrator_rules(?:_topic)?: \|-\n(.*?)\n    [a-z_#]+", raw, re.S
         )
 
         assert len(profiles) == 2

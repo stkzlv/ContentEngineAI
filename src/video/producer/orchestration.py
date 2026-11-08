@@ -397,6 +397,8 @@ def config_for_record(config: Any, product: Any) -> Any:
         t.topic_templates = list(t.commentary_templates)
         if t.narrator_profile_commentary:
             t.narrator_profile_topic = t.narrator_profile_commentary
+        if t.narrator_rules_commentary:
+            t.narrator_rules_topic = t.narrator_rules_commentary
         if t.cta_options_commentary:
             t.cta_options_topic = list(t.cta_options_commentary)
         t.target_length.topic = t.target_length.commentary

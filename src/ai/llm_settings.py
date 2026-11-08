@@ -11,10 +11,15 @@ spells it.
 
 from __future__ import annotations
 
+import atexit
+import logging
 import re
+import sys
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 # Shortest acceptable stock-search phrase, in words. Below this a phrase is an
 # object with no place and no actor, which the library answers with a
@@ -192,6 +197,54 @@ class TargetLengths(BaseModel):
     commentary: TargetLength = Field(default_factory=TargetLength)
 
 
+LENGTH_PLACEHOLDERS = ("{TARGET_SECONDS}", "{TARGET_WORDS}")
+
+# Narrator warnings raised before logging is set up (the config loads at
+# import), held once each and logged by `log_held_warnings` after setup, as
+# the overlay lines are; with no handler yet they would reach stderr only.
+_held_warnings: list[tuple[str, tuple[str, ...]]] = []
+
+
+def _warn(message: str, *args: str) -> None:
+    if logger.isEnabledFor(logging.WARNING) and logger.hasHandlers():
+        logger.warning(message, *args)
+    elif (message, args) not in _held_warnings:
+        _held_warnings.append((message, args))
+
+
+@atexit.register
+def _flush_held_warnings() -> None:
+    # A tool that never sets up logging still shows the warning, on stderr.
+    for message, args in _held_warnings:
+        print(f"WARNING: {message % args}", file=sys.stderr)
+    _held_warnings.clear()
+
+
+def log_held_warnings() -> None:
+    """Log the narrator warnings held from before logging was set up."""
+    if not logger.hasHandlers():
+        return
+    held = list(_held_warnings)
+    _held_warnings.clear()
+    for message, args in held:
+        logger.warning(message, *args)
+
+
+def reusable_examples(text: str) -> list[str]:
+    """Quoted whole sentences or questions a script could reuse (REQ-CNT-159).
+
+    A quote of four words or more that starts with a letter and ends on a full
+    stop, a question mark or an exclamation mark, with no bracketed slot, is a
+    line a model can speak verbatim; a shape keeps a slot ("[figure]").
+    """
+    found = []
+    for example in re.findall(r'["\u201c]([^"\u201d]{12,})["\u201d]', text):
+        sentence = example[:1].isalpha() and example.rstrip()[-1:] in ".?!"
+        if sentence and example.count(" ") >= 3 and "[" not in example:
+            found.append(example)
+    return found
+
+
 class ScriptTemplateConfig(BaseModel):
     """Config for multi-template script generation."""
 
@@ -215,6 +268,14 @@ class ScriptTemplateConfig(BaseModel):
     # would otherwise duplicate (banned words, word target, narrator persona,
     # anti-AI-tells). Empty string disables narrator profile injection.
     narrator_profile: str = ""
+    # The rules every script of a kind follows (the call-to-action rule, the
+    # phrases that read as machine-written, the length target and, for topics,
+    # the no-invention rule), appended after the narrator profile so an
+    # overlay that sets only a profile keeps them (design 0032). An empty
+    # topic or commentary key falls back like its profile does.
+    narrator_rules: str = ""
+    narrator_rules_topic: str = ""
+    narrator_rules_commentary: str = ""
     # Templates used when the record came from a topic rather than a scraped
     # product. Selected instead of the pillar pool, because a pillar narrows
     # which product angle to take while this decides whether the script is
@@ -296,9 +357,53 @@ class ScriptTemplateConfig(BaseModel):
             target = (
                 self.target_length.topic if is_topic else self.target_length.product
             )
-        if is_topic and self.narrator_profile_topic:
-            return target.fill(self.narrator_profile_topic)
-        return target.fill(self.narrator_profile)
+        if not is_topic:
+            return target.fill(_join(self.narrator_profile, self.narrator_rules))
+        return target.fill(
+            self._topic_text(self.narrator_profile_topic, self.narrator_rules_topic)
+        )
+
+    def _topic_text(self, profile_topic: str, rules_topic: str) -> str:
+        """A topic narrator's text: its own profile and rules, else the product's."""
+        if not profile_topic:
+            return _join(self.narrator_profile, self.narrator_rules)
+        return _join(profile_topic, rules_topic or self.narrator_rules)
+
+    @model_validator(mode="after")
+    def _warn_on_incomplete_narrators(self) -> ScriptTemplateConfig:
+        """Name a kind whose narrator text lost its length or quotes a line.
+
+        Runs on the merged config, so an overlay's narrator is checked. Warns
+        rather than refuses: a narrator without a length target is allowed.
+        """
+        # Commentary swaps its own profile and rules in for the topic ones,
+        # as `config_for_record` does for a commentary record.
+        kinds = {
+            "product": _join(self.narrator_profile, self.narrator_rules),
+            "topic": self._topic_text(
+                self.narrator_profile_topic, self.narrator_rules_topic
+            ),
+            "commentary": self._topic_text(
+                self.narrator_profile_commentary or self.narrator_profile_topic,
+                self.narrator_rules_commentary or self.narrator_rules_topic,
+            ),
+        }
+        for kind, text in kinds.items():
+            if not text:
+                continue
+            if not any(p in text for p in LENGTH_PLACEHOLDERS):
+                _warn(
+                    "The %s narrator carries no length target "
+                    "({TARGET_SECONDS} or {TARGET_WORDS})",
+                    kind,
+                )
+            for example in reusable_examples(text):
+                _warn(
+                    "The %s narrator quotes a line a script could reuse: %r",
+                    kind,
+                    example,
+                )
+        return self
 
     # Pillar -> target-audience override. When a pillar is set at runtime and
     # the map has an entry for it, the {AUDIENCE} placeholder uses this value
@@ -609,3 +714,8 @@ class LLMSettings(BaseModel):
 
 
 LLMSettings.model_rebuild()
+
+
+def _join(profile: str, rules: str) -> str:
+    """A narrator profile followed by its rules, a blank line apart."""
+    return f"{profile}\n\n{rules}" if profile and rules else profile or rules

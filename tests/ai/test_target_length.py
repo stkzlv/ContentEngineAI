@@ -18,7 +18,12 @@ SHIPPED_LINE = "- Target 30-40 seconds at normal speaking pace (roughly 75-100 w
 @pytest.mark.parametrize("is_topic", [False, True])
 def test_the_defaults_render_the_shipped_line(is_topic: bool) -> None:
     templates = config.llm_settings.script_templates
-    raw = templates.narrator_profile_topic if is_topic else templates.narrator_profile
+    profile, rules = (
+        (templates.narrator_profile_topic, templates.narrator_rules_topic)
+        if is_topic
+        else (templates.narrator_profile, templates.narrator_rules)
+    )
+    raw = f"{profile}\n\n{rules}"
 
     rendered = templates.narrator_for(is_topic)
 
