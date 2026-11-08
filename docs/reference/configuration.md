@@ -1485,6 +1485,9 @@ llm_settings:
 | `pillar_preambles` | dict[str, str] | Pillar name -> preamble string prepended to the LLM prompt when that pillar is set. Empty dict disables preamble injection. |
 | `pillar_audiences` | dict[str, str] | Pillar name -> audience hint substituted into the `{AUDIENCE}` placeholder. Falls back to `target_audience` when missing. |
 | `narrator_profile` | str | Channel-wide voice direction prepended to every script prompt. The bundled one asks for one concrete detail taken from the product description and forbids inventing a personal moment with the product (REQ-CNT-156). Empty string disables narrator profile injection. |
+| `narrator_rules` | str | The rules every product script follows (the call-to-action rule, the phrases that read as machine-written, the voice example and the universal rules with the `{TARGET_SECONDS}` and `{TARGET_WORDS}` placeholders), appended after `narrator_profile` with a blank line between, so an overlay that sets only a profile keeps them. The bundled profile and rules together are the old single profile, byte for byte ([design 0032](../design/0032-narrator-rules.md)). |
+| `narrator_rules_topic` | str | Topic counterpart, appended after `narrator_profile_topic`. Empty falls back to `narrator_rules`. |
+| `narrator_rules_commentary` | str | Commentary counterpart, appended after the commentary narrator. Empty keeps `narrator_rules_topic`. Config loading warns, per kind, when the assembled narrator text carries no length placeholder or quotes a whole sentence or question a script could reuse (REQ-CNT-172). |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
 | `topic_routing` | mapping | On in the bundled config. With `enabled`, a topic whose title starts "How to" draws its template only from `task_templates` (`[topic_answer_first]`), since the symptom-first and mistake-first templates invent a problem for a plain task; other topics keep the whole `topic_templates` pool (REQ-CNT-161). |
@@ -1505,6 +1508,8 @@ llm_settings:
 ```
 [narrator_profile]      <- always, when non-empty; narrator_profile_topic
                            instead for a topic render, when set
+[narrator_rules]        <- appended to the profile; narrator_rules_topic
+                           with the topic profile, when set
 [pillar_preambles[X]]   <- when --pillar X is set and the entry exists;
                            pillar_preambles_topic[X] instead for a topic
                            render, when that map is non-empty

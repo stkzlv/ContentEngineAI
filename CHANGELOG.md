@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.229.0] - 2026-11-08
+
+### Added
+
+- `script_templates.narrator_rules`, `narrator_rules_topic` and `narrator_rules_commentary` hold the rules every script of a kind follows, appended after its narrator profile, so an overlay that sets only a narrator profile keeps the length target and the other rules; the bundled prompts are unchanged.
+- Config loading warns when a kind's narrator text carries no length target or quotes a whole line a script could reuse.
+
+### Changed
+
+- An overlay narrator profile that copied the shipped rules gets them twice until it drops its copy.
+
 ## [0.228.0] - 2026-11-08
 
 ### Added

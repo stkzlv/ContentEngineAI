@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from src.ai.llm_settings import reusable_examples
 from src.ai.script_generator import (
     RATING_TEMPLATES,
     format_prompt,
@@ -45,7 +46,7 @@ def test_no_template_models_a_claim_of_use_or_a_price(path: Path) -> None:
 
 @pytest.mark.req("REQ-CNT-156", "REQ-CNT-157", "REQ-CNT-158")
 def test_the_narrator_profile_speaks_as_the_researcher() -> None:
-    profile = config.llm_settings.script_templates.narrator_profile
+    profile = config.llm_settings.script_templates.narrator_for(False)
 
     assert "never owned, bought, received, wore, used or tested" in profile
     assert "Never speak a price" in profile
@@ -57,12 +58,9 @@ def test_the_narrator_profile_speaks_as_the_researcher() -> None:
 def test_closing_examples_are_shapes(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     for rule in re.findall(r"^- \*\*Close with.*$", text, re.M):
-        for example in re.findall(r'"([^"]{12,})"', rule):
-            # A unit or a word the model is told about is fine; a sentence
-            # it could reuse carries no placeholder.
-            sentence = example[:1].isalpha() and example.rstrip()[-1:] in ".?!"
-            if sentence and example.count(" ") >= 3:
-                assert "[" in example, example
+        # A unit or a word the model is told about is fine; a sentence it
+        # could reuse carries no placeholder (the rule config loading uses).
+        assert reusable_examples(rule) == []
 
 
 @pytest.mark.req("REQ-CNT-160")
