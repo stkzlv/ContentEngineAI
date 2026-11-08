@@ -1312,9 +1312,6 @@ async def generate_script(
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
         )
-        if ok and commentary_checks and not has_closing_question(_body(script)):
-            near_miss.setdefault("question", script)
-            return False, "Script has no closing question before its call to action"
         # A draft short of the step count's length is no near miss: the
         # CTA fallback would ship it with a closing line bolted on.
         short = step_list is not None and _too_short(
@@ -1356,13 +1353,14 @@ async def generate_script(
             # speech instead (REQ-CNT-052).
             near_miss.setdefault("placeholder", script)
             return False, f"Script carries a placeholder: {placeholder.group(0)!r}"
-        if (
-            not ok
-            and reason == NO_CTA_REASON
-            and not short
-            and "script" not in near_miss
-        ):
-            near_miss["script"] = script
+        asked = not commentary_checks or has_closing_question(_body(script))
+        if not ok and reason == NO_CTA_REASON and not short:
+            # The CTA-append last resort prefers a draft that asked its question.
+            near_miss.setdefault("script" if asked else "script_unasked", script)
+        if ok and not asked:
+            # Last, so this near miss has passed every other check.
+            near_miss.setdefault("question", script)
+            return False, "Script has no closing question before its call to action"
         return ok, reason
 
     prompt = apply_prompt_preambles(
@@ -1603,6 +1601,9 @@ async def generate_script(
         _record(near_model.get("lint"))
         return near_miss["lint"], template_name, cta_line
 
+    if "script" not in near_miss and "script_unasked" in near_miss:
+        near_miss["script"] = near_miss["script_unasked"]
+        near_model.setdefault("script", near_model.get("script_unasked", ""))
     if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing
         # the render over that is the worse outcome; a bolted-on closing line

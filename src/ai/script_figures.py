@@ -26,12 +26,21 @@ _TENS = {
 _SCALES = {"hundred": 100, "thousand": 1_000, "million": 10**6, "billion": 10**9}
 _NUMBER_WORDS = set(_UNITS) | set(_TENS) | set(_SCALES) | {"and", "point"}
 
-# "one" and "zero" read as pronouns and idioms far more often than as figures
-# ("the one next to it"), so a lone spoken one is not a figure.
-_NOT_FIGURES = {0, 1}
+# A lone spoken count up to ten is a way of talking ("two things stood out",
+# "the one next to it"), not a figure the detail must carry.
+_MAX_LONE_COUNT = 10
 
+# Digits, with a scale word after them ("62 billion") or an abbreviated scale
+# attached ("$62B", "10K", "1.5M").
 _DIGITS = re.compile(
-    r"(\d[\d,]*(?:\.\d+)?)(?:\s+(hundred|thousand|million|billion)\b)?"
+    r"(\d[\d,]*(?:\.\d+)?)"
+    r"(?:(k|m|bn|b)\b|\s+(hundred|thousand|million|billion)\b)?",
+    re.IGNORECASE,
+)
+_SUFFIXES = {"k": 1_000, "m": 10**6, "b": 10**9, "bn": 10**9}
+_HALVES = (
+    (re.compile(r"\band a half\b"), "point five"),
+    (re.compile(r"\band a quarter\b"), "point two five"),
 )
 # A word, or one punctuation mark: punctuation ends a run of number words, so
 # "in twenty twenty-four, nineteen eighty-four" reads as two years.
@@ -43,12 +52,15 @@ def _words_value(words: list[str]) -> float | None:
     if words and words[-1] == "and":
         words = words[:-1]
     if "point" in words:
+        scale = 1
+        if words[-1] in _SCALES and words[-1] != "hundred":
+            scale, words = _SCALES[words[-1]], words[:-1]
         i = words.index("point")
         whole = _words_value(words[:i]) if i else 0
         digits = [_UNITS.get(w) for w in words[i + 1 :]]
         if whole is None or not digits or any(d is None or d > 9 for d in digits):
             return None
-        return whole + float("0." + "".join(str(d) for d in digits))
+        return (whole + float("0." + "".join(str(d) for d in digits))) * scale
     # A spoken year: two pairs of tens and units ("twenty twenty-four").
     pairs = _year_pairs(words)
     if pairs is not None:
@@ -98,17 +110,27 @@ def figures(text: str) -> set[float]:
             value = float(m.group(1).replace(",", "").rstrip("."))
         except ValueError:
             continue
-        found.add(value * _SCALES[m.group(2)] if m.group(2) else value)
+        if m.group(2):
+            value *= _SUFFIXES[m.group(2).lower()]
+        elif m.group(3):
+            value *= _SCALES[m.group(3).lower()]
+        found.add(value)
     # Words already read with their digits ("62 billion") aren't read again.
     words_only = _DIGITS.sub(" ", text.lower())
+    for pattern, spoken_as in _HALVES:
+        words_only = pattern.sub(spoken_as, words_only)
     run: list[str] = []
     for word in _TOKEN.findall(words_only.replace("-", " ")) + [""]:
-        if word in _NUMBER_WORDS and (word != "and" or run):
+        # "and" joins a number only after "hundred" or a scale word ("two
+        # hundred and seven"); elsewhere it ends one ("between two and three").
+        joins = word != "and" or (run and (run[-1] in _SCALES))
+        if word in _NUMBER_WORDS and joins:
             run.append(word)
             continue
         if run:
             spoken = _words_value(run)
-            if spoken is not None and not (len(run) == 1 and spoken in _NOT_FIGURES):
+            lone = len(run) == 1 and spoken is not None and spoken <= _MAX_LONE_COUNT
+            if spoken is not None and not lone:
                 found.add(spoken)
             run = []
     return found
