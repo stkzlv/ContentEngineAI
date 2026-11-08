@@ -12,7 +12,7 @@ Affiliate creators carry disclosure obligations under the FTC Endorsement Guides
 
 ## Phase H: Recurring narrator format (Now)
 
-Short commentary videos on any subject, voiced by one recurring narrator, beside the product and tutorial videos. The pieces are a commentary template, a narrator identity that stays the same across renders, audience metrics that show whether viewers come back, a script review before voiceover, and slots per content kind.
+Short commentary videos on any subject, voiced by one recurring narrator, beside the product and tutorial videos. The pieces are a commentary template, a narrator identity that stays the same across renders, audience metrics that show whether viewers come back, a script review before voiceover, slots per content kind, narrator rules an installation's own narrator keeps, a guard for a virtual narrator, a comparison and a contrast in each take, corrections of published videos, and replies to viewer comments.
 
 ### H.1 Commentary script template
 
@@ -43,6 +43,36 @@ Stop a run after the script, edit it, and resume, with every later step followin
 A recurring slot names a content kind, so an additional post never takes the main kind's slot. Until then, an additional post takes an explicit `--schedule` time. More than one post a day also needs the analytics sweep sized to it (`REQ-PUB-081`).
 
 **Done when:** two kinds scheduled on one day each land in their own slot. No issue yet.
+
+### H.6 Narrator rules apart from the profile
+
+The rules every script of a kind follows (length target, anti-AI phrases, no invention) move out of the narrator profiles, so an installation's own narrator keeps them, and config loading warns on a narrator text with no length target or with a quoted example a script could reuse. #804, [design 0032](design/0032-narrator-rules.md).
+
+**Done when:** an overlay that sets only a narrator profile still gets the rules, and the bundled prompts are byte-identical.
+
+### H.7 Virtual narrator
+
+A narrator identity marked virtual never claims a physical act: its prompt says so, and the script step refuses a first-person claim of one, whatever the lint setting. #805, [design 0033](design/0033-virtual-narrator.md).
+
+**Done when:** a virtual kind's scripts are retried on a claim and ship without it, and other kinds are unchanged.
+
+### H.8 Comparison and contrast in commentary scripts
+
+A switch that asks commentary scripts for one comparison built from the detail's numbers and one contrast between the common assumption and the fact. #806, [design 0034](design/0034-commentary-devices.md).
+
+**Done when:** the switch adds both rules to the commentary prompt, and a sample read with it on is recorded in the design.
+
+### H.9 Correction topics (Next)
+
+A topic kind that corrects a published record: a short correction in the commentary identity, with a first comment naming the original post and giving its URL. #807, [design 0035](design/0035-correction-topics.md).
+
+**Done when:** a correction of a published record renders and its first comment names the original, and a correction of a record never queued is refused.
+
+### H.10 Comment-reply videos (Next)
+
+List a published record's viewer comments and render a reply to one in the commentary identity, opening on a card showing the comment, into a drafts folder. #808, [design 0036](design/0036-comment-reply-videos.md).
+
+**Done when:** the producer renders a reply from a comment into the drafts folder with the card, and the publisher lists a record's comments.
 
 ## Phase 1: Hook and retention (Now)
 
@@ -177,12 +207,6 @@ A lint for machine-writing tells and pace, and a report of where the search phra
 Each Reel is re-shared as a Story with a link sticker, opt-in per pillar.
 
 **Done when:** every Reel triggers a Story re-share with a link sticker. No issue yet.
-
-### 4.3 Comment-reply video mode
-
-A producer mode that renders a short reply video from a viewer comment and its parent video, in the narrator's identity, with a product optional, into a drafts folder for review.
-
-**Done when:** the producer renders a reply video from a comment, with no product needed, to a drafts folder. No issue yet.
 
 ### 4.4 Amazon Influencer Storefront target
 

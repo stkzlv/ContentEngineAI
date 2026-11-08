@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.227.1] - 2026-11-08
+
+### Added
+
+- Requirements, design docs and roadmap items for five narrator features: shared script rules kept apart from the narrator profile, a virtual narrator that never claims a physical act, a comparison and a contrast in commentary scripts, correction topics, and comment-reply videos.
+
 ## [0.227.0] - 2026-11-07
 
 ### Added

@@ -77,6 +77,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-042** `shipped` If the data a template needs is missing, the publisher skips that first comment with a warning and still publishes the post.
 - **REQ-PUB-043** `shipped` The publisher posts first comments in both unified and platform-specific publishing modes.
 - **REQ-PUB-161** `shipped` Where first comments are on, a post's `metadata.json` can set its own first comment per platform in `first_comment`: a string replaces the template, and `null` or an empty string posts none; a platform it doesn't name keeps the template, in both publishing modes.
+- **REQ-PUB-166** `planned #807` A correction's first comment, on each platform that takes one, names the post it corrects by title and gives its URL on that platform, read through the publish history; on YouTube Shorts the URL shows as plain text.
 - **REQ-PUB-044** `shipped` The `verify-comments` command checks recent published posts on each platform and warns on every YouTube or Instagram post missing its first comment; a leg the provider reports as sent without one is counted apart, as sent without a comment, not as missing.
   - Why: the provider reports a post published without confirming that its comment posted.
 
@@ -171,6 +172,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-163** `shipped` Each analytics sweep stores, per post with a YouTube leg, the view-weighted average view percentage and average view duration and the subscribers gained, from the per-video daily stats; a video with no views yet has them unknown.
 - **REQ-PUB-164** `shipped` Each analytics sweep stores Instagram profile views and profile link taps per day for the last 7 days, for the first connected Instagram account.
 - **REQ-PUB-165** `shipped` The `audience` command prints, for a `--since`/`--until` range and without contacting the provider, net follows per 1,000 views per platform and summed, shares plus saves and comments per 1,000 views, the median YouTube average view percentage, and Instagram profile views per 1,000 views, which is unknown unless every day of the range is stored; a rate with a missing input is unknown.
+- **REQ-PUB-167** `planned #808` The `comments` command lists the recent comments on a published record's post on each platform, each with its id, author handle and text, leaving out the account's own comments.
 
 ## Published products registry
 
