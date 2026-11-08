@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.228.0] - 2026-11-08
+
+### Added
+
+- `llm_settings.script_validation.check_commentary_facts` (on in the bundled config) retries a commentary script that speaks a figure its topic detail doesn't carry, dropping that line if every attempt does, or that ends with no closing question.
+
 ## [0.227.2] - 2026-11-08
 
 ### Added

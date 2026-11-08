@@ -381,6 +381,9 @@ class ScriptValidationConfig(BaseModel):
     # Retry a script that borrows a quoted example from its prompt (#672).
     # It changes scripts, so it stays off until the reach-test readout.
     reject_copied_examples: bool = False
+    # For a commentary topic, retry a script that speaks a figure its detail
+    # doesn't carry or has no closing question (#810).
+    check_commentary_facts: bool = False
 
 
 class DescriptionValidationConfig(BaseModel):

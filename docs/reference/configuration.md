@@ -1108,6 +1108,10 @@ llm_settings:
     # Retry a script that borrows a quoted prompt example the listing doesn't
     # back, dropping the line if every attempt does.
     reject_copied_examples: true
+    # For a commentary topic, retry a script that speaks a figure its detail
+    # doesn't carry or has no closing question, dropping the figure's line if
+    # every attempt speaks one.
+    check_commentary_facts: true
 
   # Description validation thresholds. max_chars is what separates a
   # description from a reasoning model's monologue about writing one.
@@ -2737,6 +2741,7 @@ llm_settings:
     lint:             # Script lint (design 0007)
       enabled: true
     reject_copied_examples: true  # Retry a borrowed prompt example
+    check_commentary_facts: true  # Commentary: detail's figures, closing question
 
   # Description validation thresholds (nested under description_validation)
   description_validation:
