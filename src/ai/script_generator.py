@@ -49,6 +49,7 @@ from src.ai.model_pool import (
     fetch_and_select_model,
     model_reject_reason,
 )
+from src.ai.script_figures import has_closing_question, unbacked_figure
 from src.ai.step_list import StepList
 from src.ai.step_list import too_short as _too_short
 from src.scraper.amazon.models import ProductData
@@ -1086,7 +1087,7 @@ def validate_script_completeness(
 
 # Near misses that failed only a check a retry may pass: kept as a last
 # resort instead of handing the script to a fallback model (REQ-CNT-164).
-SOFT_NEAR_MISSES = ("copied", "placeholder", "lint")
+SOFT_NEAR_MISSES = ("figure", "copied", "placeholder", "question", "lint")
 
 
 @llm_circuit_breaker
@@ -1199,6 +1200,12 @@ async def generate_script(
         cta_line = select_cta(
             cta_options, product_id, settings.script_templates.fixed_cta
         )
+        signature = select_signature(
+            settings.script_templates.signature,
+            product_id,
+            is_topic,
+            template_name,
+        )
         prompt = format_prompt(
             template,
             product,
@@ -1207,12 +1214,7 @@ async def generate_script(
                 cta_line,
                 is_topic,
                 settings.script_templates.naturalism.intensity,
-                select_signature(
-                    settings.script_templates.signature,
-                    product_id,
-                    is_topic,
-                    template_name,
-                ),
+                signature,
                 hook_rules=settings.script_templates.hook_rules.enabled,
                 lint=settings.script_validation.lint,
                 tutorial=step_list is not None,
@@ -1267,6 +1269,24 @@ async def generate_script(
         + [s.ui_path for s in (step_list.steps if step_list is not None else [])]
     ).lower()
 
+    commentary_checks = (
+        settings.script_validation.check_commentary_facts
+        and getattr(product, "topic_kind", None) == "commentary"
+    )
+    closing_lines = {_normalise_line(c) for c in cta_options} | {
+        _normalise_line(s) for c in cta_options for s in _sentences(c)
+    }
+    if signature.signoff:
+        closing_lines.add(_normalise_line(signature.signoff))
+
+    def _body(script: str) -> list[str]:
+        # The script up to its closing question: the CTA and the sign-off
+        # after it carry no figure and are not the question.
+        parts = _sentences(script)
+        while parts and _normalise_line(parts[-1]) in closing_lines:
+            parts.pop()
+        return parts
+
     def _validate(script: str) -> tuple[bool, str]:
         # First, so a borrowed line can reach no last resort: the version
         # without it is validated in its place and kept as whichever near
@@ -1281,6 +1301,14 @@ async def generate_script(
             if _validate(trimmed)[0]:
                 near_miss.setdefault("copied", trimmed)
             return False, f"Script copies a prompt example: {borrowed!r}"
+        # A figure the topic detail doesn't carry: retried, and dropped with
+        # its line when every attempt speaks one, like a borrowed example.
+        figure = unbacked_figure(_body(script), listing) if commentary_checks else None
+        if figure:
+            trimmed = drop_borrowed(script, figure)
+            if _validate(trimmed)[0]:
+                near_miss.setdefault("figure", trimmed)
+            return False, f"Script speaks a figure its detail doesn't carry: {figure!r}"
         ok, reason = validate_script_completeness(
             script, sv_min_chars, sv_min_words, cta_options
         )
@@ -1325,13 +1353,14 @@ async def generate_script(
             # speech instead (REQ-CNT-052).
             near_miss.setdefault("placeholder", script)
             return False, f"Script carries a placeholder: {placeholder.group(0)!r}"
-        if (
-            not ok
-            and reason == NO_CTA_REASON
-            and not short
-            and "script" not in near_miss
-        ):
-            near_miss["script"] = script
+        asked = not commentary_checks or has_closing_question(_body(script))
+        if not ok and reason == NO_CTA_REASON and not short:
+            # The CTA-append last resort prefers a draft that asked its question.
+            near_miss.setdefault("script" if asked else "script_unasked", script)
+        if ok and not asked:
+            # Last, so this near miss has passed every other check.
+            near_miss.setdefault("question", script)
+            return False, "Script has no closing question before its call to action"
         return ok, reason
 
     prompt = apply_prompt_preambles(
@@ -1539,6 +1568,13 @@ async def generate_script(
                 fb.api_key_env_var,
             )
 
+    if "figure" in near_miss:
+        # Every attempt spoke a figure the topic detail doesn't carry; the
+        # version without that line passed every check.
+        logger.warning("No attempt kept to the detail's figures; dropping that line")
+        _record(near_model.get("figure"))
+        return near_miss["figure"], template_name, cta_line
+
     if "copied" in near_miss:
         # Every attempt borrowed a prompt example; the version without that
         # line passed every check, and an invented claim is worse than none.
@@ -1552,6 +1588,12 @@ async def generate_script(
         _record(near_model.get("placeholder"))
         return near_miss["placeholder"], template_name, cta_line
 
+    if "question" in near_miss:
+        # Complete and true to the detail, only without the closing question.
+        logger.warning("No attempt ended on a closing question; using one without")
+        _record(near_model.get("question"))
+        return near_miss["question"], template_name, cta_line
+
     if "lint" in near_miss:
         # Complete, closing on its call to action, and only the lint
         # objected: a render with a tell in it beats no render (design 0007).
@@ -1559,6 +1601,9 @@ async def generate_script(
         _record(near_model.get("lint"))
         return near_miss["lint"], template_name, cta_line
 
+    if "script" not in near_miss and "script_unasked" in near_miss:
+        near_miss["script"] = near_miss["script_unasked"]
+        near_model.setdefault("script", near_model.get("script_unasked", ""))
     if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing
         # the render over that is the worse outcome; a bolted-on closing line
