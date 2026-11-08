@@ -9,7 +9,7 @@
 Each narrator profile (`narrator_profile`, `narrator_profile_topic`, `narrator_profile_commentary`) is one string holding two kinds of text:
 
 - who the narrator is: the "Who", "Voice" and "Specificity" sections;
-- rules that every script of the kind follows: the call-to-action rule, the phrases that read as machine-written, and the universal rules, which carry the spoken-length target's `{TARGET_SECONDS}` and `{TARGET_WORDS}` placeholders (REQ-CNT-163) and the no-invention rule.
+- rules that every script of the kind follows: the call-to-action rule, the phrases that read as machine-written, and the universal rules, which carry the spoken-length target's `{TARGET_SECONDS}` and `{TARGET_WORDS}` placeholders (REQ-CNT-163) and, for topics and commentary, the no-invention rule. The product profile states its no-ownership and no-invention instructions in its "Who" and "Specificity" sections instead (REQ-CNT-156, REQ-CNT-157).
 
 An installation sets its own narrator in an overlay (decision 0017), and an overlay key replaces the whole string. So the overlay has to copy the rules by hand. If it doesn't, the length target, the anti-AI list and the no-invention rule disappear, and nothing warns: the prompt still reads as complete. A commentary narrator written in an overlay without the universal rules would have produced scripts with no length target at all.
 
@@ -28,7 +28,7 @@ A probe render with an overlay narrator found a second gap. The profile quoted s
 
 ## Design
 
-- **Three keys.** `script_templates.narrator_rules`, `narrator_rules_topic` and `narrator_rules_commentary` in `config/ai_services.yaml`, each a string. The shipped profiles are split where their first rule section starts (the "CTA:" line). The profile keeps everything above it and the rules key takes the rest, including the blank line between them, so `profile + rules` is the old string byte for byte. The topic rules carry the voice example, because it sits between the call-to-action rule and the universal rules, and moving it would change the prompt.
+- **Three keys.** `script_templates.narrator_rules`, `narrator_rules_topic` and `narrator_rules_commentary` in `config/ai_services.yaml`, each a string. The shipped profiles are split where their first rule section starts (the "CTA:" line). The profile keeps everything above it and the rules key takes the rest, including the blank line between them, so `profile + rules` is the old string byte for byte. The product and topic rules carry their voice example, because it sits between the call-to-action rule and the universal rules, and moving it would change the prompt; an overlay narrator with another voice sets the rules key too, or accepts the shipped example. The product profile keeps its no-ownership and no-invention sections, which sit above the rules: an overlay product narrator must carry them, as REQ-CNT-171 states.
 - **One assembly point.** `ScriptTemplateConfig.narrator_for` already returns the profile with its length filled, for the script and for the platform captions (REQ-CNT-115). It returns `target.fill(profile + rules)` instead, picking the topic or product pair the way it picks the profile today. An empty topic rules key falls back to the product rules, as an empty topic profile falls back today.
 - **Commentary.** `config_for_record` copies `narrator_rules_commentary` over `narrator_rules_topic` when it is set, beside the profile copy it already makes (design 0030).
 - **The warnings.** A model validator on `ScriptTemplateConfig`, run after the overlays merge, assembles each kind's text and logs one warning per kind:
@@ -40,7 +40,7 @@ A probe render with an overlay narrator found a second gap. The profile quoted s
 
 - **A persona field on the narrator identity**, filled into a placeholder in the shipped profile. The identity lives in the video config and the prompts in the AI config, so the script step would need both, and the topic profile's voice example would still sit inside the rules.
 - **Documenting that an overlay must copy the rules.** That is today's state, and it failed silently.
-- **Moving the voice example into the profile.** It changes the topic prompt, which needs its own measurement.
+- **Moving the voice examples into the profiles, or the product's no-invention text into its rules.** Either changes a shipped prompt, which needs its own measurement.
 
 ## Rollout
 

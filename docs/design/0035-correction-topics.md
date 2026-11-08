@@ -18,7 +18,7 @@ The pipeline can render a commentary topic and pin a narrator identity to it (de
 ## Goals
 
 - A topic marked `correction` names the published record it corrects and renders as a short correction in the commentary identity.
-- On every platform that takes a first comment, the correction's first comment links the original post.
+- On every platform that takes a first comment, the correction's first comment names the original post and gives its URL.
 - A correction that names a record with no published post is refused before any render cost.
 
 ## Non-goals
@@ -30,9 +30,9 @@ The pipeline can render a commentary topic and pin a narrator identity to it (de
 ## Design
 
 - **The record.** `TopicSpec.kind` gains `correction`, with a `corrects:` field holding the corrected record's id. A topics file sets both per entry; the producer and the batch take `--topic-kind correction --corrects <record id>` beside `--topic`. `--corrects` without `--topic-kind correction` is refused. The record's `data.json` carries `topic_kind: correction` and `corrects`.
-- **The check.** Before the pipeline runs, the producer reads the publish history for `corrects`. No row on any platform refuses the record with a message naming the id.
+- **The check.** Where topic records are built, which the producer and the global batch share, the publish history is read for `corrects`. No row on any platform, queued or published, refuses the record with a message naming the id. A row records the queue time, not delivery, so an original that is only scheduled passes; the first comment handles that case below.
 - **The render.** `content_kind` returns `commentary` for a correction, so the commentary identity, narrator, CTAs and length apply (design 0031). `config_for_record` then sets `topic_templates` to `correction_templates`. The shipped `correction` template asks for: what the earlier video said, in one sentence; the right fact, with the detail's source; what changes because of it; and no closing question, because a correction is not a debate. The detail must carry the right fact and its source; the template forbids anything else, as the commentary template does.
-- **The first comment.** At publish time, for a correction record, the publisher resolves each platform's original post id from the publish history and asks the provider for its URL. The correction's first comment on that platform is the configured template `first_comment.correction_template` (default "Corrects: {original_url}") filled with it. A platform with no URL yet (the original still scheduled) posts the template's fallback, the record's title, and logs a warning. A `first_comment` set in the record's own `metadata.json` still wins (REQ-PUB-161).
+- **The first comment.** At publish time, for a correction record, the publisher resolves each platform's original post id from the publish history and asks the provider for its URL. The correction's first comment on that platform is the configured template `first_comment.correction_template` (default "Corrects: {original_title} {original_url}") filled with them. YouTube shows a URL in a Shorts comment as plain text (`config/publisher.yaml`, decision 0009), so there the title is what lets a viewer find the original; whether Instagram makes it clickable is unchecked. A platform with no URL yet (the original still scheduled) posts the template's fallback, the record's title, and logs a warning. A `first_comment` set in the record's own `metadata.json` still wins (REQ-PUB-161).
 - **Analytics.** A correction counts in the `topic` content format, like a commentary post.
 - **Tests.** The flag and file parsing; the refusal for an unpublished id; the template swap on the config copy; the first comment per platform from a fake history and provider, the fallback, and the metadata override.
 

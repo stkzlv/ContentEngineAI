@@ -6,7 +6,7 @@
 
 ## Context
 
-The commentary template (design 0030) asks for a hook carrying the fact, a turn, one owned opinion and a closing question. It asks for nothing that makes the fact land, so a take can state "1,016 questions last month" and move on.
+The commentary template (design 0030) asks for a hook carrying the fact, a turn, one owned opinion and a closing question. It asks for nothing that makes the fact land, so a take can state a bare count and move on.
 
 Research on speaker charisma names a set of verbal tactics that can be trained and that raise how charismatic a speaker is rated: metaphors, similes and analogies, stories, contrasts, rhetorical questions, three-part lists, and expressions of moral conviction (Antonakis, Fenley and Liechti 2011, Academy of Management Learning and Education; read through a secondary summary) [A]. A comparison turns a bare number into something the viewer can picture, and a contrast sets the common assumption against the fact, which is what a take's turn already is.
 
