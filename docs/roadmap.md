@@ -52,7 +52,7 @@ The rules every script of a kind follows (length target, anti-AI phrases, no inv
 
 ### H.7 Virtual narrator
 
-A narrator identity marked virtual never claims a physical act: its prompt says so, and the script lint refuses a first-person claim of one. #805, [design 0033](design/0033-virtual-narrator.md).
+A narrator identity marked virtual never claims a physical act: its prompt says so, and the script step refuses a first-person claim of one, whatever the lint setting. #805, [design 0033](design/0033-virtual-narrator.md).
 
 **Done when:** a virtual kind's scripts are retried on a claim and ship without it, and other kinds are unchanged.
 
@@ -64,9 +64,9 @@ A switch that asks commentary scripts for one comparison built from the detail's
 
 ### H.9 Correction topics (Next)
 
-A topic kind that corrects a published record: a short correction in the commentary identity, with a first comment linking the original post. #807, [design 0035](design/0035-correction-topics.md).
+A topic kind that corrects a published record: a short correction in the commentary identity, with a first comment naming the original post and giving its URL. #807, [design 0035](design/0035-correction-topics.md).
 
-**Done when:** a correction of a published record renders and its scheduled post links the original, and a correction of an unpublished record is refused.
+**Done when:** a correction of a published record renders and its first comment names the original, and a correction of a record never queued is refused.
 
 ### H.10 Comment-reply videos (Next)
 
