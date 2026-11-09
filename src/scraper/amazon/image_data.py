@@ -56,6 +56,8 @@ class ListingVideo:
 class ImageBlock:
     images: list[str] = field(default_factory=list)
     videos: list[ListingVideo] = field(default_factory=list)
+    hires_count: int = 0
+    """Gallery entries that gave a `hiRes` URL rather than `large`."""
 
 
 def _js_string_at(text: str, start: int) -> str | None:
@@ -105,12 +107,14 @@ def _parsed_after(text: str, key: str) -> list[Any] | None:
 def parse_image_block(text: str) -> ImageBlock:
     """The gallery, `hiRes` falling back to `large`, and the listing videos."""
     images: list[str] = []
+    hires_count = 0
     for entry in _parsed_after(text, "'initial'") or []:
         if not isinstance(entry, dict):
             continue
         url = entry.get("hiRes") or entry.get("large")
         if isinstance(url, str) and url and url not in images:
             images.append(url)
+            hires_count += url == entry.get("hiRes")
     videos: list[ListingVideo] = []
     for entry in _parsed_after(text, "'videos'") or []:
         if not isinstance(entry, dict):
@@ -128,7 +132,7 @@ def parse_image_block(text: str) -> ImageBlock:
                 else None,
             )
         )
-    return ImageBlock(images=images, videos=videos)
+    return ImageBlock(images=images, videos=videos, hires_count=hires_count)
 
 
 def read_image_block(driver: Any) -> ImageBlock:

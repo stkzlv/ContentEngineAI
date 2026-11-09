@@ -189,6 +189,9 @@ def extract_functional_videos_with_validation(
 
         if DEBUG_MODE:
             logger.info("Current product ASIN: %s", current_asin)
+            logger.info("Product brand: %s", product_brand)
+            logger.info("Product model: %s", product_model)
+            logger.info("Product keywords: %s", product_keywords)
 
         # The listing's own videos come first, from the page's image data
         # (REQ-SCR-086); the scans below add what it does not list.
@@ -199,9 +202,6 @@ def extract_functional_videos_with_validation(
                     "Listing videos from the page's image data: %d", len(listed)
                 )
             video_urls.extend(video.url for video in listed)
-            logger.info("Product brand: %s", product_brand)
-            logger.info("Product model: %s", product_model)
-            logger.info("Product keywords: %s", product_keywords)
 
         # Method 1: JavaScript extraction from page data (same as images)
         if DEBUG_MODE:

@@ -57,6 +57,36 @@ def test_another_colours_gallery_is_not_read():
     assert parse_image_block(OTHER_COLOUR) == ImageBlock()
 
 
+@pytest.mark.parametrize("key", ["initial", "videos"])
+def test_a_later_propertys_parse_call_is_not_this_keys(key):
+    text = (
+        f"'{key}': [], 'other': A.$.parseJSON('"
+        '[{"hiRes":"' + IMG + 'X.jpg","url":"https://example.test/v.mp4"}]'
+        "')"
+    )
+
+    assert parse_image_block(text) == ImageBlock()
+
+
+def test_a_gallery_without_hires_falls_back_to_the_scans():
+    text = (
+        "'colorImages': { 'initial': A.$.parseJSON('"
+        '[{"hiRes":null,"large":"' + IMG + 'SMALL._AC_.jpg"}]'
+        "')}"
+    )
+    driver = MagicMock()
+    driver.run_js.side_effect = lambda script, *_a: (
+        text if "colorImages" in script and "return t;" in script else None
+    )
+    driver.select_all.return_value = []
+    driver.get_all_image_links.return_value = []
+
+    assert parse_image_block(text).hires_count == 0
+    media_extractor.extract_high_res_images_botasaurus(driver, max_images=2)
+
+    driver.select_all.assert_called()
+
+
 def test_a_page_without_the_block_reads_empty():
     driver = MagicMock()
     driver.run_js.return_value = None

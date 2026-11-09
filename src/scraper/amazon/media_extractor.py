@@ -108,10 +108,14 @@ def extract_high_res_images_botasaurus(
     if get_config_value(
         "global_settings", "image_config", "use_image_data", default=True
     ):
-        gallery = read_image_block(driver).images
-        if gallery:
-            logger.info("Gallery from the page's image data: %d image(s)", len(gallery))
-            return gallery[:max_images]
+        block = read_image_block(driver)
+        # A gallery with no high-resolution entry at all falls through to the
+        # scans, whose upgraded URLs can do better than `large`.
+        if block.hires_count:
+            logger.info(
+                "Gallery from the page's image data: %d image(s)", len(block.images)
+            )
+            return block.images[:max_images]
 
     try:
         # Method 1: Advanced JavaScript extraction of dynamic image data
