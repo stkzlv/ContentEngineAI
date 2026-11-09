@@ -437,6 +437,8 @@ def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
             if "search_queries" in provider.settings:
                 provider.settings["search_queries"] = list(identity.music_queries)
         record.audio_settings.freesound_search_query = identity.music_queries[0]
+    if identity.virtual:
+        record.llm_settings.script_templates.virtual_narrator = True
     if identity.caption_template:
         pycaps = record.subtitle_settings.setdefault("pycaps", {})
         pycaps["template_name"] = identity.caption_template

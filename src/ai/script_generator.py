@@ -49,6 +49,7 @@ from src.ai.model_pool import (
     fetch_and_select_model,
     model_reject_reason,
 )
+from src.ai.physical_claims import compile_patterns, physical_claim
 from src.ai.script_figures import has_closing_question, unbacked_figure
 from src.ai.step_list import StepList
 from src.ai.step_list import too_short as _too_short
@@ -400,6 +401,13 @@ def render_lint_rule(lint: ScriptLintConfig | None, word_cap: bool = True) -> st
     return rule
 
 
+COMMENTARY_DEVICES_RULE = (
+    "- Make the main fact land with one comparison built only from numbers "
+    "the detail states; never invent a figure for it.\n"
+    "- Once, set what most people assume against what the fact shows."
+)
+
+
 def render_ending_rules(
     cta_line: str,
     is_topic: bool,
@@ -409,6 +417,7 @@ def render_ending_rules(
     lint: ScriptLintConfig | None = None,
     tutorial: bool = False,
     recap: bool | None = None,
+    commentary_devices: bool = False,
 ) -> str:
     """Everything `{CTA_RULE}` carries: the CTA rule, naturalism, signature,
     the hook rules and the lint's limits.
@@ -427,6 +436,7 @@ def render_ending_rules(
             render_signature_rules(signature or SignatureChoice(), recap),
             render_hook_rules(hook_rules),
             render_lint_rule(lint, word_cap=not tutorial),
+            COMMENTARY_DEVICES_RULE if commentary_devices else "",
         )
         if rule
     )
@@ -1087,7 +1097,14 @@ def validate_script_completeness(
 
 # Near misses that failed only a check a retry may pass: kept as a last
 # resort instead of handing the script to a fallback model (REQ-CNT-164).
-SOFT_NEAR_MISSES = ("figure", "copied", "placeholder", "question", "lint")
+SOFT_NEAR_MISSES = (
+    "physical",
+    "figure",
+    "copied",
+    "placeholder",
+    "question",
+    "lint",
+)
 
 
 @llm_circuit_breaker
@@ -1219,6 +1236,10 @@ async def generate_script(
                 lint=settings.script_validation.lint,
                 tutorial=step_list is not None,
                 recap=step_list is not None and not step_list.explainer,
+                commentary_devices=(
+                    settings.script_templates.commentary_devices.enabled
+                    and getattr(product, "topic_kind", None) == "commentary"
+                ),
             ),
         )
         if step_list is not None:
@@ -1269,6 +1290,13 @@ async def generate_script(
         + [s.ui_path for s in (step_list.steps if step_list is not None else [])]
     ).lower()
 
+    # A virtual narrator's claim of a physical act: refused whatever the lint
+    # setting, and never shipped as a soft near miss (REQ-CNT-173).
+    claim_patterns = (
+        compile_patterns(settings.script_validation.physical_claims)
+        if settings.script_templates.virtual_narrator
+        else []
+    )
     commentary_checks = (
         settings.script_validation.check_commentary_facts
         and getattr(product, "topic_kind", None) == "commentary"
@@ -1301,6 +1329,12 @@ async def generate_script(
             if _validate(trimmed)[0]:
                 near_miss.setdefault("copied", trimmed)
             return False, f"Script copies a prompt example: {borrowed!r}"
+        claim = physical_claim(_sentences(script), claim_patterns)
+        if claim:
+            trimmed = drop_borrowed(script, claim)
+            if _validate(trimmed)[0]:
+                near_miss.setdefault("physical", trimmed)
+            return False, f"A virtual narrator claims a physical act: {claim!r}"
         # A figure the topic detail doesn't carry: retried, and dropped with
         # its line when every attempt speaks one, like a borrowed example.
         figure = unbacked_figure(_body(script), listing) if commentary_checks else None
@@ -1567,6 +1601,13 @@ async def generate_script(
                 "Fallback provider configured but API key %s not found",
                 fb.api_key_env_var,
             )
+
+    if "physical" in near_miss:
+        # Every attempt had the virtual narrator claim a physical act; the
+        # version without that line passed every check.
+        logger.warning("No attempt avoided a physical-act claim; dropping that line")
+        _record(near_model.get("physical"))
+        return near_miss["physical"], template_name, cta_line
 
     if "figure" in near_miss:
         # Every attempt spoke a figure the topic detail doesn't carry; the

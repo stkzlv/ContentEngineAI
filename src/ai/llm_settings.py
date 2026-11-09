@@ -124,6 +124,18 @@ class NaturalismConfig(BaseModel):
     intensity: int = Field(default=0, ge=0, le=2)
 
 
+class CommentaryDevicesConfig(BaseModel):
+    """Ask a commentary script for a comparison and a contrast (REQ-CNT-174).
+
+    Off by default, and the prompt is byte-identical when off: whether the
+    two devices help is read from sampled scripts first (design 0034).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+
+
 class TopicRoutingConfig(BaseModel):
     """Route a task topic to the templates written for a task (REQ-CNT-161).
 
@@ -276,6 +288,10 @@ class ScriptTemplateConfig(BaseModel):
     narrator_rules: str = ""
     narrator_rules_topic: str = ""
     narrator_rules_commentary: str = ""
+    # Set from a narrator identity's `virtual` flag on a record's config copy
+    # (REQ-CNT-173): the narrator text gains VIRTUAL_NARRATOR_RULE, and the
+    # script step refuses a first-person claim of a physical act.
+    virtual_narrator: bool = False
     # Templates used when the record came from a topic rather than a scraped
     # product. Selected instead of the pillar pool, because a pillar narrows
     # which product angle to take while this decides whether the script is
@@ -317,6 +333,9 @@ class ScriptTemplateConfig(BaseModel):
     # Concrete hook, "but/therefore" chain and search-phrase lead. Off.
     hook_rules: HookRulesConfig = Field(default_factory=HookRulesConfig)
     topic_routing: TopicRoutingConfig = Field(default_factory=TopicRoutingConfig)
+    commentary_devices: CommentaryDevicesConfig = Field(
+        default_factory=CommentaryDevicesConfig
+    )
 
     @field_validator("cta_options", "cta_options_topic", "cta_options_commentary")
     @classmethod
@@ -358,10 +377,14 @@ class ScriptTemplateConfig(BaseModel):
                 self.target_length.topic if is_topic else self.target_length.product
             )
         if not is_topic:
-            return target.fill(_join(self.narrator_profile, self.narrator_rules))
-        return target.fill(
-            self._topic_text(self.narrator_profile_topic, self.narrator_rules_topic)
-        )
+            text = _join(self.narrator_profile, self.narrator_rules)
+        else:
+            text = self._topic_text(
+                self.narrator_profile_topic, self.narrator_rules_topic
+            )
+        if self.virtual_narrator:
+            text = _join(text, VIRTUAL_NARRATOR_RULE)
+        return target.fill(text)
 
     def _topic_text(self, profile_topic: str, rules_topic: str) -> str:
         """A topic narrator's text: its own profile and rules, else the product's."""
@@ -477,6 +500,12 @@ class ScriptLintConfig(BaseModel):
         return value
 
 
+def _default_physical_claims() -> tuple[str, ...]:
+    from src.ai.physical_claims import DEFAULT_PATTERNS
+
+    return DEFAULT_PATTERNS
+
+
 class ScriptValidationConfig(BaseModel):
     """Thresholds for script completeness validation."""
 
@@ -489,6 +518,19 @@ class ScriptValidationConfig(BaseModel):
     # For a commentary topic, retry a script that speaks a figure its detail
     # doesn't carry or has no closing question (#810).
     check_commentary_facts: bool = False
+    # First-person claims of a physical act, refused for a virtual narrator
+    # whatever the lint setting (REQ-CNT-173). Case-insensitive patterns.
+    physical_claims: list[str] = Field(
+        default_factory=lambda: list(_default_physical_claims())
+    )
+
+    @field_validator("physical_claims")
+    @classmethod
+    def _patterns_compile(cls, value: list[str]) -> list[str]:
+        from src.ai.physical_claims import compile_patterns
+
+        compile_patterns(value)
+        return value
 
 
 class DescriptionValidationConfig(BaseModel):
@@ -714,6 +756,14 @@ class LLMSettings(BaseModel):
 
 
 LLMSettings.model_rebuild()
+
+
+VIRTUAL_NARRATOR_RULE = (
+    "You are a synthetic narrator. Never say you bought, ordered, held, tried, "
+    "tested, unboxed, wore or used something, or went somewhere with it. "
+    "Opinions, and what you read, compared or checked, are fine in the first "
+    "person."
+)
 
 
 def _join(profile: str, rules: str) -> str:

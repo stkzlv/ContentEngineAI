@@ -1,6 +1,6 @@
 # 0033. Virtual narrator
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #805
 - **Requirements:** REQ-CNT-173
 
