@@ -117,6 +117,26 @@ class TestTheListing:
 
 
 @pytest.mark.req("REQ-PUB-167")
+@pytest.mark.asyncio
+async def test_one_failing_platform_leaves_the_others_listed() -> None:
+    from src.publisher.base import PublishError
+
+    def comments(pid, acc, limit=25):
+        if pid == "youtube-1":
+            raise PublishError("video removed")
+        return [IG]
+
+    reader = _reader({})
+    reader.get_post_comments.side_effect = comments
+
+    results = await list_viewer_comments(reader, {"youtube": "p1", "instagram": "p1"})
+
+    by_platform = {r.platform: r for r in results}
+    assert [c.comment_id for c in by_platform["instagram"].comments] == ["c2"]
+    assert by_platform["youtube"].skipped.startswith("read failed")
+
+
+@pytest.mark.req("REQ-PUB-167")
 def test_the_command_refuses_a_record_with_no_post(tmp_path, monkeypatch) -> None:
     import argparse
     import asyncio

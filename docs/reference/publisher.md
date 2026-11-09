@@ -203,7 +203,7 @@ python -m src.publisher.late verify-comments [--limit N] [--outputs-dir PATH]
 
 ### `comments`
 
-Lists the viewer comments on a published record's posts, one platform at a time, each with its id, author handle and text. The account's own comments, such as the first comment, are left out. Read-only. TikTok's API exposes no comments, so a TikTok leg is reported as skipped. A record with no post in the publish history is refused.
+Lists the viewer comments on a published record's posts, one platform at a time, each with its id, author handle and text. The account's own comments, such as the first comment, are left out. Read-only. TikTok's API exposes no comments, so a TikTok leg is reported as skipped, and a platform whose read fails is reported with the error while the others still list. A record with no post in the publish history is refused.
 
 ```bash
 python -m src.publisher.late comments RECORD_ID [--platform P] [--limit N] [--outputs-dir PATH]

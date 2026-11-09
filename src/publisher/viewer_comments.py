@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+from late.client.exceptions import LateAPIError
+
+from src.publisher.base import PublisherError
 from src.publisher.tracking import load_tracking
 
 logger = logging.getLogger(__name__)
@@ -109,24 +112,39 @@ async def list_viewer_comments(
         if platform in UNREADABLE_PLATFORMS:
             results.append(PlatformComments(platform, [], NO_COMMENT_API))
             continue
-        if post_id not in legs_by_post:
-            legs_by_post[post_id] = await reader.get_post_platforms(post_id)
-        leg = next(
-            (
-                item
-                for item in legs_by_post[post_id]
-                if str(item.get("platform") or "").lower() == platform
-            ),
-            None,
-        )
-        if not leg or not leg.get("platform_post_id") or not leg.get("account_id"):
-            results.append(PlatformComments(platform, [], "not live yet"))
-            continue
-        # The account's own comments share the page, so ask for room past them.
-        raw = await reader.get_post_comments(
-            str(leg["platform_post_id"]), str(leg["account_id"]), limit=limit + 5
-        )
-        results.append(
-            PlatformComments(platform, _viewer_comments(platform, raw, limit))
-        )
+        try:
+            result = await _read_platform(
+                reader, platform, post_id, legs_by_post, limit
+            )
+        except (PublisherError, LateAPIError) as exc:
+            # One removed video or disconnected account must not hide the rest.
+            logger.warning("Could not read %s comments: %s", platform, exc)
+            result = PlatformComments(platform, [], f"read failed: {exc}")
+        results.append(result)
     return results
+
+
+async def _read_platform(
+    reader: CommentReader,
+    platform: str,
+    post_id: str,
+    legs_by_post: dict[str, list[dict[str, Any]]],
+    limit: int,
+) -> PlatformComments:
+    if post_id not in legs_by_post:
+        legs_by_post[post_id] = await reader.get_post_platforms(post_id)
+    leg = next(
+        (
+            item
+            for item in legs_by_post[post_id]
+            if str(item.get("platform") or "").lower() == platform
+        ),
+        None,
+    )
+    if not leg or not leg.get("platform_post_id") or not leg.get("account_id"):
+        return PlatformComments(platform, [], "not live yet")
+    # The account's own comments share the page, so ask for room past them.
+    raw = await reader.get_post_comments(
+        str(leg["platform_post_id"]), str(leg["account_id"]), limit=limit + 5
+    )
+    return PlatformComments(platform, _viewer_comments(platform, raw, limit))
