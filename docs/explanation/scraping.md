@@ -45,6 +45,10 @@ Amazon doesn't use Cloudflare. Amazon.com is fronted by CloudFront and protected
 
 This is why the scraper navigates with `driver.google_get(url, bypass_cloudflare=True)` and human-like cursor motion rather than fetching the URL directly: an organic referrer and real browser behaviour are what satisfy the silent AWS WAF challenge. A direct `requests`-style fetch gets the Robot Check at once.
 
+### A returning browser
+
+By default every scrape is a new visitor: no cookies, a random window size, and a random user agent from the driver library's list. That list stops at Chrome 120 while the installed browser is newer, and the user-agent flag changes only the string; the client hints still report the real version, so the two disagree. `scrapers.amazon.consistent_identity` presents one returning browser instead: the browser's own user agent, so the hints agree, a window size drawn once and kept, cookies carried from one run to the next, and product pages opened by clicking the result, with a history step back. It ships off; the log line `Browser identity: user agent ...; client hints ...` shows what a run presented, so a week with it on can be compared with a week without on block pages per run.
+
 ### Cloudflare Turnstile and the bypass flag
 
 The `bypass_cloudflare=True` argument on `google_get` is generic Botasaurus machinery, not Amazon-specific. Cloudflare Turnstile runs non-interactive JavaScript challenges (proof of work and browser-environment signals), and most visitors never see a widget. When a visible Turnstile checkbox does appear, Botasaurus's `solve_cloudflare_captcha.py` walks the iframe and shadow DOM and clicks it with a human-like cursor. Since Amazon doesn't run Cloudflare, this path is mostly dormant for Amazon. It still matters because `google_get` routes through the same flow, and the `wait_till_document_is_ready` step that times out on a missing display lives in that module. Treat a 60 s document-ready timeout as a display or navigation failure first, not as a Cloudflare block.

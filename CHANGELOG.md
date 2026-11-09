@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.233.0] - 2026-11-09
+
+### Added
+
+- `scrapers.amazon.consistent_identity`, off by default, makes the scraper one returning browser across runs: the browser's own user agent, a window size drawn once and kept, cookies kept between runs under the outputs state directory, and product pages opened by clicking the result.
+
 ## [0.232.0] - 2026-11-09
 
 ### Changed

@@ -265,6 +265,7 @@ There is no `headless` key: the scraper always runs a headful browser, on a virt
 | `base_url` | string | `https://www.amazon.com` | Site the scraper visits. |
 | `keywords` | list | `["keyboard"]` | Fallback keywords when `batch` names none. |
 | `max_products` | int | `1` (`2`) | Cap on validated products for the run. |
+| `consistent_identity` | bool | `false` | Present as one returning browser across runs: the browser's own user agent, a window size drawn once and kept in `outputs/state/scraper_identity.json`, cookies kept in `outputs/state/scraper_cookies.json`, and product pages opened by clicking the result. Off: a random user agent and window size each run (`REQ-SCR-081`). |
 | `associate_tag` | string | `""` | Associate tag, used when `AMAZON_ASSOCIATE_TAG` is unset. |
 | `affiliate_links.enabled` | bool | `true` | Whether the install takes part in an affiliate program. See [affiliate URLs](#affiliate-urls). |
 | `default_search_parameters` | mapping | see below | Search filters for every keyword search, in the standalone scraper and the batch alike (`REQ-SCR-030`). |

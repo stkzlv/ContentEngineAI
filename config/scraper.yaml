@@ -530,6 +530,12 @@ scrapers:
     # Maximum number of products to scrape per keyword/search
     max_products: 1
 
+    # Present as one returning browser across runs: the browser's own user
+    # agent, a window size drawn once and kept, cookies kept between runs
+    # (under outputs/state/), and product pages opened by clicking the
+    # result rather than by a fresh navigation. Off: a new visitor each run.
+    consistent_identity: false
+
     # Amazon Associates affiliate tag for monetization
     associate_tag: ""  # Set via AMAZON_ASSOCIATE_TAG env var
 

@@ -382,6 +382,7 @@ class AmazonScraperConfig(BaseModel):
     base_url: str = Field(default="https://www.amazon.com")
     keywords: list[str] = Field(default=["keyboard"])
     max_products: int = Field(default=2, gt=0)
+    consistent_identity: bool = Field(default=False)
     associate_tag: str = Field(default="")
     affiliate_links: AffiliateLinksConfig = Field(
         default_factory=lambda: AffiliateLinksConfig()
