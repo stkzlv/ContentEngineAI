@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.3] - 2026-11-09
+
+### Fixed
+
+- Captions timed from the script text no longer run past the end of the audio and drop their last words at a fast speaking rate; when their minimum durations do not fit, every caption shrinks by the same share.
+
 ## [0.239.2] - 2026-11-09
 
 ### Added

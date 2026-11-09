@@ -619,8 +619,7 @@ class UnifiedSubtitleGenerator:
             self.config.max_line_length,
         )
 
-        segments = []
-        current_time = 0.0
+        groups: list[tuple[str, float]] = []
 
         # Get speaking rate from configuration with fallback
         subtitle_segmentation = config.subtitle_segmentation
@@ -738,24 +737,12 @@ class UnifiedSubtitleGenerator:
                     current_segment_words = current_segment_words[:keep]
                     current_segment_text = " ".join(current_segment_words)
 
-                # Calculate segment duration based on word count
-                word_duration = len(current_segment_words) / speaking_rate
-                word_duration = max(self.config.min_duration, word_duration)
-                word_duration = min(self.config.max_duration, word_duration)
-
-                # Ensure we don't exceed total duration
-                if current_time + word_duration > duration:
-                    word_duration = duration - current_time
-
-                if word_duration > 0:
-                    segments.append(
-                        {
-                            "text": current_segment_text,
-                            "start": current_time,
-                            "end": current_time + word_duration,
-                        }
+                groups.append(
+                    (
+                        current_segment_text,
+                        self._clamped(len(current_segment_words), speaking_rate),
                     )
-                    current_time += word_duration
+                )
 
                 # Start the next segment. A word the sentence break already
                 # placed is not repeated; any other word opens it, a
@@ -767,22 +754,52 @@ class UnifiedSubtitleGenerator:
                 current_segment_words.append(word)
                 current_segment_text = potential_text
 
-        # Handle final segment
         if current_segment_words and current_segment_text:
-            remaining_time = duration - current_time
-            final_duration = max(
-                self.config.min_duration, min(remaining_time, self.config.max_duration)
-            )
-
-            if final_duration > 0:
-                segments.append(
-                    {
-                        "text": current_segment_text,
-                        "start": current_time,
-                        "end": current_time + final_duration,
-                    }
+            groups.append(
+                (
+                    current_segment_text,
+                    self._clamped(len(current_segment_words), speaking_rate),
                 )
+            )
+        return self._lay_out(groups, duration)
 
+    def _clamped(self, words: int, speaking_rate: float) -> float:
+        """A caption's duration at the script's rate, within min and max."""
+        natural = words / speaking_rate
+        return min(self.config.max_duration, max(self.config.min_duration, natural))
+
+    def _lay_out(
+        self, groups: list[tuple[str, float]], duration: float
+    ) -> list[dict[str, Any]]:
+        """Place captions end to end inside the audio (REQ-VID-163).
+
+        When their clamped durations fit, the last caption holds to the end
+        of the audio, up to `max_duration`. When they overrun it (a fast
+        rate, many one-word captions), every caption shrinks by the same
+        factor, below `min_duration` if need be, so no word is dropped.
+        """
+        if not groups or duration <= 0:
+            return []
+        total = sum(d for _, d in groups)
+        if total > duration:
+            factor = duration / total
+            durations = [d * factor for _, d in groups]
+        else:
+            durations = [d for _, d in groups]
+            before_last = total - durations[-1]
+            durations[-1] = min(
+                duration - before_last,
+                max(
+                    durations[-1], min(duration - before_last, self.config.max_duration)
+                ),
+            )
+        segments: list[dict[str, Any]] = []
+        current_time = 0.0
+        for (text, _), length in zip(groups, durations, strict=True):
+            segments.append(
+                {"text": text, "start": current_time, "end": current_time + length}
+            )
+            current_time += length
         return segments
 
     def _generate_srt(
