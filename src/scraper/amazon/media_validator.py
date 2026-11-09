@@ -464,15 +464,15 @@ def verify_video_file(
             with open(file_path, "rb") as f:
                 header = f.read(12)
 
-            # Check for common video file signatures
+            # MP4 and MOV are ISO media files: an `ftyp` box at byte 4,
+            # whatever its size and brand. Matching two exact headers turned
+            # away valid files (an `M4V ` brand in a 28-byte box, for one).
             video_signatures = [
-                b"\x00\x00\x00\x18ftypmp4",  # MP4
-                b"\x00\x00\x00 ftypisom",  # MP4/ISO
                 b"\x1aE\xdf\xa3",  # WebM/Matroska
                 b"RIFF",  # AVI (first 4 bytes)
             ]
 
-            has_valid_signature = any(
+            has_valid_signature = header[4:8] == b"ftyp" or any(
                 header.startswith(sig) for sig in video_signatures
             )
             validation_data["has_valid_signature"] = has_valid_signature

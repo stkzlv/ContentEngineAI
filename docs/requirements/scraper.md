@@ -37,7 +37,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-022** `shipped` Where the target profile uses no video, the scraper ignores downloaded videos when it checks the media minimums.
 - **REQ-SCR-023** `shipped` If a product fails the media minimums, the scraper removes its output directory and logs the reason.
 - **REQ-SCR-024** `shipped` The media counts in the scraper's summaries are validated files on disk per product, not URLs found on the page.
-- **REQ-SCR-086** `planned #816` The scraper reads a product page's gallery images and listing videos from the page's embedded image data, in gallery order, taking each image's high-resolution version and falling back to its large one where no high-resolution version is given, with the page's image elements as the fallback.
+- **REQ-SCR-086** `shipped` The scraper reads a product page's gallery images and listing videos from the page's embedded image data, in gallery order, taking each image's high-resolution version and falling back to its large one where no high-resolution version is given, with the page's image elements as the fallback.
 - **REQ-SCR-067** `shipped` The scraper extracts at most `image_config.max_images_per_product` images (15 in the bundled config) and `video_config.max_videos_per_product` videos (default 10) per product.
 - **REQ-SCR-068** `shipped` Where `video_config.enable_m3u8_monitoring` is on (off by default), the scraper also captures product videos from the HLS streams the page loads when its video player starts.
 

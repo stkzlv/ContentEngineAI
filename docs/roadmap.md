@@ -202,7 +202,7 @@ A lint for machine-writing tells and pace, and a report of where the search phra
 
 ### 3.10 Scraper block resilience
 
-The scraper recognises the site's block pages after every navigation and stops browsing on a captcha or bare-title page, the batch makes only the searches it needs, waits on a non-results page are bounded, and an optional consistent browser identity replaces the random one. [Design 0037](design/0037-scraper-block-resilience.md), #812, #813, #814, #815; the double-encoded search keyword (#811) is shipped.
+The scraper recognises the site's block pages after every navigation, retries a captcha or bare-title page once in a fresh browser session and stops browsing when it comes back, the batch makes only the searches it needs, waits on a non-results page are bounded, and an optional consistent browser identity replaces the random one. [Design 0037](design/0037-scraper-block-resilience.md), #812, #813, #814, #815. Shipped: the keyword encoding (#811), the one-input batch (#813), the page classifier (#812), the bounded waits (#815) and the identity switch, off (#814); the gallery and listing videos read from the page's image data (#816).
 
 **Done when:** a blocked search is reported as a block within seconds, a one-product batch run whose first input validates makes one search, and a week with the identity switch on is compared with the week before.
 
