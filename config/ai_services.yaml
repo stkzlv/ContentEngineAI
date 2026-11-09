@@ -354,6 +354,10 @@ llm_settings:
     cta_options_commentary:
       - "Follow for more takes like this."
       - "Drop a comment with your answer."
+    # For corrections, which close on what changes rather than a question.
+    # Empty keeps the commentary CTAs.
+    cta_options_correction:
+      - "Follow for more takes like this."
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one
     # self-correction. Never in the first sentence, a number, name or claim,

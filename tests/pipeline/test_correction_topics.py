@@ -146,7 +146,9 @@ class TestTheRender:
 
         assert templates.topic_templates == ["correction"]
         commentary = config.llm_settings.script_templates
-        assert templates.cta_options_topic == commentary.cta_options_commentary
+        assert (
+            templates.narrator_profile_topic == commentary.narrator_profile_commentary
+        )
         assert templates.target_length.topic == commentary.target_length.commentary
 
     def test_no_correction_templates_refuses_the_record(self) -> None:
@@ -294,3 +296,129 @@ async def test_a_correction_keeps_to_its_figures_and_asks_nothing() -> None:
         [_take("about a thousand", statement), exact], kind="correction"
     )
     assert out == exact and calls == 2, "an unbacked figure is still retried"
+
+
+LINKS = {"youtube": (TITLE, "https://youtu.be/x")}
+
+
+@pytest.mark.req("REQ-PUB-166")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("platform_specific", [False, True])
+async def test_each_publish_mode_passes_the_links(
+    tmp_path: Path, platform_specific: bool
+) -> None:
+    from unittest.mock import patch
+
+    from src.publisher import publish_modes
+    from src.publisher.models import Platform, PublishMetadata
+
+    meta = PublishMetadata(
+        platform=Platform.YOUTUBE, title="t", description="d", hashtags=["x"]
+    )
+    publisher = AsyncMock()
+    publisher.publish.return_value = {"post_id": "p", "status": "scheduled"}
+    seen: list[object] = []
+
+    def build(*_args, correction_links=None, **_kwargs):
+        seen.append(correction_links)
+
+    with (
+        patch.object(publish_modes, "load_platform_metadata", return_value=meta),
+        patch.object(publish_modes, "resolve_correction_links", return_value=LINKS),
+        patch.object(
+            publish_modes, "_build_platform_contents_with_comments", side_effect=build
+        ),
+    ):
+        await publish_modes.publish_product(
+            publisher=publisher,
+            media_id="m",
+            product_id="B0TEST0002",
+            platforms=[{"platform": "youtube", "account_id": "a"}],
+            outputs_dir=tmp_path,
+            platform_specific=platform_specific,
+        )
+
+    assert seen == [LINKS]
+
+
+@pytest.mark.req("REQ-PUB-166")
+@pytest.mark.asyncio
+async def test_the_schedule_passes_the_links(tmp_path: Path) -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import patch
+
+    from src.publisher import schedule
+    from src.publisher.models import Platform, ScheduleConfig
+
+    manager = schedule.ScheduleManager(
+        schedule_path=tmp_path / "schedule.json", config=ScheduleConfig()
+    )
+    publisher = AsyncMock()
+    seen: list[object] = []
+
+    def first_comments(*_args, correction_links=None, **_kwargs):
+        seen.append(correction_links)
+        raise OSError("stop here")
+
+    with (
+        patch.object(manager, "_publish_targets", AsyncMock(return_value=[])),
+        patch.object(manager, "_captions_for", return_value=({}, {}, False)),
+        patch.object(manager, "_first_comments_for", side_effect=first_comments),
+        patch.object(schedule, "resolve_correction_links", return_value=LINKS),
+    ):
+        await manager._schedule_one(
+            video=tmp_path / "B0TEST0002" / "video.mp4",
+            product_id="B0TEST0002",
+            platforms=[Platform.YOUTUBE],
+            publisher=publisher,
+            next_time=datetime.now(UTC),
+            next_idx=0,
+            occupied_slot_times=set(),
+            outputs_dir=tmp_path,
+            cleanup_manager=None,
+            link_in_bio_config=None,
+        )
+
+    assert seen == [LINKS]
+
+
+@pytest.mark.req("REQ-CNT-175")
+class TestReviewCases:
+    def test_a_correction_asks_nothing_in_its_cta(self) -> None:
+        from src.video.producer.orchestration import config_for_record
+
+        t = config_for_record(
+            config, build_topic_product(_correction())
+        ).llm_settings.script_templates
+
+        assert (
+            t.cta_options_topic
+            == config.llm_settings.script_templates.cta_options_correction
+        )
+        assert not any("answer" in cta.lower() for cta in t.cta_options_topic)
+
+    def test_commentary_off_leaves_corrections_on(self) -> None:
+        from src.video.producer.orchestration import config_for_record
+
+        cfg = config.model_copy(deep=True)
+        cfg.llm_settings.script_templates.commentary_templates = []
+
+        templates = config_for_record(
+            cfg, build_topic_product(_correction())
+        ).llm_settings.script_templates
+
+        assert templates.topic_templates == ["correction"]
+
+    def test_the_producer_refuses_corrects_without_a_topic(self, monkeypatch) -> None:
+        import asyncio
+
+        from src.video.producer import cli
+
+        monkeypatch.setattr(
+            "sys.argv",
+            ["producer", "products.json", "slideshow_stock", "--corrects", ORIGINAL],
+        )
+        with pytest.raises(SystemExit) as exc:
+            asyncio.run(cli.main())
+
+        assert exc.value.code == 2

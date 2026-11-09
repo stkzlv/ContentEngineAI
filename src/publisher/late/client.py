@@ -813,8 +813,8 @@ class LatePublisher(BasePublisher):
     async def get_post_platforms(self, post_id: str) -> list[dict[str, Any]]:
         """Return normalized per-platform targets for a post.
 
-        Each item: ``{platform, platform_post_id, account_id, status,
-        error_message, error_category}``. Used to find the platform post id and
+        Each item: ``{platform, platform_post_id, platform_post_url, account_id,
+        status, error_message, error_category}``. Used to find the platform post id and
         account for inbox comments, and the per-leg status/error for the
         delivery sweep. ``platform_post_id`` is None until the platform
         actually publishes; ``error_*`` are None unless the leg failed.

@@ -43,7 +43,7 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--topic-keywords` | Comma-separated stock search terms for the topic. Comma-separated rather than repeated, because a multi-value flag before a positional swallows it. | `--topic-keywords "wifi router, home network"` |
 | `--topic-kind` | With `--topic`: `tutorial` (default), `commentary`, an opinion take drawn from the commentary templates with no step list (REQ-CNT-166), or `correction`, which corrects the record `--corrects` names (REQ-CNT-175). Refused without `--topic`; a topics file sets `kind` per entry. | `--topic-kind commentary` |
 | `--corrects` | With `--topic-kind correction`: the published record the video corrects. Refused when that record has no queued or published post, before anything renders. | `--corrects B0TEST0001` |
-| `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description`, optional `keywords`, optional `search` (the search the content research measures the topic by; no render reads it) and optional `kind` (`tutorial` or `commentary`). | `--topics-file topics.yaml` |
+| `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description`, optional `keywords`, optional `search` (the search the content research measures the topic by; no render reads it) and optional `kind` (`tutorial`, `commentary` or `correction`) and, for a correction, `corrects` (the published record it corrects). | `--topics-file topics.yaml` |
 
 ### Run control
 

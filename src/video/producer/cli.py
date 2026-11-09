@@ -433,6 +433,8 @@ async def main():
     if getattr(args, "topic_kind", None) and not args.topic:
         # A topics file sets `kind` per entry, and nothing else reads the flag.
         parser.error("--topic-kind applies to --topic")
+    if getattr(args, "corrects", None) and not args.topic:
+        parser.error("--corrects applies to --topic with --topic-kind correction")
     if topic_mode and args.products_file and not args.profile:
         # Both positionals are optional, so argparse binds a lone profile name
         # to products_file. In topic mode there is no products_file, so the bare
