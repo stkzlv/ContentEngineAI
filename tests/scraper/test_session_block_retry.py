@@ -146,10 +146,20 @@ class TestTheStandaloneScraper:
                 raise outcome
             return outcome
 
-        result = scraper._scrape_with_retry(browser_func, {"keyword": "phone stand"})
+        scraper.throttle = ThrottleTracker(
+            settings=ThrottleSettings(
+                inter_input_delay_sec=(0.0, 0.0), session_block_retry_wait_sec=60.0
+            )
+        )
+        waits: list[float] = []
+
+        result = scraper._scrape_with_retry(
+            browser_func, {"keyword": "phone stand"}, sleep=waits.append
+        )
 
         assert result == [{"asin": "B0TEST0001"}]
         assert outcomes == []
+        assert waits == [60.0]
 
     def test_a_second_block_in_a_row_is_raised(self):
         scraper = _standalone_scraper()
@@ -252,3 +262,22 @@ class TestTheStandaloneScraper:
 
         assert result == []
         assert pages == [1, 2]
+
+    def test_the_library_keyword_loop_stops_once_browsing_has_stopped(
+        self, monkeypatch
+    ):
+        scraper = _standalone_scraper()
+        scraper.config = {}
+        scraper._keyword_pillars = None
+        searched: list[str] = []
+
+        def unified(keyword, _params=None):
+            searched.append(keyword)
+            scraper.throttle.record_session_block(keyword, PageKind.BARE_TITLE)
+            scraper.throttle.record_session_block(keyword, PageKind.BARE_TITLE)
+            return []
+
+        monkeypatch.setattr(scraper, "scrape_products_unified", unified)
+
+        assert scraper.scrape_products(KEYWORDS) == []
+        assert searched == ["phone stand"]
