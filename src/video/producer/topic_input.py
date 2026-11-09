@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -30,6 +31,8 @@ import yaml
 from src.scraper.amazon.models import ProductData
 from src.scraper.base.models import Platform
 
+logger = logging.getLogger(__name__)
+
 # Cap the slug well under the filesystem limit that `sanitize_filename` enforces.
 # Long enough to stay readable in `outputs/`, short enough to keep paths workable.
 MAX_SLUG_LENGTH = 60
@@ -40,6 +43,11 @@ TOPIC_ID_PREFIX = "topic-"
 
 
 TOPIC_KINDS = ("tutorial", "commentary", "correction")
+
+# A reply video's identifier prefix (REQ-CNT-176).
+REPLY_ID_PREFIX = "reply-"
+# Words of the comment that title a reply.
+REPLY_TITLE_WORDS = 8
 
 
 class TopicInputError(ValueError):
@@ -316,17 +324,125 @@ def specs_from_args(
     ]
 
 
-def _require_published(record_id: str, outputs_dir: Path) -> None:
-    """Refuse a correction of a record with no row in the publish history.
+def reply_product_id(record_id: str, comment: str) -> str:
+    """A reply's identifier, keyed on the record and the exact comment."""
+    key = f"{record_id}\n{comment}".encode()
+    digest = hashlib.md5(key, usedforsecurity=False).hexdigest()[:8]
+    return f"{REPLY_ID_PREFIX}{topic_slug(_reply_title(comment))}-{digest}"
+
+
+def _reply_title(comment: str) -> str:
+    words = comment.split()
+    title = " ".join(words[:REPLY_TITLE_WORDS])
+    return f"{title}..." if len(words) > REPLY_TITLE_WORDS else title
+
+
+def _parent_title(record_id: str, outputs_dir: Path) -> str:
+    """The published record's title: its data.json, else the product registry."""
+    try:
+        raw = json.loads((outputs_dir / record_id / "data.json").read_text("utf-8"))
+        record = raw[0] if isinstance(raw, list) and raw else raw
+        if isinstance(record, dict) and record.get("title"):
+            return str(record["title"])
+    except (OSError, json.JSONDecodeError):
+        pass
+    from src.publisher.product_registry import load_registry
+
+    return next(
+        (
+            e.title
+            for e in load_registry(outputs_dir)
+            if e.product_id == record_id and e.title
+        ),
+        record_id,
+    )
+
+
+def build_reply_product(
+    comment: str, record_id: str, outputs_dir: Path, author: str = ""
+) -> ProductData:
+    """The record a reply video renders from (REQ-CNT-176).
+
+    Its detail carries the comment and what the parent video said, so the
+    script can answer with a reason from it; the parent's script is read
+    from its kept record when its folder still exists.
+    """
+    from src.utils.script_signoff import read_script
+
+    comment = comment.strip()
+    if not comment:
+        raise TopicInputError("A reply needs the comment's text")
+    _require_published(record_id, outputs_dir, kind="reply")
+    parent = _parent_title(record_id, outputs_dir)
+    detail = [f"Viewer comment: {comment}", f"The video it was left on: {parent}"]
+    kept = read_script(outputs_dir / record_id)
+    if kept:
+        detail.append(f"What that video said: {kept[0]}")
+    return ProductData(
+        title=_reply_title(comment),
+        price="",
+        url="",
+        platform=Platform.AMAZON,
+        description="\n".join(detail),
+        keyword="",
+        asin=reply_product_id(record_id, comment),
+        topic=_reply_title(comment),
+        topic_kind="reply",
+        reply_comment=comment,
+        reply_author=author.strip() or None,
+        reply_to=record_id,
+    )
+
+
+def materialise_reply(
+    product: ProductData, config: Any, profile: str
+) -> tuple[Path, ProductData]:
+    """Write a reply's `data.json` where the producer reads it."""
+    data_path = Path(config.get_product_paths(product.asin, profile)["scraped_data"])
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    data_path.write_text(
+        json.dumps(product.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return data_path.parent, product
+
+
+def move_reply_to_drafts(
+    config: Any, product: ProductData, profile: str, result_path: str | Path
+) -> str:
+    """Move a rendered reply into `<outputs root>/drafts/` and return its video.
+
+    Nothing scans `drafts/` for publishing, so a reply waits there for review;
+    the operator moves it into the root to publish it. A re-render of the same
+    comment replaces the earlier draft.
+    """
+    import shutil
+
+    from src.utils.outputs_paths import DRAFTS_DIR_NAME
+
+    product_root = Path(config.get_product_paths(product.asin, profile)["product_root"])
+    target = config.global_output_root_path / DRAFTS_DIR_NAME / product_root.name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.move(str(product_root), str(target))
+    moved = target / Path(result_path).resolve().relative_to(product_root.resolve())
+    logger.info("Reply %s is a draft for review: %s", product.asin, target)
+    return str(moved)
+
+
+def _require_published(
+    record_id: str, outputs_dir: Path, kind: str = "correction"
+) -> None:
+    """Refuse a correction or reply naming a record with no publish-history row.
 
     A row, queued or published, is what a correction's first comment links
-    back to (REQ-CNT-175); with none there is nothing to correct.
+    back to (REQ-CNT-175) and what a reply's comment was left on (REQ-CNT-176).
     """
     from src.publisher.tracking import has_any_publish_record
 
     if not has_any_publish_record(record_id, outputs_dir):
         raise TopicInputError(
-            f"A correction names {record_id!r}, which has no queued or published post"
+            f"A {kind} names {record_id!r}, which has no queued or published post"
         )
 
 

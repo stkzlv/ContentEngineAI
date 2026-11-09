@@ -58,6 +58,8 @@ A topic render works from a subject rather than a listing, with a profile that s
 
 5. Optional: correct a published video with `--topic-kind correction --corrects <record id>` beside `--topic`, or `kind: correction` and `corrects:` on an entry. The description carries the right fact and its source. The video says what the earlier one got wrong, gives the right fact and what changes, in the commentary voice and with no closing question, and its first comment links the original post. A record with no queued or published post is refused before anything renders.
 
+6. Optional: answer a viewer's comment with a reply video. List a published record's comments with the publisher's `comments` command, then pass the comment's text with `--reply-to-comment` and the record with `--reply-record`. The reply answers in its first sentence with a reason from the earlier video, in the commentary voice, and opens on a card showing the comment. It lands in `outputs/drafts/<id>/`; watch it, then move the folder into `outputs/` to publish it with the usual commands.
+
 A topic render draws from its own template pool, written to answer a question rather than pitch a product, and uses a narrator profile whose calls to action offer nothing to buy. Length follows the script, so a short description yields a short video. For a long list, `make topics-batch` runs each step in its own process; see [Rendering a batch of topics](batch-processing.md#rendering-a-batch-of-topics).
 
 ## Render every scraped product

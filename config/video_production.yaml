@@ -230,6 +230,12 @@ video_settings:
   # AFTER subtitles and BEFORE the disclosure, so the corner #ad stays on
   # top. Default ON; short profiles benefit most but the overlay works
   # for any profile that ships a payoff-first first sentence.
+  # The comment a reply video answers, drawn over its opening in place of the
+  # hook (REQ-CNT-176). Two lines at most, truncated with an ellipsis.
+  reply_card:
+    enabled: true
+    duration_sec: 3.0
+    show_author: false            # never draw a viewer's handle unless turned on
   hook_overlay:
     # Wraps long hooks to <=2 lines and shrinks the font to fit the frame (#160).
     enabled: true

@@ -273,7 +273,7 @@ A batch isolates failures per product and reports skips (insufficient media) apa
 
 ### Outputs and state directories
 
-All artifacts live under one outputs root (`outputs/` by default). Each product or topic has its own directory with `data.json`, media, a `temp/` working directory and the final `video_*.mp4`; the shared directories (`cache/`, `logs/`, `reports/`, `performance_history/`, `temp/`) sit beside them. `outputs/state/` holds the records that must outlive product cleanup (`publish_history.json`, `schedule.json`, the published-products registry and the analytics metrics); code reaches it through `src/utils/outputs_paths.py::durable_state_path`, and cleanup never removes it.
+All artifacts live under one outputs root (`outputs/` by default). Each product or topic has its own directory with `data.json`, media, a `temp/` working directory and the final `video_*.mp4`; the shared directories (`cache/`, `logs/`, `reports/`, `performance_history/`, `temp/`) sit beside them. `outputs/state/` holds the records that must outlive product cleanup (`publish_history.json`, `schedule.json`, the published-products registry and the analytics metrics); code reaches it through `src/utils/outputs_paths.py::durable_state_path`, and cleanup never removes it. `outputs/drafts/` holds reply videos awaiting review; no publish, cleanup or validation scan reaches it.
 
 ### Off-by-default features and seeded choices
 

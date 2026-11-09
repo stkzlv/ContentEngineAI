@@ -2144,6 +2144,8 @@ async def step_assemble_video(ctx: PipelineContext):
         product_id = ctx.product.asin or sanitize_filename(ctx.product.title[:30])
         assembler.set_product_id(product_id)
         assembler.carries_affiliate_content = carries_affiliate_content(ctx.product)
+        assembler.reply_comment = getattr(ctx.product, "reply_comment", None)
+        assembler.reply_author = getattr(ctx.product, "reply_author", None)
 
         # Hook overlay text source: the rendered spoken script. extract_hook_line
         # in overlay_builder pulls the first sentence and caps to max_words.

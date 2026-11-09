@@ -32,6 +32,7 @@ from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
+    apply_reply_card_overlay,
     apply_step_card_overlay,
     apply_step_visuals,
     apply_upper_line_overlay,
@@ -107,6 +108,10 @@ class VideoAssembler:
         # assembler holds an id rather than the record. None means the source
         # resolved to nothing and no line is drawn (#88).
         self.upper_line_text: str | None = None
+        # A reply video's comment and its author (REQ-CNT-176), set by the
+        # caller from the record. None draws no card.
+        self.reply_comment: str | None = None
+        self.reply_author: str | None = None
 
         # Initialize standalone utilities (no profile dependency)
         self.media_inspector = MediaInspector()
@@ -834,8 +839,21 @@ class VideoAssembler:
             # disclosure so the disclosure stays on top in the z-order.
             # The first sentence of the script is the hook text; an empty
             # hook_text (no script available) makes the overlay a no-op.
+            # A reply's comment card holds the opening instead of the hook
+            # (REQ-CNT-176): two texts there would compete.
+            unchanged = video_filters
+            if self.reply_comment:
+                video_filters = apply_reply_card_overlay(
+                    video_filters,
+                    self.config.video_settings.reply_card,
+                    self.reply_comment,
+                    self.reply_author,
+                    subtitle_font_size_pixels,
+                    self.config.video_settings.resolution[0],
+                    temp_dir,
+                )
             hook_settings = self.config.video_settings.hook_overlay
-            if hook_settings.enabled:
+            if hook_settings.enabled and video_filters == unchanged:
                 hook_line = resolve_hook_line(
                     hook_headline, hook_text, hook_settings.max_words
                 )

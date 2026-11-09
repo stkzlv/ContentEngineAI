@@ -588,6 +588,30 @@ class HookOverlaySettings(BaseModel):
     )
 
 
+class ReplyCardSettings(BaseModel):
+    """The comment a reply video answers, drawn over its opening (REQ-CNT-176).
+
+    The publishing API cannot attach a platform's native reply sticker, so the
+    comment is burned in. It replaces the hook overlay for its duration.
+    """
+
+    enabled: bool = Field(True, description="Draw the card on a reply video.")
+    duration_sec: float = Field(3.0, ge=0.5, le=6.0)
+    show_author: bool = Field(
+        False,
+        description=(
+            "Draw the commenter's handle above the text. Off, a viewer's handle "
+            "is never drawn."
+        ),
+    )
+    size_factor: float = Field(0.9, ge=0.5, le=2.0)
+    font_color: str = Field("white")
+    background_color: str = Field("black@0.6")
+    margin_y_percent: float = Field(0.3, ge=0.0, le=0.6)
+    max_lines: int = Field(2, ge=1, le=4)
+    max_width_fraction: float = Field(0.86, ge=0.5, le=1.0)
+
+
 class VideoSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -715,6 +739,9 @@ class VideoSettings(BaseModel):
     )
     hook_overlay: HookOverlaySettings = Field(
         default_factory=HookOverlaySettings  # type: ignore[arg-type]
+    )
+    reply_card: ReplyCardSettings = Field(
+        default_factory=ReplyCardSettings  # type: ignore[arg-type]
     )
     graphics: GraphicsSettings = Field(default_factory=GraphicsSettings)
     step_visuals: StepVisualsSettings = Field(default_factory=StepVisualsSettings)

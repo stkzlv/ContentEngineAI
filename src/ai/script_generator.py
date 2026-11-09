@@ -624,6 +624,7 @@ def select_script_template(
         *templates_cfg.topic_templates,
         *templates_cfg.commentary_templates,
         *templates_cfg.correction_templates,
+        *templates_cfg.reply_templates,
     ]
     if not is_topic and not_product:
         without_topic = [t for t in pool if t not in not_product]
@@ -1302,15 +1303,11 @@ async def generate_script(
         else []
     )
     record_kind = getattr(product, "topic_kind", None)
-    # A correction keeps to its detail's figures too (REQ-CNT-175), but has no
-    # closing question: it is not a debate.
+    # A correction (REQ-CNT-175) and a reply (REQ-CNT-176) keep to their
+    # detail's figures too, but close on no question: neither is a debate.
     figure_checks = (
         settings.script_validation.check_commentary_facts
-        and record_kind
-        in (
-            "commentary",
-            "correction",
-        )
+        and record_kind in ("commentary", "correction", "reply")
     )
     commentary_checks = (
         settings.script_validation.check_commentary_facts
