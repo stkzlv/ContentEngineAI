@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.235.1] - 2026-11-09
+
+### Dependencies
+
+- `botasaurus-driver` 4.0.101: in-page requests get a default 15-second timeout, a declared charset that can't hold the body, or isn't recognised, no longer crashes the request, and locale and timezone overrides are available.
+
 ## [0.235.0] - 2026-11-09
 
 ### Changed

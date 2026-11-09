@@ -471,13 +471,13 @@ requests = "*"
 
 [[package]]
 name = "botasaurus-driver"
-version = "4.0.92"
+version = "4.0.101"
 description = "Super Fast, Super Anti-Detect, and Super Intuitive Web Driver"
 optional = false
 python-versions = ">=3.5"
 groups = ["main"]
 files = [
-    {file = "botasaurus_driver-4.0.92.tar.gz", hash = "sha256:6fc6cdb8d66c72b39e020e81c81ce5824e90d6a33ae8418328f3f2d65f69944f"},
+    {file = "botasaurus_driver-4.0.101.tar.gz", hash = "sha256:4f66a974724354bcb4ad89ec33da2876521eab3b22cfea5e19e673fc9db5fe28"},
 ]
 
 [package.dependencies]
