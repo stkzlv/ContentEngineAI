@@ -426,8 +426,9 @@ llm_settings:
     commentary_templates:
       - commentary_take
     # A topic marked `kind: correction` (REQ-CNT-175) draws these, in the
-    # commentary narrator, CTAs and length: what the earlier video said, the
-    # right fact with its source, what changes, and no closing question.
+    # commentary narrator and length with `cta_options_correction`: what the
+    # earlier video said, the right fact with its source, what changes, and
+    # no closing question.
     correction_templates:
       - correction
 
