@@ -188,6 +188,10 @@ class ThrottleSettings:
     input on it.
     """
 
+    session_block_retry_wait_sec: float = 60.0
+    """Wait before that fresh session. A new browser about a minute after the
+    block got through in the run logs; nothing shorter was observed."""
+
     def __post_init__(self) -> None:
         low, high = self.inter_input_delay_sec
         if low < 0 or high < low:
@@ -207,6 +211,8 @@ class ThrottleSettings:
             raise ValueError("max_total_wait_sec must be non-negative")
         if self.session_block_retries < 0:
             raise ValueError("session_block_retries must be non-negative")
+        if self.session_block_retry_wait_sec < 0:
+            raise ValueError("session_block_retry_wait_sec must be non-negative")
 
     @classmethod
     def from_config(cls, raw: object) -> ThrottleSettings:
@@ -264,6 +270,12 @@ class ThrottleSettings:
                 ),
                 session_block_retries=int(
                     raw.get("session_block_retries", cls.session_block_retries)
+                ),
+                session_block_retry_wait_sec=float(
+                    raw.get(
+                        "session_block_retry_wait_sec",
+                        cls.session_block_retry_wait_sec,
+                    )
                 ),
             )
         except (TypeError, ValueError) as exc:
@@ -441,9 +453,11 @@ class ThrottleTracker:
             )
             return Verdict.STOP
         logger.warning(
-            "Amazon served a %s page for %r; retrying in a fresh browser session.",
+            "Amazon served a %s page for %r; retrying in a fresh browser "
+            "session in %.0fs.",
             kind.value,
             input_label,
+            self.settings.session_block_retry_wait_sec,
         )
         return Verdict.RETRY
 

@@ -92,6 +92,11 @@ class TestTheClassifier:
     def test_each_kind_is_named(self, kind):
         assert classify(PAGES[kind]) is kind
 
+    def test_a_product_named_like_the_not_found_page_is_a_product(self):
+        facts = PageFacts(title="Amazon.com: Page Not Found T-Shirt", has_product=True)
+
+        assert classify(facts) is PageKind.PRODUCT
+
     def test_a_captcha_titled_like_the_bare_page_is_a_captcha(self):
         """Both are titled `Amazon.com`; the captcha's own markers decide."""
         facts = PageFacts(url=SEARCH_URL, title="Amazon.com", captcha_form=True)

@@ -84,12 +84,12 @@ def classify(facts: PageFacts) -> PageKind:
         return PageKind.CAPTCHA
     if any(m in body or m in url for m in INTERSTITIAL_MARKERS):
         return PageKind.INTERSTITIAL
-    if NOT_FOUND_TITLE in title.lower() or NOT_FOUND_TEXT in body:
-        return PageKind.NOT_FOUND
     if facts.has_results:
         return PageKind.RESULTS
     if facts.has_product:
         return PageKind.PRODUCT
+    if NOT_FOUND_TITLE in title.lower() or NOT_FOUND_TEXT in body:
+        return PageKind.NOT_FOUND
     if title == BARE_TITLE:
         return PageKind.BARE_TITLE
     return PageKind.UNKNOWN
@@ -101,7 +101,7 @@ def read_page_facts(driver: Any) -> PageFacts:
         raw = driver.run_js(_PAGE_FACTS_JS)
     except Exception as exc:  # noqa: BLE001 - a driver that cannot be read
         logger.debug("Could not read the page: %s", exc)
-        return PageFacts()
+        raw = None
     if not isinstance(raw, dict):
         # A driver whose script returned nothing still has a title, which
         # is enough to see the error page.

@@ -1112,6 +1112,12 @@ class BotasaurusAmazonScraper(BaseScraper):
         all_products: list[BaseProductData] = []
 
         for keyword in keywords:
+            if self.throttle.stopped:
+                self.logger.warning(
+                    "Stopped browsing on a block page; skipping the remaining "
+                    "keywords."
+                )
+                break
             self.logger.info("Starting scrape for keyword: %s", keyword)
             keyword_pillar = self.pillar_for_keyword(keyword)
 
@@ -1183,6 +1189,7 @@ class BotasaurusAmazonScraper(BaseScraper):
                     if self.throttle.record_session_block(input_label, kind) is (
                         Verdict.RETRY
                     ):
+                        sleep(self.throttle.settings.session_block_retry_wait_sec)
                         continue
                     raise
                 if not is_error_page_failure(e):

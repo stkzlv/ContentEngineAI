@@ -116,6 +116,8 @@ global_settings:
     # One more in a row than this, with no success between, stops the run's
     # browsing.
     session_block_retries: 1
+    # Wait before that fresh session, seconds.
+    session_block_retry_wait_sec: 60
 
   # ---- Image Processing Configuration ----
   # Controls image quality requirements and validation thresholds

@@ -913,7 +913,7 @@ Don't switch to a headless browser: it makes detection worse.
 
 **Symptom:** the log shows `Block page: bare_title` or `Block page: captcha`, and the summary ends with `Stopped browsing at <input>`.
 
-A captcha or a bare page titled just `Amazon.com` follows the browser session, so the scraper retries the input once in a fresh session and stops the run when the page comes back with no success between. To give it more fresh sessions per run, raise `session_block_retries` under `global_settings.rate_limiting`. Spacing runs further apart helps more than retrying within one.
+A captcha or a bare page titled just `Amazon.com` follows the browser session, so the scraper retries the input once in a fresh session a minute later and stops the run when the page comes back with no success between. To give it more fresh sessions per run, raise `session_block_retries` under `global_settings.rate_limiting`. Spacing runs further apart helps more than retrying within one.
 
 ### Missing media
 

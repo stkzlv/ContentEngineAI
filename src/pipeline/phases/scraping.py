@@ -143,6 +143,7 @@ async def run_scraping_phase(
             if entry.get("failure_kind") in SESSION_BLOCKS and not (
                 scraper.throttle.stopped
             ):
+                sleep(scraper.throttle.settings.session_block_retry_wait_sec)
                 continue
             return entry
 
