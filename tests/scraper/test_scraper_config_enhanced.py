@@ -41,7 +41,7 @@ class TestEnhancedScraperConfig:
         # Verify default values
         assert browser_config["page_load_timeout_ms"] == 60000  # 60 seconds
         assert browser_config["script_execution_timeout_ms"] == 30000  # 30 seconds
-        assert browser_config["element_selection_timeout"] == 10
+        assert browser_config["element_selection_timeout"] == 2
 
     def test_image_config_max_images(self, config_data):
         """Test max images per product configuration."""
@@ -208,7 +208,6 @@ class TestConfigurationDocumentation:
             "debug_window_width",
             "debug_window_height",
             "fallback_window_position",
-            "search_result_timeout",
             "max_products_per_search",
             "page_load_timeout_ms",
             "script_execution_timeout_ms",

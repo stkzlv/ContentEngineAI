@@ -286,7 +286,7 @@ class TestBrowserConfig:
         assert config.debug_window_width == 1920
         assert config.debug_window_height == 1200
         assert config.fallback_window_position == [0, 0, 1920, 1080]
-        assert config.search_result_timeout == 10
+        assert config.element_selection_timeout == 2
         assert config.max_products_per_search == 5
 
     def test_browser_config_validation(self):

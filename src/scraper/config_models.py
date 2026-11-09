@@ -151,11 +151,10 @@ class BrowserConfig(BaseModel):
     debug_window_width: int = Field(default=1920, gt=0)
     debug_window_height: int = Field(default=1200, gt=0)
     fallback_window_position: list[int] = Field(default=[0, 0, 1920, 1080])
-    search_result_timeout: int = Field(default=10, gt=0)
     max_products_per_search: int = Field(default=5, gt=0)
     page_load_timeout_ms: int = Field(default=60000, gt=0)
     script_execution_timeout_ms: int = Field(default=30000, gt=0)
-    element_selection_timeout: int = Field(default=10, gt=0)
+    element_selection_timeout: int = Field(default=2, gt=0)
     max_title_selector_attempts: int = Field(default=10, gt=0)
     search_result_wait_reduced: int = Field(default=5, gt=0)
 
