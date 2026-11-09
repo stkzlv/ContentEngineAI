@@ -72,8 +72,10 @@ class BatchController:
         # Process product IDs first
         product_id_results = self._process_product_ids()
 
-        # Process keywords (if max products not reached)
-        keyword_results = self._process_keywords()
+        # Process keywords (if max products not reached). A product id that
+        # validated counts toward the cap, as it does in the global batch.
+        found = sum(1 for r in product_id_results if r.success)
+        keyword_results = self._process_keywords(already_found=found)
 
         # Combine and deduplicate
         all_results = product_id_results + keyword_results
@@ -112,9 +114,9 @@ class BatchController:
 
         for i, product_id in enumerate(self.config.product_ids, 1):
             with log_context(product_id=product_id):
-                # Pace consecutive inputs, as the batch pipeline's single-session
-                # loop does. Back-to-back searches are the pattern that draws
-                # Amazon's block, and this arm launches a fresh browser per input,
+                # Pace consecutive inputs, as the batch pipeline does.
+                # Back-to-back searches are the pattern that draws Amazon's
+                # block, and this arm launches a fresh browser per input,
                 # so without it the standalone CLI is the faster way to get
                 # throttled.
                 if i > 1:
@@ -228,8 +230,11 @@ class BatchController:
 
         return results
 
-    def _process_keywords(self) -> list[ProductResult]:
+    def _process_keywords(self, already_found: int = 0) -> list[ProductResult]:
         """Process list of keywords for product search.
+
+        `already_found` is how many products the run's product ids already
+        put toward `max_products`.
 
         Returns
         -------
@@ -244,9 +249,16 @@ class BatchController:
         self.logger.info("Processing keywords (%d total)", len(self.config.keywords))
 
         for i, keyword in enumerate(self.config.keywords, 1):
-            # Pace consecutive inputs, as the batch pipeline's single-session
-            # loop does. Back-to-back searches are the pattern that draws
-            # Amazon's block, and this arm launches a fresh browser per input,
+            if already_found + len(results) >= self.config.max_products:
+                self.logger.info(
+                    "Reached max_products limit (%d). Stopping keyword processing.",
+                    self.config.max_products,
+                )
+                break
+
+            # Pace consecutive inputs, as the batch pipeline does.
+            # Back-to-back searches are the pattern that draws Amazon's
+            # block, and this arm launches a fresh browser per input,
             # so without it the standalone CLI is the faster way to get
             # throttled.
             if i > 1:
@@ -298,15 +310,6 @@ class BatchController:
                                 source="keyword",
                             )
                         )
-
-                    # Check if max_products limit reached
-                    if len(results) >= self.config.max_products:
-                        self.logger.info(
-                            "Reached max_products limit (%d). "
-                            "Stopping keyword processing.",
-                            self.config.max_products,
-                        )
-                        break
 
                 else:
                     self._failed_keywords.append(keyword)

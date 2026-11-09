@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.230.0] - 2026-11-09
+
+### Changed
+
+- The batch scrapes one input at a time and stops searching once `max_products` products have validated, so a one-product run makes one search when its first input works instead of searching every input first.
+
+### Fixed
+
+- The standalone scraper counts products found by product id toward `max_products` and skips the keyword searches once they fill it.
+
 ## [0.229.1] - 2026-11-08
 
 ### Fixed

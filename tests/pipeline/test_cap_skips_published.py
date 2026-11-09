@@ -29,6 +29,8 @@ class _FakeScraper:
 
     pages: dict[tuple[str, int], list[dict]] = {}
     calls: list[tuple[str, int]] = []
+    # How many inputs each browser call was given.
+    batch_sizes: list[int] = []
     # Products that fail media validation, as `process_raw_products` drops them.
     invalid: set[str] = set()
 
@@ -36,15 +38,20 @@ class _FakeScraper:
         self.output_dir = "unused"
         self.run_max_products = 1
         self.throttle = SimpleNamespace(
-            summary_lines=lambda: [], dead_queries=[], throttled_inputs=[]
+            summary_lines=lambda: [],
+            dead_queries=[],
+            throttled_inputs=[],
+            inter_input_delay_sec=lambda: 0.0,
         )
         self.processed: list[str] = []
         _FakeScraper.calls = []
+        _FakeScraper.batch_sizes = []
 
     def scrape_batch_browser(
         self, inputs, search_params=None, start_page=1, skip_asins=()
     ):
         results = []
+        self.batch_sizes.append(len(inputs))
         for i in inputs:
             products, skipped = [], []
             self.calls.append((i, start_page))

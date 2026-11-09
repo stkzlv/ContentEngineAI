@@ -25,7 +25,10 @@ class _RecordingScraper:
         self.output_dir = kwargs.get("output_dir")
         self.run_max_products = 1
         self.throttle = SimpleNamespace(
-            summary_lines=lambda: [], dead_queries=[], throttled_inputs=[]
+            summary_lines=lambda: [],
+            dead_queries=[],
+            throttled_inputs=[],
+            inter_input_delay_sec=lambda: 0.0,
         )
 
     def scrape_batch_browser(self, inputs, **_kwargs):

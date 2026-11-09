@@ -173,7 +173,7 @@ sequenceDiagram
     participant Z as Zernio
 
     Op->>B: make batch-lowpri
-    B->>S: scrape keywords and product ids, one browser session, skipping already-published results
+    B->>S: scrape one input at a time until max_products validate, skipping already-published results
     S-->>B: data.json and media per product
     Note over B: topics are materialised here instead of scraped
     B->>B: handoff: discover ready products, drop already published

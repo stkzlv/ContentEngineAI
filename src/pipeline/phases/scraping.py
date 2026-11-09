@@ -1,4 +1,4 @@
-"""The batch's scraping phase: one browser session across every input.
+"""The batch's scraping phase: one input at a time, until the cap is met.
 
 Moved out of `global_batch.py` (#450).
 """
@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Collection
+from time import sleep
 
 from src.pipeline.config import GlobalBatchConfig, ScrapingPhaseSummary
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
@@ -23,10 +24,11 @@ async def run_scraping_phase(
 ) -> ScrapingPhaseSummary:
     """Execute scraping phase and return summary.
 
-    Uses a two-phase approach to avoid launching a separate Chrome process
-    per keyword:
-      1. Batch browser phase: one Chrome session scrapes ALL inputs
-      2. Per-keyword post-processing: download media, validate, apply limits
+    Scrapes one input at a time: search, product pages, media download and
+    validation, then the next input only while fewer than `max_products`
+    have validated (REQ-SCR-084). Browsing every input up front made about
+    ten searches for a one-product run, and the extra visits drew the
+    site's block.
 
     Args:
     ----
@@ -118,27 +120,6 @@ async def run_scraping_phase(
     total_images = 0
     total_videos = 0
 
-    # --- Phase 1: batch browser scrape (one Chrome for all inputs) ---
-    logger.info("Phase 1: batch browser scrape (%d inputs)", total_inputs)
-    try:
-        batch_results = scraper.scrape_batch_browser(
-            all_inputs,
-            search_params=config.scraper_filters,
-            skip_asins=published_ids,
-        )
-    except Exception as e:
-        logger.error("Batch browser scrape failed: %s", e)
-        if config.fail_fast:
-            raise
-        batch_results = []
-
-    # Build a lookup so we can iterate in original order
-    results_by_input: dict[str, dict] = {}
-    for entry in batch_results:
-        results_by_input[entry["input"]] = entry
-
-    # --- Phase 2: per-keyword post-processing ---
-    logger.info("Phase 2: media download and validation")
     for idx, input_item in enumerate(all_inputs, 1):
         if len(successful_products) >= config.max_products:
             logger.info(
@@ -163,7 +144,25 @@ async def run_scraping_phase(
             collected,
         )
 
-        raw_products, saw_published = take_new(results_by_input.get(input_item, {}))
+        # One browser session per input, as the page retries below already
+        # were and as the standalone scraper does, with its pause between
+        # inputs: back-to-back searches are what draws the block.
+        if idx > 1:
+            sleep(scraper.throttle.inter_input_delay_sec())
+        try:
+            entries = scraper.scrape_batch_browser(
+                [input_item],
+                search_params=config.scraper_filters,
+                skip_asins=published_ids,
+            )
+        except Exception as e:
+            logger.error("Browser scrape failed for %s: %s", input_item, e)
+            if config.fail_fast:
+                raise
+            entries = []
+        entry = next((e for e in entries if e.get("input") == input_item), {})
+
+        raw_products, saw_published = take_new(entry)
         # Whether a product the run could render reached validation: an
         # input that only met published ones has nothing new, and is not a
         # failure (#737); one whose new candidates failed still is.
