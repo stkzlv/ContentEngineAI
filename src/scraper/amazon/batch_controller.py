@@ -73,7 +73,8 @@ class BatchController:
 
         # Process keywords (if max products not reached). A product id that
         # validated counts toward the cap, as it does in the global batch.
-        found = sum(1 for r in product_id_results if r.success)
+        # Distinct ids: the same id given twice is one product toward the cap.
+        found = len({r.product_id for r in product_id_results if r.success})
         keyword_results = self._process_keywords(already_found=found)
 
         # Combine and deduplicate
@@ -280,11 +281,13 @@ class BatchController:
             )
 
             try:
-                # Delegate to existing scraper with products_per_keyword limit
+                # Ask only for what the cap leaves, as the global batch does,
+                # so one keyword cannot take the run past `max_products`.
+                left = self.config.max_products - already_found - len(results)
                 products = self.scraper.scrape_products_unified(
                     keyword=keyword,
                     search_params=self.config.search_params,
-                    max_products=self.config.products_per_keyword,
+                    max_products=min(self.config.products_per_keyword, left),
                 )
 
                 if products:

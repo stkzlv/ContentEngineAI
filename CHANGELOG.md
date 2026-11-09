@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.235.2] - 2026-11-09
+
+### Fixed
+
+- The standalone scraper's keyword search asks only for what `max_products` leaves, so a run no longer collects more products than the cap, and a product id given twice counts once toward it.
+
 ## [0.235.1] - 2026-11-09
 
 ### Dependencies
