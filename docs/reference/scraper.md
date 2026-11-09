@@ -181,6 +181,7 @@ Retries of failed network operations, with a delay of `min(base_delay * backoff_
 | `min_high_res_file_size` | int | `10000` | Smallest image file kept, bytes (`REQ-SCR-018`). |
 | `very_high_res_dimension` | int | `2000` | Images above this size are trusted without a HEAD request. |
 | `max_images_per_product` | int | `15` (`10`) | Images extracted per product. |
+| `use_image_data` | bool | `true` | Read the gallery and the listing videos from the page's embedded image data, in gallery order, taking `hiRes` and falling back to `large`; the page's image elements are the fallback. Off: the element and script scan only (`REQ-SCR-086`). |
 
 #### `video_config`
 

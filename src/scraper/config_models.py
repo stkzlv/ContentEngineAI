@@ -51,6 +51,7 @@ class ImageConfig(BaseModel):
     min_high_res_file_size: int = Field(default=10000, gt=0)
     very_high_res_dimension: int = Field(default=2000, gt=0)
     max_images_per_product: int = Field(default=10, gt=0)
+    use_image_data: bool = Field(default=True)
 
 
 class DebugSettings(BaseModel):

@@ -141,6 +141,11 @@ global_settings:
     # Affects: Media extraction loop limits, prevents runaway downloads
     max_images_per_product: 15
 
+    # Read the gallery and the listing videos from the page's embedded image
+    # data, in gallery order, hiRes falling back to large. Off: scan the
+    # page's image elements and scripts only, as before.
+    use_image_data: true
+
   # ---- Debug File Generation Controls ----
   debug_settings:
     # Media validation JSON reports (validation summaries)

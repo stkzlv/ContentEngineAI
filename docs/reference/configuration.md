@@ -346,7 +346,7 @@ scrapers:
     max_products: 10
 ```
 
-**Rate limiting, block pages, waits and identity**: `scrapers.amazon.consistent_identity` (a returning browser across runs, off by default) and the pacing, throttle backoff and block-page keys under `global_settings.rate_limiting`, and the selector waits under `global_settings.browser_config` (`element_selection_timeout`, `search_result_wait_reduced`), are in the [scraper reference](scraper.md).
+**Rate limiting, block pages, waits, identity and image data**: `global_settings.image_config.use_image_data` (the gallery and listing videos from the page's image data, on by default), `scrapers.amazon.consistent_identity` (a returning browser across runs, off by default) and the pacing, throttle backoff and block-page keys under `global_settings.rate_limiting`, and the selector waits under `global_settings.browser_config` (`element_selection_timeout`, `search_result_wait_reduced`), are in the [scraper reference](scraper.md).
 
 **Typed access**: the validated `ScraperConfig` behind the dict is `get_settings()` in `src/scraper/amazon/config.py`; `ScraperConfigAdapter.get_settings()` returns the same object for a given root.
 

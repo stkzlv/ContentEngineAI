@@ -11,6 +11,7 @@ from botasaurus.browser import Driver
 from .config import CONFIG, get_config_value
 from .constants import DEFAULT_MAX_IMAGES_PER_PRODUCT, HIGH_RES_DIMENSION
 from .debug_analysis import _perform_advanced_debug_analysis  # noqa: F401
+from .image_data import read_image_block
 from .image_utils import (  # noqa: F401
     _is_irrelevant_image,
     check_amazon_high_res_pattern,
@@ -101,6 +102,16 @@ def extract_high_res_images_botasaurus(
         logger.info("Using fast direct extraction methods")
 
     image_urls: list[str] = []
+
+    # The gallery as the page itself lists it, in order (REQ-SCR-086). The
+    # scans below are the fallback for a page without the image block.
+    if get_config_value(
+        "global_settings", "image_config", "use_image_data", default=True
+    ):
+        gallery = read_image_block(driver).images
+        if gallery:
+            logger.info("Gallery from the page's image data: %d image(s)", len(gallery))
+            return gallery[:max_images]
 
     try:
         # Method 1: Advanced JavaScript extraction of dynamic image data

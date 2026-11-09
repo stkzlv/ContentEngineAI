@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.234.0] - 2026-11-09
+
+### Changed
+
+- Product images are read from the page's embedded image data, in gallery order, taking the high-resolution version and falling back to the large one, and only the shown colour's gallery is read; the listing's own videos lead the video candidates. The page scans remain the fallback, and `image_config.use_image_data` turns the change off.
+
+### Fixed
+
+- A downloaded MP4 or MOV passes the video check whatever its file-type box size and brand; the check accepted two exact headers and refused other valid files.
+
 ## [0.233.0] - 2026-11-09
 
 ### Added

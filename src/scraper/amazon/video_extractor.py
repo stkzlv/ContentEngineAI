@@ -11,6 +11,7 @@ import time
 from botasaurus.browser import Driver
 
 from .config import CONFIG, get_settings
+from .image_data import read_image_block
 from .image_utils import is_valid_video_url
 
 logger = logging.getLogger(__name__)
@@ -188,6 +189,16 @@ def extract_functional_videos_with_validation(
 
         if DEBUG_MODE:
             logger.info("Current product ASIN: %s", current_asin)
+
+        # The listing's own videos come first, from the page's image data
+        # (REQ-SCR-086); the scans below add what it does not list.
+        if get_settings().global_settings.image_config.use_image_data:
+            listed = read_image_block(driver).videos
+            if listed:
+                logger.info(
+                    "Listing videos from the page's image data: %d", len(listed)
+                )
+            video_urls.extend(video.url for video in listed)
             logger.info("Product brand: %s", product_brand)
             logger.info("Product model: %s", product_model)
             logger.info("Product keywords: %s", product_keywords)
