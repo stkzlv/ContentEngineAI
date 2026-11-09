@@ -267,3 +267,74 @@ class TestProductPagesFromTheResults:
             c for c in driver.google_get.call_args_list if "/dp/" in str(c.args[0])
         ]
         assert bool(product_visits) is (not on)
+
+
+def _two_card_search(monkeypatch, on: bool, product_effects):
+    """Run the search arm over two cards; `product_effects` per product page."""
+    _switch(monkeypatch, on)
+    monkeypatch.setattr(
+        browser_functions, "raise_if_blocked", lambda _d: PageKind.RESULTS
+    )
+    asins = iter(["B0TEST0001", "B0TEST0002"])
+    monkeypatch.setattr(
+        browser_functions,
+        "extract_serp_product_info",
+        lambda card, _kw: SimpleNamespace(
+            asin=card._mock_name, url=f"https://www.amazon.com/dp/{card._mock_name}"
+        ),
+    )
+    effects = iter(product_effects)
+
+    def extract(*_a, **_k):
+        effect = next(effects)
+        if isinstance(effect, Exception):
+            raise effect
+        return effect
+
+    monkeypatch.setattr(browser_functions, "extract_product_data_from_page", extract)
+    monkeypatch.setattr(browser_functions, "_open_from_results", lambda *_a: True)
+    driver = MagicMock()
+    driver.is_bot_detected.return_value = False
+    cards = [MagicMock(name=next(asins)), MagicMock(name="B0TEST0002")]
+    driver.select_all.return_value = cards
+    browser_functions.scrape_amazon_products_browser_impl(
+        driver, {"keyword": "phone stand", "debug_mode": False, "max_products": 2}
+    )
+    return driver
+
+
+@pytest.mark.req("REQ-SCR-081")
+class TestTheWayBackToTheResults:
+    PRODUCT = {"asin": "B0TEST0001", "images": ["x"], "videos": []}
+
+    def test_on_steps_back_through_history(self, monkeypatch):
+        driver = _two_card_search(monkeypatch, True, [self.PRODUCT, self.PRODUCT])
+
+        driver.run_js.assert_any_call("history.back()")
+        searches = [
+            c for c in driver.google_get.call_args_list if "/s?" in str(c.args[0])
+        ]
+        assert len(searches) == 1, "only the first search; the way back is history"
+
+    def test_off_navigates_to_the_search_again(self, monkeypatch):
+        driver = _two_card_search(monkeypatch, False, [self.PRODUCT, self.PRODUCT])
+
+        searches = [
+            c for c in driver.google_get.call_args_list if "/s?" in str(c.args[0])
+        ]
+        assert len(searches) == 2
+
+
+@pytest.mark.req("REQ-SCR-081")
+def test_a_block_after_a_product_still_drops_the_cookies(monkeypatch, outputs):
+    path = outputs / "state" / identity.COOKIES_FILE
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps([{"n": 1}]))
+    product = {"asin": "B0TEST0001", "images": ["x"], "videos": []}
+
+    with browser_functions.returning_identity(_CookieDriver([{"n": 2}])):
+        _two_card_search(
+            monkeypatch, True, [product, AmazonBlockError(PageKind.BARE_TITLE)]
+        )
+
+    assert not path.exists()

@@ -750,6 +750,10 @@ def scrape_amazon_products_browser_impl(
                 # same page. Keep what this page already gave, if anything.
                 if not products:
                     raise
+                # Caught here, so the identity's own handler never sees it:
+                # drop the kept cookies now, as a raised block would.
+                if consistent_identity_on() and session_block_kind(block):
+                    identity.forget_cookies()
                 logger.warning(
                     "Block page (%s) after %d product(s); keeping them and "
                     "ending this page",
