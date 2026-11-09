@@ -7,7 +7,9 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+from late.client.exceptions import LateTimeoutError
 
+from src.publisher.base import PublishError
 from src.publisher.viewer_comments import (
     NO_COMMENT_API,
     list_viewer_comments,
@@ -118,12 +120,13 @@ class TestTheListing:
 
 @pytest.mark.req("REQ-PUB-167")
 @pytest.mark.asyncio
-async def test_one_failing_platform_leaves_the_others_listed() -> None:
-    from src.publisher.base import PublishError
-
+@pytest.mark.parametrize(
+    "error", [PublishError("video removed"), LateTimeoutError("timed out")]
+)
+async def test_one_failing_platform_leaves_the_others_listed(error) -> None:
     def comments(pid, acc, limit=25):
         if pid == "youtube-1":
-            raise PublishError("video removed")
+            raise error
         return [IG]
 
     reader = _reader({})

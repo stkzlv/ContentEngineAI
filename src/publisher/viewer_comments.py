@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from late.client.exceptions import LateAPIError
+from late.client.exceptions import LateError
 
 from src.publisher.base import PublisherError
 from src.publisher.tracking import load_tracking
@@ -116,7 +116,7 @@ async def list_viewer_comments(
             result = await _read_platform(
                 reader, platform, post_id, legs_by_post, limit
             )
-        except (PublisherError, LateAPIError) as exc:
+        except (PublisherError, LateError) as exc:
             # One removed video or disconnected account must not hide the rest.
             logger.warning("Could not read %s comments: %s", platform, exc)
             result = PlatformComments(platform, [], f"read failed: {exc}")
