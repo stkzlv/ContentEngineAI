@@ -33,6 +33,11 @@ The script lint (REQ-CNT-053) already rejects machine-writing phrases and retrie
 - **When every attempt claims.** A claim is never kept as a soft near miss, because shipping it ships the false claim. The script step drops the claiming sentence the way it drops a borrowed example (`drop_borrowed`) and keeps the result as the same kind of near miss, so it ships if the rest passes validation; otherwise the run falls back as any failed script does.
 - **Tests.** Positive and negative sentence lists against the default patterns; the prompt for a virtual kind carries the rule and a non-virtual kind's prompt equals the bundled one; a script whose every attempt claims ships without the claiming sentence.
 
+## As built
+
+- The default patterns need the product as the object ("it", "them", "one", "mine", "a pair", "two"), so a first-person statistic ("we bought 200 million") or research ("I tested this claim against the data", "I used these figures") passes, and so do idioms such as "held off" and "ordered the list". They cover the present and progressive too ("I've been using it", "I use mine every day", "I've had mine for a month") and travel with the product ("went to the store with it"), and skip a sentence inside an "if" clause.
+- The fact check's revision is held to the same rule: `accept_revision` refuses a revision whose added sentences claim a physical act, so the reviser cannot bring one back after the script step passed the original.
+
 ## Alternatives considered
 
 - **Prompt rule only.** That is REQ-CNT-157 today, and #700 shows the model ignores such rules often enough to need a check.

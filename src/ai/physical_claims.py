@@ -10,17 +10,27 @@ from __future__ import annotations
 
 import re
 
+# A first-person subject, not inside an "if" clause ("If I bought this, ...").
 _SUBJECT = (
-    r"\b(?:i|i've|i have|i'd|we|we've|we have)\s+(?:just\s+|finally\s+|actually\s+)?"
+    r"(?<!\bif )\b(?:i|i've|i have|i'd|we|we've|we have)\s+"
+    r"(?:just\s+|finally\s+|actually\s+|already\s+|recently\s+)?"
 )
+# The product or a part of it, never a claim, a figure or a view.
+_OBJECT = r"(?:it|them|one|mine|a pair|two)\b"
+_NOT_RESEARCH = r"(?!\s+(?:against|on the|claim|theory|data|number|figure|stud|report))"
 
 DEFAULT_PATTERNS: tuple[str, ...] = (
-    _SUBJECT + r"(?:bought|ordered|purchased|unboxed|held|wore|worn)\b",
-    _SUBJECT + r"(?:tested|used)\s+(?:it|them|this|these|mine|one)\b",
-    _SUBJECT + r"tried\s+(?:it|them|this|these|mine|one)\b",
+    _SUBJECT + r"(?:bought|ordered|purchased|got|picked up)\s+" + _OBJECT,
+    _SUBJECT + r"(?:unboxed|wore|worn)\b",
+    _SUBJECT + r"held\s+" + _OBJECT + r"(?!\s+(?:view|idea|belief))",
+    _SUBJECT + r"(?:tested|used|tried)\s+" + _OBJECT + _NOT_RESEARCH,
+    _SUBJECT + r"(?:been\s+)?(?:using|testing|wearing|trying)\s+" + _OBJECT,
+    _SUBJECT + r"(?:use|wear)\s+(?:it|them|mine)\s+(?:every|daily|all)",
+    _SUBJECT + r"(?:had|owned)\s+(?:it|them|one|mine)\s+for\b",
     _SUBJECT + r"(?:picked|plugged)\s+(?:it|them|one)\s+(?:up|in)\b",
-    _SUBJECT + r"took\s+(?:it|them)\s+(?:to|on|out)\b",
-    _SUBJECT + r"spent\s+(?:\$|\d|a\s+week|a\s+month|weeks|months)",
+    _SUBJECT + r"(?:took|brought)\s+(?:it|them)\s+(?:to|on|out|along)\b",
+    _SUBJECT + r"went\s+[^.,;]{0,30}?\bwith\s+(?:it|them)\b",
+    _SUBJECT + r"spent\s+[^.,;]{0,30}?\b(?:on|with)\s+(?:it|them|mine|one)\b",
 )
 
 

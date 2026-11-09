@@ -671,7 +671,7 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 | `music_files` | list[path] | Local beds drawn from instead of the provider chain. |
 | `music_queries` | list[str] | The music providers' search queries, used when `music_files` is empty. |
 | `caption_template` | str | The pycaps template for every render of the kind, instead of drawing from `template_pool`. A video profile that sets its own pycaps template still wins. |
-| `virtual` | bool | The narrator is synthetic: the kind's narrator text gains a rule against claiming a physical act, and the script step retries a script with a first-person claim of one (bought, held, tried, tested, unboxed, wore), whatever the lint setting, then ships it without the claiming sentence. Default `false`; not a pinned dimension (REQ-CNT-173, [design 0033](../design/0033-virtual-narrator.md)). |
+| `virtual` | bool | The narrator is synthetic: the kind's narrator text gains a rule against claiming a physical act, and the script step retries a script with a first-person claim of one about the product (bought, held, tried, tested, unboxed, wore, has been using, took it somewhere), whatever the lint setting, then ships it without the claiming sentence; the fact check's revision may not add one either. First-person research and statistics pass. Default `false`; not a pinned dimension (REQ-CNT-173, [design 0033](../design/0033-virtual-narrator.md)). |
 
 The variety report marks a pinned dimension (the voice, the caption template, a single music file) as pinned and leaves those renders out of its dominance alert (REQ-CNT-170).
 

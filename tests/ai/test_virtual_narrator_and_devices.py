@@ -32,7 +32,12 @@ PATTERNS = compile_patterns(DEFAULT_PATTERNS)
         "I picked it up at the store.",
         "I took it to the gym.",
         "I spent $40 on mine.",
-        "I’ve worn them every day.",
+        "I\u2019ve worn them every day.",
+        "I've been using it for a week.",
+        "I use mine every day.",
+        "I've had mine for a month.",
+        "I got one last week.",
+        "I went to the store with it.",
     ],
 )
 def test_a_physical_claim_is_named(sentence: str) -> None:
@@ -49,6 +54,17 @@ def test_a_physical_claim_is_named(sentence: str) -> None:
         "I compared three of them.",
         "I tried to find a cheaper one.",
         "People who bought it say it lasts.",
+        "Last year we spent $40 billion on gadgets.",
+        "In 2017 we bought 200 million fidget spinners.",
+        "I tested this claim against the data.",
+        "I used these figures from the report.",
+        "I spent weeks reading reviews.",
+        "I held off on buying one for years.",
+        "I held that view until I saw the data.",
+        "We ordered the list by price.",
+        "If I bought this, I'd return it.",
+        "I used to think so.",
+        "I'm worn out by these launches.",
     ],
 )
 def test_opinion_research_and_third_person_pass(sentence: str) -> None:
@@ -205,3 +221,31 @@ async def test_a_commentary_prompt_carries_the_devices_when_on() -> None:
 @pytest.mark.asyncio
 async def test_another_topic_never_carries_them() -> None:
     assert "one comparison built only from numbers" not in await _prompt(None, True)
+
+
+@pytest.mark.req("REQ-CNT-173")
+def test_a_revision_cannot_bring_a_claim_back() -> None:
+    from src.ai.script_fact_check import FactCheckClaim, accept_revision
+
+    original = _script("The stand is aluminium.")
+    revised = original.replace("The stand is aluminium.", "I tested it at my desk.")
+    flagged = [
+        FactCheckClaim(
+            claim="The stand is aluminium.", fix="It is steel.", reason="wrong"
+        )
+    ]
+    cta = config.llm_settings.script_templates.cta_options_for(False)
+    kwargs = {
+        "cta_options": cta,
+        "min_chars": 50,
+        "min_words": 10,
+        "max_length_drift": 1.0,
+    }
+
+    refused, reason = accept_revision(
+        original, revised, flagged, claim_patterns=PATTERNS, **kwargs
+    )
+    allowed, _ = accept_revision(original, revised, flagged, **kwargs)
+
+    assert refused is None and "physical act" in reason
+    assert allowed is not None, "only the claim guard refuses this revision"
