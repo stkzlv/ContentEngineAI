@@ -80,7 +80,7 @@ Three settings control how many products a run scrapes:
 
 ### Keywords and the total cap
 
-Each keyword is scraped on its own, with `products_per_keyword` as its limit. After each keyword, the total is checked against `max_products`; once the total reaches it, the remaining keywords are skipped (`REQ-SCR-034` to `REQ-SCR-038`).
+Each keyword is scraped on its own, asking for `products_per_keyword` or whatever `max_products` leaves, whichever is smaller. Before each keyword the total is checked against `max_products`; once the total reaches it, the remaining keywords are skipped (`REQ-SCR-034` to `REQ-SCR-038`). Products found by product id count toward the total.
 
 The bundled `config/scraper.yaml` sets `max_products: 1`, so a run stops after the first validated product. Raise `scrapers.amazon.max_products`, or pass `--max-products N`, to collect more across keywords.
 
@@ -125,6 +125,7 @@ A flag on the command line overrides the YAML, and the YAML overrides the model 
 | No inputs on the command line, bundled config | 1 product: the run stops at the `max_products: 1` cap. Raise `--max-products` to take one per keyword across the pool. |
 | `--keywords "a" "b" "c" --products-per-keyword 2 --max-products 10` | Up to 6 products, 2 per keyword. |
 | `--keywords "a" "b" "c" --products-per-keyword 2 --max-products 4` | 4 products: 2 from "a", 2 from "b", and "c" skipped because the cap is reached. |
+| `--keywords "a" "b" --products-per-keyword 3 --max-products 5` | 5 products: 3 from "a", and "b" asks for the 2 the cap leaves. |
 | `--product-ids B0A B0B B0C B0D B0E` | 5 products: every id is processed, and `max_products` doesn't apply to ids. |
 
 ## Configuration keys

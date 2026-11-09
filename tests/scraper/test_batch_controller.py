@@ -1506,3 +1506,70 @@ class TestProductIdsCountTowardTheCap:
         BatchController(mock_scraper, config).run_batch()
 
         assert mock_scraper.scrape_products_unified.call_count == 2
+
+
+@pytest.mark.req("REQ-SCR-038")
+class TestTheStandaloneRunStaysWithinTheCap:
+    """A keyword search asks only for what the cap leaves (#823)."""
+
+    def test_a_keyword_asks_for_the_remainder_of_the_cap(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        config = BatchConfig(
+            product_ids=["B0TEST1234"],
+            keywords=["test keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=2,
+            products_per_keyword=2,
+        )
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        BatchController(mock_scraper, config).run_batch()
+
+        keyword_call = mock_scraper.scrape_products_unified.call_args_list[-1]
+        assert keyword_call.kwargs["keyword"] == "test keyword"
+        assert keyword_call.kwargs["max_products"] == 1
+
+    def test_a_repeated_product_id_counts_once(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        config = BatchConfig(
+            product_ids=["B0TEST1234", "B0TEST1234"],
+            keywords=["test keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=2,
+            products_per_keyword=1,
+        )
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        BatchController(mock_scraper, config).run_batch()
+
+        searched = [
+            c.kwargs.get("keyword")
+            for c in mock_scraper.scrape_products_unified.call_args_list
+        ]
+        assert "test keyword" in searched
+
+    def test_one_product_given_two_ways_counts_once(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        """An ASIN and a URL for the same product leave room for the keyword."""
+        config = BatchConfig(
+            product_ids=["B0TEST1234", "https://www.amazon.com/dp/B0TEST1234"],
+            keywords=["test keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=2,
+            products_per_keyword=1,
+        )
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        BatchController(mock_scraper, config).run_batch()
+
+        searched = [
+            c.kwargs.get("keyword")
+            for c in mock_scraper.scrape_products_unified.call_args_list
+        ]
+        assert "test keyword" in searched
