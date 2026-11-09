@@ -43,7 +43,7 @@ class TestTheBundledFileLoads:
         # Absent from the file, present from the model.
         assert download["min_image_file_size"] == 10000
         assert download["validation_timeout"] is None
-        assert runtime["global_settings"]["batch_processing"]["max_pages"] == 7
+        assert runtime["global_settings"]["batch_processing"]["max_pages"] == 5
         assert runtime["scrapers"]["amazon"]["max_products"] == 1
 
 
@@ -280,7 +280,7 @@ class TestDefaultsLiveInTheModel:
         assert gs.system_timeouts.system_command_timeout == 5
         assert gs.system_timeouts.system_profiler_timeout == 10
         assert gs.media_config.ffprobe_timeout_sec == 30
-        assert gs.batch_processing.max_pages == 7
+        assert gs.batch_processing.max_pages == 5
         assert gs.retries == 3
         assert gs.retry_config.default_max_retries == 3
         assert gs.rate_limiting.debug_pause_duration == 5

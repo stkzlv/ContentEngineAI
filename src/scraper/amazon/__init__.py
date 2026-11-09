@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from .browser_functions import (
         create_dynamic_browser_function,
         scrape_amazon_products_browser_impl,
-        scrape_single_product,
     )
     from .config import (
         CONFIG,
@@ -62,7 +61,6 @@ if TYPE_CHECKING:
 _EXPORTS: dict[str, str] = {
     "create_dynamic_browser_function": "browser_functions",
     "scrape_amazon_products_browser_impl": "browser_functions",
-    "scrape_single_product": "browser_functions",
     "CONFIG": "config",
     "get_default_search_parameters": "config",
     "get_filename_pattern": "config",
@@ -130,7 +128,6 @@ __all__ = [
     "download_media_files",
     # Browser automation (for advanced usage)
     "scrape_amazon_products_browser_impl",
-    "scrape_single_product",
 ]
 
 # Module metadata

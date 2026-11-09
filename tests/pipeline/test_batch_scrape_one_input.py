@@ -28,7 +28,7 @@ def fake_scraper(monkeypatch):
     monkeypatch.setattr(scraping_phase, "media_on_disk", lambda *_a: (0, 0))
     monkeypatch.setattr(
         "src.scraper.amazon.config.CONFIG",
-        {"global_settings": {"batch_processing": {"max_retry_pages": 2}}},
+        {"global_settings": {"batch_processing": {"max_pages": 2}}},
     )
     return _FakeScraper
 

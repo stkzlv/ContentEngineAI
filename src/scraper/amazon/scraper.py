@@ -396,6 +396,9 @@ class BotasaurusAmazonScraper(BaseScraper):
 
             remaining = target_count - len(validated_products)
             batch_size = min(remaining * prefetch_multiplier, max_batch_size)
+            # A later page is another search, paced like a new input.
+            if current_page > 1:
+                time.sleep(self.throttle.inter_input_delay_sec())
 
             if self.debug_mode:
                 self.logger.info(
