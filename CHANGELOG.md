@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.1] - 2026-11-09
+
+### Added
+
+- Measurements of the virtual-narrator claim check and the commentary devices switch on real scripts, recorded in their design docs; neither changes a default.
+
 ## [0.239.0] - 2026-11-09
 
 ### Added

@@ -38,6 +38,18 @@ The script lint (REQ-CNT-053) already rejects machine-writing phrases and retrie
 - The default patterns need the product as the object ("it", "them", "one", "mine", "a pair", "two"), so a first-person statistic ("we bought 200 million") or research ("I tested this claim against the data", "I used these figures") passes, and so do idioms such as "held off" and "ordered the list". They cover the present and progressive too ("I've been using it", "I use mine every day", "I've had mine for a month") and travel with the product ("went to the store with it"), and skip a sentence inside an "if" clause. "Got it" (understood), "went with it" (chose it) and a counted noun ("one question", "these figures") pass. The set is a regular-expression list, so the rollout's measurement on real scripts, not review, decides when it is precise enough to turn on.
 - The fact check's revision is held to the same rule: `accept_revision` refuses a revision whose added sentences claim a physical act, so the reviser cannot bring one back after the script step passed the original.
 
+Thirty scripts through the producer's script step with `virtual: true` and the installation's narrator profiles: ten product records (five scraped products, each under two ids so they draw different templates), ten tutorial topics and ten commentary topics with sourced details. The step made 41 model calls in all, retries included.
+
+| Kind | Scripts | Model calls | Sentences the patterns refused | First-person sentences passed |
+|---|---|---|---|---|
+| Product | 10 | 14 | 0 | 2 ("That's my honest take.") |
+| Tutorial topic | 10 | 11 | 0 | 2 ("We'll start in ...", "Let's fix it.") |
+| Commentary | 10 | 16 | 0 | 27 (opinions, the sign-off, "we" as people in general) |
+
+No draft claimed a physical act, so the patterns had nothing to catch and refused nothing: no research, opinion or statistic was refused, and no passed sentence claims to have bought, held, tried or worn anything. The prompt rule did the work. The sample therefore does not exercise the patterns' edges; the cases two review rounds found stay in the tests.
+
+On this sample the check refused nothing it should not, so it is precise enough to turn on; whether to is each installation's choice, made in its overlay.
+
 ## Alternatives considered
 
 - **Prompt rule only.** That is REQ-CNT-157 today, and #700 shows the model ignores such rules often enough to need a check.

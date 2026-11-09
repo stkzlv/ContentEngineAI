@@ -41,7 +41,23 @@ A probe render whose overlay narrator asked for a comparison with a quoted examp
 
 Ships off. Turn it on after sampling ten commentary scripts with it on and ten off, on the same topics, and reading each for a comparison, a contrast, an invented figure and the length. Turn it on if most "on" scripts carry both devices with no invented figure and no longer than the "off" ones.
 
+Measured on ten commentary topics (see As built): the rule is not met, so it stays off.
+
 Remove the switch when: it has been on for a month of commentary renders with no invented figure found in review; then the rule becomes part of the template.
+
+## As built
+
+Measured on ten commentary topics with sourced details, one script per topic with the switch off and one with it on, through the producer's script step with the installation's narrator profile:
+
+| | Off | On |
+|---|---|---|
+| A contrast between the common assumption and the fact | 9 of 10 | 9 of 10 |
+| A comparison built from the detail's numbers | 2 of 10 | 3 of 10 |
+| Both | 2 of 10 | 2 of 10 |
+| A figure not in the detail | 0 | 0 |
+| Words, mean (range) | 87 (69-103) | 90 (75-105) |
+
+The rule to turn it on is not met: most "on" scripts carry the contrast but not the comparison, and they run slightly longer. The contrast was already there with the switch off because the installation's narrator profile asks for both devices itself, so on that installation the switch adds little. It stays off.
 
 ## Open questions
 
