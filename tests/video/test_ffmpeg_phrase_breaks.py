@@ -153,3 +153,26 @@ def test_script_breaks_do_not_outrun_the_audio_at_a_fast_rate(mock_config):
         words = [rnd.choice(vocab) for _ in range(rnd.randint(30, 90))]
         segments = generator._create_script_segments(" ".join(words), len(words) / 4.5)
         assert " ".join(_texts(segments)).split() == words
+
+
+@pytest.mark.req("REQ-VID-163")
+@pytest.mark.parametrize("phrase_breaks", [False, True])
+def test_script_segments_fit_the_audio_at_a_fast_rate(mock_config, phrase_breaks):
+    """At a fast rate the captions' minimum durations add up past the audio;
+    every word still appears, and the last caption ends with the audio.
+    """
+    rng = random.Random(7)  # noqa: S311 - a fixed test sample
+    vocab = ["tap", "it", "now", "the", "red", "icon", "on", "top", "and", "wait"]
+    script = " ".join(rng.choice(vocab) for _ in range(66)) + "."
+    duration = 10.0  # 6.6 words a second
+    generator = _generator(mock_config, phrase_breaks)
+
+    segments = generator._create_script_segments(script, duration)
+
+    assert " ".join(_texts(segments)).split() == script.split()
+    assert segments[-1]["end"] <= duration + 1e-6
+    assert all(s["end"] > s["start"] for s in segments)
+    assert all(
+        a["end"] <= b["start"] + 1e-6
+        for a, b in zip(segments, segments[1:], strict=False)
+    )
