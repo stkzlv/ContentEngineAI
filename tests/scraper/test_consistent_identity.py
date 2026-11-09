@@ -331,6 +331,7 @@ def test_a_block_after_a_product_still_drops_the_cookies(monkeypatch, outputs):
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps([{"n": 1}]))
     product = {"asin": "B0TEST0001", "images": ["x"], "videos": []}
+    _switch(monkeypatch, True)
 
     with browser_functions.returning_identity(_CookieDriver([{"n": 2}])):
         _two_card_search(
