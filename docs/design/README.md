@@ -94,5 +94,5 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0033](0033-virtual-narrator.md) | Virtual narrator | #805 | Implemented |
 | [0034](0034-commentary-devices.md) | A comparison and a contrast in commentary scripts | #806 | Implemented |
 | [0035](0035-correction-topics.md) | Correction topics | #807 | Implemented |
-| [0036](0036-comment-reply-videos.md) | Comment-reply videos | #808 | Accepted |
+| [0036](0036-comment-reply-videos.md) | Comment-reply videos | #808 | Implemented |
 | [0037](0037-scraper-block-resilience.md) | Scraper block resilience | #812 | Implemented |

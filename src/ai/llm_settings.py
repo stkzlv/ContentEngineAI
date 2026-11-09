@@ -329,6 +329,10 @@ class ScriptTemplateConfig(BaseModel):
     narrator_profile_commentary: str = ""
     cta_options_commentary: list[str] = Field(default_factory=list)
     cta_options_correction: list[str] = Field(default_factory=list)
+    # Templates and CTAs a reply video draws (REQ-CNT-176), in the commentary
+    # narrator and length. Empty CTAs keep the commentary ones.
+    reply_templates: list[str] = Field(default_factory=list)
+    cta_options_reply: list[str] = Field(default_factory=list)
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
@@ -347,6 +351,7 @@ class ScriptTemplateConfig(BaseModel):
         "cta_options_topic",
         "cta_options_commentary",
         "cta_options_correction",
+        "cta_options_reply",
     )
     @classmethod
     def _each_option_carries_words(cls, options: list[str]) -> list[str]:

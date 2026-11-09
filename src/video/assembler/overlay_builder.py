@@ -35,6 +35,7 @@ from src.video.config.visual_models import (
     DisclosureSettings,
     GraphicsSettings,
     HookOverlaySettings,
+    ReplyCardSettings,
     UpperLineSettings,
 )
 from src.video.step_cards import StepCard
@@ -539,6 +540,74 @@ def apply_hook_overlay(
     # Preserve the terminal copy[v_out] so the disclosure rewrite still works.
     new_terminal = "[v_hook]copy[v_out]"
     return [*video_filters[:-1], hook_filter, new_terminal]
+
+
+def reply_card_lines(
+    text: str, font_size: int, max_px: int, max_lines: int
+) -> list[str]:
+    """The comment wrapped to `max_lines`, the last ending in an ellipsis if cut.
+
+    The font stays put: a long comment is truncated rather than shrunk, so the
+    card reads at a glance.
+    """
+    lines = _wrap_hook_words(text.split(), font_size, max_px)
+    if len(lines) <= max_lines:
+        return lines
+    kept = lines[:max_lines]
+    last = kept[-1].split()
+    while (
+        last and _estimate_hook_text_width(" ".join(last) + "...", font_size) > max_px
+    ):
+        last.pop()
+    kept[-1] = " ".join(last).rstrip(",.;:!?") + "..."
+    return kept
+
+
+def apply_reply_card_overlay(
+    video_filters: list[str],
+    settings: ReplyCardSettings,
+    comment: str,
+    author: str | None,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Draw a reply's comment on boxed lines over the opening (REQ-CNT-176).
+
+    Same chain contract as the hook overlay: rewrites the terminal
+    ``copy[v_out]`` and appends a new one, so the disclosure still finds it.
+    """
+    if not settings.enabled or not comment.strip() or not video_filters:
+        return video_filters
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "Reply card skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
+        )
+        return video_filters
+    font_size = max(8, int(round(subtitle_font_size_pixels * settings.size_factor)))
+    max_px = max(1, int(frame_width * settings.max_width_fraction))
+    lines = reply_card_lines(comment, font_size, max_px, settings.max_lines)
+    if settings.show_author and author:
+        lines = [f"@{author.lstrip('@')}", *lines]
+    line_height = int(font_size * 1.4)
+    stream_in = normalized[-1].replace("copy[v_out]", "")
+    drawtexts: list[str] = []
+    for i, line in enumerate(lines):
+        stream_out = "[v_reply]" if i == len(lines) - 1 else f"[v_rpl{i + 1}]"
+        line_file = temp_dir / f"reply_line_{i}.txt"
+        line_file.write_text(_escape_drawtext_textfile(line), encoding="utf-8")
+        text_path = line_file.as_posix().replace(":", r"\:")
+        drawtexts.append(
+            f"{stream_in}drawtext=textfile='{text_path}':{_fontfile_part(line)}"
+            f"fontsize={font_size}:fontcolor={settings.font_color}:"
+            f"box=1:boxcolor={settings.background_color}:boxborderw=18:"
+            f"x=(w-text_w)/2:y=h*{settings.margin_y_percent}+{i * line_height}:"
+            f"enable=between(t\\,0\\,{settings.duration_sec:.3f}){stream_out}"
+        )
+        stream_in = stream_out
+    return [*normalized[:-1], ";".join(drawtexts), "[v_reply]copy[v_out]"]
 
 
 def _fit_font(text: str, start: int, max_px: int, floor: int) -> int:

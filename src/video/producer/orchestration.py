@@ -384,10 +384,12 @@ def config_for_record(config: Any, product: Any) -> Any:
     pins = identity.model_dump(exclude_defaults=True)
     if kind != "commentary" and not pins:
         return config
-    correction = getattr(product, "topic_kind", None) == "correction"
+    topic_kind = getattr(product, "topic_kind", None)
+    correction = topic_kind == "correction"
+    reply = topic_kind == "reply"
     if (
         kind == "commentary"
-        and not correction
+        and not (correction or reply)
         and not config.llm_settings.script_templates.commentary_templates
     ):
         raise PipelineError(
@@ -397,6 +399,8 @@ def config_for_record(config: Any, product: Any) -> Any:
         raise PipelineError(
             "A correction topic needs script_templates.correction_templates"
         )
+    if reply and not config.llm_settings.script_templates.reply_templates:
+        raise PipelineError("A reply video needs script_templates.reply_templates")
     record = config.model_copy(deep=True)
     if kind == "commentary":
         t = record.llm_settings.script_templates
@@ -415,6 +419,10 @@ def config_for_record(config: Any, product: Any) -> Any:
             t.topic_templates = list(t.correction_templates)
             if t.cta_options_correction:
                 t.cta_options_topic = list(t.cta_options_correction)
+        if reply:
+            t.topic_templates = list(t.reply_templates)
+            if t.cta_options_reply:
+                t.cta_options_topic = list(t.cta_options_reply)
     if pins:
         _apply_identity(record, identity, is_topic=kind != "product")
         logger.info("Narrator identity for %s pins %s", kind, ", ".join(sorted(pins)))

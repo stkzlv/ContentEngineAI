@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 # cleaned product dirs exist nowhere else, and day-N metrics age out of the
 # provider's retention and are then unrecoverable at any price.
 STATE_DIR_NAME = "state"
+# Reply videos land here for review (REQ-CNT-176). Not a product directory, so
+# no scan publishes, cleans or validates what sits under it.
+DRAFTS_DIR_NAME = "drafts"
 
 # Directories under the outputs root that are not products. Four scans kept
 # their own lists (batch cleanup, the producer's batch discovery, the
@@ -35,6 +38,7 @@ GLOBAL_DIR_NAMES: frozenset[str] = frozenset(
         "temp",
         "performance_history",
         STATE_DIR_NAME,
+        DRAFTS_DIR_NAME,
         "data",
         "videos",
         "coverage",

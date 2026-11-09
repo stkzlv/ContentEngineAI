@@ -358,6 +358,10 @@ llm_settings:
     # Empty keeps the commentary CTAs.
     cta_options_correction:
       - "Follow for more takes like this."
+    # For reply videos, which answer a viewer's comment and ask nothing new.
+    # Empty keeps the commentary CTAs.
+    cta_options_reply:
+      - "Follow for more takes like this."
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one
     # self-correction. Never in the first sentence, a number, name or claim,
@@ -431,6 +435,11 @@ llm_settings:
     # no closing question.
     correction_templates:
       - correction
+    # A reply video (REQ-CNT-176) draws these, in the commentary narrator and
+    # length with `cta_options_reply`: the answer first, one reason from the
+    # video the comment was left on, and no new question.
+    reply_templates:
+      - reply
 
     # Narrator direction for topic scripts. The default profile below is
     # written for someone describing a thing they bought. A topic script has

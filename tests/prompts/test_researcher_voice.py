@@ -22,7 +22,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "src" / "ai" / "prompts" / "scri
 PRODUCT_TEMPLATES = sorted(
     p
     for p in SCRIPTS.glob("*.md")
-    if not p.stem.startswith(("topic_", "commentary_", "correction"))
+    if not p.stem.startswith(("topic_", "commentary_", "correction", "reply"))
 )
 
 

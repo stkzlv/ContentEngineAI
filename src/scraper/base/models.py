@@ -116,6 +116,11 @@ class BaseProductData:
     topic_kind: str | None = None
     # For a correction, the published record it corrects (REQ-CNT-175).
     corrects: str | None = None
+    # For a reply video (REQ-CNT-176): the viewer comment it answers, its
+    # author's handle and the published record the comment was left on.
+    reply_comment: str | None = None
+    reply_author: str | None = None
+    reply_to: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and setup."""
@@ -161,6 +166,9 @@ class BaseProductData:
             "topic": self.topic,
             "topic_kind": self.topic_kind,
             "corrects": self.corrects,
+            "reply_comment": self.reply_comment,
+            "reply_author": self.reply_author,
+            "reply_to": self.reply_to,
         }
 
 

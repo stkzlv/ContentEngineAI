@@ -70,7 +70,7 @@ A topic kind that corrects a published record: a short correction in the comment
 
 ### H.10 Comment-reply videos (Next)
 
-List a published record's viewer comments and render a reply to one in the commentary identity, opening on a card showing the comment, into a drafts folder. #808, [design 0036](design/0036-comment-reply-videos.md).
+List a published record's viewer comments and render a reply to one in the commentary identity, opening on a card showing the comment, into a drafts folder. #808, [design 0036](design/0036-comment-reply-videos.md). Shipped: the `comments` listing and `--reply-to-comment` with `--reply-record`.
 
 **Done when:** the producer renders a reply from a comment into the drafts folder with the card, and the publisher lists a record's comments.
 

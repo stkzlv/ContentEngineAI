@@ -629,6 +629,18 @@ A source that resolves to nothing renders no line and logs which: a topic render
 
 The image below is fitted into the rows the line leaves, so it moves down by the line's height plus a gap; the caption block is unchanged. A profile overrides any subset of these fields with its own `upper_line:` block, deep-merged onto the global one.
 
+**Reply card** — the comment a reply video answers (REQ-CNT-176), drawn over the opening in place of the hook overlay.
+
+```yaml
+video_settings:
+  reply_card:
+    enabled: true          # Draw the card on a reply video
+    duration_sec: 3.0      # How long it is held (0.5-6.0)
+    show_author: false     # Draw the commenter's handle above the text
+```
+
+The comment wraps at a fixed font size (`size_factor`, default 0.9 of the subtitle font) within `max_width_fraction` (0.86) of the frame and is cut to `max_lines` (2) with an ellipsis rather than shrunk, each line on a box in `background_color` (`black@0.6`) at `margin_y_percent` (0.3) from the top. With `show_author` off, a viewer's handle is never drawn. Only a reply record draws a card.
+
 **Hook overlay** — a short headline held on the opening seconds to win the scroll-past decision.
 
 ```yaml
@@ -661,7 +673,7 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 
 ### 3.2. Narrator Identity
 
-`narrator_identity` in `config/video_production.yaml` pins what every render of a content kind keeps the same ([design 0031](../design/0031-narrator-identity.md)). It has three kinds: `product`, `topic`, and `commentary`, a topic marked `kind: commentary` or `kind: correction`. Every field is optional, and the bundled config leaves every kind empty. An installation sets its own in `config/video_production.private.yaml`.
+`narrator_identity` in `config/video_production.yaml` pins what every render of a content kind keeps the same ([design 0031](../design/0031-narrator-identity.md)). It has three kinds: `product`, `topic`, and `commentary`, a topic marked `kind: commentary` or `kind: correction`, and a reply video. Every field is optional, and the bundled config leaves every kind empty. An installation sets its own in `config/video_production.private.yaml`.
 
 | Field | Type | Effect |
 |---|---|---|
@@ -1505,6 +1517,8 @@ llm_settings:
 | `narrator_profile_commentary` | str | Voice direction for commentary scripts: an opinion, not a fix. Empty keeps `narrator_profile_topic`. |
 | `cta_options_commentary` | list[str] | Commentary CTAs, said after the closing question. Each starts with an opener the publisher strips, so the YouTube first comment is the question. Empty keeps `cta_options_topic`. |
 | `cta_options_correction` | list[str] | Correction CTAs (REQ-CNT-175), said after the line on what changes, so none asks a question. Empty keeps `cta_options_commentary`. |
+| `reply_templates` | list[str] | Templates a reply video draws (`[reply]`), in the commentary narrator and length with `cta_options_reply`, and excluded from the product pool. The figure check of `check_commentary_facts` applies; the closing-question check doesn't. Empty refuses a reply render (REQ-CNT-176). |
+| `cta_options_reply` | list[str] | Reply CTAs (REQ-CNT-176), said after the answer, so none asks a question. Empty keeps `cta_options_commentary`. |
 | `naturalism.intensity` | int, 0-2 | Conversational delivery written into the script. 0 leaves the prompt unchanged; the bundled config sets 1. 1 asks for contractions, one or two spoken fillers and one emotional beat; 2 asks for two or three fillers and one self-correction that rephrases wording, never a fact. The rule is rendered into `{CTA_RULE}` after the CTA rule and keeps filler out of the first sentence, any number, name or claim, and the call to action. The captions are transcribed from the audio, so they carry the filler with no caption-side change. |
 | `hook_rules.enabled` | bool | Default false; the bundled config sets true. On, the script prompt's `{CTA_RULE}` adds a concrete-hook rule and a rule linking sentences by cause or complication, and the hook headline, the description and every platform caption prompt end with a rule to lead with the search phrase (the product keyword, or a topic's title; a product scraped from its id has none, and the rule is left out). Off, every prompt is unchanged (design 0007). |
 | `signature` | object | A recurring author signature ([design 0022](../design/0022-signature-lines.md)). `enabled` (default `false`; the bundled config ships it off with empty pools, and an installation sets its own lines in `config/ai_services.private.yaml`, as `config/ai_services.private.yaml.example` shows) switches it on; while false, no line is drawn and the prompt is unchanged. `product` and `topic` each hold `use_rate` (0-1, default 0.5), the pools `openers`, `transitions` and `signoffs`, and `opener_templates`, the script templates that may draw an opener (empty means every one; the bundled topic pool lists the task-first templates); a topic render draws from `topic`, a product render from `product`, each element independently by salted hash. The opener starts the first sentence and runs into it with no comma (at most five words); the transition is used once where the script turns from problem to fix; the sign-off is a whole sentence spoken right before the CTA, after the recap in a step-list tutorial, and the script step moves it there when the model says it earlier. A narrator identity's `signoff` is written to its arm's `pinned_signoff` and wins over the pool (REQ-CNT-169). The drawn sign-off is recorded in the pipeline state, and both the first-comment extractor and the platform caption prompts remove it before reading the closing line. |

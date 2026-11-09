@@ -46,10 +46,17 @@ from src.video.producer.shared_cli import (
     layout_render_overrides,
     subtitle_render_overrides,
 )
-from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
+from src.video.producer.state import (
+    STEP_GATHER_VISUALS,
+    VALID_STEPS,
+    resolved_step_order,
+)
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
+    build_reply_product,
+    materialise_reply,
     materialise_topics,
+    move_reply_to_drafts,
     specs_from_args,
 )
 from src.video.producer.utils import (
@@ -330,6 +337,34 @@ def create_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--reply-to-comment",
+        default=None,
+        metavar="TEXT",
+        help=(
+            "Render a reply video answering this viewer comment, with a card "
+            "showing it, into the outputs root's drafts folder. Needs "
+            "--reply-record and a profile. Never published by the pipeline."
+        ),
+    )
+    parser.add_argument(
+        "--reply-record",
+        default=None,
+        metavar="RECORD_ID",
+        help=(
+            "With --reply-to-comment: the published record the comment was left "
+            "on. Refused when it has no queued or published post."
+        ),
+    )
+    parser.add_argument(
+        "--reply-author",
+        default=None,
+        metavar="HANDLE",
+        help=(
+            "With --reply-to-comment: the commenter's handle, drawn on the card "
+            "only when video_settings.reply_card.show_author is on."
+        ),
+    )
+    parser.add_argument(
         "--topics-file",
         type=Path,
         help=(
@@ -425,6 +460,20 @@ def create_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def settle_reply(config, product, profile_name: str, step: str | None, result_path):
+    """Move a finished reply into drafts (REQ-CNT-176); return the video path.
+
+    A `--step` run of the last step finishes the video too, and must not
+    leave it where publishing looks. Anything else is returned unchanged.
+    """
+    if getattr(product, "topic_kind", None) != "reply":
+        return result_path
+    last = resolved_step_order(config.get_profile(profile_name))[-1]
+    if step not in (None, last):
+        return result_path
+    return move_reply_to_drafts(config, product, profile_name, result_path)
+
+
 async def main():
     parser = create_argument_parser()
     args = parser.parse_args()
@@ -435,6 +484,17 @@ async def main():
         parser.error("--topic-kind applies to --topic")
     if getattr(args, "corrects", None) and not args.topic:
         parser.error("--corrects applies to --topic with --topic-kind correction")
+    reply_mode = getattr(args, "reply_to_comment", None) is not None
+    if reply_mode and not getattr(args, "reply_record", None):
+        parser.error("--reply-to-comment needs --reply-record")
+    if not reply_mode and (
+        getattr(args, "reply_record", None) or getattr(args, "reply_author", None)
+    ):
+        parser.error("--reply-record and --reply-author apply to --reply-to-comment")
+    if reply_mode and topic_mode:
+        parser.error("--reply-to-comment cannot be used with --topic/--topics-file")
+    # A reply builds its record the way a topic does, so the topic guards apply.
+    topic_mode = topic_mode or reply_mode
     if topic_mode and args.products_file and not args.profile:
         # Both positionals are optional, so argparse binds a lone profile name
         # to products_file. In topic mode there is no products_file, so the bare
@@ -623,6 +683,18 @@ async def main():
             # Create products list with directory info for batch processing
             products_list = list(discovered_products)
             profile_name = args.batch_profile
+        elif reply_mode:
+            # Reply mode (REQ-CNT-176): the record is built from the comment and
+            # the published record it was left on.
+            reply = build_reply_product(
+                args.reply_to_comment,
+                args.reply_record,
+                config.global_output_root_path,
+                author=args.reply_author or "",
+            )
+            products_list = [materialise_reply(reply, config, args.profile)]
+            logger.info("Prepared reply %s to %s", reply.asin, args.reply_record)
+            profile_name = args.profile
         elif topic_mode:
             # Topic mode: build the record instead of reading one the scraper
             # wrote. Everything downstream is unchanged; the run directory comes
@@ -862,6 +934,9 @@ async def main():
                     )
                     break
         elif result_path:
+            result_path = settle_reply(
+                config, product, current_profile, args.step, result_path
+            )
             batch_summary.succeeded_count += 1
             batch_summary.results.append(
                 ProductResult(

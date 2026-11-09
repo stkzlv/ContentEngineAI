@@ -33,6 +33,10 @@ PRODUCER_RUN_FLAGS = {
     "--topic-keywords",
     "--topic-kind",
     "--corrects",
+    # A reply is reviewed one at a time and never batched (REQ-CNT-176).
+    "--reply-to-comment",
+    "--reply-record",
+    "--reply-author",
     "--topics-file",
     "--batch-profile",
     "--random-profile",

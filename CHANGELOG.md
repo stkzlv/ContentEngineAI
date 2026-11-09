@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.0] - 2026-11-09
+
+### Added
+
+- The producer renders a reply video answering a viewer's comment with `--reply-to-comment` and `--reply-record`, in the commentary voice with its own template and CTAs, opening on a card that shows the comment (the commenter's handle only when `video_settings.reply_card.show_author` is on), and leaves it in `outputs/drafts/` for review, where nothing publishes it.
+
 ## [0.238.0] - 2026-11-09
 
 ### Added

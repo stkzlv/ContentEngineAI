@@ -65,7 +65,7 @@ Ids use the prefix `REQ-OPS`. The format and the statuses are described in [the 
 - **REQ-OPS-034** `shipped` A topic's directory name is stable for its title, so a re-run resumes its own directory.
 - **REQ-OPS-035** `shipped` Two different topic titles never share a directory.
   - Why: a shared directory would let the second topic inherit the first one's completed state and return its video.
-- **REQ-OPS-036** `shipped` Shared directories sit beside the product directories: `cache/`, `logs/`, `reports/`, `performance_history/`, `temp/` and `state/`.
+- **REQ-OPS-036** `shipped` Shared directories sit beside the product directories: `cache/`, `logs/`, `reports/`, `performance_history/`, `temp/`, `state/` and `drafts/`, which holds reply videos awaiting review (REQ-CNT-176).
 - **REQ-OPS-037** `shipped` Records that must outlive product cleanup (publish tracking, the schedule, the published-products registry, analytics) live in `outputs/state/`, which cleanup never removes.
 - **REQ-OPS-068** `shipped` `make clean-outputs` lists the files and directories under the outputs directory that sit outside the expected layout and are older than `cleanup_settings.max_age_days` (default 7), and deletes nothing.
 - **REQ-OPS-069** `shipped` When `CONFIRM=1` is passed, `make clean-outputs` deletes the items it lists, keeping anything that matches `cleanup_settings.preserve_patterns`, which by default include `state/` and the publish records.

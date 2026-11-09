@@ -32,6 +32,7 @@ from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
     apply_disclosure_overlay,
     apply_hook_overlay,
+    apply_reply_card_overlay,
     apply_step_card_overlay,
     apply_step_visuals,
     apply_upper_line_overlay,
@@ -107,6 +108,10 @@ class VideoAssembler:
         # assembler holds an id rather than the record. None means the source
         # resolved to nothing and no line is drawn (#88).
         self.upper_line_text: str | None = None
+        # A reply video's comment and its author (REQ-CNT-176), set by the
+        # caller from the record. None draws no card.
+        self.reply_comment: str | None = None
+        self.reply_author: str | None = None
 
         # Initialize standalone utilities (no profile dependency)
         self.media_inspector = MediaInspector()
@@ -170,6 +175,48 @@ class VideoAssembler:
 
         # Initialize builders that depend on profile settings
         self._init_profile_dependent_builders()
+
+    def _opening_overlay(
+        self,
+        video_filters: list[str],
+        hook_headline: str | None,
+        hook_text: str | None,
+        subtitle_font_size_pixels: int,
+        temp_dir: Path,
+    ) -> list[str]:
+        """The text held over the opening: a reply's comment card, else the hook.
+
+        A reply's card holds the opening instead of the hook (REQ-CNT-176):
+        two texts there would compete. An empty hook text makes the hook a
+        no-op.
+        """
+        width = self.config.video_settings.resolution[0]
+        if self.reply_comment:
+            with_card = apply_reply_card_overlay(
+                video_filters,
+                self.config.video_settings.reply_card,
+                self.reply_comment,
+                self.reply_author,
+                subtitle_font_size_pixels,
+                width,
+                temp_dir,
+            )
+            if with_card != video_filters:
+                return with_card
+        hook_settings = self.config.video_settings.hook_overlay
+        if not hook_settings.enabled:
+            return video_filters
+        hook_line = resolve_hook_line(hook_headline, hook_text, hook_settings.max_words)
+        if not hook_line:
+            return video_filters
+        return apply_hook_overlay(
+            video_filters,
+            hook_settings,
+            hook_line,
+            subtitle_font_size_pixels,
+            width,
+            temp_dir,
+        )
 
     def set_product_id(self, product_id: str) -> None:
         """Set the product identifier for randomization seeding.
@@ -834,20 +881,13 @@ class VideoAssembler:
             # disclosure so the disclosure stays on top in the z-order.
             # The first sentence of the script is the hook text; an empty
             # hook_text (no script available) makes the overlay a no-op.
-            hook_settings = self.config.video_settings.hook_overlay
-            if hook_settings.enabled:
-                hook_line = resolve_hook_line(
-                    hook_headline, hook_text, hook_settings.max_words
-                )
-                if hook_line:
-                    video_filters = apply_hook_overlay(
-                        video_filters,
-                        hook_settings,
-                        hook_line,
-                        subtitle_font_size_pixels,
-                        self.config.video_settings.resolution[0],
-                        temp_dir,
-                    )
+            video_filters = self._opening_overlay(
+                video_filters,
+                hook_headline,
+                hook_text,
+                subtitle_font_size_pixels,
+                temp_dir,
+            )
 
             # Step cards, timed after the hook (REQ-VID-124), in the layout
             # this product draws (REQ-VID-153), recorded when any is drawn.
