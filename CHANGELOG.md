@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The standalone scraper counts products found by product id toward `max_products`, so it no longer searches a keyword after they fill the cap.
+- The standalone scraper counts products found by product id toward `max_products` and skips the keyword searches once they fill it.
 
 ## [0.229.1] - 2026-11-08
 

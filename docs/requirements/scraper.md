@@ -63,7 +63,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-036** `shipped` `max_products` and `products_per_keyword` have the same meaning in the scraper and the batch, and the same flags, `--max-products` and `--products-per-keyword`.
   - Check: other flags are not shared by name, for example the scraper's output directory flag is `--output-dir` and the batch's is `--outputs-dir`.
 - **REQ-SCR-037** `shipped` While `max_products` isn't reached, the scraper moves on to the next keyword.
-- **REQ-SCR-038** `shipped` When `max_products` is reached, the scraper stops, even if keywords remain.
+- **REQ-SCR-038** `shipped` When `max_products` is reached, the scraper stops, even if keywords remain; products found by product id count toward it.
 - **REQ-SCR-084** `shipped` The global batch's scrape phase scrapes one input at a time, validating its media before the next search, and stops browsing as soon as the validated count reaches `max_products`.
   - Why: browsing every input before validating makes about ten searches for one product, which is what trips the site's block.
 

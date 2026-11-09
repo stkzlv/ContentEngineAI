@@ -1467,6 +1467,7 @@ class TestLostKeywordsAreRecorded:
         assert summary.failed_keywords == ["bad"]
 
 
+@pytest.mark.req("REQ-SCR-038")
 @pytest.mark.req("REQ-SCR-084")
 class TestProductIdsCountTowardTheCap:
     """The standalone run stops where the global batch does on mixed inputs."""
