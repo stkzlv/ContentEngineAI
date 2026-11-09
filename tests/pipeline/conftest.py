@@ -22,3 +22,9 @@ def _clear_publisher_settings_cache() -> Iterator[None]:
     _publisher_settings.cache_clear()
     yield
     _publisher_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_pause_between_scrape_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The batch pauses seconds between inputs; tests skip the wait."""
+    monkeypatch.setattr("src.pipeline.phases.scraping.sleep", lambda _s: None)
