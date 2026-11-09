@@ -720,10 +720,8 @@ class UnifiedSubtitleGenerator:
                 # at a phrase boundary and carry the words after it forward.
                 carried: list[str] = []
                 if self.config.phrase_breaks and not appended:
-                    # Script-timed captions are laid end to end, each lasting
-                    # at least `min_duration`; a caption shorter than that at
-                    # this rate pushes every later one back, and past the end
-                    # of the audio its words are lost.
+                    # Keep captions near `min_duration` at this rate, so
+                    # `_lay_out` rarely has to shrink them to fit the audio.
                     keep = self._phrase_keep(
                         current_segment_words,
                         word,
