@@ -52,13 +52,13 @@ The rules every script of a kind follows (length target, anti-AI phrases, no inv
 
 ### H.7 Virtual narrator
 
-A narrator identity marked virtual never claims a physical act: its prompt says so, and the script step refuses a first-person claim of one, whatever the lint setting. #805, [design 0033](design/0033-virtual-narrator.md).
+A narrator identity marked virtual never claims a physical act: its prompt says so, and the script step refuses a first-person claim of one, whatever the lint setting. #805, [design 0033](design/0033-virtual-narrator.md). Shipped: `narrator_identity.<kind>.virtual`, off.
 
 **Done when:** a virtual kind's scripts are retried on a claim and ship without it, and other kinds are unchanged.
 
 ### H.8 Comparison and contrast in commentary scripts
 
-A switch that asks commentary scripts for one comparison built from the detail's numbers and one contrast between the common assumption and the fact. #806, [design 0034](design/0034-commentary-devices.md).
+A switch that asks commentary scripts for one comparison built from the detail's numbers and one contrast between the common assumption and the fact. #806, [design 0034](design/0034-commentary-devices.md). Shipped: `script_templates.commentary_devices`, off; the sample read before turning it on is still to do.
 
 **Done when:** the switch adds both rules to the commentary prompt, and a sample read with it on is recorded in the design.
 

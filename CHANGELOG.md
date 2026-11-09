@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.236.0] - 2026-11-09
+
+### Added
+
+- `narrator_identity.<kind>.virtual`, off by default, marks a narrator as synthetic: its script prompt gains a rule against claiming a physical act, and a script whose narrator says it bought, held, tried, tested, unboxed or wore something is retried, then shipped without that sentence, whatever the lint setting, and the fact check's revision may not add one; research and statistics in the first person pass, and the patterns are in `script_validation.physical_claims`.
+- `script_templates.commentary_devices`, off by default, asks a commentary script for one comparison built only from numbers the detail states and one contrast between the common assumption and the fact.
+
 ## [0.235.2] - 2026-11-09
 
 ### Fixed

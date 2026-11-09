@@ -671,6 +671,7 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 | `music_files` | list[path] | Local beds drawn from instead of the provider chain. |
 | `music_queries` | list[str] | The music providers' search queries, used when `music_files` is empty. |
 | `caption_template` | str | The pycaps template for every render of the kind, instead of drawing from `template_pool`. A video profile that sets its own pycaps template still wins. |
+| `virtual` | bool | The narrator is synthetic: the kind's narrator text gains a rule against claiming a physical act, and the script step retries a script with a first-person claim of one about the product (bought, held, tried, tested, unboxed, wore, has been using, took it somewhere), whatever the lint setting, then ships it without the claiming sentence; the fact check's revision may not add one either. First-person research and statistics pass. Default `false`; not a pinned dimension (REQ-CNT-173, [design 0033](../design/0033-virtual-narrator.md)). |
 
 The variety report marks a pinned dimension (the voice, the caption template, a single music file) as pinned and leaves those renders out of its dominance alert (REQ-CNT-170).
 
@@ -1114,6 +1115,8 @@ llm_settings:
     # doesn't carry or has no closing question, dropping the figure's line if
     # every attempt speaks one.
     check_commentary_facts: true
+    # physical_claims: case-insensitive patterns for a virtual narrator's
+    # first-person claim of a physical act; the code ships a default set.
 
   # Description validation thresholds. max_chars is what separates a
   # description from a reasoning model's monologue about writing one.
@@ -1492,6 +1495,7 @@ llm_settings:
 | `narrator_rules_commentary` | str | Commentary counterpart, appended after the commentary narrator. Empty keeps `narrator_rules_topic`. Config loading warns, per kind, when the assembled narrator text carries no length placeholder or quotes a whole sentence or question a script could reuse (REQ-CNT-172). |
 | `topic_templates` | list[str] | Names eligible when the record came from a topic rather than a scraped product. Replaces the pool rather than narrowing it, and is excluded from the product pool. Empty list disables the split, which renders topics through product templates. |
 | `narrator_profile_topic` | str | Voice direction for topic scripts. Empty string falls back to `narrator_profile`, which is written for someone describing a purchase. |
+| `commentary_devices` | mapping | Off in the bundled config. With `enabled`, a commentary record's prompt asks for one comparison built only from numbers the detail states and one contrast between the common assumption and the fact; other prompts never carry them, and off the prompt is byte-identical (REQ-CNT-174, [design 0034](../design/0034-commentary-devices.md)). |
 | `topic_routing` | mapping | On in the bundled config. With `enabled`, a topic whose title starts "How to" draws its template only from `task_templates` (`[topic_answer_first]`), since the symptom-first and mistake-first templates invent a problem for a plain task; other topics keep the whole `topic_templates` pool (REQ-CNT-161). |
 | `target_length` | mapping | The spoken-length target per content type, `product`, `topic` and `commentary` (35-45 s, 90-115 words), each with `seconds` and `words` as `[low, high]` (both `[30, 40]` and `[75, 100]`). Filled into the narrator rules' `{TARGET_SECONDS}` and `{TARGET_WORDS}` placeholders as "30-40" and "75-100". A video profile's `target_length` overrides it (REQ-CNT-163). The bundled `slideshow_short_20s` profile sets 15-30 s and 50-60 words (REQ-VID-095). The script lint's word cap does not follow this setting: a target past 40 s also needs `script_validation.lint.target_duration_sec` raised. |
 | `cta_options` | list[str] | The closing lines a product script may end on, verbatim. One is chosen per product by salted hash and rendered alone into that template's `{CTA_RULE}`, immediately after its closing-beat rule; the generator refuses a script whose last sentence is not one of the configured lines. Override the choice with `--cta`. |

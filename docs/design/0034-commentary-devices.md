@@ -1,6 +1,6 @@
 # 0034. A comparison and a contrast in commentary scripts
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #806
 - **Requirements:** REQ-CNT-174
 

@@ -403,6 +403,11 @@ llm_settings:
       - topic_answer_first
       - topic_symptom_cause
       - topic_mistake_fix
+    # Ask a commentary script for one comparison built from the detail's
+    # numbers and one contrast between the common assumption and the fact
+    # (REQ-CNT-174, design 0034). Off: the prompt is unchanged.
+    commentary_devices:
+      enabled: false
     # Route a topic whose title starts "How to" to the templates written for a
     # task; the symptom-first and mistake-first ones invent a problem for a
     # plain task.

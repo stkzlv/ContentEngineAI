@@ -478,6 +478,7 @@ def accept_revision(
     min_chars: int,
     min_words: int,
     max_length_drift: float,
+    claim_patterns: list[re.Pattern[str]] | None = None,
 ) -> tuple[str | None, str]:
     """Whether a revision is safe to ship, and why not when it is not.
 
@@ -674,6 +675,15 @@ def accept_revision(
                     "the revision kept what a fix asked to remove: "
                     + ", ".join(sorted(restated)),
                 )
+
+    # A virtual narrator's revision is held to the script step's rule: the
+    # reviser must not bring back a physical-act claim (REQ-CNT-173).
+    if claim_patterns:
+        from src.ai.physical_claims import physical_claim
+
+        act = physical_claim(added, claim_patterns)
+        if act:
+            return None, f"the revision claims a physical act: {act!r}"
 
     return candidate, "accepted"
 
@@ -958,6 +968,13 @@ async def fact_check_and_revise(
     record["revision"]["attempted"] = True
     sv = settings.script_validation
     cta_options = settings.script_templates.cta_options_for(is_topic)
+    from src.ai.physical_claims import compile_patterns
+
+    claim_patterns = (
+        compile_patterns(sv.physical_claims)
+        if settings.script_templates.virtual_narrator
+        else None
+    )
 
     # Every fix a removal: drop the sentences without asking a model, which
     # has replaced a removed claim with a new invented one.
@@ -973,6 +990,7 @@ async def fact_check_and_revise(
             min_chars=sv.min_chars,
             min_words=sv.min_words,
             max_length_drift=1.0,
+            claim_patterns=claim_patterns,
         )
         if accepted is not None:
             record["revision"]["reason"] = "removed the flagged sentence(s)"
@@ -1010,6 +1028,7 @@ async def fact_check_and_revise(
         min_chars=sv.min_chars,
         min_words=sv.min_words,
         max_length_drift=cfg.max_length_drift,
+        claim_patterns=claim_patterns,
     )
     record["revision"]["reason"] = reason
     if accepted is None:

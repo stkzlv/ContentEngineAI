@@ -34,6 +34,9 @@ class NarratorIdentity(BaseModel):
     music_queries: list[str] = Field(default_factory=list)
     # A pycaps template name, used instead of drawing from the pool.
     caption_template: str | None = None
+    # The narrator is synthetic: its scripts never claim a physical act
+    # (REQ-CNT-173). Not a pinned dimension; it fixes no drawn choice.
+    virtual: bool = False
 
     @field_validator("signoff")
     @classmethod

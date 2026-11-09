@@ -91,8 +91,8 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0030](0030-commentary-topics.md) | Commentary topics | #782 | Implemented |
 | [0031](0031-narrator-identity.md) | Narrator identity | #783 | Implemented |
 | [0032](0032-narrator-rules.md) | Narrator rules apart from the narrator profile | #804 | Implemented |
-| [0033](0033-virtual-narrator.md) | Virtual narrator | #805 | Accepted |
-| [0034](0034-commentary-devices.md) | A comparison and a contrast in commentary scripts | #806 | Accepted |
+| [0033](0033-virtual-narrator.md) | Virtual narrator | #805 | Implemented |
+| [0034](0034-commentary-devices.md) | A comparison and a contrast in commentary scripts | #806 | Implemented |
 | [0035](0035-correction-topics.md) | Correction topics | #807 | Accepted |
 | [0036](0036-comment-reply-videos.md) | Comment-reply videos | #808 | Accepted |
 | [0037](0037-scraper-block-resilience.md) | Scraper block resilience | #812 | Implemented |

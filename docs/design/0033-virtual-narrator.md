@@ -1,6 +1,6 @@
 # 0033. Virtual narrator
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #805
 - **Requirements:** REQ-CNT-173
 
@@ -29,9 +29,14 @@ The script lint (REQ-CNT-053) already rejects machine-writing phrases and retrie
 
 - **The flag.** `NarratorIdentity.virtual: bool = False` in `src/video/config/identity_models.py`. It is not a pinned dimension: it fixes no drawn choice, so it doesn't enter the render-choices `pinned` list (REQ-CNT-170).
 - **The prompt rule.** `config_for_record` (design 0031) sets `script_templates.virtual_narrator` on the kind's config copy, and `narrator_for` appends one rule to the text it assembles when the flag is set, so the rule reaches whichever profile the kind uses, an empty topic profile's product fallback included. The rule says the narrator is synthetic and never says it bought, held, tried, tested, unboxed, wore or went somewhere; first-person opinion and research are fine. It quotes no example sentence (REQ-CNT-159).
-- **The check.** `script_validation.physical_claims` (a list of case-insensitive regular expressions, shipped with a default set). It is not part of the lint: a lint failure is a soft near miss that can ship (REQ-CNT-164), and the lint can be off. With `virtual_narrator` set, the script step's validation checks for a claim first, beside the copied-example check, whatever the lint setting, and fails naming the first sentence that matches. The default set covers a first-person subject ("I", "I've", "I just", "we") followed by a physical verb: bought, ordered, held, unboxed, wore, tested, tried it or them, picked up, plugged in, took it to or on, spent an amount. "Tried to" and verbs of reading, thinking and checking don't match.
+- **The check.** `script_validation.physical_claims` (a list of case-insensitive regular expressions, shipped with a default set). It is not part of the lint: a lint failure is a soft near miss that can ship (REQ-CNT-164), and the lint can be off. With `virtual_narrator` set, the script step's validation checks for a claim first, beside the copied-example check, whatever the lint setting, and fails naming the first sentence that matches. The default set covers a first-person subject ("I", "I've", "I just", "we") followed by a physical verb: bought, ordered, held, unboxed, wore, tested, tried it or them, picked up, plugged in, took it to or on, spent an amount on it (the As built section has the shipped set). "Tried to" and verbs of reading, thinking and checking don't match.
 - **When every attempt claims.** A claim is never kept as a soft near miss, because shipping it ships the false claim. The script step drops the claiming sentence the way it drops a borrowed example (`drop_borrowed`) and keeps the result as the same kind of near miss, so it ships if the rest passes validation; otherwise the run falls back as any failed script does.
 - **Tests.** Positive and negative sentence lists against the default patterns; the prompt for a virtual kind carries the rule and a non-virtual kind's prompt equals the bundled one; a script whose every attempt claims ships without the claiming sentence.
+
+## As built
+
+- The default patterns need the product as the object ("it", "them", "one", "mine", "a pair", "two"), so a first-person statistic ("we bought 200 million") or research ("I tested this claim against the data", "I used these figures") passes, and so do idioms such as "held off" and "ordered the list". They cover the present and progressive too ("I've been using it", "I use mine every day", "I've had mine for a month") and travel with the product ("went to the store with it"), and skip a sentence inside an "if" clause. "Got it" (understood), "went with it" (chose it) and a counted noun ("one question", "these figures") pass. The set is a regular-expression list, so the rollout's measurement on real scripts, not review, decides when it is precise enough to turn on.
+- The fact check's revision is held to the same rule: `accept_revision` refuses a revision whose added sentences claim a physical act, so the reviser cannot bring one back after the script step passed the original.
 
 ## Alternatives considered
 
