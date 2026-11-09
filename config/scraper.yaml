@@ -377,11 +377,6 @@ global_settings:
     # Affects: Fallback window positioning on unknown systems
     fallback_window_position: [0, 0, 1920, 1080]
 
-    # Search result waiting timeout (seconds)
-    # Maximum time to wait for search results to load before timing out
-    # Affects: Search result page load timeout, prevents hanging
-    search_result_timeout: 10
-
     # Maximum products to extract from search results page
     # Limits number of products processed per search query
     # Affects: Search result extraction loop, memory usage
@@ -397,19 +392,19 @@ global_settings:
     # Affects: Media extraction scripts, prevents hung JavaScript
     script_execution_timeout_ms: 30000  # 30 seconds
 
-    # Element selection default timeout (seconds) for Botasaurus waits
-    # Default timeout for element queries and interactions
-    # Affects: All element.select(), find(), wait_for() operations
-    element_selection_timeout: 10
+    # Wait per selector (seconds) on a page already known to be loaded: the
+    # result-card selectors on a results page and the title, price and
+    # description selectors on a product page. A selector that matches
+    # nothing costs this, not the driver's 4 s default.
+    element_selection_timeout: 2
 
     # Title extraction selector limit (number of selectors to try)
     # How many CSS selectors to attempt before giving up on title extraction
     # Affects: Product title extraction robustness, prevents excessive DOM queries
     max_title_selector_attempts: 10
 
-    # Search result selector wait timeout reduction (seconds)
-    # Reduced from default 10s to 5s for faster failure detection
-    # Affects: Speed of detecting "no results" vs genuine network issues
+    # One wait (seconds) for the results to render on a search page the
+    # classifier did not see as results; past it the page is given up.
     search_result_wait_reduced: 5
 
   # ---- CSS Selectors Configuration ----

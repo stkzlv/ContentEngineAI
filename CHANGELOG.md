@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.232.0] - 2026-11-09
+
+### Changed
+
+- A search page the scraper did not see as results gets one bounded wait for results (`search_result_wait_reduced`, 5 s) and is then given up, instead of waiting four seconds on each of a dozen card selectors; on a loaded page each selector waits `element_selection_timeout`, now 2 s, and a product page reads its body text once.
+
+### Removed
+
+- **Breaking**: `browser_config.search_result_timeout`, which nothing read; a config that still sets it fails to load until the key is dropped.
+
 ## [0.231.0] - 2026-11-09
 
 ### Added

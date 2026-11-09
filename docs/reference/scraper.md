@@ -225,13 +225,12 @@ The three media minimums must match `video_settings` in `config/video_production
 |---|---|---|---|
 | `debug_window_width`, `debug_window_height` | int | `1920`, `1200` | Window size in debug mode. |
 | `fallback_window_position` | [x, y, width, height] | `[0, 0, 1920, 1080]` | Window geometry when monitor detection fails. |
-| `search_result_timeout` | int | `10` | Wait for search results, seconds. |
 | `max_products_per_search` | int | `10` (`5`) | Products read from one results page. |
 | `page_load_timeout_ms` | int | `60000` | Page load limit, milliseconds. |
 | `script_execution_timeout_ms` | int | `30000` | Injected JavaScript limit, milliseconds. |
-| `element_selection_timeout` | int | `10` | Default element wait, seconds. |
+| `element_selection_timeout` | int | `2` | Wait per selector on a page already known to be loaded (result cards, product title, price and description), seconds. |
 | `max_title_selector_attempts` | int | `10` | Title selectors tried before giving up. |
-| `search_result_wait_reduced` | int | `5` | Shorter wait used to detect an empty results page, seconds. |
+| `search_result_wait_reduced` | int | `5` | One wait for results to render on a search page not yet seen as results; past it the page is given up, seconds. |
 
 #### Other `global_settings` blocks
 

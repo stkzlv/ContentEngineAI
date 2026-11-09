@@ -19,6 +19,7 @@ from botasaurus.browser import Driver, browser
 from ..base.display import resolve_debug_display
 from ..base.throttle import (
     AmazonBlockError,
+    PageKind,
     ThrottleTracker,
     Verdict,
     is_error_page_failure,
@@ -30,7 +31,7 @@ from .media_extractor import (
     extract_functional_videos_with_validation,
     extract_high_res_images_botasaurus,
 )
-from .page_kind import raise_if_blocked
+from .page_kind import RESULTS_SELECTOR, raise_if_blocked
 from .product_extractor import (  # noqa: F401
     extract_product_data_from_page,
     extract_serp_product_info,
@@ -362,6 +363,26 @@ def scrape_amazon_products_browser_impl(
         if DEBUG_MODE:
             logger.debug("Searching for product cards...")
 
+        # A page the classifier did not see as results gets one bounded
+        # wait for the results to render, not a wait per card selector:
+        # those added up to about a minute on every blocked or empty page.
+        browser_config = get_settings().global_settings.browser_config
+        element_wait = browser_config.element_selection_timeout
+        if page_kind is not PageKind.RESULTS:
+            try:
+                driver.wait_for_element(
+                    RESULTS_SELECTOR, browser_config.search_result_wait_reduced
+                )
+            except Exception as e:  # noqa: BLE001 - any failure means no results
+                logger.debug("No results container: %s", e)
+                logger.info(
+                    "Search page yielded nothing (page kind: %s): no results "
+                    "within %ss",
+                    page_kind.value,
+                    browser_config.search_result_wait_reduced,
+                )
+                return []
+
         try:
             # Get search result selector from config - try more specific selectors first
 
@@ -385,20 +406,13 @@ def scrape_amazon_products_browser_impl(
             product_cards = []
             search_selector = None  # Track which selector worked
 
-            # First, wait for any product content to load
-            # (critical for headless mode)
-            try:
-                driver.wait_for_element(product_selectors[0])
-            except Exception as e:
-                # Continue even if first selector fails
-                logger.debug("Initial selector wait failed: %s", e)
-
             for selector in product_selectors:
                 if DEBUG_MODE:
                     logger.debug("Trying selector: %s", selector)
                 try:
-                    # Now try to select without wait since we already waited
-                    cards = driver.select_all(selector)
+                    # The results are on the page by now, so each selector
+                    # gets the short bound rather than the driver default.
+                    cards = driver.select_all(selector, element_wait)
                     if cards and len(cards) > 0:
                         if "h2 a" in selector or "a[href*='/dp/']" in selector:
                             # If we selected links, get their parent containers
@@ -450,17 +464,14 @@ def scrape_amazon_products_browser_impl(
                         "trying with wait..."
                     )
                 try:
-                    # Wait for page to load basic content
-                    driver.wait_for_element("body", 3)
-                    # Try simple selectors with wait
+                    # Try simple selectors with the short bound
                     for selector in [
                         "div[data-asin]",
                         "[data-asin]",
                         "a[href*='/dp/']",
                     ]:
                         try:
-                            driver.wait_for_element(selector, 2)
-                            cards = driver.select_all(selector)
+                            cards = driver.select_all(selector, element_wait)
                             if cards:
                                 product_cards = cards[:5]  # Limit to first 5
                                 search_selector = selector

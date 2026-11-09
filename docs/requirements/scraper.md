@@ -54,7 +54,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-033** `shipped` When a keyword search yields fewer validated products than its per-keyword target, the scraper searches further result pages, up to a configured page limit.
 - **REQ-SCR-069** `shipped` If the resolved search parameters are invalid, such as a price or rating out of range, the scraper logs each error and refuses to run.
 - **REQ-SCR-080** `shipped` The search request carries each keyword's words as typed, encoded once.
-- **REQ-SCR-085** `planned #815` If a search page is not a results page, the scraper gives it up within a configured bound (a few seconds), without trying each result-card selector in turn.
+- **REQ-SCR-085** `shipped` If a search page is not a results page, the scraper gives it up within a configured bound (a few seconds), without trying each result-card selector in turn.
 
 ## Product limits
 

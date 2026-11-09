@@ -35,6 +35,9 @@ INTERSTITIAL_MARKERS = ("click the button below to continue shopping", "bm-verif
 NOT_FOUND_TITLE = "page not found"
 NOT_FOUND_TEXT = "we couldn't find that page"
 
+RESULTS_SELECTOR = '[data-component-type="s-search-result"], .s-result-item[data-asin]'
+"""What marks a results page, for the classifier and the bounded wait."""
+
 BODY_CHARS = 5000
 """How much body text one read takes; every marker sits near the top."""
 
@@ -48,9 +51,7 @@ return {{
     url: location.href,
     title: document.title || '',
     body: body.slice(0, {BODY_CHARS}),
-    has_results: !!document.querySelector(
-        '[data-component-type="s-search-result"], .s-result-item[data-asin]'
-    ),
+    has_results: !!document.querySelector({RESULTS_SELECTOR!r}),
     has_product: !!document.getElementById('productTitle'),
     captcha_form: !!document.querySelector('form[action*="validateCaptcha"]'),
 }};

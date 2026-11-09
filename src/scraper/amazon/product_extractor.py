@@ -165,8 +165,15 @@ def extract_product_data_from_page(
             "not available in your location",
         ]
 
+        # Read once: the loop used to fetch the whole body per indicator.
+        body_text = driver.get_text("body").lower()
+        # The page is loaded by now (the classifier saw it), so a selector
+        # that matches nothing costs the short bound, not the driver default.
+        element_wait = (
+            get_settings().global_settings.browser_config.element_selection_timeout
+        )
         for indicator in unavailable_indicators:
-            if indicator.lower() in driver.get_text("body").lower():
+            if indicator.lower() in body_text:
                 if DEBUG_MODE:
                     logger.info("Shipping restriction detected: %s", indicator)
                     logger.info(
@@ -195,7 +202,7 @@ def extract_product_data_from_page(
         # twice, once as the span that holds the title and once as a hidden
         # input whose text is empty (see docs/notes/scraper.md).
         for selector in title_selectors:
-            title_element = driver.select(selector)
+            title_element = driver.select(selector, element_wait)
             if title_element and title_element.text.strip():
                 title = title_element.text.strip()
                 break
@@ -216,7 +223,7 @@ def extract_product_data_from_page(
         ]
 
         for selector in price_selectors:
-            price_element = driver.select(selector)
+            price_element = driver.select(selector, element_wait)
             if price_element:
                 normalized = _normalize_price(price_element.text)
                 if normalized:
@@ -226,9 +233,9 @@ def extract_product_data_from_page(
         # Fallback when no `.a-offscreen` price is present: reconstruct from the
         # split whole/fraction spans so the price keeps its cents.
         if not price:
-            whole_element = driver.select(".a-price-whole")
+            whole_element = driver.select(".a-price-whole", element_wait)
             if whole_element:
-                fraction_element = driver.select(".a-price-fraction")
+                fraction_element = driver.select(".a-price-fraction", element_wait)
                 price = _price_from_parts(
                     whole_element.text,
                     fraction_element.text if fraction_element else None,
@@ -245,7 +252,7 @@ def extract_product_data_from_page(
         ]
 
         for selector in desc_selectors:
-            desc_element = driver.select(selector)
+            desc_element = driver.select(selector, element_wait)
             if desc_element and desc_element.text.strip():
                 description = desc_element.text.strip()
                 break
