@@ -124,7 +124,7 @@ def scrape_amazon_products_browser_impl(
     elif is_asin:
         # Direct product page scraping for ASIN
         product_url = f"{base_url}/dp/{keyword}"
-        logger.debug("Calling scrape_single_product for ASIN: %s", keyword)
+        logger.debug("Opening the product page for ASIN: %s", keyword)
 
         # Initialize variables needed by debug verification
         global_settings = CONFIG.get("global_settings", {})
