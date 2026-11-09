@@ -112,5 +112,15 @@ def test_the_search_navigation_skips_the_cloudflare_check(monkeypatch):
     assert all("bypass_cloudflare" not in c.kwargs for c in search_calls)
 
 
+def test_no_search_navigation_passes_the_cloudflare_flag():
+    """Both search navigations: the first one and the return to the results."""
+    import inspect
+
+    source = inspect.getsource(browser_functions)
+
+    assert source.count("google_get(search_url)") == 2
+    assert "google_get(search_url, bypass_cloudflare" not in source
+
+
 def test_the_dead_single_product_helper_is_gone():
     assert not hasattr(browser_functions, "scrape_single_product")

@@ -43,7 +43,7 @@ Amazon doesn't use Cloudflare. Amazon.com is fronted by CloudFront and protected
 | IP reputation and rate limits | Blocks on datacenter IPs, per-IP request-rate thresholds, detection of repeated patterns. |
 | Behavioural analysis | AWS WAF targeted protections score traffic statistics (timing, navigation patterns, the prior URL) for signs of coordinated bots. |
 
-This is why the scraper navigates with `driver.google_get(url, bypass_cloudflare=True)` and human-like cursor motion rather than fetching the URL directly: an organic referrer and real browser behaviour are what satisfy the silent AWS WAF challenge. A direct `requests`-style fetch gets the Robot Check at once.
+This is why the scraper navigates with `driver.google_get(url)` and human-like cursor motion rather than fetching the URL directly: an organic referrer and real browser behaviour are what satisfy the silent AWS WAF challenge. A direct `requests`-style fetch gets the Robot Check at once.
 
 ### A returning browser
 
