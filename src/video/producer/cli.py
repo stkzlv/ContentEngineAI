@@ -46,7 +46,11 @@ from src.video.producer.shared_cli import (
     layout_render_overrides,
     subtitle_render_overrides,
 )
-from src.video.producer.state import STEP_GATHER_VISUALS, VALID_STEPS
+from src.video.producer.state import (
+    STEP_GATHER_VISUALS,
+    VALID_STEPS,
+    resolved_step_order,
+)
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
     build_reply_product,
@@ -454,6 +458,20 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def settle_reply(config, product, profile_name: str, step: str | None, result_path):
+    """Move a finished reply into drafts (REQ-CNT-176); return the video path.
+
+    A `--step` run of the last step finishes the video too, and must not
+    leave it where publishing looks. Anything else is returned unchanged.
+    """
+    if getattr(product, "topic_kind", None) != "reply":
+        return result_path
+    last = resolved_step_order(config.get_profile(profile_name))[-1]
+    if step not in (None, last):
+        return result_path
+    return move_reply_to_drafts(config, product, profile_name, result_path)
 
 
 async def main():
@@ -916,10 +934,9 @@ async def main():
                     )
                     break
         elif result_path:
-            if getattr(product, "topic_kind", None) == "reply" and not args.step:
-                result_path = move_reply_to_drafts(
-                    config, product, current_profile, result_path
-                )
+            result_path = settle_reply(
+                config, product, current_profile, args.step, result_path
+            )
             batch_summary.succeeded_count += 1
             batch_summary.results.append(
                 ProductResult(

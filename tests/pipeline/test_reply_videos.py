@@ -277,3 +277,85 @@ async def test_a_reply_keeps_to_its_figures_and_asks_nothing() -> None:
         [_take("about a thousand", statement), exact], kind="reply"
     )
     assert out == exact and calls == 2, "an unbacked figure is still retried"
+
+
+FILTERS = ["[0:v]scale=1080:1920[v0]", "[v0]copy[v_out]"]
+
+
+@pytest.mark.req("REQ-CNT-176")
+class TestTheOpening:
+    def _assembler(self, comment: str | None):
+        from src.video.assembler.core import VideoAssembler
+
+        cfg = config.model_copy(deep=True)
+        cfg.video_settings.hook_overlay.enabled = True
+        assembler = VideoAssembler(cfg)
+        assembler.reply_comment = comment
+        return assembler
+
+    def test_a_reply_draws_the_card_and_no_hook(self, tmp_path) -> None:
+        out = self._assembler(COMMENT)._opening_overlay(
+            list(FILTERS), "A hook", "A hook.", 72, tmp_path
+        )
+
+        assert "[v_reply]copy[v_out]" in out
+        assert not list(tmp_path.glob("hook_line_*"))
+
+    def test_any_other_record_keeps_its_hook(self, tmp_path) -> None:
+        out = self._assembler(None)._opening_overlay(
+            list(FILTERS), "A hook", "A hook.", 72, tmp_path
+        )
+
+        assert "[v_hook]copy[v_out]" in out
+        assert not list(tmp_path.glob("reply_line_*"))
+
+
+@pytest.mark.req("REQ-CNT-176")
+class TestTheSettle:
+    def _run(self, tmp_path, step, kind="reply"):
+        from unittest.mock import patch
+
+        from src.video.producer import cli
+        from src.video.producer.state import resolved_step_order
+
+        record = SimpleNamespace(topic_kind=kind)
+        last = resolved_step_order(config.get_profile("slideshow_stock"))[-1]
+        with patch(
+            "src.video.producer.cli.move_reply_to_drafts", return_value="moved"
+        ) as move:
+            out = cli.settle_reply(
+                config, record, "slideshow_stock", last if step == "last" else step, "v"
+            )
+        return out, move
+
+    def test_a_whole_render_moves(self, tmp_path) -> None:
+        assert self._run(tmp_path, None)[0] == "moved"
+
+    def test_a_step_run_of_the_last_step_moves(self, tmp_path) -> None:
+        assert self._run(tmp_path, "last")[0] == "moved"
+
+    def test_an_earlier_step_stays(self, tmp_path) -> None:
+        out, move = self._run(tmp_path, "generate_script")
+        assert out == "v" and not move.called
+
+    def test_any_other_record_stays(self, tmp_path) -> None:
+        out, move = self._run(tmp_path, None, kind="commentary")
+        assert out == "v" and not move.called
+
+
+@pytest.mark.req("REQ-CNT-176")
+def test_a_published_reply_puts_no_id_hashtag_in_its_caption() -> None:
+    from src.publisher.models import Platform, PublishMetadata
+    from src.video.producer.topic_input import TOPIC_ID_PREFIX
+
+    pid = reply_product_id(PARENT, COMMENT)
+    meta = PublishMetadata(
+        platform=Platform.YOUTUBE,
+        title="t",
+        description="Body.",
+        hashtags=["tech"],
+        product_id=pid,
+    )
+
+    assert pid.startswith(TOPIC_ID_PREFIX)
+    assert pid not in meta.format_content()

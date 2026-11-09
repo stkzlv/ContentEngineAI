@@ -44,8 +44,10 @@ TOPIC_ID_PREFIX = "topic-"
 
 TOPIC_KINDS = ("tutorial", "commentary", "correction")
 
-# A reply video's identifier prefix (REQ-CNT-176).
-REPLY_ID_PREFIX = "reply-"
+# A reply video's identifier prefix (REQ-CNT-176). Under the topic prefix, so
+# every check that keeps a topic's id out of hashtags and product-only lines
+# covers a reply too.
+REPLY_ID_PREFIX = f"{TOPIC_ID_PREFIX}reply-"
 # Words of the comment that title a reply.
 REPLY_TITLE_WORDS = 8
 
