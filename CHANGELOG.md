@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.2] - 2026-11-09
+
+### Added
+
+- A second measurement of script naturalism per level, recorded in the render notes: level 1, the bundled setting, adds fillers (and on products an emotional beat) without breaking the first-sentence or CTA rules, and the level-2 self-correction still never appears.
+
 ## [0.239.1] - 2026-11-09
 
 ### Added
