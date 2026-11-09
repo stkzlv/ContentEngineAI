@@ -18,12 +18,11 @@ from botasaurus.browser import Driver, browser
 
 from ..base.display import resolve_debug_display
 from ..base.throttle import (
-    AMAZON_ERROR_PAGE_MESSAGE,
-    AMAZON_ERROR_PAGE_TITLE,
-    AmazonErrorPageError,
+    AmazonBlockError,
     ThrottleTracker,
     Verdict,
     is_error_page_failure,
+    session_block_kind,
 )
 from .botasaurus_output import get_browser_config_for_outputs
 from .config import _BROWSER_CONFIG, CONFIG, get_settings
@@ -31,6 +30,7 @@ from .media_extractor import (
     extract_functional_videos_with_validation,
     extract_high_res_images_botasaurus,
 )
+from .page_kind import raise_if_blocked
 from .product_extractor import (  # noqa: F401
     extract_product_data_from_page,
     extract_serp_product_info,
@@ -50,27 +50,6 @@ if "127.0.0.1" not in _NO_PROXY_VALUE:
 
 # Module-level logger for browser functions
 logger = logging.getLogger(__name__)
-
-
-def raise_if_error_page(driver: Driver) -> None:
-    """Raise when Amazon served its error page instead of content.
-
-    Called on every navigation, in every arm, in every mode. Both checks this
-    replaces sat inside `if DEBUG_MODE:` blocks, and the bundled config ships
-    `debug_mode: false`, so on a normal run the error page produced an empty
-    result and no exception at all -- which the batch loop then recorded as a
-    success, making a throttled input into evidence that the connection works.
-    One of them was also in the keyword-search branch only, so a scrape by
-    ASIN or by URL never reached it even with `--debug`.
-    """
-    try:
-        title = driver.title
-    except Exception as exc:  # noqa: BLE001 - a driver that cannot be read
-        logger.debug("Could not read the page title: %s", exc)
-        return
-
-    if title and AMAZON_ERROR_PAGE_TITLE in title:
-        raise AmazonErrorPageError(AMAZON_ERROR_PAGE_MESSAGE)
 
 
 def scrape_amazon_products_browser_impl(
@@ -107,7 +86,7 @@ def scrape_amazon_products_browser_impl(
         # Direct URL navigation — follow redirects (e.g. shortened URLs → Amazon)
         logger.info("Navigating to URL: %s", keyword)
         driver.google_get(keyword, bypass_cloudflare=True)
-        raise_if_error_page(driver)
+        page_kind = raise_if_blocked(driver)
         driver.short_random_sleep()
 
         # Extract ASIN from the final (redirected) URL
@@ -133,6 +112,12 @@ def scrape_amazon_products_browser_impl(
         )
         if product_data:
             products.append(product_data)
+        else:
+            logger.info(
+                "Product page yielded nothing (page kind: %s): %s",
+                page_kind.value,
+                keyword,
+            )
 
     elif is_asin:
         # Direct product page scraping for ASIN
@@ -158,7 +143,7 @@ def scrape_amazon_products_browser_impl(
 
         # Use google_get for organic navigation
         driver.google_get(product_url, bypass_cloudflare=True)
-        raise_if_error_page(driver)
+        page_kind = raise_if_blocked(driver)
 
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
@@ -196,6 +181,12 @@ def scrape_amazon_products_browser_impl(
             debug_options=data.get("debug_options"),
             extract_videos=data.get("extract_videos", True),
         )
+        if not product_data:
+            logger.info(
+                "Product page yielded nothing (page kind: %s): %s",
+                page_kind.value,
+                keyword,
+            )
         if product_data:
             products.append(product_data)
             # Count product with media for verification
@@ -301,10 +292,10 @@ def scrape_amazon_products_browser_impl(
             return []
 
         # Outside the handler above, which swallows everything and returns an
-        # empty list. An error page is not a navigation failure -- the page
+        # empty list. A block page is not a navigation failure -- the page
         # loaded fine, it just is not the search results -- and swallowing it
         # is what made a throttled input look like a keyword with no matches.
-        raise_if_error_page(driver)
+        page_kind = raise_if_blocked(driver)
 
         # Force browser maximization programmatically for debug mode
         if DEBUG_MODE:
@@ -503,6 +494,10 @@ def scrape_amazon_products_browser_impl(
             product_cards = []
 
         if not product_cards:
+            logger.info(
+                "Search page yielded nothing (page kind: %s): no product cards",
+                page_kind.value,
+            )
             if DEBUG_MODE:
                 logger.debug("No product cards found")
                 # Take error screenshot if enabled in config (default: enabled)
@@ -588,6 +583,7 @@ def scrape_amazon_products_browser_impl(
 
                     # Navigate to product page
                     driver.google_get(serp_info.url, bypass_cloudflare=True)
+                    raise_if_blocked(driver)
                     driver.short_random_sleep()
                     # Extract full product data
                     product_data = extract_product_data_from_page(
@@ -673,6 +669,7 @@ def scrape_amazon_products_browser_impl(
                         back_nav_start = time.monotonic()
                         try:
                             driver.google_get(search_url, bypass_cloudflare=True)
+                            raise_if_blocked(driver)
                             driver.short_random_sleep()
                             # Re-find product cards since DOM is fresh
                             driver.wait_for_element(search_selector)
@@ -697,6 +694,8 @@ def scrape_amazon_products_browser_impl(
                                     i,
                                 )
                                 break
+                        except AmazonBlockError:
+                            raise
                         except Exception as e:
                             # Back-navigation between products: same CDP-timeout class
                             # as the initial nav. Log elapsed + type so a stalled CDP
@@ -721,12 +720,33 @@ def scrape_amazon_products_browser_impl(
                 # Move to next card
                 i += 1
 
+            except AmazonBlockError as block:
+                # The session is blocked: every later card would meet the
+                # same page. Keep what this page already gave, if anything.
+                if not products:
+                    raise
+                logger.warning(
+                    "Block page (%s) after %d product(s); keeping them and "
+                    "ending this page",
+                    block.kind.value,
+                    len(products),
+                )
+                break
             except Exception as e:
                 # WARNING, ungated: the product on this card is lost to the
                 # run; a normal-mode operator needs to see how many and why.
                 logger.warning("Error processing card %d: %s", i + 1, e)
                 i += 1  # Continue to next card instead of breaking
                 continue
+
+        if not products:
+            logger.info(
+                "Search page yielded nothing (page kind: %s): %d card(s), "
+                "%d skipped as published",
+                page_kind.value,
+                len(product_cards),
+                len(data.get("skipped_asins") or []),
+            )
 
     # Final verification
     if DEBUG_MODE:
@@ -1005,7 +1025,7 @@ def _build_browser_config(debug_mode=False):
     # launches into a live block on the way -- three on this config, one under
     # `--debug`. Naming the type here is the only way out, and it removes
     # those unwaited retries too: the caller's backoff is the retry.
-    current_config["must_raise_exceptions"] = [AmazonErrorPageError]
+    current_config["must_raise_exceptions"] = [AmazonBlockError]
     # The error-page branch writes `error_logs/<timestamp>/` -- an Amazon page
     # and a screenshot -- into the process working directory before
     # re-raising. Botasaurus keeps the newest ten, so this is not unbounded;
@@ -1035,7 +1055,7 @@ def create_dynamic_browser_function(debug_mode=False):
 
             return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
-            if is_error_page_failure(e):
+            if isinstance(e, AmazonBlockError):
                 # Reaches the caller, which is the only place that can tell a
                 # rate limit from a dead query and decide how long to wait.
                 # Swallowing it here returned an empty page indistinguishable
@@ -1105,6 +1125,22 @@ def scrape_batch_items(
                 )
                 break
             except Exception as e:
+                kind = session_block_kind(e)
+                if kind is not None:
+                    # The same session would get the same page for every
+                    # later input, so this session stops here. The caller
+                    # retries in a fresh one, or stops the run, by the
+                    # tracker's verdict.
+                    tracker.record_session_block(input_label, kind)
+                    results.append(
+                        {
+                            "input": input_label,
+                            "products": [],
+                            "error": str(e),
+                            "failure_kind": kind.value,
+                        }
+                    )
+                    return results
                 if not is_error_page_failure(e):
                     logger.error(
                         "[batch %d/%d] Failed for %s: %s",
@@ -1180,7 +1216,7 @@ def scrape_single_product(
     # Use google_get for organic navigation
     original_url = product_info["url"]
     driver.google_get(original_url, bypass_cloudflare=True)
-    raise_if_error_page(driver)
+    raise_if_blocked(driver)
 
     # Mute all videos globally to prevent audio during scraping
     with contextlib.suppress(Exception):

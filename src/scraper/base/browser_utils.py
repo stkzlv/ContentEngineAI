@@ -231,32 +231,6 @@ class BrowserDetection:
     """Browser and environment detection utilities."""
 
     @staticmethod
-    def detect_captcha_challenge(page_source: str) -> bool:
-        """Detect if page contains CAPTCHA challenge.
-
-        Args:
-        ----
-            page_source: HTML source of the page
-
-        Returns:
-        -------
-            True if CAPTCHA detected, False otherwise
-
-        """
-        captcha_indicators = [
-            "captcha",
-            "robot",
-            "automated",
-            "unusual traffic",
-            "verify you are human",
-            "security check",
-            "please complete",
-        ]
-
-        page_lower = page_source.lower()
-        return any(indicator in page_lower for indicator in captcha_indicators)
-
-    @staticmethod
     def detect_bot_detection(page_source: str) -> bool:
         """Detect if page contains bot detection mechanisms.
 

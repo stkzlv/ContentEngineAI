@@ -38,6 +38,8 @@ class RateLimitingConfig(BaseModel):
     throttle_max_attempts: int = Field(default=6, ge=1)
     throttle_max_total_wait_sec: float = Field(default=3600.0, ge=0)
     dead_query_after: int = Field(default=3, ge=1)
+    session_block_retries: int = Field(default=1, ge=0)
+    session_block_retry_wait_sec: float = Field(default=60.0, ge=0)
 
 
 class ImageConfig(BaseModel):

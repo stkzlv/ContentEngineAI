@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.231.0] - 2026-11-09
+
+### Added
+
+- The scraper names the page after every navigation (results, product, error page, captcha, interstitial, a bare page titled just `Amazon.com`, not found) and treats the four block pages as blocks, so a blocked search is reported within seconds instead of after a minute as a keyword with no results.
+- A captcha or bare-title page ends that browser session and its input is retried once in a fresh session a minute later; when such a page comes back with no success in between, the run stops browsing and its summary says where. `rate_limiting.session_block_retries` and `session_block_retry_wait_sec` set the retries and the wait.
+- A search or product page that yields nothing logs which kind of page it was and, for a results page, how many cards it found and skipped.
+
+### Removed
+
+- An unused captcha detection helper.
+
 ## [0.230.0] - 2026-11-09
 
 ### Changed

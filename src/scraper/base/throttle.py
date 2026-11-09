@@ -59,8 +59,31 @@ AMAZON_ERROR_PAGE_TITLE = "Sorry! Something went wrong!"
 AMAZON_ERROR_PAGE_MESSAGE = f"Amazon error page detected: {AMAZON_ERROR_PAGE_TITLE}"
 
 
-class AmazonErrorPageError(RuntimeError):
-    """Amazon served its error page instead of content.
+class PageKind(str, Enum):
+    """What a page the scraper opened turned out to be."""
+
+    RESULTS = "results"
+    PRODUCT = "product"
+    ERROR_PAGE = "error_page"
+    CAPTCHA = "captcha"
+    INTERSTITIAL = "interstitial"
+    BARE_TITLE = "bare_title"
+    NOT_FOUND = "not_found"
+    UNKNOWN = "unknown"
+
+
+# Pages that are the site refusing the visit rather than answering it.
+BLOCK_KINDS = frozenset(
+    {PageKind.ERROR_PAGE, PageKind.CAPTCHA, PageKind.INTERSTITIAL, PageKind.BARE_TITLE}
+)
+# Blocks that follow the browser session: every later search in the same
+# session met the same page, while a fresh session a minute later got
+# through. The others go to the error-page backoff.
+SESSION_BLOCK_KINDS = frozenset({PageKind.CAPTCHA, PageKind.BARE_TITLE})
+
+
+class AmazonBlockError(RuntimeError):
+    """Amazon answered with a block page; `kind` says which.
 
     A type rather than a message match, because Botasaurus's `@browser`
     decorator has to be told by class which exceptions to let out. Left as a
@@ -68,15 +91,36 @@ class AmazonErrorPageError(RuntimeError):
     both scraping paths keep catching it.
     """
 
+    def __init__(self, kind: PageKind, message: str | None = None) -> None:
+        self.kind = kind
+        super().__init__(message or f"Amazon block page detected: {kind.value}")
+
+
+class AmazonErrorPageError(AmazonBlockError):
+    """Amazon served its error page instead of content."""
+
+    def __init__(self, message: str = AMAZON_ERROR_PAGE_MESSAGE) -> None:
+        super().__init__(PageKind.ERROR_PAGE, message)
+
 
 def is_error_page_failure(error: BaseException | str) -> bool:
-    """Whether this failure is Amazon's error page rather than anything else.
+    """Whether this failure goes to the error-page backoff.
 
-    Matches on the marker rather than the whole message so a caller may add
-    context to the exception without the classification falling through to
-    "some other error", which is not retried at all.
+    The error page and the interstitial do; the session blocks do not. A
+    string matches on the marker rather than the whole message so a caller
+    may add context without the classification falling through to "some
+    other error", which is not retried at all.
     """
+    if isinstance(error, AmazonBlockError):
+        return error.kind in (PageKind.ERROR_PAGE, PageKind.INTERSTITIAL)
     return "Amazon error page detected" in str(error)
+
+
+def session_block_kind(error: BaseException) -> PageKind | None:
+    """The kind when this failure is a session block, else None."""
+    if isinstance(error, AmazonBlockError) and error.kind in SESSION_BLOCK_KINDS:
+        return error.kind
+    return None
 
 
 class Verdict(Enum):
@@ -90,6 +134,9 @@ class Verdict(Enum):
 
     EXHAUSTED = "exhausted"
     """Still failing after the whole retry budget. Give up on this input."""
+
+    STOP = "stop"
+    """The block outlives a browser session. Stop browsing for the run."""
 
 
 @dataclass(frozen=True)
@@ -132,6 +179,19 @@ class ThrottleSettings:
     several minutes to clear before the verdict lands.
     """
 
+    session_block_retries: int = 1
+    """Fresh-session retries after a captcha or bare-title page.
+
+    Counted across the run, not per input: one more session block in a row
+    than this, with no success between, means the block outlives a session,
+    and the run stops browsing rather than spending a browser start per
+    input on it.
+    """
+
+    session_block_retry_wait_sec: float = 60.0
+    """Wait before that fresh session. A new browser about a minute after the
+    block got through in the run logs; nothing shorter was observed."""
+
     def __post_init__(self) -> None:
         low, high = self.inter_input_delay_sec
         if low < 0 or high < low:
@@ -149,6 +209,10 @@ class ThrottleSettings:
             raise ValueError("dead_query_after must be at least 1")
         if self.max_total_wait_sec < 0:
             raise ValueError("max_total_wait_sec must be non-negative")
+        if self.session_block_retries < 0:
+            raise ValueError("session_block_retries must be non-negative")
+        if self.session_block_retry_wait_sec < 0:
+            raise ValueError("session_block_retry_wait_sec must be non-negative")
 
     @classmethod
     def from_config(cls, raw: object) -> ThrottleSettings:
@@ -204,6 +268,15 @@ class ThrottleSettings:
                 max_total_wait_sec=float(
                     raw.get("throttle_max_total_wait_sec", cls.max_total_wait_sec)
                 ),
+                session_block_retries=int(
+                    raw.get("session_block_retries", cls.session_block_retries)
+                ),
+                session_block_retry_wait_sec=float(
+                    raw.get(
+                        "session_block_retry_wait_sec",
+                        cls.session_block_retry_wait_sec,
+                    )
+                ),
             )
         except (TypeError, ValueError) as exc:
             logger.warning(
@@ -245,6 +318,11 @@ class ThrottleTracker:
     _throttled: list[str] = field(default_factory=list, init=False)
     _exhausted: list[str] = field(default_factory=list, init=False)
     _waited_sec: float = field(default=0.0, init=False)
+    _session_blocks_in_a_row: int = field(default=0, init=False)
+    _session_blocks: list[tuple[str, PageKind]] = field(
+        default_factory=list, init=False
+    )
+    _stopped_by: tuple[str, PageKind] | None = field(default=None, init=False)
 
     # -- outcomes -----------------------------------------------------------
 
@@ -262,6 +340,7 @@ class ThrottleTracker:
         about the same input.
         """
         self._states[input_label] = _InputState(recovered=True)
+        self._session_blocks_in_a_row = 0
         if input_label not in self._succeeded:
             self._succeeded.append(input_label)
         # The run budget is deliberately NOT reset here. Resetting it reads
@@ -355,6 +434,38 @@ class ThrottleTracker:
             self._throttled.append(input_label)
         return Verdict.RETRY
 
+    def record_session_block(self, input_label: str, kind: PageKind) -> Verdict:
+        """Note a captcha or bare-title page and say whether to try again.
+
+        `RETRY` means a fresh browser session, not a wait: the same session
+        gets the same page. `STOP` means the run stops browsing.
+        """
+        self._session_blocks.append((input_label, kind))
+        self._session_blocks_in_a_row += 1
+        if self._session_blocks_in_a_row > self.settings.session_block_retries:
+            self._stopped_by = (input_label, kind)
+            logger.warning(
+                "Stopping the run's browsing: Amazon served a %s page %d times "
+                "in a row, the last for %r, with fresh browser sessions between.",
+                kind.value,
+                self._session_blocks_in_a_row,
+                input_label,
+            )
+            return Verdict.STOP
+        logger.warning(
+            "Amazon served a %s page for %r; retrying in a fresh browser "
+            "session in %.0fs.",
+            kind.value,
+            input_label,
+            self.settings.session_block_retry_wait_sec,
+        )
+        return Verdict.RETRY
+
+    @property
+    def stopped(self) -> bool:
+        """Whether a session block ended the run's browsing."""
+        return self._stopped_by is not None
+
     # -- waits --------------------------------------------------------------
 
     def backoff_sec(self, input_label: str) -> float:
@@ -445,7 +556,19 @@ class ThrottleTracker:
         phase logging print it; three hand-rolled copies had already drifted
         apart in punctuation before anything read this.
         """
-        return summary_lines_for(self.dead_queries, self.throttled_inputs)
+        lines = summary_lines_for(self.dead_queries, self.throttled_inputs)
+        if self._session_blocks:
+            seen = ", ".join(
+                f"{label} ({kind.value})" for label, kind in self._session_blocks
+            )
+            lines.append(f"Session block pages: {seen}")
+        if self._stopped_by:
+            label, kind = self._stopped_by
+            lines.append(
+                f"Stopped browsing at {label}: a {kind.value} page in a fresh "
+                "session too; the remaining inputs were not tried"
+            )
+        return lines
 
 
 def summary_lines_for(

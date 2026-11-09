@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 from src.utils.logging_setup import log_context
 from src.utils.outputs_paths import media_on_disk
 
-from ..base.throttle import summary_lines_for
 from .config import get_batch_logging_config
 from .models import BatchConfig, BatchSummary, ProductData, ProductResult
 from .utils import validate_asin_format
@@ -113,6 +112,12 @@ class BatchController:
         )
 
         for i, product_id in enumerate(self.config.product_ids, 1):
+            if self.scraper.throttle.stopped:
+                self.logger.warning(
+                    "Stopped browsing on a block page; skipping the remaining "
+                    "product ids."
+                )
+                break
             with log_context(product_id=product_id):
                 # Pace consecutive inputs, as the batch pipeline does.
                 # Back-to-back searches are the pattern that draws Amazon's
@@ -249,6 +254,12 @@ class BatchController:
         self.logger.info("Processing keywords (%d total)", len(self.config.keywords))
 
         for i, keyword in enumerate(self.config.keywords, 1):
+            if self.scraper.throttle.stopped:
+                self.logger.warning(
+                    "Stopped browsing on a block page; skipping the remaining "
+                    "keywords."
+                )
+                break
             if already_found + len(results) >= self.config.max_products:
                 self.logger.info(
                     "Reached max_products limit (%d). Stopping keyword processing.",
@@ -484,8 +495,9 @@ class BatchController:
         # Named apart from the failures above because they call for different
         # things. A dead query keeps returning the error page however long
         # the run waits, so the keyword has to be replaced; a throttled input
-        # would have worked with a longer gap.
-        for line in summary_lines_for(summary.dead_queries, summary.throttled_inputs):
+        # would have worked with a longer gap. The live tracker's lines also
+        # name any session block and the stop it caused.
+        for line in self.scraper.throttle.summary_lines():
             self.logger.warning("%s", line)
 
         self.logger.info("Media Collection Statistics:")

@@ -911,6 +911,10 @@ The scraper already waits out a rate limit and skips a query that never works; [
 
 Don't switch to a headless browser: it makes detection worse.
 
+**Symptom:** the log shows `Block page: bare_title` or `Block page: captcha`, and the summary ends with `Stopped browsing at <input>`.
+
+A captcha or a bare page titled just `Amazon.com` follows the browser session, so the scraper retries the input once in a fresh session a minute later and stops the run when the page comes back with no success between. To give it more fresh sessions per run, raise `session_block_retries` under `global_settings.rate_limiting`. Spacing runs further apart helps more than retrying within one.
+
 ### Missing media
 
 1. Check the connection speed.
@@ -954,6 +958,8 @@ Don't switch to a headless browser: it makes detection worse.
 ### Selector Failures
 
 **Symptom:** a scrape returns zero products with no error page
+
+The log line `Search page yielded nothing (page kind: ...)` says what the page was. `results` with a card count means the cards were found and none was usable; `unknown` means neither results nor a known block, which is where a selector change shows.
 
 **Solutions:**
 1. **Enable Debug Mode:**

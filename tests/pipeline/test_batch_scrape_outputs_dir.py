@@ -29,6 +29,7 @@ class _RecordingScraper:
             dead_queries=[],
             throttled_inputs=[],
             inter_input_delay_sec=lambda: 0.0,
+            stopped=False,
         )
 
     def scrape_batch_browser(self, inputs, **_kwargs):

@@ -39,6 +39,7 @@ from ..base.throttle import (
     ThrottleTracker,
     Verdict,
     is_error_page_failure,
+    session_block_kind,
 )
 from .browser_functions import (
     create_batch_browser_function,
@@ -416,6 +417,13 @@ class BotasaurusAmazonScraper(BaseScraper):
             )
 
             if not batch:
+                if self.throttle.stopped:
+                    self.logger.warning(
+                        "Stopping pagination for %r: a block page ended the "
+                        "run's browsing.",
+                        keyword,
+                    )
+                    break
                 if (
                     keyword in self.throttle.dead_queries
                     or keyword in self.throttle.exhausted_inputs
@@ -1104,6 +1112,12 @@ class BotasaurusAmazonScraper(BaseScraper):
         all_products: list[BaseProductData] = []
 
         for keyword in keywords:
+            if self.throttle.stopped:
+                self.logger.warning(
+                    "Stopped browsing on a block page; skipping the remaining "
+                    "keywords."
+                )
+                break
             self.logger.info("Starting scrape for keyword: %s", keyword)
             keyword_pillar = self.pillar_for_keyword(keyword)
 
@@ -1168,6 +1182,16 @@ class BotasaurusAmazonScraper(BaseScraper):
                     self.logger.debug("Attempting scrape with retry logic")
                 result = browser_func(data)
             except RuntimeError as e:
+                kind = session_block_kind(e)
+                if kind is not None:
+                    # Each call starts its own browser, so a retry here is
+                    # the fresh session the tracker asks for.
+                    if self.throttle.record_session_block(input_label, kind) is (
+                        Verdict.RETRY
+                    ):
+                        sleep(self.throttle.settings.session_block_retry_wait_sec)
+                        continue
+                    raise
                 if not is_error_page_failure(e):
                     raise
 

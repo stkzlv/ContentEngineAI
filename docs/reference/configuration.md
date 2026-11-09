@@ -346,6 +346,8 @@ scrapers:
     max_products: 10
 ```
 
+**Rate limiting and block pages**: the pacing, throttle backoff and block-page keys under `global_settings.rate_limiting`, `session_block_retries` among them, are in the [scraper reference](scraper.md).
+
 **Typed access**: the validated `ScraperConfig` behind the dict is `get_settings()` in `src/scraper/amazon/config.py`; `ScraperConfigAdapter.get_settings()` returns the same object for a given root.
 
 ### 7. **URL Shortener Configuration** (`config/url_shortener.yaml`)

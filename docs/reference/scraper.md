@@ -168,6 +168,8 @@ Retries of failed network operations, with a delay of `min(base_delay * backoff_
 | `throttle_max_attempts` | int | `6` | Retries of a throttled input. The waits are 60, 120, 240, 480, then 960 capped to the ceiling, so 6 is the first count that reaches a 600 s ceiling. |
 | `throttle_max_total_wait_sec` | float | `3600` | Total throttle wait for the whole run, compared against the cost of the next retry. A success doesn't reset it. |
 | `dead_query_after` | int | `3` | Error pages for one input, in a run where another input got through, before that input is named a dead query and skipped. |
+| `session_block_retries` | int | `1` | Fresh-session retries after a captcha or bare-title page. One more such page in a row than this, with no success between, stops the run's browsing. |
+| `session_block_retry_wait_sec` | float | `60` | Wait before each such fresh session, seconds. A new browser about a minute after the block got through in the run logs. |
 
 [Scraping explained](../explanation/scraping.md#throttling-and-dead-queries) describes how the run tells the two cases apart.
 

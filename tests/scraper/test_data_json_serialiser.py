@@ -194,6 +194,7 @@ class TestBothStandaloneArmsWriteTheSameKeys:
             SearchParameters,
         )
         from src.scraper.amazon.scraper import BotasaurusAmazonScraper
+        from src.scraper.base.throttle import ThrottleTracker
 
         scraper = BotasaurusAmazonScraper.__new__(BotasaurusAmazonScraper)
         scraper.config = {"batch": {"keywords": {"value": ["smart plug"]}}}
@@ -201,6 +202,8 @@ class TestBothStandaloneArmsWriteTheSameKeys:
         scraper.output_dir = str(tmp_path)
         scraper.debug_mode = False
         scraper.logger = MagicMock()
+        # The constructor always sets one; the loops read it per input.
+        scraper.throttle = ThrottleTracker()
 
         product = ProductData(
             title="A product",
