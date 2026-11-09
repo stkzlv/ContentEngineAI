@@ -73,8 +73,15 @@ class BatchController:
 
         # Process keywords (if max products not reached). A product id that
         # validated counts toward the cap, as it does in the global batch.
-        # Distinct ids: the same id given twice is one product toward the cap.
-        found = len({r.product_id for r in product_id_results if r.success})
+        # Distinct products, keyed as the final dedupe keys them: one product
+        # given as an ASIN and as a URL counts once toward the cap.
+        found = len(
+            {
+                r.data.asin if r.data and r.data.asin else r.product_id
+                for r in product_id_results
+                if r.success
+            }
+        )
         keyword_results = self._process_keywords(already_found=found)
 
         # Combine and deduplicate
