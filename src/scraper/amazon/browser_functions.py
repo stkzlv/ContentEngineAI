@@ -124,7 +124,7 @@ def scrape_amazon_products_browser_impl(
     elif is_asin:
         # Direct product page scraping for ASIN
         product_url = f"{base_url}/dp/{keyword}"
-        logger.debug("Calling scrape_single_product for ASIN: %s", keyword)
+        logger.debug("Opening the product page for ASIN: %s", keyword)
 
         # Initialize variables needed by debug verification
         global_settings = CONFIG.get("global_settings", {})
@@ -136,7 +136,6 @@ def scrape_amazon_products_browser_impl(
         # For single ASIN, max_products is always 1
         max_products = 1
 
-        # Note: scrape_single_product is now a method in BotasaurusAmazonScraper class
         # This function now focuses on the browser-level logic
         # The actual product scraping will be delegated to the class method
 
@@ -255,7 +254,7 @@ def scrape_amazon_products_browser_impl(
 
             # Use google_get for organic navigation pattern (same as working version)
             logger.debug("Navigating to search URL (timeout-bounded): %s", search_url)
-            driver.google_get(search_url, bypass_cloudflare=True)
+            driver.google_get(search_url)
             logger.debug("google_get returned in %.1fs", time.monotonic() - nav_start)
 
             # Get page info
@@ -693,7 +692,7 @@ def scrape_amazon_products_browser_impl(
                                     browser_config.search_result_wait_reduced,
                                 )
                             else:
-                                driver.google_get(search_url, bypass_cloudflare=True)
+                                driver.google_get(search_url)
                             raise_if_blocked(driver)
                             driver.short_random_sleep()
                             # Re-find product cards since DOM is fresh
@@ -1308,217 +1307,3 @@ def create_batch_browser_function(debug_mode=False, tracker=None):
             return scrape_batch_items(driver, data.get("items", []), tracker)
 
     return scrape_batch
-
-
-def scrape_single_product(
-    driver: Driver,
-    product_info: dict[str, Any],
-    debug_mode=False,
-    debug_options: dict = None,
-) -> dict[str, Any]:
-    """Helper function to scrape a single product page"""
-    DEBUG_MODE = debug_mode
-
-    if DEBUG_MODE:
-        logger.info("Scraping product: %s", product_info.get("asin", "Unknown"))
-
-    # Use google_get for organic navigation
-    original_url = product_info["url"]
-    driver.google_get(original_url, bypass_cloudflare=True)
-    raise_if_blocked(driver)
-
-    # Mute all videos globally to prevent audio during scraping
-    with contextlib.suppress(Exception):
-        driver.run_js("""
-            // Mute all existing videos
-            document.querySelectorAll('video').forEach(video => {
-                video.muted = true;
-                video.volume = 0;
-            });
-
-            // Mute all future videos using MutationObserver
-            const observer = new MutationObserver((mutations) => {
-                document.querySelectorAll('video').forEach(video => {
-                    if (!video.muted) {
-                        video.muted = true;
-                        video.volume = 0;
-                    }
-                });
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        """)
-
-    if DEBUG_MODE:
-        logger.debug("Browser should be visible now - Amazon page loaded!")
-        logger.debug("Current URL: %s", driver.current_url)
-        try:
-            page_title = driver.title
-            logger.debug("Page title: %s", page_title)
-
-        except Exception as e:
-            logger.debug("Page title: Unable to get (%s)", e)
-
-        # Additional browser visibility information
-        logger.debug("Browser window info:")
-        try:
-            current_url = driver.current_url
-            logger.debug("   Current URL: %s", current_url)
-        except Exception as e:
-            logger.debug("   Current URL: Unable to get (%s)", e)
-
-        try:
-            # Check window size using JavaScript (Botasaurus-compatible)
-            window_size = driver.run_js(
-                "return {width: window.outerWidth, height: window.outerHeight};"
-            )
-            logger.debug(
-                "   • Window size: %sx%s",
-                window_size.get("width", "Unknown"),
-                window_size.get("height", "Unknown"),
-            )
-
-            # Check window position using JavaScript
-            window_position = driver.run_js(
-                "return {x: window.screenX, y: window.screenY};"
-            )
-            logger.debug(
-                "   • Window position: %s,%s",
-                window_position.get("x", "Unknown"),
-                window_position.get("y", "Unknown"),
-            )
-        except Exception as e:
-            logger.debug("   Window info: Unable to get (%s)", e)
-
-        try:
-            # Use driver properties instead of methods
-            logger.debug("   Browser session active: Yes")
-        except Exception as e:
-            logger.debug("   Browser session: Error (%s)", e)
-
-        logger.debug("   Driver type: %s", type(driver).__name__)
-        logger.debug("   Browser name: %s", getattr(driver, "name", "Unknown"))
-
-        debug_pause = get_settings().global_settings.rate_limiting.debug_pause_duration
-        logger.debug(
-            "Pausing for %s seconds so you can see the browser...",
-            debug_pause,
-        )
-        time.sleep(debug_pause)
-
-    # Check for regional redirect first
-    from .utils import detect_regional_redirect
-
-    redirected, redirect_info = detect_regional_redirect(driver, original_url)
-    if redirected and DEBUG_MODE:
-        logger.warning("Regional redirect detected: %s", redirect_info)
-
-    # Extract title
-    title = ""
-    # Get title selectors from config
-    css_selectors = CONFIG.get("global_settings", {}).get("css_selectors", {})
-    title_selectors = css_selectors.get(
-        "product_title_selectors",
-        [
-            "#productTitle",
-            "h1.a-size-large",
-            ".product-title",
-            "h1[data-automation-id='product-title']",
-        ],
-    )
-
-    # Guarded on the text, like the live extractor: this copy has no caller
-    # today, and wiring one up to a break-on-presence loop would reintroduce
-    # the empty-`productTitle` defect (docs/notes/scraper.md).
-    for selector in title_selectors:
-        title_element = driver.select(selector)
-        if title_element and title_element.text.strip():
-            title = title_element.text.strip()
-            if DEBUG_MODE:
-                logger.info("Found title: %s...", title[:50])
-            break
-
-    # Extract price
-    price = ""
-    price_selectors = [
-        ".a-price-whole",
-        ".a-price .a-offscreen",
-        "#priceblock_dealprice",
-        "#priceblock_ourprice",
-        ".a-price-symbol + .a-price-whole",
-        ".a-price",
-    ]
-
-    for selector in price_selectors:
-        price_element = driver.select(selector)
-        if price_element:
-            price = price_element.text.strip()
-            if DEBUG_MODE:
-                logger.info("Found price: %s", price)
-            break
-
-    # Extract description
-    description = ""
-    desc_selectors = [
-        "#feature-bullets ul",
-        "#productDescription",
-        "#feature-bullets .a-unordered-list.a-vertical",
-        "#featurebullets_feature_div",
-    ]
-
-    for selector in desc_selectors:
-        desc_element = driver.select(selector)
-        if desc_element and desc_element.text.strip():
-            description = desc_element.text.strip()
-            if DEBUG_MODE:
-                logger.info("Found description: %d chars", len(description))
-            break
-
-    # Validate critical product data
-    from .utils import is_valid_product_data
-
-    if not is_valid_product_data(title, price):
-        if DEBUG_MODE:
-            logger.warning(
-                "Invalid product data - title: '%s...', price: '%s'",
-                title[:50],
-                price,
-            )
-        return {}
-
-    # Extract media
-    if DEBUG_MODE:
-        logger.info("Starting image extraction...")
-
-    images = extract_high_res_images_botasaurus(driver, debug_options=debug_options)
-
-    if DEBUG_MODE:
-        logger.info("Extracted %d images", len(images))
-        logger.info("Starting video extraction...")
-
-    videos = extract_functional_videos_with_validation(driver, DEBUG_MODE)
-
-    if DEBUG_MODE:
-        logger.info("Extracted %d videos", len(videos))
-
-    # Build result
-    return {
-        "title": title,
-        "price": price,
-        "description": description,
-        "images": images,
-        "videos": videos,
-        "url": product_info["url"],
-        "asin": product_info.get("asin"),
-        "keyword": product_info.get("keyword", ""),
-        "serp_rating": product_info.get("rating"),
-        "serp_reviews_count": product_info.get("reviews_count"),
-        "affiliate_link": build_affiliate_url(
-            product_info["url"], asin=product_info.get("asin")
-        ),
-        "downloaded_images": [],
-        "downloaded_videos": [],
-    }

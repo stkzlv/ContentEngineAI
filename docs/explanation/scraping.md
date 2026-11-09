@@ -43,7 +43,7 @@ Amazon doesn't use Cloudflare. Amazon.com is fronted by CloudFront and protected
 | IP reputation and rate limits | Blocks on datacenter IPs, per-IP request-rate thresholds, detection of repeated patterns. |
 | Behavioural analysis | AWS WAF targeted protections score traffic statistics (timing, navigation patterns, the prior URL) for signs of coordinated bots. |
 
-This is why the scraper navigates with `driver.google_get(url, bypass_cloudflare=True)` and human-like cursor motion rather than fetching the URL directly: an organic referrer and real browser behaviour are what satisfy the silent AWS WAF challenge. A direct `requests`-style fetch gets the Robot Check at once.
+This is why the scraper navigates with `driver.google_get(url)` and human-like cursor motion rather than fetching the URL directly: an organic referrer and real browser behaviour are what satisfy the silent AWS WAF challenge. A direct `requests`-style fetch gets the Robot Check at once.
 
 ### A returning browser
 
@@ -51,7 +51,7 @@ By default every scrape is a new visitor: no cookies, a random window size, and 
 
 ### Cloudflare Turnstile and the bypass flag
 
-The `bypass_cloudflare=True` argument on `google_get` is generic Botasaurus machinery, not Amazon-specific. Cloudflare Turnstile runs non-interactive JavaScript challenges (proof of work and browser-environment signals), and most visitors never see a widget. When a visible Turnstile checkbox does appear, Botasaurus's `solve_cloudflare_captcha.py` walks the iframe and shadow DOM and clicks it with a human-like cursor. Since Amazon doesn't run Cloudflare, this path is mostly dormant for Amazon. It still matters because `google_get` routes through the same flow, and the `wait_till_document_is_ready` step that times out on a missing display lives in that module. Treat a 60 s document-ready timeout as a display or navigation failure first, not as a Cloudflare block.
+The `bypass_cloudflare=True` argument on `google_get` is generic Botasaurus machinery, not Amazon-specific. Cloudflare Turnstile runs non-interactive JavaScript challenges (proof of work and browser-environment signals), and most visitors never see a widget. When a visible Turnstile checkbox does appear, Botasaurus's `solve_cloudflare_captcha.py` walks the iframe and shadow DOM and clicks it with a human-like cursor. Since Amazon doesn't run Cloudflare, this path is mostly dormant for Amazon, and the search navigation no longer passes the flag. It still matters because `google_get` routes through the same flow, and the `wait_till_document_is_ready` step that times out on a missing display lives in that module. Treat a 60 s document-ready timeout as a display or navigation failure first, not as a Cloudflare block.
 
 Sources: [Botasaurus](https://github.com/omkarcloud/botasaurus), [nodriver headless bot detection (undetected-chromedriver #2003)](https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/2003), [nodriver headless exception (#2120)](https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/2120), [AWS WAF Bot Control](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-bot.html), [Amazon CAPTCHA and AWS WAF overview](https://2captcha.com/p/amazon-captcha-bypass), [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/).
 

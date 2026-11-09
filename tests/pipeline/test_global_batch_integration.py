@@ -815,10 +815,10 @@ async def test_pipeline_retries_next_page_on_validation_failure(
             [product],  # page 2 succeeds
         ]
 
-        # Mock SCRAPER_CONFIG for max_retry_pages
+        # Mock SCRAPER_CONFIG for max_pages
         with patch(
             "src.scraper.amazon.config.CONFIG",
-            {"global_settings": {"batch_processing": {"max_retry_pages": 5}}},
+            {"global_settings": {"batch_processing": {"max_pages": 5}}},
         ):
             orchestrator = GlobalPipelineOrchestrator(config)
             summary = await orchestrator.run_pipeline()
@@ -885,7 +885,7 @@ async def test_pipeline_skips_retry_for_url_inputs(
 
     `is_keyword` is built from both predicates, and that test mocks
     `_is_url` to False, so dropping the `_is_url` half of the gate left the
-    whole suite green while a URL input paginated through `max_retry_pages`
+    whole suite green while a URL input paginated through `max_pages`
     re-resolving the same listing.
     """
     config = GlobalBatchConfig(

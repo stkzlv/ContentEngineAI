@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.235.0] - 2026-11-09
+
+### Changed
+
+- The standalone scraper and the global batch scan result pages up to one limit, `batch_processing.max_pages` (5), and each later page waits the same pause as a new input; the search no longer asks the driver to check for Cloudflare, which the site doesn't run.
+
+### Removed
+
+- **Breaking**: `batch_processing.max_retry_pages`; `max_pages` bounds both entry points, so a config that still sets the old key fails to load until it is renamed.
+- An unused single-product browser helper.
+
 ## [0.234.0] - 2026-11-09
 
 ### Changed

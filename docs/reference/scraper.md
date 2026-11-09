@@ -107,9 +107,8 @@ With `global_settings.count_products_with_media: true` (the default), only produ
 |---|---|---|---|
 | `prefetch_multiplier` | `global_settings.batch_processing.prefetch_multiplier` | `3` | Fetches this many times the remaining target from each page. |
 | `max_batch_size` | `global_settings.batch_processing.max_batch_size` | `15` | Caps the products fetched from one page. |
-| `max_pages` | `global_settings.batch_processing.max_pages` | `7` | The last result page the standalone loop scans. Not in the bundled YAML. |
+| `max_pages` | `global_settings.batch_processing.max_pages` | `5` | The highest result page a keyword search scans when its products fail validation, in the standalone scraper and the global batch alike. A value of 1 disables the extra pages. |
 | `max_scrape_attempts` | `global_settings.batch_processing.max_scrape_attempts` | `50` | Stops the loop once this many validated products are collected, checked before each page. It binds only when set below the target, a single page can overshoot it, and it stays at 0 while nothing validates, where `max_pages` is the only stop. |
-| `max_retry_pages` | `global_settings.batch_processing.max_retry_pages` | `5` | The highest result page the global batch retries to. It runs pages 2 to N, so the default scans four extra pages, and any value below 2 disables the retry. Global batch only. |
 
 For example, with `products_per_keyword: 3` the scraper fetches about 9 products per page (3 x 3, under the cap of 15), validates each, and moves through pages until 3 products pass or `max_pages` is passed.
 

@@ -176,9 +176,8 @@ class BatchProcessingConfig(BaseModel):
     max_batch_size: int = Field(
         default=15, gt=0, description="Maximum products to fetch in a single batch"
     )
-    # The standalone loop's page ceiling; the batch reads max_retry_pages.
-    max_pages: int = Field(default=7, gt=0)
-    max_retry_pages: int = Field(default=5, ge=0)
+    # The highest result page a keyword search scans, on both entry points.
+    max_pages: int = Field(default=5, gt=0)
 
 
 class CSSSelectors(BaseModel):

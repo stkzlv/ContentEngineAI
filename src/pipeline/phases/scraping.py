@@ -219,11 +219,11 @@ async def run_scraping_phase(
                     "global_settings",
                     {},
                 ).get("batch_processing", {})
-                max_retry_pages = batch_cfg.get("max_retry_pages", 5)
+                max_pages = batch_cfg.get("max_pages", 5)
                 page = 2
                 while (
                     len(products) < per_input_limit
-                    and page <= max_retry_pages
+                    and page <= max_pages
                     and not scraper.throttle.stopped
                 ):
                     remaining = per_input_limit - len(products)
@@ -234,6 +234,8 @@ async def run_scraping_phase(
                         len(products),
                         per_input_limit,
                     )
+                    # Paced like a new input: a page retry is another search.
+                    sleep(scraper.throttle.inter_input_delay_sec())
                     extra_results = scraper.scrape_batch_browser(
                         [input_item],
                         search_params=config.scraper_filters,

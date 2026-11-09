@@ -678,15 +678,6 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
 
         raise_if_blocked(_Broken())
 
-    def test_the_module_level_single_product_helper_checks_too(self) -> None:
-        """No caller today, but it is the fourth navigation in the module."""
-        from src.scraper.amazon.browser_functions import scrape_single_product
-
-        with pytest.raises(AmazonErrorPageError):
-            scrape_single_product(
-                self._Driver(), {"asin": "B0TEST0001", "url": "https://a.co/x"}
-            )
-
     @pytest.mark.parametrize(
         ("arm", "item"),
         [
