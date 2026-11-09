@@ -38,6 +38,14 @@ PATTERNS = compile_patterns(DEFAULT_PATTERNS)
         "I've had mine for a month.",
         "I got one last week.",
         "I went to the store with it.",
+        "I bought this.",
+        "I tested this.",
+        "I've been using this for a month.",
+        "We tested it on the beach.",
+        "I'm using it every day.",
+        "I own one.",
+        "I've owned one since May.",
+        "I got one last week.",
     ],
 )
 def test_a_physical_claim_is_named(sentence: str) -> None:
@@ -65,6 +73,14 @@ def test_a_physical_claim_is_named(sentence: str) -> None:
         "If I bought this, I'd return it.",
         "I used to think so.",
         "I'm worn out by these launches.",
+        "I got it, the battery is the weak point.",
+        "I've got one question about the price.",
+        "We got two reasons to skip it.",
+        "I used one source for this.",
+        "I tried one thing: reading the manual.",
+        "We went with it because the reviews were better.",
+        "I spent an hour reading up on it.",
+        "I used it as an example of the trend.",
     ],
 )
 def test_opinion_research_and_third_person_pass(sentence: str) -> None:

@@ -12,25 +12,38 @@ import re
 
 # A first-person subject, not inside an "if" clause ("If I bought this, ...").
 _SUBJECT = (
-    r"(?<!\bif )\b(?:i|i've|i have|i'd|we|we've|we have)\s+"
+    r"(?<!\bif )\b(?:i|i've|i have|i'd|i'm|i am|we|we've|we have|we're|we are)\s+"
     r"(?:just\s+|finally\s+|actually\s+|already\s+|recently\s+)?"
 )
-# The product or a part of it, never a claim, a figure or a view.
-_OBJECT = r"(?:it|them|one|mine|a pair|two)\b"
-_NOT_RESEARCH = r"(?!\s+(?:against|on the|claim|theory|data|number|figure|stud|report))"
+# What may follow a product word: the end of the clause, or a word that keeps
+# the product as the thing acted on. "One question" or "these figures" is not.
+_AFTER = (
+    r"(?=\s*(?:[.,;!?]|$)|\s+(?:for|on|in|at|last|every|since|myself|and|when"
+    r"|after|before|now|yesterday|today|daily|from|of|out|around|outside)\b)"
+)
+# The product or a part of it, never a claim, a figure, a count or a view.
+_PRODUCT = r"(?:(?:it|them|mine|a pair)\b|(?:one|two|this|these)" + _AFTER + ")"
+_NOT_RESEARCH = (
+    r"(?!\s+(?:against|on the (?:data|numbers|figures|benchmark)|as\b|in my\b"
+    r"|to compare|claim|theory|data|number|figure|stud|report|source))"
+)
 
 DEFAULT_PATTERNS: tuple[str, ...] = (
-    _SUBJECT + r"(?:bought|ordered|purchased|got|picked up)\s+" + _OBJECT,
-    _SUBJECT + r"(?:unboxed|wore|worn)\b",
-    _SUBJECT + r"held\s+" + _OBJECT + r"(?!\s+(?:view|idea|belief))",
-    _SUBJECT + r"(?:tested|used|tried)\s+" + _OBJECT + _NOT_RESEARCH,
-    _SUBJECT + r"(?:been\s+)?(?:using|testing|wearing|trying)\s+" + _OBJECT,
-    _SUBJECT + r"(?:use|wear)\s+(?:it|them|mine)\s+(?:every|daily|all)",
-    _SUBJECT + r"(?:had|owned)\s+(?:it|them|one|mine)\s+for\b",
+    _SUBJECT + r"(?:bought|ordered|purchased|picked up)\s+" + _PRODUCT,
+    # "Got it" is also "understood", so `got` takes a counted product only.
+    _SUBJECT + r"got\s+(?:(?:mine|a pair)\b|(?:one|two)" + _AFTER + ")",
+    _SUBJECT + r"(?:unboxed|wore|worn)\b(?!\s+(?:out|down|thin))",
+    _SUBJECT + r"held\s+" + _PRODUCT + r"(?!\s+(?:view|idea|belief))",
+    _SUBJECT + r"(?:tested|used|tried)\s+" + _PRODUCT + _NOT_RESEARCH,
+    _SUBJECT + r"(?:been\s+)?(?:using|testing|wearing|trying)\s+" + _PRODUCT,
+    _SUBJECT + r"(?:use|wear|own)\s+(?:it|them|mine|one)\b",
+    _SUBJECT + r"(?:had|owned)\s+(?:it|them|one|mine)\s+(?:for|since)\b",
     _SUBJECT + r"(?:picked|plugged)\s+(?:it|them|one)\s+(?:up|in)\b",
     _SUBJECT + r"(?:took|brought)\s+(?:it|them)\s+(?:to|on|out|along)\b",
-    _SUBJECT + r"went\s+[^.,;]{0,30}?\bwith\s+(?:it|them)\b",
-    _SUBJECT + r"spent\s+[^.,;]{0,30}?\b(?:on|with)\s+(?:it|them|mine|one)\b",
+    # At least one word between: "went with it" is choosing, not travelling.
+    _SUBJECT + r"went\s+(?:[^\s.,;]+\s+){1,5}?with\s+(?:it|them)\b",
+    _SUBJECT
+    + r"spent\s+(?:(?!\w+ing\b)[^.,;\s]+\s+){0,5}?(?:on|with)\s+(?:it|them|mine|one)\b",
 )
 
 
