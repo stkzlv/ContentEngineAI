@@ -86,3 +86,28 @@ class TestTheBatchScrapesOneInputAtATime:
         await _scrape(_config(keywords=KEYWORDS, max_products=3))
 
         assert len(pauses) == 2
+
+    @pytest.mark.asyncio
+    async def test_no_pause_once_the_cap_is_met(self, fake_scraper, monkeypatch):
+        pauses: list[float] = []
+        monkeypatch.setattr(scraping_phase, "sleep", pauses.append)
+        fake_scraper.pages = _one_valid_product_per_keyword()
+
+        await _scrape(_config(keywords=KEYWORDS))
+
+        assert pauses == []
+
+    @pytest.mark.asyncio
+    async def test_a_validated_product_id_fills_the_cap_before_any_search(
+        self, fake_scraper
+    ):
+        """The same mixed inputs stop the standalone run before its keywords."""
+        fake_scraper.pages = {
+            ("B0TESTID01", 1): [{"asin": "B0TESTID01"}],
+            **_one_valid_product_per_keyword(),
+        }
+
+        summary = await _scrape(_config(product_ids=["B0TESTID01"], keywords=KEYWORDS))
+
+        assert summary.successful_products == ["B0TESTID01"]
+        assert fake_scraper.calls == [("B0TESTID01", 1)]

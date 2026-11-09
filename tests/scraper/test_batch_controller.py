@@ -1465,3 +1465,43 @@ class TestLostKeywordsAreRecorded:
         summary = controller._generate_summary([], 0, 2, 1.0)
 
         assert summary.failed_keywords == ["bad"]
+
+
+@pytest.mark.req("REQ-SCR-084")
+class TestProductIdsCountTowardTheCap:
+    """The standalone run stops where the global batch does on mixed inputs."""
+
+    def test_a_validated_product_id_fills_the_cap_before_any_search(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        config = BatchConfig(
+            product_ids=["B0TEST1234"],
+            keywords=["test keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=1,
+            products_per_keyword=1,
+        )
+        mock_scraper.scrape_products_unified.return_value = [sample_product_data]
+
+        summary = BatchController(mock_scraper, config).run_batch()
+
+        assert summary.successful == 1
+        assert mock_scraper.scrape_products_unified.call_count == 1
+
+    def test_a_failed_product_id_leaves_the_cap_to_the_keywords(
+        self, mock_scraper, sample_search_params, sample_product_data
+    ):
+        config = BatchConfig(
+            product_ids=["B0TEST1234"],
+            keywords=["test keyword"],
+            fail_fast=False,
+            search_params=sample_search_params,
+            max_products=1,
+            products_per_keyword=1,
+        )
+        mock_scraper.scrape_products_unified.side_effect = [[], [sample_product_data]]
+
+        BatchController(mock_scraper, config).run_batch()
+
+        assert mock_scraper.scrape_products_unified.call_count == 2
