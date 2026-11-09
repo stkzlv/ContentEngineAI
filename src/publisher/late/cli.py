@@ -84,6 +84,7 @@ from src.publisher.tracking import (
     record_publish_results,
 )
 from src.publisher.video_selector import sole_render_for_product
+from src.publisher.viewer_comments import list_viewer_comments, record_posts
 from src.utils.logging_setup import dated_log_path, log_context, setup_debug_logging
 from src.utils.outputs_paths import (
     durable_state_path,
@@ -659,6 +660,44 @@ async def cmd_verify_comments(
         len(posts),
         unsent,
     )
+
+
+async def cmd_comments(
+    args: argparse.Namespace, config, session: aiohttp.ClientSession
+):
+    """List viewer comments on a published record's posts (REQ-PUB-167).
+
+    Read-only. The operator picks one to answer with a reply video.
+    """
+    outputs_dir = args.outputs_dir
+    platforms = [args.platform] if args.platform else None
+    posts = record_posts(args.record_id, outputs_dir, platforms)
+    if not posts:
+        logger.error(
+            "No published post recorded for %s%s in %s",
+            args.record_id,
+            f" on {args.platform}" if args.platform else "",
+            outputs_dir,
+        )
+        sys.exit(1)
+
+    publisher = _create_publisher_from_config(config, session)
+    if not await publisher.authenticate():
+        logger.error("Authentication failed - check your API key")
+        sys.exit(1)
+
+    for result in await list_viewer_comments(publisher, posts, args.limit):
+        if result.skipped:
+            logger.info("%s: skipped, %s", result.platform, result.skipped)
+            continue
+        logger.info("%s: %d viewer comment(s)", result.platform, len(result.comments))
+        for comment in result.comments:
+            logger.info(
+                "  %s  %s: %s",
+                comment.comment_id,
+                comment.author or "(no handle)",
+                comment.text,
+            )
 
 
 async def cmd_verify_delivery(
@@ -2014,6 +2053,35 @@ Examples:
         help="Enable debug logging",
     )
 
+    comments_parser = subparsers.add_parser(
+        "comments",
+        help="List viewer comments on a published record's posts",
+    )
+    comments_parser.add_argument(
+        "record_id", help="The published record (product or topic id)"
+    )
+    comments_parser.add_argument(
+        "--platform",
+        choices=["youtube", "instagram", "tiktok"],
+        default=None,
+        help="One platform only (default: every platform the record went out on)",
+    )
+    comments_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Comments per platform (default: 20)",
+    )
+    comments_parser.add_argument(
+        "--outputs-dir",
+        type=Path,
+        default=None,
+        help="Directory holding the publish history (default: outputs)",
+    )
+    comments_parser.add_argument(
+        "--debug", action="store_true", help="Enable debug logging"
+    )
+
     verify_delivery_parser = subparsers.add_parser(
         "verify-delivery",
         help="Sweep recent posts for silently-failed platform legs",
@@ -2160,6 +2228,8 @@ async def main():
             cmd_audience(args)
         elif args.command == "verify-comments":
             await cmd_verify_comments(args, config, session)
+        elif args.command == "comments":
+            await cmd_comments(args, config, session)
         elif args.command == "verify-delivery":
             await cmd_verify_delivery(args, config, session)
 

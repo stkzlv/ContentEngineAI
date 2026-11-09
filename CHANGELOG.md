@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.238.0] - 2026-11-09
+
+### Added
+
+- The publisher's `comments` command lists the viewer comments on a published record's YouTube and Instagram posts, with each comment's id, author and text, so an operator can pick one to answer; TikTok is reported as skipped, since its API exposes no comments.
+
 ## [0.237.0] - 2026-11-09
 
 ### Added

@@ -32,7 +32,7 @@ The publishing API has no way to attach TikTok's native reply sticker, so the co
 
 ## Design
 
-- **Listing.** `python -m src.publisher.late comments <record id> [--platform P] [--limit N]` resolves each platform's post id from the publish history and prints, per comment, its id, author handle and text, leaving out the account's own comments. Read-only.
+- **Listing.** `python -m src.publisher.late comments <record id> [--platform P] [--limit N]` resolves each platform's post id from the publish history and prints, per comment, its id, author handle and text, leaving out the account's own comments. Read-only. YouTube and Instagram only: TikTok's leg is reported as skipped. Implemented.
 - **The record.** The producer's reply mode takes `--reply-to-comment "<text>"`, `--reply-record <record id>` (the record the comment was left on) and an optional `--reply-author <handle>`. It builds a topic record whose title comes from the comment's first words, whose detail is the comment and the parent record's title and script, and whose `topic_kind` is `reply`. `content_kind` returns `commentary`, so the commentary narrator, CTAs, length and identity apply; `config_for_record` sets `topic_templates` to `reply_templates`.
 - **The template.** The shipped `reply` template answers the comment in its first sentence, adds one reason or fact from the parent record's script, and closes on the CTA with no new question. It never quotes the comment back word for word in the voice, since the card shows it.
 - **The card.** A new `video_settings.reply_card` block (enabled, duration in seconds, default 3.0, and `show_author`, default false) draws the comment, truncated to two lines, on a rounded panel in the opening seconds, through the same overlay path as the hook headline. With `show_author` off the card shows the text only, so a viewer's handle is never drawn unless the operator turns it on.
@@ -53,4 +53,4 @@ Remove the switch when: never for `show_author`, which is an operator's lasting 
 ## Open questions
 
 - Whether a reply should be allowed to name the commenter in the voice. The design keeps the voice off the handle, the same as the card's default.
-- Whether the provider's comments endpoint returns TikTok comments; it has only been used for YouTube and Instagram. One call against a published TikTok post settles it before the listing is built.
+- ~~Whether the provider's comments endpoint returns TikTok comments.~~ It doesn't: the provider answers 400, "TikTok API does not support reading comments". The listing reports a TikTok leg as skipped (REQ-PUB-167).
