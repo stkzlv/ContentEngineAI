@@ -308,6 +308,12 @@ poetry run python -m src.publisher.late verify-delivery --limit 25
 poetry run python -m src.publisher.late verify-comments --limit 25
 ```
 
+To pick a viewer comment to answer, list a published record's comments; YouTube and Instagram only, since TikTok's API exposes none:
+
+```bash
+poetry run python -m src.publisher.late comments B0XXXXXXXX --limit 10
+```
+
 The delivery check also runs after every publish run. To fix a failed leg, see [Instagram container errors](troubleshooting.md#instagram-container-errors-and-partial-posts) for a transient failure and [Repair a failed TikTok post](#repair-a-failed-tiktok-post) for a rejected payload.
 
 ## Repair a failed TikTok post

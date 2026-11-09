@@ -172,7 +172,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-163** `shipped` Each analytics sweep stores, per post with a YouTube leg, the view-weighted average view percentage and average view duration and the subscribers gained, from the per-video daily stats; a video with no views yet has them unknown.
 - **REQ-PUB-164** `shipped` Each analytics sweep stores Instagram profile views and profile link taps per day for the last 7 days, for the first connected Instagram account.
 - **REQ-PUB-165** `shipped` The `audience` command prints, for a `--since`/`--until` range and without contacting the provider, net follows per 1,000 views per platform and summed, shares plus saves and comments per 1,000 views, the median YouTube average view percentage, and Instagram profile views per 1,000 views, which is unknown unless every day of the range is stored; a rate with a missing input is unknown.
-- **REQ-PUB-167** `planned #808` The `comments` command lists the recent comments on a published record's post on each platform, each with its id, author handle and text, leaving out the account's own comments.
+- **REQ-PUB-167** `shipped` The `comments` command lists the recent comments on a published record's post on YouTube and Instagram, each with its id, author handle and text, leaving out the account's own comments; a TikTok leg is reported as skipped, since its API exposes no comments, and a record with no post in the publish history is refused.
 
 ## Published products registry
 

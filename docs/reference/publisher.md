@@ -201,6 +201,21 @@ python -m src.publisher.late verify-comments [--limit N] [--outputs-dir PATH]
 | `--limit N` | 25 | Number of recent published posts to check. |
 | `--outputs-dir PATH` | the outputs root | Directory holding `publish_history.json`, used to name products in the output. |
 
+### `comments`
+
+Lists the viewer comments on a published record's posts, one platform at a time, each with its id, author handle and text. The account's own comments, such as the first comment, are left out. Read-only. TikTok's API exposes no comments, so a TikTok leg is reported as skipped, and a platform whose read fails is reported with the error while the others still list. A record with no post in the publish history is refused.
+
+```bash
+python -m src.publisher.late comments RECORD_ID [--platform P] [--limit N] [--outputs-dir PATH]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `RECORD_ID` | required | The published record: a product or topic id. |
+| `--platform P` | every platform the record went out on | One of `youtube`, `instagram`, `tiktok`. |
+| `--limit N` | 20 | Viewer comments per platform. |
+| `--outputs-dir PATH` | the outputs root | Directory holding `publish_history.json`. |
+
 ### `verify-delivery`
 
 Checks the most recent posts and warns on every post whose status is `partial` or `failed`, naming the failing platform and its error.
