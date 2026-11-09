@@ -11,7 +11,7 @@ import platform
 import re
 import shutil
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from botasaurus.browser import Driver, browser
@@ -25,6 +25,7 @@ from ..base.throttle import (
     is_error_page_failure,
     session_block_kind,
 )
+from . import identity
 from .botasaurus_output import get_browser_config_for_outputs
 from .config import _BROWSER_CONFIG, CONFIG, get_settings
 from .media_extractor import (
@@ -593,7 +594,11 @@ def scrape_amazon_products_browser_impl(
                     )
 
                     # Navigate to product page
-                    driver.google_get(serp_info.url, bypass_cloudflare=True)
+                    if not (
+                        consistent_identity_on()
+                        and _open_from_results(driver, card, serp_info.asin)
+                    ):
+                        driver.google_get(serp_info.url, bypass_cloudflare=True)
                     raise_if_blocked(driver)
                     driver.short_random_sleep()
                     # Extract full product data
@@ -679,7 +684,16 @@ def scrape_amazon_products_browser_impl(
                             logger.debug("Navigating back to search results...")
                         back_nav_start = time.monotonic()
                         try:
-                            driver.google_get(search_url, bypass_cloudflare=True)
+                            if consistent_identity_on():
+                                # Back to the page it came from, as a reader
+                                # would, rather than a fresh search request.
+                                driver.run_js("history.back()")
+                                driver.wait_for_element(
+                                    RESULTS_SELECTOR,
+                                    browser_config.search_result_wait_reduced,
+                                )
+                            else:
+                                driver.google_get(search_url, bypass_cloudflare=True)
                             raise_if_blocked(driver)
                             driver.short_random_sleep()
                             # Re-find product cards since DOM is fresh
@@ -736,6 +750,10 @@ def scrape_amazon_products_browser_impl(
                 # same page. Keep what this page already gave, if anything.
                 if not products:
                     raise
+                # Caught here, so the identity's own handler never sees it:
+                # drop the kept cookies now, as a raised block would.
+                if consistent_identity_on() and session_block_kind(block):
+                    identity.forget_cookies()
                 logger.warning(
                     "Block page (%s) after %d product(s); keeping them and "
                     "ending this page",
@@ -814,6 +832,75 @@ def scrape_amazon_products_browser_impl(
     return products
 
 
+@contextlib.contextmanager
+def returning_identity(driver: Driver) -> Iterator[None]:
+    """Carry cookies into and out of the session when the switch is on."""
+    if not consistent_identity_on():
+        yield
+        return
+    started = time.monotonic()
+    loaded = identity.load_cookies(driver)
+    logger.info("Returning browser: loaded %d cookie(s)", loaded)
+    identity.log_user_agent(driver)
+    try:
+        yield
+    except AmazonBlockError as block:
+        if session_block_kind(block) is not None:
+            identity.forget_cookies()
+        raise
+    finally:
+        if identity.forgotten_since(started):
+            logger.info("Returning browser: not keeping a blocked session's cookies")
+        else:
+            saved = identity.save_cookies(driver)
+            logger.info("Returning browser: kept %d cookie(s)", saved)
+
+
+PRODUCT_LINK_SELECTOR = "h2 a[href*='/dp/'], a.a-link-normal[href*='/dp/']"
+CLICK_NAVIGATION_WAIT_SEC = 15.0
+"""How long a clicked result has to reach its product page; a direct
+navigation waited out a product page's full load, often past five seconds."""
+
+
+def _open_from_results(
+    driver: Driver,
+    card: Any,
+    asin: str,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> bool:
+    """Open a result's product page by clicking its link; False to fall back.
+
+    The fallback is a direct navigation: a card with no link, a click that
+    fails, or one that has not reached a URL carrying the ASIN in time (a
+    new tab, a redirect, a slow page).
+    """
+    try:
+        link = card.select(PRODUCT_LINK_SELECTOR, None)
+        if not link:
+            return False
+        link.click()
+    except Exception as exc:  # noqa: BLE001 - any failure falls back
+        logger.debug("Click-through to %s failed: %s", asin, exc)
+        return False
+    deadline = clock() + CLICK_NAVIGATION_WAIT_SEC
+    while True:
+        try:
+            if asin in (driver.current_url or ""):
+                logger.debug("Opened %s from the results page", asin)
+                return True
+        except Exception as exc:  # noqa: BLE001 - a page mid-navigation
+            logger.debug("Could not read the URL after the click: %s", exc)
+        if clock() >= deadline:
+            logger.info(
+                "Click-through to %s did not reach the product page; "
+                "navigating directly",
+                asin,
+            )
+            return False
+        sleep(0.5)
+
+
 def describe_debug_display(config: dict[str, Any]) -> str:
     """What a debug run will show, from the config the run is about to use.
 
@@ -827,6 +914,11 @@ def describe_debug_display(config: dict[str, Any]) -> str:
     return "browser window visible on your screen"
 
 
+def consistent_identity_on() -> bool:
+    """Whether `scrapers.amazon.consistent_identity` is on (REQ-SCR-081)."""
+    return bool(get_settings().amazon.consistent_identity)
+
+
 def _build_browser_config(debug_mode=False):
     """Build Botasaurus browser config dict.
 
@@ -837,6 +929,8 @@ def _build_browser_config(debug_mode=False):
         current_config = _BROWSER_CONFIG.copy() if _BROWSER_CONFIG else {}
     except Exception:
         current_config = {}
+    if consistent_identity_on():
+        current_config = identity.apply_to_browser_config(current_config)
 
     force_real_browser = debug_mode
 
@@ -1064,7 +1158,8 @@ def create_dynamic_browser_function(debug_mode=False):
                     "(no implicit wait needed)"
                 )
 
-            return scrape_amazon_products_browser_impl(driver, data)
+            with returning_identity(driver):
+                return scrape_amazon_products_browser_impl(driver, data)
         except Exception as e:
             if isinstance(e, AmazonBlockError):
                 # Reaches the caller, which is the only place that can tell a
@@ -1138,6 +1233,8 @@ def scrape_batch_items(
             except Exception as e:
                 kind = session_block_kind(e)
                 if kind is not None:
+                    if consistent_identity_on():
+                        identity.forget_cookies()
                     # The same session would get the same page for every
                     # later input, so this session stops here. The caller
                     # retries in a fresh one, or stops the run, by the
@@ -1207,7 +1304,8 @@ def create_batch_browser_function(debug_mode=False, tracker=None):
 
     @browser(**current_config)
     def scrape_batch(driver: Driver, data: dict[str, Any]) -> list[dict[str, Any]]:
-        return scrape_batch_items(driver, data.get("items", []), tracker)
+        with returning_identity(driver):
+            return scrape_batch_items(driver, data.get("items", []), tracker)
 
     return scrape_batch
 
