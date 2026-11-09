@@ -834,14 +834,22 @@ def returning_identity(driver: Driver) -> Iterator[None]:
     if not consistent_identity_on():
         yield
         return
+    started = time.monotonic()
     loaded = identity.load_cookies(driver)
     logger.info("Returning browser: loaded %d cookie(s)", loaded)
     identity.log_user_agent(driver)
     try:
         yield
+    except AmazonBlockError as block:
+        if session_block_kind(block) is not None:
+            identity.forget_cookies()
+        raise
     finally:
-        saved = identity.save_cookies(driver)
-        logger.info("Returning browser: kept %d cookie(s)", saved)
+        if identity.forgotten_since(started):
+            logger.info("Returning browser: not keeping a blocked session's cookies")
+        else:
+            saved = identity.save_cookies(driver)
+            logger.info("Returning browser: kept %d cookie(s)", saved)
 
 
 PRODUCT_LINK_SELECTOR = "h2 a[href*='/dp/'], a.a-link-normal[href*='/dp/']"
@@ -875,6 +883,7 @@ def _open_from_results(
     while True:
         try:
             if asin in (driver.current_url or ""):
+                logger.debug("Opened %s from the results page", asin)
                 return True
         except Exception as exc:  # noqa: BLE001 - a page mid-navigation
             logger.debug("Could not read the URL after the click: %s", exc)
@@ -1220,6 +1229,8 @@ def scrape_batch_items(
             except Exception as e:
                 kind = session_block_kind(e)
                 if kind is not None:
+                    if consistent_identity_on():
+                        identity.forget_cookies()
                     # The same session would get the same page for every
                     # later input, so this session stops here. The caller
                     # retries in a fresh one, or stops the run, by the

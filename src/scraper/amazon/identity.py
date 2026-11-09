@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import time
 from pathlib import Path
 from typing import Any
 
@@ -105,6 +106,31 @@ def load_cookies(driver: Any, outputs_dir: Path | None = None) -> int:
         logger.warning("Could not load %d scraper cookies: %s", len(cookies), exc)
         return 0
     return len(cookies)
+
+
+_forgotten_at = float("-inf")
+
+
+def forget_cookies(outputs_dir: Path | None = None) -> None:
+    """Drop the kept cookies after a captcha or bare-title page.
+
+    The block travels with them: right after blocked sessions that had
+    loaded the kept cookies, a session without them got through. The
+    blocked session's own cookies are not saved either (`forgotten_since`).
+    """
+    global _forgotten_at
+    _forgotten_at = time.monotonic()
+    path = _state_path(COOKIES_FILE, outputs_dir)
+    try:
+        path.unlink()
+        logger.warning("Dropped the kept scraper cookies after a block page")
+    except FileNotFoundError:
+        pass
+
+
+def forgotten_since(started: float) -> bool:
+    """Whether the cookies were dropped after `started` (monotonic)."""
+    return _forgotten_at >= started
 
 
 def save_cookies(driver: Any, outputs_dir: Path | None = None) -> int:

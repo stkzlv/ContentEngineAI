@@ -15,6 +15,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.scraper.amazon import browser_functions, identity
+from src.scraper.base.throttle import (
+    AmazonBlockError,
+    AmazonErrorPageError,
+    PageKind,
+    ThrottleTracker,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -126,6 +132,66 @@ class TestTheSwitch:
 
 
 @pytest.mark.req("REQ-SCR-081")
+@pytest.mark.req("REQ-SCR-083")
+class TestABlockedSessionsCookiesAreDropped:
+    """The block travels with the kept cookies, so a block page drops them."""
+
+    def _kept(self, outputs):
+        path = outputs / "state" / identity.COOKIES_FILE
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps([{"n": 1}]))
+        return path
+
+    @pytest.mark.parametrize("kind", [PageKind.BARE_TITLE, PageKind.CAPTCHA])
+    def test_a_session_block_drops_them_and_saves_none(
+        self, monkeypatch, outputs, kind
+    ):
+        _switch(monkeypatch, True)
+        path = self._kept(outputs)
+        driver = _CookieDriver([{"n": 2}])
+
+        with (
+            pytest.raises(AmazonBlockError),
+            browser_functions.returning_identity(driver),
+        ):
+            raise AmazonBlockError(kind)
+
+        assert not path.exists()
+
+    def test_the_error_page_keeps_them(self, monkeypatch, outputs):
+        """The error page is a rate limit, not the session."""
+        _switch(monkeypatch, True)
+        path = self._kept(outputs)
+
+        with (
+            pytest.raises(AmazonBlockError),
+            browser_functions.returning_identity(_CookieDriver([{"n": 2}])),
+        ):
+            raise AmazonErrorPageError()
+
+        assert json.loads(path.read_text()) == [{"n": 2}]
+
+    def test_the_batch_session_loop_drops_them_too(self, monkeypatch, outputs):
+        _switch(monkeypatch, True)
+        path = self._kept(outputs)
+
+        def impl(_driver, _item):
+            raise AmazonBlockError(PageKind.BARE_TITLE)
+
+        monkeypatch.setattr(
+            browser_functions, "scrape_amazon_products_browser_impl", impl
+        )
+        driver = _CookieDriver([{"n": 2}])
+
+        with browser_functions.returning_identity(driver):
+            browser_functions.scrape_batch_items(
+                driver, [{"keyword": "a"}], ThrottleTracker(), sleep=lambda _s: None
+            )
+
+        assert not path.exists()
+
+
+@pytest.mark.req("REQ-SCR-081")
 class TestProductPagesFromTheResults:
     def test_a_result_is_opened_by_clicking_it(self):
         link = MagicMock()
@@ -174,7 +240,7 @@ class TestProductPagesFromTheResults:
         monkeypatch.setattr(
             browser_functions,
             "raise_if_blocked",
-            lambda _d: browser_functions.PageKind.RESULTS,
+            lambda _d: PageKind.RESULTS,
         )
         monkeypatch.setattr(
             browser_functions,
