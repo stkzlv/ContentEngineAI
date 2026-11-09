@@ -198,6 +198,7 @@ async def test_batch_loop_scenarios(mock_outputs_dir, mock_config):
     mock_args.topic_description = None
     mock_args.topic_keywords = None
     mock_args.topic_kind = None
+    mock_args.corrects = None
     mock_args.topics_file = None
 
     mock_config.video_profiles = {"test_profile": {}}

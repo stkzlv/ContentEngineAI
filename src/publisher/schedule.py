@@ -20,7 +20,7 @@ from src.publisher.constants import (
     SCHEDULE_ALTERNATIVE_SEARCH_MULTIPLIER,
     SCHEDULE_MAX_SLOT_SEARCH_ATTEMPTS,
 )
-from src.publisher.first_comment import build_first_comment
+from src.publisher.first_comment import build_first_comment, resolve_correction_links
 from src.publisher.link_in_bio.manager import update_link_in_bio_safe
 from src.publisher.metadata import METADATA_PLATFORM_ORDER
 from src.publisher.models import (
@@ -1061,6 +1061,7 @@ class ScheduleManager:
         platforms: list[Platform],
         product_id: str,
         outputs_dir: Path | None,
+        correction_links: dict[str, tuple[str, str | None]] | None = None,
     ) -> dict[str, str]:
         """First comments, attached by each posting branch.
 
@@ -1072,7 +1073,13 @@ class ScheduleManager:
         if not (fc_config and fc_config.enabled and outputs_dir):
             return first_comments
         for p in platforms:
-            comment = build_first_comment(fc_config, p.value, product_id, outputs_dir)
+            comment = build_first_comment(
+                fc_config,
+                p.value,
+                product_id,
+                outputs_dir,
+                correction_links=correction_links,
+            )
             if comment:
                 first_comments[p.value] = comment
         return first_comments
@@ -1333,7 +1340,17 @@ class ScheduleManager:
                 video, product_id, platforms
             )
             first_comments = self._first_comments_for(
-                publisher, platforms, product_id, outputs_dir
+                publisher,
+                platforms,
+                product_id,
+                outputs_dir,
+                correction_links=(
+                    await resolve_correction_links(
+                        publisher, product_id, outputs_dir, [p.value for p in platforms]
+                    )
+                    if outputs_dir
+                    else None
+                ),
             )
 
             post = (

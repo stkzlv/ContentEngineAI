@@ -102,12 +102,22 @@ Examples:
     )
     input_group.add_argument(
         "--topic-kind",
-        choices=("tutorial", "commentary"),
+        choices=("tutorial", "commentary", "correction"),
         default=None,
         help=(
             "With --topic: 'tutorial' (default) renders a how-to from a sourced "
             "step list; 'commentary' renders an opinion take with the commentary "
-            "templates and no step visuals."
+            "templates and no step visuals; 'correction' corrects the published "
+            "record named by --corrects."
+        ),
+    )
+    input_group.add_argument(
+        "--corrects",
+        default=None,
+        metavar="RECORD_ID",
+        help=(
+            "With --topic-kind correction: the published record this video "
+            "corrects. Refused when the record has no queued or published post."
         ),
     )
     input_group.add_argument(

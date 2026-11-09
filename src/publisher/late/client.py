@@ -813,8 +813,8 @@ class LatePublisher(BasePublisher):
     async def get_post_platforms(self, post_id: str) -> list[dict[str, Any]]:
         """Return normalized per-platform targets for a post.
 
-        Each item: ``{platform, platform_post_id, account_id, status,
-        error_message, error_category}``. Used to find the platform post id and
+        Each item: ``{platform, platform_post_id, platform_post_url, account_id,
+        status, error_message, error_category}``. Used to find the platform post id and
         account for inbox comments, and the per-leg status/error for the
         delivery sweep. ``platform_post_id`` is None until the platform
         actually publishes; ``error_*`` are None unless the leg failed.
@@ -838,6 +838,7 @@ class LatePublisher(BasePublisher):
                 error_message = p.get("errorMessage")
                 error_category = p.get("errorCategory")
                 specific = p.get("platformSpecificData")
+                post_url = p.get("platformPostUrl")
             else:
                 platform = str(getattr(p, "platform", "")).split(".")[-1].lower()
                 ppid = getattr(p, "platformPostId", None)
@@ -847,6 +848,7 @@ class LatePublisher(BasePublisher):
                 error_message = getattr(p, "errorMessage", None)
                 error_category = getattr(p, "errorCategory", None)
                 specific = getattr(p, "platformSpecificData", None)
+                post_url = getattr(p, "platformPostUrl", None)
             out.append(
                 {
                     "platform": platform,
@@ -856,6 +858,10 @@ class LatePublisher(BasePublisher):
                     "error_message": error_message,
                     "error_category": error_category,
                     "first_comment_sent": _first_comment_sent(specific),
+                    # None until the leg is live; a correction's first comment
+                    # links it (REQ-PUB-166).
+                    # The SDK model types it as a URL object, not a string.
+                    "platform_post_url": str(post_url) if post_url else None,
                 }
             )
         return out

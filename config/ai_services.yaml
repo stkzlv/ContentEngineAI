@@ -354,6 +354,10 @@ llm_settings:
     cta_options_commentary:
       - "Follow for more takes like this."
       - "Drop a comment with your answer."
+    # For corrections, which close on what changes rather than a question.
+    # Empty keeps the commentary CTAs.
+    cta_options_correction:
+      - "Follow for more takes like this."
     # Conversational delivery written into the script: contractions, spoken
     # fillers ("so", "okay") and one emotional beat; at 2 also one
     # self-correction. Never in the first sentence, a number, name or claim,
@@ -421,6 +425,12 @@ llm_settings:
     # overlay.
     commentary_templates:
       - commentary_take
+    # A topic marked `kind: correction` (REQ-CNT-175) draws these, in the
+    # commentary narrator and length with `cta_options_correction`: what the
+    # earlier video said, the right fact with its source, what changes, and
+    # no closing question.
+    correction_templates:
+      - correction
 
     # Narrator direction for topic scripts. The default profile below is
     # written for someone describing a thing they bought. A topic script has

@@ -620,7 +620,11 @@ def select_script_template(
     # scraped product can draw a template that asks the model not to mention a
     # product.
     # The commentary family lives there too (REQ-CNT-166).
-    not_product = [*templates_cfg.topic_templates, *templates_cfg.commentary_templates]
+    not_product = [
+        *templates_cfg.topic_templates,
+        *templates_cfg.commentary_templates,
+        *templates_cfg.correction_templates,
+    ]
     if not is_topic and not_product:
         without_topic = [t for t in pool if t not in not_product]
         if without_topic:
@@ -1297,9 +1301,20 @@ async def generate_script(
         if settings.script_templates.virtual_narrator
         else []
     )
+    record_kind = getattr(product, "topic_kind", None)
+    # A correction keeps to its detail's figures too (REQ-CNT-175), but has no
+    # closing question: it is not a debate.
+    figure_checks = (
+        settings.script_validation.check_commentary_facts
+        and record_kind
+        in (
+            "commentary",
+            "correction",
+        )
+    )
     commentary_checks = (
         settings.script_validation.check_commentary_facts
-        and getattr(product, "topic_kind", None) == "commentary"
+        and record_kind == "commentary"
     )
     closing_lines = {_normalise_line(c) for c in cta_options} | {
         _normalise_line(s) for c in cta_options for s in _sentences(c)
@@ -1337,7 +1352,7 @@ async def generate_script(
             return False, f"A virtual narrator claims a physical act: {claim!r}"
         # A figure the topic detail doesn't carry: retried, and dropped with
         # its line when every attempt speaks one, like a borrowed example.
-        figure = unbacked_figure(_body(script), listing) if commentary_checks else None
+        figure = unbacked_figure(_body(script), listing) if figure_checks else None
         if figure:
             trimmed = drop_borrowed(script, figure)
             if _validate(trimmed)[0]:

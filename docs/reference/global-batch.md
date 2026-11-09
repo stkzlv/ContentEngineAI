@@ -20,8 +20,9 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 | `--topic` | `TITLE` | none | Renders a video about a topic instead of a scraped product. Skips scraping; the record is built from the title. |
 | `--topic-description` | `TEXT` | none | Source material the topic script is written from, with `--topic`. |
 | `--topic-keywords` | `TERMS` | none | Comma-separated stock media search terms for the topic. |
-| `--topic-kind` | `tutorial` or `commentary` | `tutorial` | With `--topic`, renders the topic as a commentary take instead of a tutorial. |
-| `--topics-file` | `FILE` | none | A YAML list of topics to render, each with a title and an optional description, keywords, `search` (the search the content research measures it by) and `kind` (`tutorial` or `commentary`). |
+| `--topic-kind` | `tutorial`, `commentary` or `correction` | `tutorial` | With `--topic`, renders the topic as a commentary take, or as a correction of the record `--corrects` names, instead of a tutorial. |
+| `--corrects` | record id | none | With `--topic-kind correction`: the published record the video corrects. A correction of a record with no queued or published post fails that topic, and the rest of the run goes on. |
+| `--topics-file` | `FILE` | none | A YAML list of topics to render, each with a title and an optional description, keywords, `search` (the search the content research measures it by), `kind` (`tutorial`, `commentary` or `correction`) and, for a correction, `corrects` (the published record it corrects). |
 | `--max-products` | `N` | `global_batch.max_products` | Cap on the products collected across all keywords. A product already published on every target platform is skipped and does not count. |
 | `--products-per-keyword` | `N` | `global_batch.products_per_keyword` | Cap on the products scraped for one keyword. |
 

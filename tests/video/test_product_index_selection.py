@@ -64,6 +64,7 @@ async def test_main_exits_one_for_an_index_out_of_range(
         "topic_description",
         "topic_keywords",
         "topic_kind",
+        "corrects",
         "topics_file",
         "batch_profile",
         "subtitle_content_aware",

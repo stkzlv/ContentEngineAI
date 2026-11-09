@@ -66,6 +66,10 @@ TOPIC_TEMPLATES = {
 # own rules and none of the product or tutorial ones.
 COMMENTARY_TEMPLATES = {"commentary_take"}
 
+# The correction family (REQ-CNT-175): a commentary that corrects a published
+# record, with no closing question.
+CORRECTION_TEMPLATES = {"correction"}
+
 
 def _all_templates() -> list[Path]:
     return sorted(SCRIPTS_DIR.glob("*.md"))
@@ -75,7 +79,7 @@ def _product_templates() -> list[Path]:
     return [
         p
         for p in _all_templates()
-        if p.stem not in TOPIC_TEMPLATES | COMMENTARY_TEMPLATES
+        if p.stem not in TOPIC_TEMPLATES | COMMENTARY_TEMPLATES | CORRECTION_TEMPLATES
     ]
 
 
@@ -102,7 +106,20 @@ def test_every_template_is_categorised() -> None:
     neither set would ship with none of either family's rules checked.
     """
     names = {p.stem for p in _all_templates()}
-    assert names == EXPECTED_TEMPLATES | TOPIC_TEMPLATES | COMMENTARY_TEMPLATES
+    assert names == (
+        EXPECTED_TEMPLATES
+        | TOPIC_TEMPLATES
+        | COMMENTARY_TEMPLATES
+        | CORRECTION_TEMPLATES
+    )
+
+
+@pytest.mark.req("REQ-CNT-175")
+def test_correction_family_matches_the_config() -> None:
+    from src.video.config import config
+
+    templates = config.llm_settings.script_templates
+    assert set(templates.correction_templates) == CORRECTION_TEMPLATES
 
 
 @pytest.mark.req("REQ-CNT-166")

@@ -114,12 +114,78 @@ def first_comment_override(product_dir: Path, platform: str) -> tuple[bool, str 
     return True, value.strip() or None
 
 
+def correction_target(outputs_dir: Path, product_id: str) -> str | None:
+    """The record a correction corrects, read from its data.json, else None."""
+    try:
+        raw = json.loads((outputs_dir / product_id / "data.json").read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    record = raw[0] if isinstance(raw, list) and raw else raw
+    if not isinstance(record, dict) or record.get("topic_kind") != "correction":
+        return None
+    target = record.get("corrects")
+    return target if isinstance(target, str) and target else None
+
+
+async def resolve_correction_links(
+    publisher: object, product_id: str, outputs_dir: Path, platforms: list[str]
+) -> dict[str, tuple[str, str | None]]:
+    """For a correction, each platform's original title and post URL.
+
+    Empty for any other record. The title comes from the product registry,
+    which outlives the original's folder; the URL from the provider, through
+    the post id the publish history holds. A URL is None while the original
+    is still scheduled, or when the provider can't be asked.
+    """
+    from src.publisher.product_registry import load_registry
+    from src.publisher.tracking import get_publish_record
+
+    target = correction_target(outputs_dir, product_id)
+    if target is None:
+        return {}
+    title = next(
+        (
+            e.title
+            for e in load_registry(outputs_dir)
+            if e.product_id == target and e.title
+        ),
+        target,
+    )
+    fetch = getattr(publisher, "get_post_platforms", None)
+    legs_by_post: dict[str, list[dict]] = {}
+    links: dict[str, tuple[str, str | None]] = {}
+    for platform in platforms:
+        row = get_publish_record(target, platform, outputs_dir) or {}
+        post_id = row.get("post_id")
+        url = None
+        if post_id and fetch is not None:
+            if post_id not in legs_by_post:
+                try:
+                    legs_by_post[post_id] = await fetch(post_id)
+                except Exception as exc:  # noqa: BLE001 - the title still posts
+                    logger.warning(
+                        "Could not read post %s for its URL: %s", post_id, exc
+                    )
+                    legs_by_post[post_id] = []
+            url = next(
+                (
+                    leg.get("platform_post_url")
+                    for leg in legs_by_post[post_id]
+                    if leg.get("platform") == platform
+                ),
+                None,
+            )
+        links[platform] = (title, url)
+    return links
+
+
 def build_first_comment(
     config: FirstCommentConfig,
     platform: str,
     product_id: str,
     outputs_dir: Path,
     metadata: PublishMetadata | None = None,
+    correction_links: dict[str, tuple[str, str | None]] | None = None,
 ) -> str | None:
     """Render the first-comment template for a given platform.
 
@@ -132,6 +198,9 @@ def build_first_comment(
         product_id: Product identifier for data.json lookup.
         outputs_dir: Base outputs directory.
         metadata: Optional publish metadata (used for hashtags).
+        correction_links: For a correction, each platform's original title
+            and URL (`resolve_correction_links`); its first comment links
+            the original instead of using the platform template.
 
     """
     if not config.enabled:
@@ -145,6 +214,21 @@ def build_first_comment(
         if own is None:
             logger.info("First comment on %s skipped by the post's metadata", platform)
         return own
+
+    if correction_links and platform in correction_links:
+        original_title, original_url = correction_links[platform]
+        if not original_url:
+            logger.warning(
+                "No %s URL yet for the post %s corrects; naming it by title",
+                platform,
+                product_id,
+            )
+        return (
+            config.correction_template.format(
+                original_title=original_title, original_url=original_url or ""
+            ).strip()
+            or None
+        )
 
     template = config.platforms.get(platform)
     if not template:

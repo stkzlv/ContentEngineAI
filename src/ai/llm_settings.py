@@ -322,8 +322,13 @@ class ScriptTemplateConfig(BaseModel):
     # Empty narrator or CTA lists keep the topic ones; empty templates refuse
     # the render, since a tutorial template would write a how-to.
     commentary_templates: list[str] = Field(default_factory=list)
+    # Templates a correction topic draws (REQ-CNT-175), in the commentary
+    # narrator and length. Its CTAs ask nothing, since it closes on what
+    # changes; empty keeps the commentary ones.
+    correction_templates: list[str] = Field(default_factory=list)
     narrator_profile_commentary: str = ""
     cta_options_commentary: list[str] = Field(default_factory=list)
+    cta_options_correction: list[str] = Field(default_factory=list)
     # Conversational delivery written into the script. Off (intensity 0)
     # by default, which renders the prompt unchanged.
     naturalism: NaturalismConfig = Field(default_factory=NaturalismConfig)
@@ -337,7 +342,12 @@ class ScriptTemplateConfig(BaseModel):
         default_factory=CommentaryDevicesConfig
     )
 
-    @field_validator("cta_options", "cta_options_topic", "cta_options_commentary")
+    @field_validator(
+        "cta_options",
+        "cta_options_topic",
+        "cta_options_commentary",
+        "cta_options_correction",
+    )
     @classmethod
     def _each_option_carries_words(cls, options: list[str]) -> list[str]:
         """Refuse an option the ending check could never match sensibly.

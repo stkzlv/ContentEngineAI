@@ -239,6 +239,9 @@ first_comment:
     # only route to a clickable destination (the channel's profile links).
     youtube: "{closing_line}"
     instagram: "{closing_line}"
+  # A correction's first comment (REQ-PUB-166) links the post it corrects,
+  # read through the publish history; with no URL yet it names the title.
+  correction_template: "Corrects: {original_title} {original_url}"
 
 # Retention for the Vercel Blob store that stages large video uploads
 # (LATE_VERCEL_TOKEN). Zernio fetches the video from the blob URL when a

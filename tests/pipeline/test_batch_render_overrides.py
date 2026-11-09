@@ -32,6 +32,7 @@ PRODUCER_RUN_FLAGS = {
     "--topic-description",
     "--topic-keywords",
     "--topic-kind",
+    "--corrects",
     "--topics-file",
     "--batch-profile",
     "--random-profile",

@@ -52,6 +52,7 @@ from src.video.producer.shared_cli import (
 )
 from src.video.producer.topic_input import (
     TOPIC_ID_PREFIX,
+    TopicInputError,
     materialise_topics,
     topic_product_id,
 )
@@ -737,8 +738,9 @@ class GlobalPipelineOrchestrator:
                 ((topic_dir, product),) = materialise_topics(
                     [spec], config, profile, outputs_dir=self.config.outputs_dir
                 )
-            except OSError as e:
-                # One unwritable directory must not lose the rest of the batch.
+            except (OSError, TopicInputError) as e:
+                # One unwritable directory, or a correction of a record never
+                # published, must not lose the rest of the batch.
                 logger.error("Could not prepare topic %r: %s", spec.title, e)
                 failed.append(spec.title)
                 continue

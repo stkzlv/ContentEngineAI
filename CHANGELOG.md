@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.0] - 2026-11-09
+
+### Added
+
+- A topic marked `kind: correction` with `corrects: <record id>` (or `--topic-kind correction --corrects <id>` on the producer and the batch) renders a short correction of a published video in the commentary voice: what the earlier video said, the right fact with its source, and what changes, with no closing question. A record with no queued or published post is refused before rendering.
+- A correction's first comment links the post it corrects on each platform, through `first_comment.correction_template`, and names it by title while the original is still scheduled.
+
 ## [0.236.0] - 2026-11-09
 
 ### Added

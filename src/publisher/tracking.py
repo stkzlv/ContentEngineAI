@@ -80,6 +80,18 @@ def record_publish(
     logger.info("Recorded publish: %s -> %s", key, post_id)
 
 
+def has_any_publish_record(
+    product_id: str, outputs_dir: Path = DEFAULT_OUTPUTS_DIR
+) -> bool:
+    """Whether the history holds a row, queued or published, for the record.
+
+    Read from the key (`<product_id>:<platform>`): a row backfilled from the
+    provider carries no `product_id` field.
+    """
+    posts = load_tracking(outputs_dir).get("posts", {})
+    return any(key.rpartition(":")[0] == product_id for key in posts)
+
+
 def get_publish_record(
     product_id: str,
     platform: str,

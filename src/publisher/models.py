@@ -1623,11 +1623,15 @@ class FirstCommentConfig:
             required, so a script-derived template still renders for a
             product with no affiliate link.
         move_hashtags_to_comment: Move hashtags from caption to comment
+        correction_template: A correction's first comment (REQ-PUB-166), with
+            {original_title} and {original_url}; without a URL yet the
+            title alone is posted.
 
     """
 
     enabled: bool = False
     platforms: dict[str, str] = field(default_factory=dict)
+    correction_template: str = "Corrects: {original_title} {original_url}"
     move_hashtags_to_comment: bool = False
 
 
