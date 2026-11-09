@@ -1066,6 +1066,7 @@ def load_global_batch_config(
         topic_keywords=getattr(cli_args, "topic_keywords", None),
         topics_file=getattr(cli_args, "topics_file", None),
         topic_kind=getattr(cli_args, "topic_kind", None),
+        corrects=getattr(cli_args, "corrects", None),
     )
     cli_has_inputs = cli_product_ids or cli_keywords or cli_topics
 

@@ -1,6 +1,6 @@
 # 0035. Correction topics
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #807
 - **Requirements:** REQ-CNT-175, REQ-PUB-166
 

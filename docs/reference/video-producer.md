@@ -41,7 +41,8 @@ In topic mode a lone positional is read as the profile, so `<profile> --topic ..
 | `--topic` | Render a subject instead of a product; replaces `products_file`. | `--topic "Why wifi drops"` |
 | `--topic-description` | Source material the script is written from. The script generator reads only the title and this description. | `--topic-description "Router placement."` |
 | `--topic-keywords` | Comma-separated stock search terms for the topic. Comma-separated rather than repeated, because a multi-value flag before a positional swallows it. | `--topic-keywords "wifi router, home network"` |
-| `--topic-kind` | With `--topic`: `tutorial` (default) or `commentary`, an opinion take drawn from the commentary templates with no step list (REQ-CNT-166). Refused without `--topic`; a topics file sets `kind` per entry. | `--topic-kind commentary` |
+| `--topic-kind` | With `--topic`: `tutorial` (default), `commentary`, an opinion take drawn from the commentary templates with no step list (REQ-CNT-166), or `correction`, which corrects the record `--corrects` names (REQ-CNT-175). Refused without `--topic`; a topics file sets `kind` per entry. | `--topic-kind commentary` |
+| `--corrects` | With `--topic-kind correction`: the published record the video corrects. Refused when that record has no queued or published post, before anything renders. | `--corrects B0TEST0001` |
 | `--topics-file` | YAML list of topics to render in turn, each with `title`, optional `description`, optional `keywords`, optional `search` (the search the content research measures the topic by; no render reads it) and optional `kind` (`tutorial` or `commentary`). | `--topics-file topics.yaml` |
 
 ### Run control

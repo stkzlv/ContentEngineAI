@@ -311,12 +311,22 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--topic-kind",
-        choices=("tutorial", "commentary"),
+        choices=("tutorial", "commentary", "correction"),
         default=None,
         help=(
             "With --topic: 'tutorial' (default) renders a how-to from a sourced "
             "step list; 'commentary' renders an opinion take with the commentary "
-            "templates and no step visuals."
+            "templates and no step visuals; 'correction' corrects the published "
+            "record named by --corrects."
+        ),
+    )
+    parser.add_argument(
+        "--corrects",
+        default=None,
+        metavar="RECORD_ID",
+        help=(
+            "With --topic-kind correction: the published record this video "
+            "corrects. Refused when the record has no queued or published post."
         ),
     )
     parser.add_argument(
@@ -621,6 +631,7 @@ async def main():
                 topic_keywords=args.topic_keywords,
                 topics_file=args.topics_file,
                 topic_kind=getattr(args, "topic_kind", None),
+                corrects=getattr(args, "corrects", None),
             )
             # Materialises data.json so the run is inspectable and resumable in
             # the same shape as a scraped product's directory. Shared with the

@@ -80,7 +80,10 @@ class NarratorIdentities(BaseModel):
 
 
 def content_kind(product: object) -> str:
-    """`product`, `topic` or `commentary`, from the record."""
-    if getattr(product, "topic_kind", None) == "commentary":
+    """`product`, `topic` or `commentary`, from the record.
+
+    A correction (REQ-CNT-175) renders in the commentary identity.
+    """
+    if getattr(product, "topic_kind", None) in ("commentary", "correction"):
         return "commentary"
     return "topic" if getattr(product, "topic", None) else "product"

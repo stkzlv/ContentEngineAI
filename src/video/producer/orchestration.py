@@ -391,6 +391,11 @@ def config_for_record(config: Any, product: Any) -> Any:
         raise PipelineError(
             "A commentary topic needs script_templates.commentary_templates"
         )
+    correction = getattr(product, "topic_kind", None) == "correction"
+    if correction and not config.llm_settings.script_templates.correction_templates:
+        raise PipelineError(
+            "A correction topic needs script_templates.correction_templates"
+        )
     record = config.model_copy(deep=True)
     if kind == "commentary":
         t = record.llm_settings.script_templates
@@ -404,6 +409,9 @@ def config_for_record(config: Any, product: Any) -> Any:
         t.target_length.topic = t.target_length.commentary
         t.topic_routing.enabled = False
         record.llm_settings.topic_scripts.step_list.enabled = False
+        if correction:
+            # The commentary voice, CTAs and length, with its own template.
+            t.topic_templates = list(t.correction_templates)
     if pins:
         _apply_identity(record, identity, is_topic=kind != "product")
         logger.info("Narrator identity for %s pins %s", kind, ", ".join(sorted(pins)))

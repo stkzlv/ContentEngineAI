@@ -56,6 +56,8 @@ A topic render works from a subject rather than a listing, with a profile that s
 
 4. Optional: render a topic as a commentary take, an opinion with a closing question and no steps, with `--topic-kind commentary` beside `--topic`, or `kind: commentary` on an entry in the file. It draws `script_templates.commentary_templates` and the commentary narrator, CTAs and length, and builds no step list, step cards or step screens.
 
+5. Optional: correct a published video with `--topic-kind correction --corrects <record id>` beside `--topic`, or `kind: correction` and `corrects:` on an entry. The description carries the right fact and its source. The video says what the earlier one got wrong, gives the right fact and what changes, in the commentary voice and with no closing question, and its first comment links the original post. A record with no queued or published post is refused before anything renders.
+
 A topic render draws from its own template pool, written to answer a question rather than pitch a product, and uses a narrator profile whose calls to action offer nothing to buy. Length follows the script, so a short description yields a short video. For a long list, `make topics-batch` runs each step in its own process; see [Rendering a batch of topics](batch-processing.md#rendering-a-batch-of-topics).
 
 ## Render every scraped product

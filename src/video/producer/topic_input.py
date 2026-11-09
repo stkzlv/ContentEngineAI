@@ -39,7 +39,7 @@ MAX_SLUG_LENGTH = 60
 TOPIC_ID_PREFIX = "topic-"
 
 
-TOPIC_KINDS = ("tutorial", "commentary")
+TOPIC_KINDS = ("tutorial", "commentary", "correction")
 
 
 class TopicInputError(ValueError):
@@ -64,8 +64,12 @@ class TopicSpec:
         search: Optional search the content research measures this topic
             by, where the title is too long for Google Trends. No render
             reads it.
-        kind: "tutorial" (the default: a step list and a how-to script) or
-            "commentary" (an opinion take with no steps, REQ-CNT-166).
+        kind: "tutorial" (the default: a step list and a how-to script),
+            "commentary" (an opinion take with no steps, REQ-CNT-166) or
+            "correction" (a commentary that corrects a published record,
+            REQ-CNT-175).
+        corrects: The published record a correction corrects; set exactly
+            when `kind` is "correction".
 
     """
 
@@ -74,6 +78,7 @@ class TopicSpec:
     keywords: list[str] = field(default_factory=list)
     search: str = ""
     kind: str = "tutorial"
+    corrects: str = ""
 
     def __post_init__(self) -> None:
         """Validate here so `--topic` and a topics file behave identically.
@@ -89,6 +94,11 @@ class TopicSpec:
             raise TopicInputError(
                 f"Topic kind must be one of {', '.join(TOPIC_KINDS)}, got {self.kind!r}"
             )
+        self.corrects = (self.corrects or "").strip()
+        if self.kind == "correction" and not self.corrects:
+            raise TopicInputError("A correction names the record it corrects")
+        if self.corrects and self.kind != "correction":
+            raise TopicInputError("'corrects' applies to a topic of kind correction")
 
 
 def topic_slug(title: str) -> str:
@@ -150,7 +160,8 @@ def build_topic_product(spec: TopicSpec) -> ProductData:
         keyword=", ".join(spec.keywords),
         asin=topic_product_id(spec.title),
         topic=spec.title,
-        topic_kind="commentary" if spec.kind == "commentary" else None,
+        topic_kind=spec.kind if spec.kind in ("commentary", "correction") else None,
+        corrects=spec.corrects or None,
     )
 
 
@@ -184,7 +195,12 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     if not isinstance(kind, str):
         raise TopicInputError(f"{where}: 'kind' must be a string")
 
-    unknown = set(entry) - {"title", "description", "keywords", "search", "kind"}
+    corrects = entry.get("corrects", "")
+    if not isinstance(corrects, str):
+        raise TopicInputError(f"{where}: 'corrects' must be a string")
+
+    allowed = {"title", "description", "keywords", "search", "kind", "corrects"}
+    unknown = set(entry) - allowed
     if unknown:
         # Strict, because a typo in a hand-written file would otherwise cost a
         # render before anyone noticed the field never applied.
@@ -199,6 +215,7 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
             keywords=list(keywords),
             search=search.strip(),
             kind=kind.strip(),
+            corrects=corrects,
         )
     except TopicInputError as exc:
         raise TopicInputError(f"{where}: {exc}") from None
@@ -259,6 +276,7 @@ def specs_from_args(
     topic_keywords: str | None,
     topics_file: Path | None,
     topic_kind: str | None = None,
+    corrects: str | None = None,
 ) -> list[TopicSpec]:
     """Resolve the topic CLI flags into specs.
 
@@ -277,6 +295,8 @@ def specs_from_args(
         raise TopicInputError(
             "--topic-kind applies to --topic; set 'kind' per entry in a topics file"
         )
+    if corrects and topic_kind != "correction":
+        raise TopicInputError("--corrects needs --topic-kind correction")
     if topics_file is not None:
         return load_topics_file(topics_file)
     if topic is None:
@@ -291,8 +311,23 @@ def specs_from_args(
                 k.strip() for k in (topic_keywords or "").split(",") if k.strip()
             ],
             kind=topic_kind or "tutorial",
+            corrects=corrects or "",
         )
     ]
+
+
+def _require_published(record_id: str, outputs_dir: Path) -> None:
+    """Refuse a correction of a record with no row in the publish history.
+
+    A row, queued or published, is what a correction's first comment links
+    back to (REQ-CNT-175); with none there is nothing to correct.
+    """
+    from src.publisher.tracking import has_any_publish_record
+
+    if not has_any_publish_record(record_id, outputs_dir):
+        raise TopicInputError(
+            f"A correction names {record_id!r}, which has no queued or published post"
+        )
 
 
 def materialise_topics(
@@ -325,6 +360,10 @@ def materialise_topics(
         data_path = Path(config.get_product_paths(product_id, profile)["scraped_data"])
         if outputs_dir is not None:
             data_path = Path(outputs_dir) / product_id / data_path.name
+        if spec.corrects:
+            _require_published(
+                spec.corrects, Path(outputs_dir or data_path.parent.parent)
+            )
         topic_dir = data_path.parent
         topic_dir.mkdir(parents=True, exist_ok=True)
         data_path.write_text(

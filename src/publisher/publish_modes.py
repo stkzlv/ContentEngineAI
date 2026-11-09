@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from src.publisher.first_comment import build_first_comment
+from src.publisher.first_comment import build_first_comment, resolve_correction_links
 from src.publisher.metadata import METADATA_PLATFORM_ORDER, load_platform_metadata
 from src.publisher.models import Platform
 from src.publisher.youtube_caption import youtube_metadata
@@ -24,6 +24,7 @@ def _build_platform_contents_with_comments(
     product_id: str,
     outputs_dir: Path,
     metadata_by_platform: dict[str, Any] | None = None,
+    correction_links: dict[str, tuple[str, str | None]] | None = None,
 ) -> dict[str, dict[str, str]] | None:
     """Build platform_contents dict with first comments injected.
 
@@ -73,7 +74,12 @@ def _build_platform_contents_with_comments(
                 entry["title"] = title
         if fc_config is not None and comments_enabled:
             comment = build_first_comment(
-                fc_config, platform_name, product_id, outputs_dir, metadata=meta
+                fc_config,
+                platform_name,
+                product_id,
+                outputs_dir,
+                metadata=meta,
+                correction_links=correction_links,
             )
             if comment:
                 entry["first_comment"] = comment
@@ -212,6 +218,9 @@ async def _publish_unified(
         platforms,
         product_id,
         outputs_dir,
+        correction_links=await resolve_correction_links(
+            publisher, product_id, outputs_dir, [p["platform"] for p in platforms]
+        ),
         metadata_by_platform={p["platform"]: metadata for p in platforms},
     )
 
@@ -284,6 +293,9 @@ async def _publish_platform_specific(
             [p_info],
             product_id,
             outputs_dir,
+            correction_links=await resolve_correction_links(
+                publisher, product_id, outputs_dir, [platform_name]
+            ),
             metadata_by_platform={platform_name: metadata},
         )
 

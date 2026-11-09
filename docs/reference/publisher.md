@@ -328,6 +328,7 @@ The Lnk.Bio protocol is described in [the Lnk.Bio API notes](lnkbio-api.md).
 | `enabled` | bool | `false` | `true` | Post a first comment on each YouTube and Instagram post. TikTok is always skipped. |
 | `move_hashtags_to_comment` | bool | `false` | | Move Instagram hashtags from the caption into the comment, as `{hashtags}`. |
 | `platforms` | map | `{}` | see below | Platform name to comment template. |
+| `correction_template` | str | `Corrects: {original_title} {original_url}` | same | A correction's first comment, used instead of the platform template: the corrected post's title from the product registry and its URL on that platform, read from the provider through the publish history. Without a URL yet (the original still scheduled) it posts the title alone and logs a warning. A post's own `first_comment` still wins (REQ-PUB-166). |
 
 Bundled templates: `{closing_line}` for both `youtube` and `instagram`. An installation with a bio link sets its own Instagram template in `config/publisher.private.yaml`, such as the product title followed by a link-in-bio pointer.
 

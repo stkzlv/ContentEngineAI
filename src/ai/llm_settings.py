@@ -322,6 +322,9 @@ class ScriptTemplateConfig(BaseModel):
     # Empty narrator or CTA lists keep the topic ones; empty templates refuse
     # the render, since a tutorial template would write a how-to.
     commentary_templates: list[str] = Field(default_factory=list)
+    # Templates a correction topic draws (REQ-CNT-175), in the commentary
+    # narrator, CTAs and length.
+    correction_templates: list[str] = Field(default_factory=list)
     narrator_profile_commentary: str = ""
     cta_options_commentary: list[str] = Field(default_factory=list)
     # Conversational delivery written into the script. Off (intensity 0)

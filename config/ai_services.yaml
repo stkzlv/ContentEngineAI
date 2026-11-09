@@ -421,6 +421,11 @@ llm_settings:
     # overlay.
     commentary_templates:
       - commentary_take
+    # A topic marked `kind: correction` (REQ-CNT-175) draws these, in the
+    # commentary narrator, CTAs and length: what the earlier video said, the
+    # right fact with its source, what changes, and no closing question.
+    correction_templates:
+      - correction
 
     # Narrator direction for topic scripts. The default profile below is
     # written for someone describing a thing they bought. A topic script has

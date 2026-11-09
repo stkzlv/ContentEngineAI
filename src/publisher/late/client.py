@@ -838,6 +838,7 @@ class LatePublisher(BasePublisher):
                 error_message = p.get("errorMessage")
                 error_category = p.get("errorCategory")
                 specific = p.get("platformSpecificData")
+                post_url = p.get("platformPostUrl")
             else:
                 platform = str(getattr(p, "platform", "")).split(".")[-1].lower()
                 ppid = getattr(p, "platformPostId", None)
@@ -847,6 +848,7 @@ class LatePublisher(BasePublisher):
                 error_message = getattr(p, "errorMessage", None)
                 error_category = getattr(p, "errorCategory", None)
                 specific = getattr(p, "platformSpecificData", None)
+                post_url = getattr(p, "platformPostUrl", None)
             out.append(
                 {
                     "platform": platform,
@@ -856,6 +858,10 @@ class LatePublisher(BasePublisher):
                     "error_message": error_message,
                     "error_category": error_category,
                     "first_comment_sent": _first_comment_sent(specific),
+                    # None until the leg is live; a correction's first comment
+                    # links it (REQ-PUB-166).
+                    # The SDK model types it as a URL object, not a string.
+                    "platform_post_url": str(post_url) if post_url else None,
                 }
             )
         return out

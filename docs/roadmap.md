@@ -64,7 +64,7 @@ A switch that asks commentary scripts for one comparison built from the detail's
 
 ### H.9 Correction topics (Next)
 
-A topic kind that corrects a published record: a short correction in the commentary identity, with a first comment naming the original post and giving its URL. #807, [design 0035](design/0035-correction-topics.md).
+A topic kind that corrects a published record: a short correction in the commentary identity, with a first comment naming the original post and giving its URL. #807, [design 0035](design/0035-correction-topics.md). Shipped: `kind: correction` with `corrects`.
 
 **Done when:** a correction of a published record renders and its first comment names the original, and a correction of a record never queued is refused.
 

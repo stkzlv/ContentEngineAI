@@ -114,6 +114,8 @@ class BaseProductData:
     # "commentary" for a topic rendered as an opinion take rather than a
     # tutorial (REQ-CNT-166); None for a tutorial topic and for a product.
     topic_kind: str | None = None
+    # For a correction, the published record it corrects (REQ-CNT-175).
+    corrects: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and setup."""
@@ -158,6 +160,7 @@ class BaseProductData:
             "pillar": self.pillar,
             "topic": self.topic,
             "topic_kind": self.topic_kind,
+            "corrects": self.corrects,
         }
 
 
