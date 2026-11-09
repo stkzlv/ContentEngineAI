@@ -42,6 +42,7 @@ class _FakeScraper:
             dead_queries=[],
             throttled_inputs=[],
             inter_input_delay_sec=lambda: 0.0,
+            stopped=False,
         )
         self.processed: list[str] = []
         _FakeScraper.calls = []

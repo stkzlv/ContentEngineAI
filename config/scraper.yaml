@@ -111,6 +111,11 @@ global_settings:
     # cases: a rate limit affecting only this input has had several minutes
     # to clear before the verdict lands.
     dead_query_after: 3
+    # Fresh-session retries after a captcha or bare-title page. Such a page
+    # follows the browser session: a new session a minute later got through.
+    # One more in a row than this, with no success between, stops the run's
+    # browsing.
+    session_block_retries: 1
 
   # ---- Image Processing Configuration ----
   # Controls image quality requirements and validation thresholds

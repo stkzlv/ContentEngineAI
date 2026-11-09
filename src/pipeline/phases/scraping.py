@@ -12,9 +12,12 @@ from time import sleep
 
 from src.pipeline.config import GlobalBatchConfig, ScrapingPhaseSummary
 from src.scraper.base.keyword_pillars import pillar_for as keyword_pillar_for
+from src.scraper.base.throttle import SESSION_BLOCK_KINDS
 from src.utils.outputs_paths import media_on_disk
 
 logger = logging.getLogger(__name__)
+
+SESSION_BLOCKS = frozenset(kind.value for kind in SESSION_BLOCK_KINDS)
 
 
 async def run_scraping_phase(
@@ -120,7 +123,36 @@ async def run_scraping_phase(
     total_images = 0
     total_videos = 0
 
+    def search(input_item: str) -> dict:
+        """One input's page-1 result, retried in a fresh session on a
+        session block while the tracker allows it (REQ-SCR-083).
+        """
+        while True:
+            try:
+                entries = scraper.scrape_batch_browser(
+                    [input_item],
+                    search_params=config.scraper_filters,
+                    skip_asins=published_ids,
+                )
+            except Exception as e:
+                logger.error("Browser scrape failed for %s: %s", input_item, e)
+                if config.fail_fast:
+                    raise
+                return {}
+            entry = next((e for e in entries if e.get("input") == input_item), {})
+            if entry.get("failure_kind") in SESSION_BLOCKS and not (
+                scraper.throttle.stopped
+            ):
+                continue
+            return entry
+
     for idx, input_item in enumerate(all_inputs, 1):
+        if scraper.throttle.stopped:
+            logger.warning(
+                "Stopped browsing on a block page with %s inputs not tried.",
+                len(all_inputs) - idx + 1,
+            )
+            break
         if len(successful_products) >= config.max_products:
             logger.info(
                 "Reached max_products limit (%s). "
@@ -149,18 +181,7 @@ async def run_scraping_phase(
         # inputs: back-to-back searches are what draws the block.
         if idx > 1:
             sleep(scraper.throttle.inter_input_delay_sec())
-        try:
-            entries = scraper.scrape_batch_browser(
-                [input_item],
-                search_params=config.scraper_filters,
-                skip_asins=published_ids,
-            )
-        except Exception as e:
-            logger.error("Browser scrape failed for %s: %s", input_item, e)
-            if config.fail_fast:
-                raise
-            entries = []
-        entry = next((e for e in entries if e.get("input") == input_item), {})
+        entry = search(input_item)
 
         raw_products, saw_published = take_new(entry)
         # Whether a product the run could render reached validation: an
@@ -199,7 +220,11 @@ async def run_scraping_phase(
                 ).get("batch_processing", {})
                 max_retry_pages = batch_cfg.get("max_retry_pages", 5)
                 page = 2
-                while len(products) < per_input_limit and page <= max_retry_pages:
+                while (
+                    len(products) < per_input_limit
+                    and page <= max_retry_pages
+                    and not scraper.throttle.stopped
+                ):
                     remaining = per_input_limit - len(products)
                     logger.info(
                         "Retrying %s page %d (%d/%d validated)",

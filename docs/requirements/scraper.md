@@ -75,8 +75,8 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
   - Why: a narrow window gets the mobile layout, which has no extractable product cards.
 - **REQ-SCR-081** `planned #814` Where `scrapers.amazon.consistent_identity` is on, the scraper presents as one returning browser: the browser's own user agent, a persistent profile that keeps cookies between runs, a window size fixed per profile, and product pages opened from the results page rather than by a fresh navigation; REQ-SCR-039 then no longer applies, and the fixed window is still at least 1280 pixels wide (REQ-SCR-041).
   - Why: the library's random user agents name a browser far older than the installed one while the client hints report the real version, and a cookie-less new visitor on every run is easy to flag.
-- **REQ-SCR-082** `planned #812` After every navigation (search, product page, return to the results), the scraper classifies the page as results, product, error page, captcha, interstitial, bare-title page, not found or unknown, and treats the error page, captcha, interstitial and bare-title page as blocks rather than as pages with no products.
-- **REQ-SCR-083** `planned #812` If a page is a captcha or a bare-title page, the scraper stops browsing for the run and names the block in its summary; an error page or an interstitial goes to the throttle tracker, which retries or rules the query dead as REQ-SCR-044 to REQ-SCR-046 state.
+- **REQ-SCR-082** `shipped` After every navigation (search, product page, return to the results), the scraper classifies the page as results, product, error page, captcha, interstitial, bare-title page, not found or unknown, and treats the error page, captcha, interstitial and bare-title page as blocks rather than as pages with no products.
+- **REQ-SCR-083** `shipped` If a page is a captcha or a bare-title page, the scraper ends that browser session and retries the input once in a fresh session; when such a page comes back with no success in between (`rate_limiting.session_block_retries`, default 1), it stops browsing for the run and names the block in its summary. An error page or an interstitial goes to the throttle tracker, which retries or rules the query dead as REQ-SCR-044 to REQ-SCR-046 state.
 - **REQ-SCR-042** `shipped` If one input fails, the scraper continues with the next input.
 - **REQ-SCR-043** `shipped` When `--fail-fast` is passed, the scraper stops at the first failed input.
 - **REQ-SCR-070** `shipped` `batch.fail_fast` in `scraper.yaml` sets whether the scraper stops at the first failed input, and `--fail-fast` or `--no-fail-fast` overrides it for one run.
@@ -87,7 +87,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-048** `shipped` The scraper's run summary lists dead queries and throttled inputs separately.
 - **REQ-SCR-049** `shipped` If a run scrapes no product, the scraper exits non-zero.
 - **REQ-SCR-050** `shipped` When `--strict` is passed, the scraper also exits non-zero if any product id or keyword produced nothing.
-- **REQ-SCR-087** `planned #812` When a search or product page yields nothing, the scraper logs at normal level which page kind it saw and, for a results page, how many cards it found and skipped.
+- **REQ-SCR-087** `shipped` When a search or product page yields nothing, the scraper logs at normal level which page kind it saw and, for a results page, how many cards it found and skipped.
 - **REQ-SCR-071** `shipped` When `--debug` or `--verbose` is passed, or `global_settings.debug_mode` is true, the scraper runs a visible browser and logs at debug level.
 - **REQ-SCR-072** `shipped` While debug mode is on, when the site shows its error page or a search page yields no product cards, the scraper saves a screenshot, unless `global_settings.debug_settings.save_error_screenshots` is false.
 

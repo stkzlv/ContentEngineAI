@@ -653,29 +653,30 @@ class TestTheErrorPageIsCheckedOnEveryArmAndEveryMode:
             return None
 
     def test_the_helper_raises_on_the_error_page(self) -> None:
-        from src.scraper.amazon.browser_functions import raise_if_error_page
+        from src.scraper.amazon.page_kind import raise_if_blocked
 
         with pytest.raises(RuntimeError, match="Amazon error page"):
-            raise_if_error_page(self._Driver())
+            raise_if_blocked(self._Driver())
 
     def test_a_normal_page_passes(self) -> None:
-        from src.scraper.amazon.browser_functions import raise_if_error_page
+        from src.scraper.amazon.page_kind import raise_if_blocked
 
         driver = self._Driver()
         driver.title = "Amazon.com: usb hub"
+        driver.current_url = "https://www.amazon.com/s?k=usb+hub"
 
-        raise_if_error_page(driver)
+        raise_if_blocked(driver)
 
     def test_an_unreadable_title_is_not_an_error_page(self) -> None:
         """A driver that cannot be read is a different failure entirely."""
-        from src.scraper.amazon.browser_functions import raise_if_error_page
+        from src.scraper.amazon.page_kind import raise_if_blocked
 
         class _Broken:
             @property
             def title(self):
                 raise RuntimeError("session closed")
 
-        raise_if_error_page(_Broken())
+        raise_if_blocked(_Broken())
 
     def test_the_module_level_single_product_helper_checks_too(self) -> None:
         """No caller today, but it is the fourth navigation in the module."""
@@ -807,8 +808,9 @@ class TestTheStandaloneWrapperLetsTheErrorPageOut:
 
         func = self._inner(monkeypatch, impl)
 
-        assert func({"keyword": "usb hub"}) is None
-        assert len(calls) > 1, "swallowed and retried, as the type exists to avoid"
+        # Swallowed by the wrapper as any other failure: only the type is
+        # let out, so the caller's backoff never sees this one.
+        assert func({"keyword": "usb hub"}) == []
         assert issubclass(
             AmazonErrorPageError, RuntimeError
         ), "the caller catches RuntimeError; the type must stay a subclass"

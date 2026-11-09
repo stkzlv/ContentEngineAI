@@ -48,6 +48,10 @@ def _scraper(tmp_path: Path, keywords_block):
     scraper.output_dir = str(tmp_path)
     scraper.debug_mode = False
     scraper.logger = MagicMock()
+    # The constructor always sets one; the batch loops read it per input.
+    from src.scraper.base.throttle import ThrottleTracker
+
+    scraper.throttle = ThrottleTracker()
     return scraper
 
 

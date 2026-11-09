@@ -20,6 +20,7 @@ import pytest
 
 from src.scraper.amazon import browser_functions
 from src.scraper.amazon.browser_functions import scrape_amazon_products_browser_impl
+from src.scraper.base.throttle import PageKind
 
 
 @pytest.mark.parametrize("debug_mode", [False, True])
@@ -89,7 +90,9 @@ def test_a_published_search_result_is_passed_over_without_taking_a_slot(
     from types import SimpleNamespace
 
     cards = [MagicMock(name=asin) for asin in ("B0PUB", "B0NEW", "B0LATER")]
-    monkeypatch.setattr(browser_functions, "raise_if_error_page", lambda _d: None)
+    monkeypatch.setattr(
+        browser_functions, "raise_if_blocked", lambda _d: PageKind.RESULTS
+    )
     monkeypatch.setattr(
         browser_functions,
         "extract_serp_product_info",
