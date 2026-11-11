@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.4] - 2026-11-11
+
+### Fixed
+
+- The analytics sweep stops asking for YouTube watch figures after the first rate-limit refusal instead of failing once per post, keeps the stored figures, and the schedule example says to run it early in the Pacific day, when the provider's shared YouTube Analytics quota has reset.
+
 ## [0.239.3] - 2026-11-09
 
 ### Fixed
