@@ -166,7 +166,7 @@ Per-platform quality metrics come from the provider's per-post analytics and are
 
 | Platform | Stored | Stored as unknown |
 |---|---|---|
-| YouTube | `views`, `likes`, `comments`; from the per-video daily stats, `avgViewPercentage` and `avgViewDurationSec` (view-weighted) and `subscribersGained` (unknown until the video has views) | `engagedViews`, `viewedVsSwipedAway`, `averageViewDuration` |
+| YouTube | `views`, `likes`, `comments`; from the per-video daily stats, `avgViewPercentage` and `avgViewDurationSec` (view-weighted) and `subscribersGained` (unknown until the video has views; after a rate-limit refusal the sweep stops asking and keeps the stored values) | `engagedViews`, `viewedVsSwipedAway`, `averageViewDuration` |
 | TikTok | `views`, `likes`, `comments`, `shares` | `averageWatchTime`, `completionRate` |
 | Instagram | `views`, `reach`, `likes`, `comments`, `shares`, `saves`, `igReelsAvgWatchTime` (ms), `igReelsVideoViewTotalTime` (ms), `reelsSkipRate` (%) | |
 

@@ -18,7 +18,7 @@ import asyncio
 import json
 import logging
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,7 +27,7 @@ import aiohttp
 import httpx
 from aiohttp.client_exceptions import ClientError
 from dotenv import load_dotenv
-from late import LateError
+from late import LateError, LateRateLimitError
 
 from src.publisher.analytics import (
     duration_band,
@@ -340,15 +340,37 @@ def _analytics_limit(args: argparse.Namespace, config: PublisherConfig) -> int:
     return config.analytics_config.limit
 
 
+@dataclass
+class _YouTubeQuota:
+    """Whether YouTube Analytics refused this sweep, and how many posts it cost.
+
+    The provider reads YouTube Analytics through a Google project whose daily
+    quota it shares between customers. Once that quota is spent every later
+    call is refused until it resets, so one refusal ends the calls for the
+    rest of the sweep instead of repeating it once per post.
+    """
+
+    exhausted: bool = False
+    skipped: int = 0
+
+
 def _with_youtube_retention(
-    resource: Any, measured: Any, platforms: Any, published: str
+    resource: Any,
+    measured: Any,
+    platforms: Any,
+    published: str,
+    quota: _YouTubeQuota | None = None,
 ) -> Any:
     """Add YouTube watch figures from the per-video daily stats (REQ-PUB-163).
 
     A failed call keeps the post's other figures; the fields stay as stored.
+    After a rate-limit refusal the call is skipped for the rest of the sweep.
     """
     leg = youtube_leg(platforms)
     if leg is None:
+        return measured
+    if quota is not None and quota.exhausted:
+        quota.skipped += 1
         return measured
     video_id, account_id = leg
     start = (published or "")[:10] or None
@@ -359,6 +381,18 @@ def _with_youtube_retention(
             start_date=start,
             end_date=str(datetime.now(UTC).date()),
         )
+    except LateRateLimitError as exc:
+        logger.warning(
+            "YouTube Analytics refused %s with a rate limit (%s). The provider "
+            "shares a daily Google quota that resets at midnight Pacific time; "
+            "skipping the YouTube watch figures for the rest of this sweep, "
+            "stored values kept",
+            measured.post_id,
+            exc,
+        )
+        if quota is not None:
+            quota.exhausted = True
+        return measured
     except (LateError, httpx.HTTPError, ValueError) as exc:
         logger.warning("No YouTube daily stats for %s: %s", measured.post_id, exc)
         return measured
@@ -500,6 +534,7 @@ async def cmd_analytics(
         # which is why two keys are read -- would skip every post, leave the
         # count at zero, and slip past the guard the count exists to feed.
         attempted = len(posts[:limit])
+        quota = _YouTubeQuota()
         for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
@@ -544,9 +579,15 @@ async def cmd_analytics(
             except (LateError, httpx.HTTPError, ValueError) as exc:
                 logger.warning("No per-platform analytics for %s: %s", post_id, exc)
             measured = _with_youtube_retention(
-                resource, measured, platforms, publish_time(post)
+                resource, measured, platforms, publish_time(post), quota
             )
             metrics.append(measured)
+        if quota.skipped:
+            logger.warning(
+                "Skipped the YouTube daily stats for %d more post(s) after the "
+                "rate limit",
+                quota.skipped,
+            )
         # Every post failing is a broken sweep, not a quiet one, and the whole
         # scheduled setup detects trouble only through a failed unit: exiting 0
         # here would satisfy the installer's proof-of-life, keep the timer
