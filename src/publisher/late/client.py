@@ -301,7 +301,8 @@ class LatePublisher(BasePublisher):
         From SDK 1.4 a POST that times out raises at once instead of being
         retried, because replaying a post creation could publish twice. A
         repeated upload only stores another copy of the file, so the
-        publisher's own retry takes the timeout over for uploads.
+        publisher's own retry takes the timeout over. Large uploads go to
+        Vercel Blob, outside the SDK's POST path, and don't need this.
         """
         try:
             return await self._call_sdk(method, *args, **kwargs)
@@ -1118,7 +1119,7 @@ class LatePublisher(BasePublisher):
 
                 async def _upload_large():
                     logger.info("Starting large file upload...")
-                    result = await self._upload_call(
+                    result = await self._call_sdk(
                         self.client.media.upload_large,
                         str(video_path),
                         vercel_token=self.vercel_token,

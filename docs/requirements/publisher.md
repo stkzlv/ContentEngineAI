@@ -21,7 +21,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 
 - **REQ-PUB-009** `shipped` The publisher config can define several named provider accounts under `accounts`, with `default_account` naming the one used when none is chosen.
 - **REQ-PUB-010** `shipped` The `--account NAME` option selects the provider account a run uses.
-- **REQ-PUB-011** `shipped` The number of API retries (`max_retries`, default 3) and the request timeout (`timeout`, default 120 seconds) are set in the publisher config. A timed-out upload is retried; a timed-out post creation is not, because the provider may already have created the post and a replay could publish it twice.
+- **REQ-PUB-011** `shipped` The number of API retries (`max_retries`, default 3) and the request timeout (`timeout`, default 120 seconds) are set in the publisher config. A direct upload (a video up to 4 MB, or a cover) that times out is retried; a timed-out post creation is not, because the provider may already have created the post and a replay could publish it twice.
 - **REQ-PUB-012** `shipped` If `config/publisher.yaml` exists and cannot be read or parsed, the publisher stops instead of applying defaults.
   - Why: the defaults publish immediately, so falling back on a parse error turns a scheduled run into a live one.
 - **REQ-PUB-013** `shipped` If one recurring slot in the config is invalid, the publisher skips that slot with a warning and keeps the others.

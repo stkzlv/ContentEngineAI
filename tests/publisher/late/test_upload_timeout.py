@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from late.client.exceptions import LateTimeoutError
 
+from src.publisher.base import PublishError
 from src.publisher.late.client import LatePublisher
 
 pytestmark = pytest.mark.req("REQ-PUB-003", "REQ-PUB-011")
@@ -42,16 +43,19 @@ async def test_a_timed_out_upload_is_retried(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_a_timed_out_post_creation_is_not_retried():
+    # Through publish(), so a later change that routes creation through the
+    # upload wrapper fails here: a replayed creation can publish twice.
     publisher = _publisher()
     publisher.client.posts.create.side_effect = LateTimeoutError("timed out")
 
-    async def create():
-        return await publisher._call_sdk(publisher.client.posts.create, content="c")
-
     with (
         patch("src.publisher.late.client.asyncio.sleep", new_callable=AsyncMock),
-        pytest.raises(LateTimeoutError),
+        pytest.raises(PublishError),
     ):
-        await publisher._retry_with_backoff(create, "Create post")
+        await publisher.publish(
+            media_id="https://blob.test/v.mp4",
+            platforms=[{"platform": "youtube", "account_id": "acc_yt"}],
+            platform_contents={"youtube": {"content": "A caption", "title": "A title"}},
+        )
 
     assert publisher.client.posts.create.call_count == 1
