@@ -17,6 +17,7 @@ import aiohttp
 import httpx
 import pydantic
 from late import Late, LateError
+from late.client.exceptions import LateTimeoutError
 from late.models import PostGetResponse, PostsListResponse
 
 from src.publisher.base import (
@@ -293,6 +294,20 @@ class LatePublisher(BasePublisher):
         if self._should_close_session and self._session:
             await self._session.close()
             self._session = None
+
+    async def _upload_call(self, method: Callable, *args: Any, **kwargs: Any) -> Any:
+        """Call an SDK upload method, reporting its timeout as a retryable one.
+
+        From SDK 1.4 a POST that times out raises at once instead of being
+        retried, because replaying a post creation could publish twice. A
+        repeated upload only stores another copy of the file, so the
+        publisher's own retry takes the timeout over. Large uploads go to
+        Vercel Blob, outside the SDK's POST path, and don't need this.
+        """
+        try:
+            return await self._call_sdk(method, *args, **kwargs)
+        except LateTimeoutError as exc:
+            raise TimeoutError(str(exc)) from exc
 
     async def _retry_with_backoff(
         self,
@@ -1082,7 +1097,7 @@ class LatePublisher(BasePublisher):
                 logger.info("Using direct upload for small file")
 
                 async def _upload_small():
-                    result = await self._call_sdk(
+                    result = await self._upload_call(
                         self.client.media.upload, str(video_path)
                     )
                     _log_progress(file_size, file_size)
@@ -1161,7 +1176,7 @@ class LatePublisher(BasePublisher):
                 raise UploadError(f"cover is {size} bytes, over the direct upload")
 
             async def _upload():
-                return await self._call_sdk(self.client.media.upload, str(image))
+                return await self._upload_call(self.client.media.upload, str(image))
 
             url = self._media_url(
                 await self._retry_with_backoff(_upload, f"Upload {image.name}")

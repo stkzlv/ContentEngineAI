@@ -1283,6 +1283,27 @@ files = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.9.2"
+description = "DNS toolkit"
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = [
+    {file = "dnspython-2.9.2-py3-none-any.whl", hash = "sha256:af15f7d385a6ae2fb35a796fde2138004c8c42c7389090e2addc83e3b3340fd8"},
+    {file = "dnspython-2.9.2.tar.gz", hash = "sha256:8d4d39a513e649d634004ce4d39ade2352efcea472a0247535a5c2d18a9d7ba9"},
+]
+
+[package.extras]
+dev = ["black (>=26.5)", "coverage (>=7.15)", "hypercorn (>=0.18.0)", "pyright (>=1.1.411)", "pytest (>=9.1)", "pytest-cov (>=7.1)", "quart-trio (>=0.12.0)", "ruff (>=0.16.0)", "sphinx (>=9.1.0) ; python_full_version >= \"3.12.0\"", "sphinx-rtd-theme (>=3.1.0) ; python_full_version >= \"3.12.0\"", "trustme (>=1.2.1)", "ty (>=0.0.85)"]
+dnssec = ["cryptography (>=50)"]
+doh = ["h2 (>=4.4)", "httpcore2 (>=2.13)", "httpx2 (>=2.13)"]
+doq = ["aioquic (>=1.3.0)"]
+idna = ["idna (>=3.20)"]
+trio = ["trio (>=0.34)"]
+wmi = ["wmi (>=1.5.1) ; sys_platform == \"win32\""]
+
+[[package]]
 name = "dparse"
 version = "0.6.4"
 description = "A parser for Python dependency files"
@@ -1302,6 +1323,22 @@ all = ["pipenv", "poetry", "pyyaml"]
 conda = ["pyyaml"]
 pipenv = ["pipenv"]
 poetry = ["poetry"]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+description = "A robust email address syntax and deliverability validation library."
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4"},
+    {file = "email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426"},
+]
+
+[package.dependencies]
+dnspython = ">=2.0.0"
+idna = ">=2.0.0"
 
 [[package]]
 name = "et-xmlfile"
@@ -2217,14 +2254,14 @@ drafts = ["pycryptodome"]
 
 [[package]]
 name = "late-sdk"
-version = "1.3.60"
+version = "1.4.1719"
 description = "The official Python library for the Zernio API"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "late_sdk-1.3.60-py3-none-any.whl", hash = "sha256:8b3b98e5b59e5fada628245b26f81f2def9224f17a9e19f80c352726a3a8cf4a"},
-    {file = "late_sdk-1.3.60.tar.gz", hash = "sha256:875c7d5b5c098f5258c7debff6f40f06b742f7b9b95ba25007d4ddc2517b487a"},
+    {file = "late_sdk-1.4.1719-py3-none-any.whl", hash = "sha256:5baa1e938caf7728abdfdb8fadcbb99fd0c8c71cc127aed644783f9e198f8fdf"},
+    {file = "late_sdk-1.4.1719.tar.gz", hash = "sha256:e36fc5c9f739c9ef1e889e7a5bb49c6661407385fe52fd04f2eac3312041f86f"},
 ]
 
 [package.dependencies]
@@ -2235,8 +2272,8 @@ pydantic = ">=2.0.0"
 ai = ["openai (>=1.0.0)"]
 all = ["anthropic (>=0.40.0)", "mcp (>=1.8.0)", "openai (>=1.0.0)"]
 anthropic = ["anthropic (>=0.40.0)"]
-dev = ["datamodel-code-generator (>=0.26.0)", "mypy (>=1.13.0)", "pytest (>=8.0.0)", "pytest-asyncio (>=0.24.0)", "pytest-cov (>=6.0.0)", "pyyaml (>=6.0.0)", "respx (>=0.21.0)", "ruff (>=0.8.0)"]
-mcp = ["mcp (>=1.8.0)", "starlette (>=0.42.0)", "uvicorn[standard] (>=0.32.0)"]
+dev = ["datamodel-code-generator (>=0.26.0)", "mcp (>=1.8.0)", "mypy (>=1.13.0)", "pytest (>=8.0.0)", "pytest-asyncio (>=0.24.0)", "pytest-cov (>=6.0.0)", "pyyaml (>=6.0.0)", "respx (>=0.21.0)", "ruff (>=0.8.0)"]
+mcp = ["fastmcp (>=3.1.0)", "mcp (>=1.8.0)", "sentry-sdk (>=2.43.0)", "starlette (>=0.42.0)", "uvicorn[standard] (>=0.32.0)"]
 
 [[package]]
 name = "lazy-loader"
@@ -6721,4 +6758,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "33b2d1a0f7d1066fd19973268f8726162067b58c413466bab319b18574d8c7e7"
+content-hash = "6f926438a88609b1ca7ad4e0d9db5b9a19f21a404b72a082a3d4f9df47557b90"

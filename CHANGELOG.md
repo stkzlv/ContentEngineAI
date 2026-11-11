@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.5] - 2026-11-11
+
+### Changed
+
+- The Zernio SDK is updated from 1.3 to 1.4, with `email-validator` added as a dependency because the 1.4 SDK imports it without declaring it.
+- A post creation that times out is no longer retried, since the provider may already have created it and a replay could publish it twice; a timed-out direct upload (a video up to 4 MB, or a cover) is still retried.
+
 ## [0.239.4] - 2026-11-11
 
 ### Fixed

@@ -1,5 +1,6 @@
 """Tests for Vercel Blob retention policy."""
 
+import typing
 import warnings
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
@@ -124,7 +125,6 @@ async def test_unpublished_urls_read_without_serializer_warnings(monkeypatch):
     from late.models import PostsListResponse
     from late.models._generated.models import (
         PlatformTarget,
-        Post2,
         YouTubePlatformData,
     )
 
@@ -137,7 +137,12 @@ async def test_unpublished_urls_read_without_serializer_warnings(monkeypatch):
             title="t", visibility="public"
         ),
     )
-    post = Post2.model_construct(
+    # The SDK numbers its generated post models, and the numbers move between
+    # releases; take the list's item type from the response model instead.
+    post_model = typing.get_args(
+        typing.get_args(PostsListResponse.model_fields["posts"].annotation)[0]
+    )[0]
+    post = post_model.model_construct(
         status="scheduled",
         platforms=[target],
         mediaItems=[{"type": "video", "url": "https://blob.test/v.mp4"}],
