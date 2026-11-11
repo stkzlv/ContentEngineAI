@@ -22,6 +22,8 @@ from src.publisher.late.cli import (
 )
 from src.publisher.models import AnalyticsConfig, PublisherConfig
 
+pytestmark = pytest.mark.req("REQ-PUB-163")
+
 LEGS = [{"platform": "youtube", "platformPostId": "vid", "accountId": "acc"}]
 
 
