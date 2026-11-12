@@ -68,6 +68,8 @@ Why off, and why shallow:
 - `music_volume_db` already puts the music 27 dB under the voice, so a deep duck on top of it makes the music inaudible rather than unobtrusive.
 - A duck attenuates and never boosts: in a gap the music returns to `music_volume_db`, not above it. Music that rises in voice-free beats needs a louder `music_volume_db` paired with a deeper duck, not the duck alone.
 
+`audio_settings.music_lift` is that pairing behind one switch (off by default, `REQ-CNT-178`, [design 0038](../design/0038-music-lift.md)): the music plays at `gap_volume_db` (-10 dB) between voice lines and the duck, at the lift's `duck_threshold` 0.05 and `duck_ratio` 6, takes about 10.7 dB off under speech, which leaves it about 24 dB below the voice, inside the research's 18-24 dB.
+
 ## Loudness normalization
 
 The assembler masters the finished mix with `loudnorm` (EBU R128), on by default (`REQ-CNT-100`):

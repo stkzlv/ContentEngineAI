@@ -444,6 +444,20 @@ audio_settings:
   music_ducking_attack_ms: 20.0    # Fast enough not to clip the first word
   music_ducking_release_ms: 300.0  # Slow enough not to pump between words
 
+  # Music lift: music rises between voice lines and ducks under them. On, the
+  # music sits at gap_volume_db and the voice-keyed duck above (its attack and
+  # release) uses duck_threshold and duck_ratio, in place of music_volume_db
+  # and music_ducking_threshold/ratio. The research targets music at -6 to
+  # -10 dB in voice-free beats and 18-24 dB below the voice under narration;
+  # the fixed mix holds it 27 dB below throughout. With the defaults, music
+  # sits at -10 dB in the gaps and the duck takes about 10.7 dB off under
+  # speech (the 0.05 / 6 row of the table above), about 24 dB below the voice.
+  music_lift:
+    enabled: false
+    gap_volume_db: -10.0
+    duck_threshold: 0.05
+    duck_ratio: 6.0
+
   # Final loudness normalization (EBU R128), applied to the finished mix.
   # Each platform normalizes on playback, so mastering near the target keeps
   # the video level with the feed around it. Measured before this existed,
