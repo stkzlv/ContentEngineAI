@@ -150,6 +150,22 @@ class TestAgainstTheRealLibrary:
         assert self._lines_of(stock) == ["Tap the", "button"]
         assert self._lines_of(ours) == ["Tap", "the button"]
 
+    def test_the_minimum_line_count_still_splits_a_short_caption(self, pycaps) -> None:
+        # Templates such as line-focus ask for two lines at least.
+        from pycaps.layout import LineSplitter, SubtitleLayoutOptions
+
+        from src.video.pycaps_engine.renderer import _phrase_line_splitter
+
+        options = SubtitleLayoutOptions(max_width_ratio=0.8, min_number_of_lines=2)
+        stock, ours = (
+            self._segment(["Tap", "the", "button"]),
+            self._segment(["Tap", "the", "button"]),
+        )
+        LineSplitter(options)._split_segment_into_lines(stock, 500)
+        _phrase_line_splitter(options)._split_segment_into_lines(ours, 500)
+        assert len(self._lines_of(ours)) == 2
+        assert self._lines_of(ours) == self._lines_of(stock)
+
     def test_the_switch_replaces_the_splitter_after_prepare(self, pycaps) -> None:
         from pycaps.template import TemplateFactory, TemplateLoader
 

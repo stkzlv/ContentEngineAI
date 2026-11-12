@@ -457,10 +457,12 @@ class PycapsSettings(BaseModel):
         default=False,
         description=(
             "Break the lines inside a caption segment by the same phrase "
-            "rules: a line that pycaps would end on an article, preposition "
-            "or auxiliary, or inside a name, ends at an earlier phrase "
-            "boundary when the words it pushes down still fit in the same "
-            "number of lines. Off keeps pycaps' greedy wrap by width."
+            "rules: a line prefers to end after punctuation or before a word "
+            "that opens a phrase, and avoids ending after an article, "
+            "preposition or auxiliary or inside a name, choosing among ends "
+            "no later than pycaps' width wrap and only when the words it "
+            "pushes down still fit in the same number of lines. Off keeps "
+            "pycaps' greedy wrap by width."
         ),
     )
     max_entrance_sec: float | None = Field(
