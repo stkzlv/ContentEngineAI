@@ -1030,10 +1030,10 @@ class ScheduleManager:
             # Nothing on disk at all. Routed through the builder like every
             # other branch, so this caption is recorded and clamped the same
             # way (#408); it used to be a bare literal that skipped both. It
-            # neither discloses nor votes in `carries_affiliate`: with no
-            # record, asserting a material connection would stamp a false
-            # `brand_organic` on a unified topic post whose siblings all say
-            # there is nothing to disclose.
+            # doesn't disclose, and it records no material connection: with
+            # no record, asserting one would stamp a false `brand_organic` or
+            # paid-partnership label on a post whose caption carries no
+            # disclosure, where the posting branches' default would assume one.
             literal = f"Product video for {product_id}"
             platform_metas[p.value] = metadata_from_file(
                 {
@@ -1045,6 +1045,7 @@ class ScheduleManager:
                 p,
             )
             titles[p.value] = literal
+            carries_affiliate[p.value] = False
 
         # Gated like `#ad`, as `publish_product` gates it on the other paths:
         # the phrase claims program membership, so only a disclosing render

@@ -20,6 +20,19 @@ from src.publisher.models import PublisherConfig
 
 pytestmark = pytest.mark.req("REQ-CMP-026")
 
+
+def _refusal() -> LateAPIError:
+    """The refusal as the SDK raises it: the code is in the error envelope."""
+    return LateAPIError(
+        "Paid partnership requires Facebook Login",
+        400,
+        details={
+            "error": "Paid partnership requires Facebook Login",
+            "code": PAID_PARTNERSHIP_LOGIN_ERROR,
+        },
+    )
+
+
 INSTAGRAM = [{"platform": "instagram", "account_id": "acc1"}]
 
 
@@ -89,9 +102,7 @@ def test_only_the_login_refusal_drops_the_flag():
 
     assert not drop_paid_partnership(entries, LateAPIError("other", 400))
     assert entries[0]["platformSpecificData"] == {"isPaidPartnership": True}
-    assert drop_paid_partnership(
-        entries, LateAPIError(PAID_PARTNERSHIP_LOGIN_ERROR, 400)
-    )
+    assert drop_paid_partnership(entries, _refusal())
     assert entries[0]["platformSpecificData"] == {}
 
 
@@ -106,7 +117,7 @@ async def test_a_refused_label_posts_again_without_it(caplog):
     def create(**kwargs):
         sent.append(dict(kwargs["platforms"][0]["platformSpecificData"]))
         if len(sent) == 1:
-            raise LateAPIError(PAID_PARTNERSHIP_LOGIN_ERROR, 400)
+            raise _refusal()
         return MagicMock(post=MagicMock(field_id="post_1"))
 
     publisher.client.posts.create.side_effect = create

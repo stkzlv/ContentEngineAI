@@ -102,3 +102,15 @@ def test_a_borrowed_title_survives_a_missing_listing(tmp_path: Path, data) -> No
     _, titles, _ = captions(tmp_path, video, [Platform.YOUTUBE, Platform.INSTAGRAM])
 
     assert titles["youtube"] == f"Product video for {PRODUCT}"
+
+
+@pytest.mark.req("REQ-CMP-026")
+def test_a_product_with_nothing_on_disk_records_no_material_connection(
+    tmp_path: Path,
+) -> None:
+    video = product_with(tmp_path, {}, data="")
+
+    _, titles, carries = captions(tmp_path, video, [Platform.INSTAGRAM])
+
+    assert titles["instagram"] == f"Product video for {PRODUCT}"
+    assert carries == {"instagram": False}
