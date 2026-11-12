@@ -1,6 +1,6 @@
 # 0019. Explanatory graphics
 
-- **Status:** Accepted
+- **Status:** Held
 - **Issue:** #561
 - **Requirements:** REQ-VID-124, REQ-VID-153, REQ-VID-164
 
@@ -26,7 +26,12 @@ The detailed design is in the issue body, from "Length", "What makes a short tut
 
 ## Alternatives considered
 
-None recorded.
+The issue also listed a menu-path breadcrumb, a callout on a real capture, a spec card for products and a before/after split. None is planned:
+
+- The breadcrumb would never draw: step screens (design 0018) show each step's path and are on, and no graphic is drawn over them.
+- The callout needs a real screen capture, which is not planned either. An Android emulator can record a phone's screen with taps shown, but it runs stock Android, and the tutorial topics are iPhone, Windows, web apps and Samsung phones, whose menus are named differently; a capture would show labels the narration doesn't say, which the step screens' mockups avoid.
+- Before/after has no image source for a tutorial step.
+- A spec card would show values from scraped listing data. A price or star rating shown on a video can't be kept current, and affiliate programs set rules for displaying them.
 
 ## Rollout
 
