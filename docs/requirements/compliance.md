@@ -34,10 +34,12 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 - **REQ-CMP-021** `shipped` If the `tiktok_settings` section is invalid, every TikTok setting falls back to its default with a warning, so the AI-generated-content label stays on.
 - **REQ-CMP-025** `held` Instagram posts carry Instagram's AI-generated-media label, in every payload branch ([design 0027](../design/0027-instagram-ai-label.md)).
   - On when: `instagram_ai_label` is set to true for an installation whose renders meet Meta's bar (photorealistic video or realistic-sounding audio that was digitally created) or that labels its posts voluntarily.
+- **REQ-CMP-026** `held` Where `instagram_paid_partnership` is on, every Instagram post carries Instagram's paid-partnership label, true for a render with a material connection and false for one without, and a post the provider refuses the label for (an account not connected through Facebook Login) is sent again without it, with a warning to set it by hand ([design 0039](../design/0039-instagram-paid-partnership.md)).
+  - On when: `instagram_paid_partnership` is set to true for an installation that publishes renders with a material connection from an Instagram account connected through Facebook Login.
 - **REQ-CMP-017** `shipped` AI disclosure on each platform follows that platform's current rule, recorded with its source.
 - **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice (the bundled config keeps the TikTok label on; an installation whose renders meet TikTok's exemption turns it off in its overlay under [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md)).
 
 ## Manual steps
 
 - **REQ-CMP-019** `shipped` The compliance guide says where an operator states what AI did and what a person did (the profile bio, set by hand) and what the statement must say to stay true.
-- **REQ-CMP-020** `shipped` The compliance guide documents the manual steps for the disclosure settings the publishing provider does not expose: the YouTube paid-promotion checkbox and the Instagram paid-partnership label.
+- **REQ-CMP-020** `shipped` The compliance guide documents the manual steps for the disclosure settings the publishing provider does not expose: the YouTube paid-promotion checkbox, and the Instagram paid-partnership label where `instagram_paid_partnership` is off or the account is on classic Instagram Login.

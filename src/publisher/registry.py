@@ -195,6 +195,7 @@ def create_publisher_from_config(
         first_comment_config=config.first_comment_config,
         synthetic_media_disclosure=config.synthetic_media_disclosure,
         instagram_ai_label=config.instagram_ai_label is True,
+        instagram_paid_partnership=config.instagram_paid_partnership is True,
         # Only a YAML `true`, as the render reads it (REQ-CNT-150).
         youtube_profile_pointer=config.youtube_profile_pointer is True,
         covers_enabled=config.covers_config.enabled,

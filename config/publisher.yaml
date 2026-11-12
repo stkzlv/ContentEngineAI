@@ -340,6 +340,13 @@ synthetic_media_disclosure: false
 # labels its posts voluntarily.
 instagram_ai_label: false
 
+# Instagram's "Paid partnership" label, sent as `isPaidPartnership` on every
+# Instagram post: true for a render with a material connection, false for one
+# without. Needs the Instagram account connected through Facebook Login; the
+# provider refuses it for classic Instagram Login, and the publisher then
+# posts again without it and warns. Off by default.
+instagram_paid_partnership: false
+
 # A link in a YouTube Shorts description can't be clicked. A product video's
 # YouTube description has its URLs removed and, with this on, ends on
 # "Link in bio." when it names no profile link already; the metadata and

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.243.0] - 2026-11-12
+
+### Added
+
+- `instagram_paid_partnership`, off by default, sends Instagram's paid-partnership label from the render's material connection, and posts again without it when the provider refuses it for an account not connected through Facebook Login.
+
 ## [0.242.0] - 2026-11-12
 
 ### Added
