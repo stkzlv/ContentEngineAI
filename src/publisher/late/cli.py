@@ -49,6 +49,7 @@ from src.publisher.audience import (
     save_audience,
     summed_rates,
     sweep_audience,
+    youtube_early_retention,
     youtube_leg,
     youtube_retention,
 )
@@ -402,6 +403,72 @@ def _with_youtube_retention(
     return replace(measured, platform_metrics=figures)
 
 
+def _with_youtube_early_retention(
+    resource: Any,
+    measured: Any,
+    platforms: Any,
+    published: str,
+    stored: dict[str, Any],
+    settings: Any,
+    quota: _YouTubeQuota,
+) -> Any:
+    """Add the YouTube early-retention reading, once per video (REQ-PUB-084).
+
+    Read only once the video is `retention_curve_min_age_days` old and only
+    while no reading is stored, since each call spends the provider's shared
+    YouTube Analytics quota. A failed call or an unusable curve leaves the
+    fields unknown, to be tried again on the next sweep.
+    """
+    leg = youtube_leg(platforms)
+    if leg is None or quota.exhausted:
+        return measured
+    previous = stored.get(measured.post_id)
+    if (
+        previous is not None
+        and previous.platform_metrics.get("youtube", {}).get("earlyWatchingPct")
+        is not None
+    ):
+        return measured
+    try:
+        published_on = datetime.fromisoformat((published or "")[:10]).date()
+    except ValueError:
+        return measured
+    today = datetime.now(UTC).date()
+    if (today - published_on).days < settings.retention_curve_min_age_days:
+        return measured
+    video_id, account_id = leg
+    try:
+        raw = resource.get_you_tube_video_retention(
+            video_id=video_id,
+            account_id=account_id,
+            start_date=str(published_on),
+            end_date=str(today),
+        )
+    except LateRateLimitError as exc:
+        logger.warning(
+            "YouTube Analytics refused the retention curve for %s with a rate "
+            "limit (%s); skipping the YouTube figures for the rest of this sweep",
+            measured.post_id,
+            exc,
+        )
+        quota.exhausted = True
+        return measured
+    except (LateError, httpx.HTTPError, ValueError) as exc:
+        logger.warning("No YouTube retention curve for %s: %s", measured.post_id, exc)
+        return measured
+    reading = youtube_early_retention(raw, settings.early_retention_sec)
+    if reading["earlyWatchingPct"] is None:
+        note = raw.get("note") if isinstance(raw, dict) else None
+        logger.info(
+            "No early-retention reading for %s%s",
+            measured.post_id,
+            f": {note}" if note else "",
+        )
+    figures = dict(measured.platform_metrics)
+    figures["youtube"] = {**figures.get("youtube", {}), **reading}
+    return replace(measured, platform_metrics=figures)
+
+
 def _sweep_audience(publisher: Any, outputs_dir: Path) -> None:
     """Store account-level audience figures (REQ-PUB-162, REQ-PUB-164).
 
@@ -540,6 +607,7 @@ async def cmd_analytics(
         # count at zero, and slip past the guard the count exists to feed.
         attempted = len(posts[:limit])
         quota = _YouTubeQuota()
+        stored = {m.post_id: m for m in load_metrics(outputs_dir)}
         for post in posts[:limit]:
             post_id = post.get("id") or post.get("_id")
             if not post_id:
@@ -585,6 +653,15 @@ async def cmd_analytics(
                 logger.warning("No per-platform analytics for %s: %s", post_id, exc)
             measured = _with_youtube_retention(
                 resource, measured, platforms, publish_time(post), quota
+            )
+            measured = _with_youtube_early_retention(
+                resource,
+                measured,
+                platforms,
+                publish_time(post),
+                stored,
+                config.analytics_config,
+                quota,
             )
             metrics.append(measured)
         if quota.skipped:

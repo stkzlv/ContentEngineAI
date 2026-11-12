@@ -430,3 +430,9 @@ analytics:
   # counts as a breakout in the secondary lines.
   readout_platforms: [youtube, tiktok]
   breakout_multiple: 2.0
+  # The YouTube early-retention read: once a video is this many days old the
+  # sweep reads its retention curve once and stores the share still watching
+  # at early_retention_sec. Each read spends the provider's shared YouTube
+  # Analytics quota.
+  retention_curve_min_age_days: 7
+  early_retention_sec: 3

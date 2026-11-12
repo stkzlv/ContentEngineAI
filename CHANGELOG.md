@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.244.0] - 2026-11-12
+
+### Added
+
+- The analytics sweep reads each YouTube video's retention curve once it is a week old and stores the share of viewers still watching at 3 seconds and YouTube's relative retention score there, and the quality report segments them with the average view percentage.
+
 ## [0.243.1] - 2026-11-12
 
 ### Changed

@@ -21,7 +21,7 @@ The pipeline's renders stay well under every limit; the limit that binds is the 
 - **Instagram views include replays.** The insights API counts every play, and separately reports average watch time and a skip rate (`reels_skip_rate`). The skip rate is described elsewhere as skips in the first 3 seconds; that definition was not confirmed on the rendered API page. [A] for the fields. [Instagram insights](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights/)
 - **TikTok's view definition is not documented** on any official page reachable without a login.
 
-Each render records its final length (`REQ-VID-159`), and the analytics report groups the stored metrics by duration band (`analytics.duration_bands_sec`, `REQ-PUB-084`), so length is judged on the channel's own figures rather than on cross-channel data. The provider doesn't expose engaged views, so YouTube bands read raw views ([design 0010](../design/0010-first-seconds-metrics.md)).
+Each render records its final length (`REQ-VID-159`), and the analytics report groups the stored metrics by duration band (`analytics.duration_bands_sec`, `REQ-PUB-084`), so length is judged on the channel's own figures rather than on cross-channel data. The provider doesn't expose engaged views, so YouTube bands read raw views, the average view percentage and the share still watching at 3 seconds ([design 0010](../design/0010-first-seconds-metrics.md)).
 
 ## What the platforms say they rank on
 

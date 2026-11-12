@@ -235,6 +235,11 @@ class AnalyticsConfig:
     # (REQ-PUB-150, REQ-PUB-152).
     readout_platforms: list[str] = field(default_factory=lambda: ["youtube", "tiktok"])
     breakout_multiple: float = 2.0
+    # The YouTube early-retention read (REQ-PUB-084): once a video is this
+    # many days old the sweep reads its retention curve once and stores the
+    # share still watching at `early_retention_sec`.
+    retention_curve_min_age_days: int = 7
+    early_retention_sec: float = 3.0
 
     def __post_init__(self):
         """Reject a limit that would measure nothing, or break the slice.
@@ -281,6 +286,17 @@ class AnalyticsConfig:
         ):
             raise ValueError(
                 f"analytics.breakout_multiple must be above 1, got {multiple!r}"
+            )
+        age = self.retention_curve_min_age_days
+        if isinstance(age, bool) or not isinstance(age, int) or age < 1:
+            raise ValueError(
+                "analytics.retention_curve_min_age_days must be a whole number "
+                f"of days, at least 1, got {age!r}"
+            )
+        sec = self.early_retention_sec
+        if isinstance(sec, bool) or not isinstance(sec, int | float) or sec <= 0:
+            raise ValueError(
+                f"analytics.early_retention_sec must be above 0, got {sec!r}"
             )
 
     def to_dict(self) -> dict[str, Any]:

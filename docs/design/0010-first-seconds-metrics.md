@@ -50,6 +50,15 @@ Measurement only. It doesn't change rendered output, so it can land before the r
 
 Remove the switch when: never; it is a lasting option, because the YouTube Analytics reader needs credentials of its own that not every operator holds.
 
+## As built
+
+- The provider exposes no YouTube engaged views or viewed-vs-swiped-away, and no TikTok watch time or completion; the TikTok fields need the account connected through TikTok for Business. These stay unknown.
+- The YouTube stand-in is the per-video retention curve the provider returns: once a video is `analytics.retention_curve_min_age_days` old (7), the sweep reads it once and stores `earlyWatchingPct`, the share of viewers still watching at `analytics.early_retention_sec` (3 s), and `earlyRelativeRetention`, YouTube's score there against videos of similar length (0 worst, 0.5 median, 1 best). The reading is the first curve point at or after that second; a curve with no duration, no points, or a gap of more than 5% of the video at that second is unknown and read again on the next sweep. Replays of the opening can put `earlyWatchingPct` above 100.
+- The curve call spends the provider's shared YouTube Analytics quota, so a stored reading is never read again, and a rate-limit refusal ends the YouTube calls for the rest of the sweep, as for the daily stats.
+- On a real sweep, settled videos with views got a reading; videos with very few views got the provider's note that YouTube returned no curve, and stayed unknown.
+- The quality report segments `earlyWatchingPct`, `earlyRelativeRetention` and the daily stats' `avgViewPercentage` beside the exposed fields.
+- No separate YouTube Analytics reader was built.
+
 ## Open questions
 
-- Whether the provider exposes YouTube's viewed-vs-swiped-away and engaged views, which decides whether the YouTube Analytics reader is needed.
+- Whether the retention curve's early reading tracks viewed-vs-swiped-away closely enough that the YouTube Analytics reader is not needed; the provider exposes neither viewed-vs-swiped-away nor engaged views.

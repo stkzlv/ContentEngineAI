@@ -45,6 +45,17 @@ YOUTUBE_RETENTION_FIELDS = (
     "subscribersGained",
 )
 
+# Per-post YouTube fields from the retention curve (REQ-PUB-084): the share of
+# viewers still watching at the configured second, as a percentage (above 100
+# when viewers replay the opening), and YouTube's retention there against
+# videos of similar length (0 worst, 0.5 median, 1 best).
+YOUTUBE_EARLY_RETENTION_FIELDS = ("earlyWatchingPct", "earlyRelativeRetention")
+
+# The widest gap, as a share of the video, between the configured second and
+# the first curve point at or after it; a curve that skips past it has no
+# reading for that second.
+EARLY_RETENTION_MAX_GAP = 0.05
+
 INSTAGRAM_PROFILE_METRICS = ("profile_views", "profile_links_taps")
 
 
@@ -97,6 +108,39 @@ def youtube_retention(daily_views: Any) -> dict[str, float | None]:
         "subscribersGained": (
             None if any(g is None for g in gained) else sum(g or 0.0 for g in gained)
         ),
+    }
+
+
+def youtube_early_retention(raw: Any, seconds: float) -> dict[str, float | None]:
+    """The retention curve's reading at `seconds` into the video.
+
+    Each curve point closes an interval of the video, so the reading is the
+    first point at or after the second. Both fields are None when the
+    response has no duration, the curve is empty, or it skips past the second.
+    """
+    unknown: dict[str, float | None] = dict.fromkeys(YOUTUBE_EARLY_RETENTION_FIELDS)
+    if not isinstance(raw, dict):
+        return unknown
+    duration = _number(raw.get("durationSeconds"))
+    if not duration or duration <= 0:
+        return unknown
+    target = min(seconds / duration, 1.0)
+    points = [
+        (ratio, p)
+        for p in raw.get("retentionCurve") or []
+        if isinstance(p, dict)
+        and (ratio := _number(p.get("elapsedVideoTimeRatio"))) is not None
+        and ratio >= target
+    ]
+    if not points:
+        return unknown
+    ratio, point = min(points, key=lambda item: item[0])
+    if ratio - target > EARLY_RETENTION_MAX_GAP:
+        return unknown
+    watching = _number(point.get("audienceWatchRatio"))
+    return {
+        "earlyWatchingPct": None if watching is None else round(watching * 100, 1),
+        "earlyRelativeRetention": _number(point.get("relativeRetentionPerformance")),
     }
 
 

@@ -133,7 +133,7 @@ No figure for the decay curve is given here: pull your own, because it varies by
 
 On YouTube, every play and replay has counted as a Shorts view since 31 March 2025, while "engaged views" exclude replays [A, [YouTube Help community](https://support.google.com/youtube/thread/333869549)]. Loops inflate raw counts.
 
-Planned: the sweep stores engaged views and "viewed vs swiped away" where a platform exposes them (REQ-PUB-084, [design 0010](../design/0010-first-seconds-metrics.md)).
+The provider exposes neither engaged views nor "viewed vs swiped away", so the sweep stores the nearest YouTube stand-in, the share still watching at 3 seconds from each video's retention curve (REQ-PUB-084, [design 0010](../design/0010-first-seconds-metrics.md)).
 
 ## Trust and fact checks
 
