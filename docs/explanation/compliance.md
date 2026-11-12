@@ -45,7 +45,7 @@ This is a platform-policy layer (ranking impact if missed), not the FTC regulato
 
 ### Instagram paid-partnership label
 
-Instagram's "Paid partnership" label is set in the post-edit flow. The publisher SDK does not expose the branded-content tagging endpoint. Until that gap closes, do this manually for every published Reel:
+With `instagram_paid_partnership` on (`config/publisher.yaml`, off by default), the publisher sets Instagram's "Paid partnership" label on each post from the render's material connection. It needs the Instagram account connected through Facebook Login: an account on classic Instagram Login is refused, and the publisher posts again without the label and logs a warning. With the setting off, or after that warning, set it by hand in the post-edit flow:
 
 1. Open Instagram, find the published Reel on the profile.
 2. Tap the three-dot menu → Edit.
@@ -75,12 +75,10 @@ A bare "AI-generated" label leads viewers to assume full automation; a statement
 Tracked as GitHub issues, not blocking Phase 0:
 
 - YouTube `paid_promotion` flag not exposed by Zernio SDK (issue [#119]).
-- Instagram paid-partnership / branded-content tagging not exposed by Zernio SDK (issue [#120]).
 
-The manual workarounds above stay in place until the SDK exposes the fields. When that happens, the pipeline auto-sets the flags and the manual steps drop from this doc.
+The YouTube workaround stays in place until the SDK exposes the field. Instagram's paid-partnership label is exposed and sent by `instagram_paid_partnership`.
 
 [#119]: https://github.com/stkzlv/ContentEngineAI/issues/119
-[#120]: https://github.com/stkzlv/ContentEngineAI/issues/120
 
 ## Penalty surface
 

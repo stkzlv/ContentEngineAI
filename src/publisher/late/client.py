@@ -98,6 +98,29 @@ def _first_comment_sent(specific: Any) -> bool | None:
     return bool(getattr(specific, "firstComment", None))
 
 
+PAID_PARTNERSHIP_LOGIN_ERROR = "instagram_paid_partnership_requires_facebook_login"
+
+
+def drop_paid_partnership(
+    sdk_platforms: list[dict[str, object]], error: BaseException
+) -> bool:
+    """Remove the paid-partnership flag after the provider refused it.
+
+    The provider refuses the flag with a 400 naming
+    `PAID_PARTNERSHIP_LOGIN_ERROR` for an Instagram account on classic
+    Instagram Login (REQ-CMP-026). True when the error is that refusal and a
+    flag was removed, so the post can be sent again without it.
+    """
+    if PAID_PARTNERSHIP_LOGIN_ERROR not in f"{error} {error.__cause__}":
+        return False
+    dropped = False
+    for entry in sdk_platforms:
+        psd = entry.get("platformSpecificData")
+        if entry.get("platform") == "instagram" and isinstance(psd, dict):
+            dropped = psd.pop("isPaidPartnership", None) is not None or dropped
+    return dropped
+
+
 @register_publisher(PublisherProvider.LATE)
 class LatePublisher(BasePublisher):
     """Late.dev implementation of video publishing service.
@@ -131,6 +154,7 @@ class LatePublisher(BasePublisher):
         first_comment_config: FirstCommentConfig | None = None,
         synthetic_media_disclosure: bool = False,
         instagram_ai_label: bool = False,
+        instagram_paid_partnership: bool = False,
         youtube_profile_pointer: bool = False,
         covers_enabled: bool = False,
     ):
@@ -150,6 +174,8 @@ class LatePublisher(BasePublisher):
                 AI scripts and stock footage (optional)
             instagram_ai_label: Send Instagram's AI-generated-media label
                 on every Instagram post (default off)
+            instagram_paid_partnership: Send Instagram's paid-partnership
+                label from the render's material connection (default off)
             youtube_profile_pointer: End a product video's YouTube
                 description on "Link in bio."; off removes a bare pointer line
                 (default off)
@@ -189,6 +215,7 @@ class LatePublisher(BasePublisher):
         self.first_comment_config = first_comment_config or FirstCommentConfig()
         self.synthetic_media_disclosure = synthetic_media_disclosure
         self.instagram_ai_label = instagram_ai_label
+        self.instagram_paid_partnership = instagram_paid_partnership
         self.youtube_profile_pointer = youtube_profile_pointer
         self.covers_enabled = covers_enabled
         # Which video each upload came from, so a post finds its cover
@@ -1342,6 +1369,8 @@ class LatePublisher(BasePublisher):
                     psd = {}
                     platform_entry["platformSpecificData"] = psd
                 psd["isAiGenerated"] = self.instagram_ai_label
+                if self.instagram_paid_partnership:
+                    psd["isPaidPartnership"] = carries_affiliate_content
 
             # The cover merges into whatever platform data the entry already
             # carries (Instagram's first comment, TikTok's settings).
@@ -1586,7 +1615,21 @@ class LatePublisher(BasePublisher):
 
                 return await self._call_sdk(self.client.posts.create, **post_data)
 
-            post_response = await self._retry_with_backoff(_create_post, "Create post")
+            try:
+                post_response = await self._retry_with_backoff(
+                    _create_post, "Create post"
+                )
+            except LateError as exc:
+                if not drop_paid_partnership(sdk_platforms, exc):
+                    raise
+                logger.warning(
+                    "Instagram refused the paid-partnership label (the account "
+                    "is not connected through Facebook Login); posting without "
+                    "it. Set the label by hand after publishing."
+                )
+                post_response = await self._retry_with_backoff(
+                    _create_post, "Create post"
+                )
 
             # Parse response and extract failures
             parsed = self._parse_publish_response(post_response, publish_now)

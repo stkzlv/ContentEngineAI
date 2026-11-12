@@ -841,6 +841,11 @@ class PublisherConfig:
     # realistic-sounding audio that was digitally created, which can include
     # AI narration. Off by default; only a YAML `true` turns it on.
     instagram_ai_label: bool = False
+    # Instagram's "Paid partnership" label, sent as `isPaidPartnership` on
+    # every Instagram post: true for a render with a material connection,
+    # false for one without (REQ-CMP-026). Off by default; only a YAML `true`
+    # turns it on. It needs the account connected through Facebook Login.
+    instagram_paid_partnership: bool = False
     # A YouTube Shorts description can't carry a clickable link, so with
     # this on a product video's YouTube description ends on "Link in bio."
     # when it names no profile link of its own; off, a bare pointer line is
