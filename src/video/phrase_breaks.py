@@ -132,3 +132,56 @@ def phrase_end(
         if score >= best_score:
             best, best_score = end, score
     return best
+
+
+def _line_end(widths: list[float], start: int, space: float, max_width: float) -> int:
+    """One past the last word pycaps' greedy fill puts on a line from `start`.
+
+    The loop is pycaps' `LineSplitter`: a word joins while the running width
+    plus the word and one space stays within `max_width`. A segment's first
+    line starts at 0, a later line at its first word's width, and a word too
+    wide for a line still takes one alone.
+    """
+    end, total = start, 0.0
+    if start > 0 or widths[start] + space > max_width:
+        end, total = start + 1, widths[start]
+    while end < len(widths) and total + widths[end] + space <= max_width:
+        total += space + widths[end]
+        end += 1
+    return max(end, start + 1)
+
+
+def _line_count(widths: list[float], start: int, space: float, max_width: float) -> int:
+    count = 0
+    while start < len(widths):
+        start = _line_end(widths, start, space, max_width)
+        count += 1
+    return count
+
+
+def line_ends(
+    words: list[str], widths: list[float], space: float, max_width: float
+) -> list[int]:
+    """The end index of every line of one caption segment.
+
+    Each line starts from pycaps' greedy fill. When the word after it does
+    not fit, any earlier end on the line is a candidate if the words it
+    pushes down still fit in the lines the greedy fill would use, so a
+    segment never gains a line; the best-scoring candidate wins as in
+    `phrase_end`.
+    """
+    ends: list[int] = []
+    start = 0
+    while start < len(words):
+        greedy = _line_end(widths, start, space, max_width)
+        if greedy >= len(words):
+            ends.append(len(words))
+            break
+        lines_left = _line_count(widths, greedy, space, max_width)
+
+        def carries(end: int, lines_left: int = lines_left) -> bool:
+            return _line_count(widths, end, space, max_width) <= lines_left
+
+        start = phrase_end(words, greedy, start + 1, carries)
+        ends.append(start)
+    return ends

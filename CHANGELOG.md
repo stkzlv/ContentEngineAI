@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.240.0] - 2026-11-12
+
+### Added
+
+- `subtitle_settings.pycaps.phrase_line_breaks`, on in the bundled config, breaks the lines inside a pycaps caption at a phrase boundary rather than after an article, preposition or auxiliary or inside a name, whenever the caption keeps its number of lines.
+
 ## [0.239.7] - 2026-11-12
 
 ### Fixed
