@@ -47,10 +47,10 @@ llm_settings:
   # today; it is what keeps a switch to a flash model from silently costing
   # forty times more -- but only on the 2.5 flash tier, where the knob works
   # (measured on one tagging prompt: 556 without it, none with it). The 3.x flash
-  # models ignore 0: `thinking_level: low` is their floor and still bills. A
-  # positive budget does cap them (see `script_model` below).
+  # models ignore 0: `thinking_level: low` is their floor and still bills.
   # Switching `models:` above to a 3.x flash model is a cost decision this
-  # setting cannot soften.
+  # setting cannot soften at 0. For `gemini-3.8-flash` a positive budget keeps
+  # the thinking inside the output limit (see `script_model` below).
   #
   # Disabling thinking does not guarantee the model omits a preamble, so the
   # per-generator sanitisers still apply.
@@ -61,7 +61,7 @@ llm_settings:
   # text calls keep. Unset, the script call shares them. A thinking model
   # counts its thinking against `max_tokens`, so give it room, and check its
   # thinking control: some models reject `thinking_budget: 0` with a 400.
-  # Cap the thinking with a positive budget: left at null, `gemini-3.8-flash`
+  # Give it a positive budget: left at null, `gemini-3.8-flash`
   # spent about 3,930 thinking tokens on a script and hit a 4096 limit; with
   # 1024 every script of a 23-script sample finished within 2048.
   # Set, the shared `models` are not tried for scripts: a failing script model
