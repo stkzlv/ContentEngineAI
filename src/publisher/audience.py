@@ -294,6 +294,8 @@ class PlatformRates:
     follows_per_1k: float | None
     shares_saves_per_1k: float | None
     comments_per_1k: float | None
+    # Platforms whose shares, saves and views make up the shares+saves rate.
+    shares_saves_over: tuple[str, ...] = ()
 
 
 def _shares_saves(rows: list[dict[str, float]]) -> float | None:
@@ -342,6 +344,7 @@ def platform_rates(
         follows_per_1k=_per_1k(follows, views),
         shares_saves_per_1k=_per_1k(shares_saves, views),
         comments_per_1k=_per_1k(comments, views),
+        shares_saves_over=() if shares_saves is None else (platform,),
     )
 
 
@@ -354,24 +357,42 @@ def _sum_known(values: list[float | None]) -> float | None:
 def summed_rates(
     store: dict[str, Any], platforms: list[str], since: date, until: date
 ) -> PlatformRates:
-    """All platforms together; unknown when any platform's input is unknown."""
+    """All platforms together; unknown when any platform's input is unknown.
+
+    Shares plus saves count only the platforms that report either, over those
+    platforms' views: one that reports neither is left out, not unknown. A
+    platform with no stored day in the range is unknown and makes it unknown.
+    """
     per = [platform_rates(store, p, since, until) for p in platforms]
     views = _sum_known([r.views for r in per])
     follows = _sum_known([r.net_follows for r in per])
-    shares_saves: list[float | None] = []
-    comments: list[float | None] = []
-    for p in platforms:
+    shares_saves: float | None = 0.0
+    shares_saves_views = 0.0
+    over: list[str] = []
+    comment_count: float | None = 0.0
+    for p, r in zip(platforms, per, strict=True):
         daily = (store.get("daily") or {}).get(p) or {}
         rows = [daily[d] for d in _days(since, until) if d in daily]
-        shares_saves.append(_shares_saves(rows))
-        comments.append(sum(r.get("comments", 0.0) for r in rows) if rows else None)
+        if not rows:
+            shares_saves = comment_count = None
+            continue
+        if comment_count is not None:
+            comment_count += sum(row.get("comments", 0.0) for row in rows)
+        found = _shares_saves(rows)
+        if found is not None and shares_saves is not None:
+            shares_saves += found
+            shares_saves_views += r.views or 0.0
+            over.append(p)
+    if not over:
+        shares_saves = None
     return PlatformRates(
         platform="all",
         views=views,
         net_follows=None if follows is None else int(follows),
         follows_per_1k=_per_1k(follows, views),
-        shares_saves_per_1k=_per_1k(_sum_known(shares_saves), views),
-        comments_per_1k=_per_1k(_sum_known(comments), views),
+        shares_saves_per_1k=_per_1k(shares_saves, shares_saves_views),
+        comments_per_1k=_per_1k(comment_count, views),
+        shares_saves_over=tuple(over) if shares_saves is not None else (),
     )
 
 

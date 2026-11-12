@@ -331,6 +331,29 @@ class TestReport:
         only = summed_rates(store, ["tiktok"], D, date(2026, 1, 12))
         assert only.follows_per_1k == 3.0
 
+    def test_summed_shares_saves_leave_out_a_platform_that_exposes_neither(self):
+        # REQ-PUB-165: a platform that reports no shares or saves keeps its
+        # views out of the denominator rather than making the total unknown.
+        day = {
+            "tiktok": {"2026-01-10": {"views": 1000.0, "shares": 3.0}},
+            "instagram": {"2026-01-10": {"views": 1000.0, "shares": 1.0, "saves": 2.0}},
+            "youtube": {"2026-01-10": {"views": 2000.0, "comments": 4.0}},
+        }
+        store = {"daily": day}
+        r = summed_rates(store, ["instagram", "tiktok", "youtube"], D, D)
+        assert r.shares_saves_per_1k == 3.0
+        assert r.shares_saves_over == ("instagram", "tiktok")
+        assert r.views == 4000 and r.comments_per_1k == 1.0
+        yt = platform_rates(store, "youtube", D, D)
+        assert yt.shares_saves_per_1k is None and yt.shares_saves_over == ()
+
+    def test_summed_shares_saves_unknown_when_a_platform_has_no_days(self):
+        day = {"tiktok": {"2026-01-10": {"views": 1000.0, "shares": 3.0}}}
+        r = summed_rates({"daily": day}, ["tiktok", "instagram"], D, D)
+        assert r.shares_saves_per_1k is None and r.shares_saves_over == ()
+        none = {"daily": {"youtube": {"2026-01-10": {"views": 10.0}}}}
+        assert summed_rates(none, ["youtube"], D, D).shares_saves_per_1k is None
+
     def test_median_view_percentage_counts_posts_in_range(self):
         def post(day: str, pct: float | None) -> PostMetrics:
             return PostMetrics(
@@ -428,6 +451,29 @@ class TestCli:
         assert any("Instagram profile views per 1k views: 10" in line for line in lines)
 
         assert json.loads(audience_path(tmp_path).read_text())["followers"]
+
+    def test_audience_command_names_the_shares_saves_platforms(
+        self, tmp_path: Path, caplog
+    ):
+        # REQ-PUB-165.
+        from src.publisher.late.cli import cmd_audience
+
+        day = {
+            "tiktok": {"2026-01-10": {"views": 1000.0, "shares": 3.0}},
+            "youtube": {"2026-01-10": {"views": 1000.0, "comments": 1.0}},
+        }
+        save_audience({"daily": day}, tmp_path)
+        args = argparse.Namespace(
+            since=datetime(2026, 1, 10),
+            until=datetime(2026, 1, 10),
+            outputs_dir=tmp_path,
+        )
+        with caplog.at_level("INFO", logger="src.publisher.late.cli"):
+            cmd_audience(args)
+        lines = [r.getMessage() for r in caplog.records]
+        summed = next(line for line in lines if line.startswith("all"))
+        assert summed.split()[4] == "3"
+        assert any("counts tiktok only" in line for line in lines)
 
     def test_large_counts_print_whole(self, tmp_path: Path, caplog):
         from src.publisher.late.cli import cmd_audience
