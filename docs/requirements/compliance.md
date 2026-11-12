@@ -36,8 +36,9 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
   - On when: `instagram_ai_label` is set to true for an installation whose renders meet Meta's bar (photorealistic video or realistic-sounding audio that was digitally created) or that labels its posts voluntarily.
 - **REQ-CMP-017** `shipped` AI disclosure on each platform follows that platform's current rule, recorded with its source.
 - **REQ-CMP-018** `shipped` A label beyond what a platform's rule requires is a documented, voluntary choice (the bundled config keeps the TikTok label on; an installation whose renders meet TikTok's exemption turns it off in its overlay under [decision 0013](../decisions/0013-tiktok-ai-label-goes-off-after-the-readout.md)).
-- **REQ-CMP-019** `planned #558` An optional statement says what AI did and what a person did.
 
 ## Manual steps
+
+- **REQ-CMP-019** `shipped` The compliance guide says where an operator states what AI did and what a person did (the profile bio, set by hand) and what the statement must say to stay true.
 
 - **REQ-CMP-020** `shipped` The compliance guide documents the manual steps for the disclosure settings the publishing provider does not expose: the YouTube paid-promotion checkbox and the Instagram paid-partnership label.

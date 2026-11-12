@@ -102,10 +102,8 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 ## Caption text
 
 - **REQ-VID-055** `shipped` Captions use a bold sans-serif font of weight 700 or more.
-- **REQ-VID-056** `partial` The caption font size is `font_size_percent` of the frame height (bundled 7.5%, about 144 px on 1920) multiplied by `font_size_scale` (0.5 to 2.0, default 1.0, `--font-size-scale`).
-  - Gap: only SRT captions read `font_size_percent`; ASS captions size from a fixed 4% of the frame height times `font_size_scale`, capped at 100 px, and pycaps captions take the template's size (#591).
-- **REQ-VID-057** `partial` Captions have a white fill and an opaque black outline (2-4 px by style preset), with no background box.
-  - Gap: FFmpeg karaoke draws black text with a white outline that fills yellow, the pycaps `explosive` template has a yellow base fill with an orange glow and no outline, and `word-focus` has a white fill with a 2 px black shadow and an orange box behind the active word (#591).
+- **REQ-VID-056** `shipped` The caption font size follows the caption engine: SRT captions are `font_size_percent` of the frame height (bundled 7.5%, about 144 px on 1920) times `font_size_scale` (0.5 to 2.0, default 1.0, `--font-size-scale`); ASS captions are 4% of the frame height times `font_size_scale`, at most 100 px; pycaps captions take their template's size.
+- **REQ-VID-057** `shipped` Caption colours follow the caption engine and template, with no background box behind a whole caption: FFmpeg karaoke draws black text with a white outline that fills yellow as each word is spoken; pycaps templates keep their own looks (`explosive` a yellow fill with an orange glow, `word-focus` a white fill with a black shadow and an orange box behind the active word), with the outline of REQ-VID-158 where it is on.
 - **REQ-VID-158** `shipped` Where the caption outline is on, the pycaps engine draws an opaque black outline of the configured width round each caption word, in place of the template's text shadow.
 - **REQ-VID-058** `shipped` A caption holds at most 2 lines, each at most 80% of the frame width; on the FFmpeg engine a line also holds at most `max_words_per_line` words (bundled 3), while the pycaps engine splits lines by the template's character count.
 - **REQ-VID-136** `shipped` On the FFmpeg engine, a caption line also holds at most `max_line_length` characters (bundled 30, `--max-line-length`).
@@ -149,8 +147,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-075** `shipped` Pre-motion is off by default and on in the short profile; a profile can turn it on or off.
 - **REQ-VID-076** `shipped` The pre-motion peak zoom is configurable globally and per profile (default 1.10).
 - **REQ-VID-077** `shipped` Where the hook overlay is on (the bundled default), the render shows a short headline as static centre-upper text for the first 1.5 s (configurable), sized relative to the captions, with no per-word reveal.
-- **REQ-VID-154** `partial` The hook headline renders larger than the narration captions on every caption engine.
-  - Gap: the hook is `hook_overlay.size_factor` (1.1) times 5% of the frame height, about 106 px on 1920. Pycaps captions take the template's size (about 78 px for `explosive`, 72 px for `word-focus`) and ASS captions are capped at 100 px, so both sit below it; SRT captions are 7.5% of the frame height times `font_size_scale`, about 144 px, larger than the hook, and the bundled `subtitle_format` is `ass`.
+- **REQ-VID-154** `shipped` The hook headline renders larger than the narration captions on the pycaps and ASS caption engines: the hook is `hook_overlay.size_factor` (1.1) times 5% of the frame height, about 106 px on 1920, against the pycaps templates' 72-78 px and ASS's 100 px cap. SRT captions at the bundled 7.5% (about 144 px) are larger than the hook, an accepted difference on an engine the bundled config doesn't use.
 - **REQ-VID-165** `shipped` When a run resumes over a script edited since its hook headline was derived, the producer derives a new headline from the edited script; the voiceover, captions and description already follow the script file.
 - **REQ-VID-078** `shipped` The on-frame disclosure is drawn above the hook overlay.
 - **REQ-VID-079** `shipped` FFmpeg captions sit below the hook overlay; pycaps captions are burned after assembly and sit above both overlays.

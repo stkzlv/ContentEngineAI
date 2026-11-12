@@ -74,7 +74,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0013](0013-stock-clip-reuse-guard.md) | Do not reuse stock clips across recent renders | #555 | Implemented |
 | [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Implemented |
 | [0015](0015-narrator-voice-evaluation.md) | Evaluate a distinctive or owned narrator voice | #557 | Draft |
-| [0016](0016-tiktok-ai-label.md) | Revisit the TikTok AI label | #558 | Accepted |
+| [0016](0016-tiktok-ai-label.md) | Revisit the TikTok AI label | #558 | Implemented |
 | [0017](0017-tutorial-step-lists.md) | Sourced step list | #559 | Implemented |
 | [0018](0018-tutorial-step-visuals.md) | A visual per step | #560 | Implemented |
 | [0019](0019-tutorial-graphics.md) | Explanatory graphics | #561 | Held |
