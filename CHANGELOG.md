@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.4] - 2026-11-12
+
+### Security
+
+- Pillow moves to 13 and setuptools to 84.2, and the lock takes the patched brotli, certifi, pyasn1, authlib, joserfc, nltk, black and virtualenv, clearing their advisories.
+
 ## [0.241.3] - 2026-11-12
 
 ### Fixed
