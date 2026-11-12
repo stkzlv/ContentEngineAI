@@ -36,7 +36,7 @@ The issue also listed a menu-path breadcrumb, a callout on a real capture, a spe
 
 ## Rollout
 
-`video_settings.graphics.enabled` defaults to false and is on in the bundled config (the step card); the checklist (`graphics.checklist`) ships off. The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
+`video_settings.graphics.enabled` defaults to false and is on in the bundled config (the step card); the checklist (`graphics.checklist`) ships off.
 
 Remove the switch when: `video_settings.graphics.enabled` has been on in the bundled config for two weekly batches with topic-render completion (#551) no worse than without it and a skipped graphic on fewer than one render in ten; the key, its holdout check and the graphics-off path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
 
