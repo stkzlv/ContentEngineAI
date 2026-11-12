@@ -728,7 +728,8 @@ class VideoAssembler:
         The still-motion move per still, the cuts beat snapping moved, and
         each sound effect as "kind:file" (designs 0001, 0005, 0003), and the
         step-card layout (REQ-VID-153) and how many step screens were
-        drawn (REQ-VID-123).
+        drawn (REQ-VID-123), and whether the listing video opened the
+        render (REQ-VID-016).
         """
         builder = self.visual_builder
         return {
@@ -737,6 +738,7 @@ class VideoAssembler:
             "sound_effects": list(self.sound_effects_placed) or None,
             "step_card_layout": self.step_card_layout,
             "step_visuals": self.step_visual_count,
+            "listing_video_opens": builder.lead_video_opened if builder else None,
         }
 
     def _disclosure_settings(self) -> DisclosureSettings:
@@ -763,6 +765,7 @@ class VideoAssembler:
         spoken_words: list[dict[str, Any]] | None = None,
         step_cards: list[StepCard] | None = None,
         step_visuals: list[tuple[Path, float, float]] | None = None,
+        lead_video: Path | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -797,6 +800,8 @@ class VideoAssembler:
                 over the footage when `video_settings.step_visuals` is on
                 (REQ-VID-123); they carry the step counter, so the cards are
                 not drawn over them.
+            lead_video: The listing's own clip, which opens the timeline when
+                `lead_with_listing_video` is on (REQ-VID-016).
 
         Returns:
         -------
@@ -833,6 +838,7 @@ class VideoAssembler:
             is_relative_mode = video_settings_dict.get("subtitle_relative_mode", True)
 
             self.visual_builder.beat_times = await self._beat_times(music_track_path)
+            self.visual_builder.lead_video = lead_video
             visual_chain_result = await self.visual_builder.build_visual_chain(
                 visual_inputs,
                 total_video_duration,

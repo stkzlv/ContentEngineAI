@@ -320,6 +320,22 @@ class VisualGeometry:
     rendered_h: int
 
 
+def lead_with(
+    timed_visuals: list[tuple[Path, float, bool]], lead: Path
+) -> tuple[list[tuple[Path, float, bool]], bool]:
+    """The timeline with `lead`'s first segment moved to the start.
+
+    Durations are untouched, so the timeline's length is too. Returns the
+    timeline unchanged, and False, when `lead` has no segment in it.
+    """
+    for index, (path, _, is_video) in enumerate(timed_visuals):
+        if path == lead and is_video:
+            segment = timed_visuals[index]
+            rest = timed_visuals[:index] + timed_visuals[index + 1 :]
+            return [segment, *rest], True
+    return timed_visuals, False
+
+
 class VisualFilterBuilder:
     """Build FFmpeg visual filter chains with aspect ratio handling."""
 
@@ -367,6 +383,10 @@ class VisualFilterBuilder:
         self.product_id = product_id
         # The music's beats, set by the assembler when beat snapping is on.
         self.beat_times: list[float] | None = None
+        # The listing's own clip, set by the assembler; the timeline opens on
+        # it when `lead_with_listing_video` is on (REQ-VID-016).
+        self.lead_video: Path | None = None
+        self.lead_video_opened: bool | None = None
         # What the last chain drew, for the render's record (design 0006):
         # the move on each still with motion, and how many cuts beat
         # snapping moved (None when it did not run).
@@ -743,6 +763,13 @@ class VisualFilterBuilder:
             path for path in visual_inputs if not self.inspector.is_video(path)
         ]
 
+        # Found before normalization, which hands back other paths in order.
+        lead_index = (
+            video_files.index(self.lead_video)
+            if video_settings.lead_with_listing_video and self.lead_video in video_files
+            else None
+        )
+
         # Apply format normalization to videos when enabled
         if video_files and video_settings.enable_format_normalization:
             if self.debug_mode:
@@ -770,6 +797,18 @@ class VisualFilterBuilder:
             timed_visuals, mode_info = await strategy.assemble(
                 video_files, image_files, total_video_duration
             )
+            self.lead_video_opened = None
+            if lead_index is not None:
+                timed_visuals, self.lead_video_opened = lead_with(
+                    timed_visuals, video_files[lead_index]
+                )
+                logger.info(
+                    "Listing video %s: %s",
+                    video_files[lead_index].name,
+                    "opens the render"
+                    if self.lead_video_opened
+                    else "not in the timeline, order unchanged",
+                )
             if video_settings.ending == "loop":
                 logger.warning(
                     "Ending 'loop' closes on the opening frame only in an "

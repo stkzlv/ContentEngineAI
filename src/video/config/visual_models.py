@@ -660,6 +660,13 @@ class VideoSettings(BaseModel):
         default_factory=ImageCurationSettings,  # type: ignore[arg-type]
         description="Drop text-heavy listing images while enough clean ones remain.",
     )
+    lead_with_listing_video: bool = Field(
+        False,
+        description=(
+            "Open a product render on the listing's own video: the first "
+            "scraped clip's first segment moves to the start of the timeline."
+        ),
+    )
     # Design 0002: `outro` keeps the tail after the voiceover; `peak` ends
     # `peak_margin_sec` after the last spoken word; `loop` also closes on the
     # opening frame's composition.

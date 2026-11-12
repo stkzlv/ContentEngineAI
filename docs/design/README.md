@@ -70,7 +70,7 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0009](0009-product-titles.md) | YouTube titles for products | #550 | Implemented |
 | [0010](0010-first-seconds-metrics.md) | First-seconds metrics in the analytics sweep | #551 | Accepted |
 | [0011](0011-cover-frames.md) | Cover frames, including YouTube Shorts thumbnails | #552 | Accepted |
-| [0012](0012-clean-product-images.md) | Prefer clean product images over seller infographics | #554 | Accepted |
+| [0012](0012-clean-product-images.md) | Prefer clean product images over seller infographics | #554 | Implemented |
 | [0013](0013-stock-clip-reuse-guard.md) | Do not reuse stock clips across recent renders | #555 | Implemented |
 | [0014](0014-tts-text-normalisation.md) | Normalise numbers, units and model names before TTS | #556 | Implemented |
 | [0015](0015-narrator-voice-evaluation.md) | Evaluate a distinctive or owned narrator voice | #557 | Draft |

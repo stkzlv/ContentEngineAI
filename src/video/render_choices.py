@@ -175,6 +175,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "sound_effects": assembly.get("sound_effects"),
         "step_card_layout": assembly.get("step_card_layout"),
         "step_visuals": assembly.get("step_visuals"),
+        "listing_video_opens": assembly.get("listing_video_opens"),
         # The kind and what its narrator identity pins, so the report reads a
         # pinned dimension as a setting rather than drift (REQ-CNT-170).
         "content_kind": content_kind(getattr(ctx, "product", None)),
