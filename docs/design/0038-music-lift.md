@@ -34,7 +34,7 @@ The audio research puts music at -6 to -10 dB in voice-free beats and 18-24 dB b
 
 ## Rollout
 
-Ships off. A listening A/B of one render with and without it kept the fixed level, so the bundled config leaves the lift off; the switch stays for a later retest.
+Ships off. A listening A/B of one render with and without it kept the fixed level, so the bundled config leaves the lift off; the switch stays, so a later A/B that prefers the lift can turn it on.
 
 Remove the switch when: the lift has been on in the bundled config for two weekly batches with completion no worse than without it; `music_volume_db` and the `music_ducking_*` keys then go in a minor release with a `**Breaking**:` CHANGELOG entry, and the lift's values stay as the tuning.
 
