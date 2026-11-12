@@ -475,6 +475,14 @@ class TestCli:
         assert summed.split()[4] == "3"
         assert any("counts tiktok only" in line for line in lines)
 
+        # Nothing left out: no line naming the platforms.
+        save_audience({"daily": {"tiktok": day["tiktok"]}}, tmp_path / "one")
+        args.outputs_dir = tmp_path / "one"
+        caplog.clear()
+        with caplog.at_level("INFO", logger="src.publisher.late.cli"):
+            cmd_audience(args)
+        assert not any("counts" in r.getMessage() for r in caplog.records)
+
     def test_large_counts_print_whole(self, tmp_path: Path, caplog):
         from src.publisher.late.cli import cmd_audience
 
