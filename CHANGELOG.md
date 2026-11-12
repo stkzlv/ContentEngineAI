@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.6] - 2026-11-12
+
+### Fixed
+
+- The `audience` report's summed shares plus saves rate counts the platforms that report shares or saves, over their views, and names them, instead of being unknown whenever YouTube, which reports neither, is in the range.
+
 ## [0.239.5] - 2026-11-11
 
 ### Changed

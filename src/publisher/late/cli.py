@@ -482,6 +482,11 @@ def cmd_audience(args: argparse.Namespace) -> None:
             fmt(r.shares_saves_per_1k),
             fmt(r.comments_per_1k),
         )
+    if rows[-1].shares_saves_over and len(rows[-1].shares_saves_over) < len(platforms):
+        logger.info(
+            "Summed shares+saves/1k counts %s only (views of those platforms)",
+            ", ".join(rows[-1].shares_saves_over),
+        )
     logger.info(
         "YouTube median average view percentage: %s",
         fmt(median_view_percentage(load_metrics(args.outputs_dir), since, until)),
