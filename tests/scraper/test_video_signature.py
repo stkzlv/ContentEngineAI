@@ -1,4 +1,4 @@
-"""Any ISO media file passes the video signature check (REQ-SCR-086).
+"""Any ISO media file passes the video signature check (REQ-SCR-088).
 
 The check matched two exact headers, so a valid MP4 with another box size or
 brand was rejected after download. Listing videos read from the page's image
@@ -14,7 +14,7 @@ import pytest
 
 from src.scraper.amazon.media_validator import verify_video_file
 
-pytestmark = [pytest.mark.unit, pytest.mark.req("REQ-SCR-086")]
+pytestmark = [pytest.mark.unit, pytest.mark.req("REQ-SCR-088")]
 
 # What ffprobe reports for a usable clip, so the check reaches the signature.
 _PROBE = json.dumps(

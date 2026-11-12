@@ -25,6 +25,8 @@ from src.ai.script_generator import (
 from src.scraper.amazon.models import ProductData
 from src.video.config import load_video_config_modular
 
+pytestmark = pytest.mark.req("REQ-CNT-042", "REQ-CNT-044")
+
 CTA = "Save this for when you need one."
 RULE_HEAD = "Sound like someone talking, not reading."
 
