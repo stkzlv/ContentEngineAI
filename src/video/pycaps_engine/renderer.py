@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from src.video.phrase_breaks import segment_end
+from src.video.phrase_breaks import line_ends, segment_end
 
 if TYPE_CHECKING:
     from src.video.config.subtitle_models import PycapsSettings
@@ -321,6 +321,65 @@ def _use_phrase_breaks(builder: Any) -> None:
         if max_limit is None or min_limit is None:
             continue
         splitters[index] = _PhraseBoundarySplitter(max_limit, min_limit)
+
+
+def _phrase_line_splitter(layout_options: Any) -> Any:
+    """The pycaps `LineSplitter` with each line's end chosen by `line_ends`.
+
+    REQ-VID-157. Built at render time because pycaps is an optional group.
+    """
+    from pycaps.layout import LineSplitter
+
+    class _PhraseBoundaryLineSplitter(LineSplitter):
+        def _split_segment_into_lines(self, segment: Any, video_width: int) -> None:
+            words = segment.get_words()
+            if not words:
+                super()._split_segment_into_lines(segment, video_width)
+                return
+            ends = line_ends(
+                [word.text for word in words],
+                [word.max_layout.size.width for word in words],
+                self._options.x_words_space,
+                video_width * self._options.max_width_ratio,
+            )
+            lines: list[Any] = []
+            start = 0
+            for end in ends:
+                self._append_new_line(lines, words[start:end])
+                start = end
+            self._adjust_lines_to_constraints(lines)
+            segment.lines.set_all(lines)
+
+    return _PhraseBoundaryLineSplitter(layout_options)
+
+
+def _use_phrase_line_breaks(builder: Any) -> None:
+    """Swap pycaps' line splitter for a phrase-aware one once it exists.
+
+    The pipeline creates its splitter in `prepare`, so the swap wraps that
+    call. A layout that overflows the last line's width instead of adding
+    lines keeps the library's splitter, whose rule this doesn't follow.
+    """
+    from pycaps.layout import TextOverflowStrategy
+
+    pipeline = getattr(builder, "_caps_pipeline", None)
+    if pipeline is None or not hasattr(pipeline, "prepare"):
+        logger.debug("no pycaps pipeline; phrase line breaks unused")
+        return
+    original = pipeline.prepare
+
+    def prepare() -> None:
+        original()
+        options = pipeline._layout_options
+        if (
+            options.on_text_overflow_strategy
+            != TextOverflowStrategy.EXCEED_MAX_NUMBER_OF_LINES
+        ):
+            logger.debug("layout overflows the last line; library line breaks kept")
+            return
+        pipeline._line_splitter = _phrase_line_splitter(options)
+
+    pipeline.prepare = prepare
 
 
 _ENTRANCE_EVENT = "narration-starts"
@@ -747,6 +806,8 @@ class PycapsRenderer:
             _mute_template_sound_effects(builder)
         if settings.phrase_breaks:
             _use_phrase_breaks(builder)
+        if settings.phrase_line_breaks:
+            _use_phrase_line_breaks(builder)
         if settings.max_entrance_sec is not None or settings.max_exit_sec is not None:
             _limit_template_motion(
                 builder, settings.max_entrance_sec, settings.max_exit_sec
