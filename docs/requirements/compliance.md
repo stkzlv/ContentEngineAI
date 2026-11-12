@@ -40,5 +40,4 @@ Ids use the prefix `REQ-CMP`. The format and the statuses are described in [the 
 ## Manual steps
 
 - **REQ-CMP-019** `shipped` The compliance guide says where an operator states what AI did and what a person did (the profile bio, set by hand) and what the statement must say to stay true.
-
 - **REQ-CMP-020** `shipped` The compliance guide documents the manual steps for the disclosure settings the publishing provider does not expose: the YouTube paid-promotion checkbox and the Instagram paid-partnership label.

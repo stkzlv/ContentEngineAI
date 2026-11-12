@@ -47,7 +47,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 The reach-test readout this waited on has passed ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)), and an installation sets `tiktok_settings.video_made_with_ai` in its overlay. A render type that shows a realistic synthetic person needs the label back on. The optional AI-role statement is a manual profile-bio step in the compliance guide, with no config key.
 
-Remove the switch when: never; it is a lasting option, because the AI-role statement is truthful only where a person reviews each video, which differs from operator to operator.
+Remove the switch when: never; `tiktok_settings.video_made_with_ai` is a lasting option, because whether a render needs the label depends on what an installation renders (a realistic synthetic person or a recognisable voice needs it).
 
 ## Open questions
 
