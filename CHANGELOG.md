@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.242.0] - 2026-11-12
+
+### Added
+
+- `audio_settings.music_lift`, off by default, plays the music at a gap level between voice lines and ducks it under the narration with its own depth.
+
 ## [0.241.4] - 2026-11-12
 
 ### Security

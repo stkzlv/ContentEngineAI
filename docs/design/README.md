@@ -96,3 +96,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0035](0035-correction-topics.md) | Correction topics | #807 | Implemented |
 | [0036](0036-comment-reply-videos.md) | Comment-reply videos | #808 | Implemented |
 | [0037](0037-scraper-block-resilience.md) | Scraper block resilience | #812 | Implemented |
+| [0038](0038-music-lift.md) | Music that rises between voice lines | #592 | Held |

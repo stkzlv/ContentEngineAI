@@ -89,6 +89,22 @@ class SoundEffectsSettings(BaseModel):
     cta: list[Path] = Field(default_factory=list)
 
 
+class MusicLiftSettings(BaseModel):
+    """Music that rises between voice lines and ducks under them (#592).
+
+    On, the music sits at `gap_volume_db` and a voice-keyed duck set by
+    `duck_threshold` and `duck_ratio` pushes it down while narration plays,
+    in place of `music_volume_db` and the `music_ducking_*` depth. The duck
+    keeps `music_ducking_attack_ms` and `music_ducking_release_ms`.
+    """
+
+    enabled: bool = Field(False)
+    gap_volume_db: float = Field(-10.0, ge=-40.0, le=0.0)
+    # Bounds as `music_ducking_threshold` and `music_ducking_ratio`.
+    duck_threshold: float = Field(0.05, ge=0.000977, le=1.0)
+    duck_ratio: float = Field(6.0, ge=1.0, le=20.0)
+
+
 class AudioSettings(BaseModel):
     music_volume_db: float
     voiceover_volume_db: float
@@ -164,6 +180,9 @@ class AudioSettings(BaseModel):
     music_ducking_ratio: float = Field(4.0, ge=1.0, le=20.0)
     music_ducking_attack_ms: float = Field(20.0, ge=0.01, le=2000.0)
     music_ducking_release_ms: float = Field(300.0, ge=0.01, le=9000.0)
+    music_lift: MusicLiftSettings = Field(
+        default_factory=MusicLiftSettings  # type: ignore[arg-type]
+    )
 
     # Final loudness normalization (EBU R128). Platforms normalize on
     # playback, so mastering near the target keeps the video level with the

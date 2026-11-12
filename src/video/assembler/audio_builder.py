@@ -227,6 +227,19 @@ class AudioFilterBuilder:
         audio_settings = self.config.audio_settings
         audio_filters = []
         audio_to_mix = []
+        lift = audio_settings.music_lift
+        music_db = (
+            lift.gap_volume_db if lift.enabled else audio_settings.music_volume_db
+        )
+        duck_on = lift.enabled or audio_settings.music_ducking_enabled
+        threshold, ratio = (
+            (lift.duck_threshold, lift.duck_ratio)
+            if lift.enabled
+            else (
+                audio_settings.music_ducking_threshold,
+                audio_settings.music_ducking_ratio,
+            )
+        )
 
         if voiceover_input_idx is not None:
             proc_label = "[a_voice_proc]"
@@ -245,7 +258,7 @@ class AudioFilterBuilder:
             )
             fade_out_start = max(0, total_video_duration - fade_out)
             audio_filters.append(
-                f"{music_label}volume={audio_settings.music_volume_db}dB,"
+                f"{music_label}volume={music_db}dB,"
                 f"afade=t=in:st=0:d={audio_settings.music_fade_in_duration},"
                 f"afade=t=out:st={fade_out_start:.3f}:d={fade_out}"
                 f"{proc_label}"
@@ -257,16 +270,12 @@ class AudioFilterBuilder:
         # the music, attenuated whenever the key input is loud. The voice has
         # to be split first, because it is both the key and a track in the
         # mix, and a stream cannot be consumed twice.
-        if (
-            audio_settings.music_ducking_enabled
-            and voiceover_input_idx is not None
-            and music_input_idx is not None
-        ):
+        if duck_on and voiceover_input_idx is not None and music_input_idx is not None:
             audio_filters.append("[a_voice_proc]asplit=2[a_voice_mix][a_voice_key]")
             audio_filters.append(
                 f"[a_music_proc][a_voice_key]sidechaincompress="
-                f"threshold={audio_settings.music_ducking_threshold}:"
-                f"ratio={audio_settings.music_ducking_ratio}:"
+                f"threshold={threshold}:"
+                f"ratio={ratio}:"
                 f"attack={audio_settings.music_ducking_attack_ms}:"
                 f"release={audio_settings.music_ducking_release_ms}"
                 f"[a_music_ducked]"

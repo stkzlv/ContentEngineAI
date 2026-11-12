@@ -717,6 +717,16 @@ audio_settings:
   music_ducking_attack_ms: 20.0
   music_ducking_release_ms: 300.0
 
+  # Music lift, off by default (REQ-CNT-178, design 0038): music at
+  # gap_volume_db between voice lines and a voice-keyed duck at the lift's
+  # threshold and ratio under them, in place of music_volume_db and the
+  # music_ducking_* depth.
+  music_lift:
+    enabled: false
+    gap_volume_db: -10.0
+    duck_threshold: 0.05
+    duck_ratio: 6.0
+
   # Final loudness normalization (EBU R128), on by default
   loudness_normalization_enabled: true
   loudness_target_lufs: -14.0
