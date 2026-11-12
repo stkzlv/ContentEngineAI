@@ -29,13 +29,14 @@ The detailed design is in the issue body, from "Length", "What makes a short tut
 The issue also listed a menu-path breadcrumb, a callout on a real capture, a spec card for products and a before/after split. None is planned:
 
 - The breadcrumb would never draw: step screens (design 0018) show each step's path and are on, and no graphic is drawn over them.
-- The callout needs a real screen capture, which is not planned either. An Android emulator can record a phone's screen with taps shown, but it runs stock Android, and the tutorial topics are iPhone, Windows, web apps and Samsung phones, whose menus are named differently; a capture would show labels the narration doesn't say, which the step screens' mockups avoid.
+- The callout needs a real screen capture, which is not planned either. An Android emulator can record a phone's screen with taps shown, but it runs stock Android, whose menus are named differently from vendor skins such as Samsung's, and it can't show iOS, Windows or web apps; for most topics a capture would show labels the narration doesn't say, which the step screens' mockups avoid.
 - Before/after has no image source for a tutorial step.
+- Diagrams, including a parametric concept diagram, serve concepts, and a tutorial here walks a menu path, which the step screens already draw (with a tap ring on each step's target, the simulated tap path the issue listed for later).
 - A spec card would show values from scraped listing data. A price or star rating shown on a video can't be kept current, and affiliate programs set rules for displaying them.
 
 ## Rollout
 
-Ships off: `video_settings.graphics.enabled` defaults to false. Set it once a measured batch of tutorial renders supports it. The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
+`video_settings.graphics.enabled` defaults to false and is on in the bundled config (the step card); the checklist (`graphics.checklist`) ships off. The switch gains a check in `tests/test_reach_test_holdout.py` when it lands.
 
 Remove the switch when: `video_settings.graphics.enabled` has been on in the bundled config for two weekly batches with topic-render completion (#551) no worse than without it and a skipped graphic on fewer than one render in ten; the key, its holdout check and the graphics-off path then go in a minor release with a `**Breaking**:` CHANGELOG entry.
 
