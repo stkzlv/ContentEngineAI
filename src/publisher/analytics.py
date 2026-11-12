@@ -44,7 +44,8 @@ DURABILITY_WINDOW_DAYS = 30
 # field is stored as None, unknown. Exposed fields follow each platform's own
 # public post metrics. The first-seconds metrics the platforms rank on
 # (YouTube engaged views and viewed-vs-swiped-away, TikTok watch time and
-# completion) are not exposed at all and are listed so the gap stays visible.
+# completion) are not exposed at all and are listed so the gap stays visible;
+# the YouTube stand-in comes from the retention curve (SEGMENT_EXTRA_METRICS).
 QUALITY_METRICS: dict[str, dict[str, bool]] = {
     "youtube": {
         "views": True,
@@ -74,6 +75,15 @@ QUALITY_METRICS: dict[str, dict[str, bool]] = {
         "reelsSkipRate": True,
     },
 }
+
+# Fields the sweep adds to `platform_metrics` from other YouTube calls, which
+# the quality report segments beside the exposed ones: the daily stats'
+# average view percentage (REQ-PUB-163) and the retention curve's early
+# reading (REQ-PUB-084). The relative score is 0-1, so it keeps two decimals.
+SEGMENT_EXTRA_METRICS: dict[str, tuple[str, ...]] = {
+    "youtube": ("avgViewPercentage", "earlyWatchingPct", "earlyRelativeRetention"),
+}
+_TWO_DECIMALS = frozenset({"earlyRelativeRetention"})
 
 # The launch figures worth keeping. Day 2 is most of the curve; day 7 is where
 # it has essentially finished.
@@ -842,9 +852,9 @@ def segment_quality(
         for value, posts in sorted(groups.items()):
             parts = []
             for platform, exposed in QUALITY_METRICS.items():
-                for name, is_exposed in exposed.items():
-                    if not is_exposed:
-                        continue
+                names = [n for n, is_exposed in exposed.items() if is_exposed]
+                names += SEGMENT_EXTRA_METRICS.get(platform, ())
+                for name in names:
                     readings = [
                         reading
                         for p in posts
@@ -853,7 +863,9 @@ def segment_quality(
                     ]
                     if readings:
                         mean = sum(readings) / len(readings)
-                        parts.append(f"{platform}.{name}={mean:.1f}(n={len(readings)})")
+                        places = 2 if name in _TWO_DECIMALS else 1
+                        shown = f"{mean:.{places}f}"
+                        parts.append(f"{platform}.{name}={shown}(n={len(readings)})")
             if parts:
                 lines.append(f"{dim}={value} [{len(posts)} post(s)]: {' '.join(parts)}")
     return lines
