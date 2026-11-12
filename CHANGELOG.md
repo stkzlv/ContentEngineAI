@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.1] - 2026-11-12
+
+### Fixed
+
+- The `llm_settings.script_model` example and notes give the script model a positive thinking budget, since uncapped `gemini-3.8-flash` spent the whole output limit thinking and ended scripts mid-sentence.
+
 ## [0.241.0] - 2026-11-12
 
 ### Added

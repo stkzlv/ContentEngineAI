@@ -1081,20 +1081,23 @@ llm_settings:
   # Gemini only. 0 disables the model's internal reasoning pass; remove the
   # key to leave the model's own default. Nothing this pipeline asks for is a
   # reasoning problem, and the flash tier bills hundreds of thinking tokens
-  # for a handful of visible ones. The knob works on the 2.5 flash tier; 3.x
-  # flash models ignore it.
+  # for a handful of visible ones. 0 works on the 2.5 flash tier; 3.x flash
+  # models ignore 0. A positive budget kept `gemini-3.8-flash` inside its
+  # output limit.
   thinking_budget: 0
   # Optional. The script call's own model, thinking budget and output limit,
   # in place of `models`, `thinking_budget` and `max_tokens`, which the other
   # text calls keep. Unset, the script call shares them. A thinking model
-  # counts its thinking against `max_tokens`, so give it room. Set, the shared
+  # counts its thinking against `max_tokens`, so give it a positive
+  # `thinking_budget` and room above it: uncapped, `gemini-3.8-flash` spent
+  # the whole limit thinking. Set, the shared
   # `models` are not tried for scripts: a failing script model goes straight
   # to `fallback_provider`, which keeps its own models (a `script_model` set
   # inside it is ignored).
   # script_model:
   #   model: "gemini-3.8-flash"
-  #   thinking_budget: null    # null leaves the model's default
-  #   max_tokens: 2000
+  #   thinking_budget: 1024    # null leaves the model's default
+  #   max_tokens: 2048
 
   # Retry configuration
   retry_attempts: 5
