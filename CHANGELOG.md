@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.3] - 2026-11-12
+
+### Fixed
+
+- The caption requirements state the caption size and colours each engine and template draws, and the hook's size against them, as the specification rather than gaps.
+- The compliance guide says where to state what AI did and what a person did (the profile bio, by hand) and what the statement must say to stay true.
+
 ## [0.241.2] - 2026-11-12
 
 ### Fixed

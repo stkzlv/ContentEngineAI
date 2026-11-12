@@ -14,7 +14,7 @@ Not supported: platform auto-captions as the only captions. Viewers can switch o
 
 ## Font and size
 
-Captions use a bold sans-serif of weight 700 or more (`REQ-VID-055`). On the FFmpeg engine the style presets name Montserrat or Gabarito with `bold: true`, and when `randomize_fonts` is on the font is drawn per product from `font_pool` (Montserrat, Poppins, Gabarito and Rubik, all Bold) (`REQ-VID-073`). The size is `font_size_percent: 0.075`, 7.5% of the frame height, about 144 px on 1920 (`REQ-VID-056`). Pycaps templates ship their own `@font-face` and size in their CSS, so `font_pool` applies to the FFmpeg engine only.
+Captions use a bold sans-serif of weight 700 or more (`REQ-VID-055`). On the FFmpeg engine the style presets name Montserrat or Gabarito with `bold: true`, and when `randomize_fonts` is on the font is drawn per product from `font_pool` (Montserrat, Poppins, Gabarito and Rubik, all Bold) (`REQ-VID-073`). The size follows the engine (`REQ-VID-056`): SRT captions are `font_size_percent: 0.075`, 7.5% of the frame height, about 144 px on 1920; ASS captions, the bundled FFmpeg format, are 4% of the height times `font_size_scale`, at most 100 px. Pycaps templates ship their own `@font-face` and size in their CSS, so `font_pool` applies to the FFmpeg engine only.
 
 Why:
 
@@ -30,7 +30,7 @@ Why: mixed case reads faster than ALL CAPS, because ascenders and descenders car
 
 ## Colour and contrast
 
-Captions have a white fill and an opaque black outline of 2-4 px depending on the style preset, a drop shadow on every preset except `minimal`, and no background box (`REQ-VID-057`). The pycaps templates ring words with a text shadow instead of a stroke; `pycaps.outline_px` draws a real black outline in its place, 6 px in the bundled config, chosen from a side-by-side render (`REQ-VID-158`, [design 0021](../design/0021-caption-outline.md)). `modern` is the default FFmpeg preset. When `randomize_colors` is on (off globally, on in several slideshow profiles), the fill is drawn per product from `color_pool`: white, yellow (`#FFFF00`), neon green (`#00FF4C`) or saturated yellow (`#FFEB00`), each on a black outline.
+On the FFmpeg engine, captions have a white fill and an opaque black outline of 2-4 px depending on the style preset, a drop shadow on every preset except `minimal`, and no background box; the karaoke effect draws black text with a white outline that fills yellow word by word (`REQ-VID-057`). The pycaps templates keep their own fills: `explosive` yellow with an orange glow, `word-focus` white with an orange box behind the active word. The pycaps templates ring words with a text shadow instead of a stroke; `pycaps.outline_px` draws a real black outline in its place, 6 px in the bundled config, chosen from a side-by-side render (`REQ-VID-158`, [design 0021](../design/0021-caption-outline.md)). `modern` is the default FFmpeg preset. When `randomize_colors` is on (off globally, on in several slideshow profiles) and the preset draws no karaoke effect, the fill is drawn per product from `color_pool`: white, yellow (`#FFFF00`), neon green (`#00FF4C`) or saturated yellow (`#FFEB00`), each on a black outline.
 
 Why:
 

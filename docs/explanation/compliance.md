@@ -66,6 +66,10 @@ The pipeline can render the required literal phrase in the caption body of every
 
 This is a one-time manual setup per account. A closing-frame render of the same phrase is deferred as a future belt-and-suspenders measure.
 
+### Profile bio: what AI did and what a person did (optional)
+
+A bare "AI-generated" label leads viewers to assume full automation; a statement of AI's actual role removes that effect, but only when the role it describes is limited ([design 0016](../design/0016-tiktok-ai-label.md)). It goes in the profile bio, set by hand once per account, not in each caption. It must describe the real process: in this pipeline a language model writes each script and a person chooses the topics and keywords, and no person edits each video unless the operator does. A line such as "researched and edited by a person" is false for an unreviewed render. Keep it inside each bio's limit (TikTok 80 characters, Instagram 150).
+
 ## Tracked SDK gaps
 
 Tracked as GitHub issues, not blocking Phase 0:

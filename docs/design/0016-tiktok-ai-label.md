@@ -1,6 +1,6 @@
 # 0016. Revisit the TikTok AI label
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #558
 - **Requirements:** REQ-CMP-017, REQ-CMP-018, REQ-CMP-019
 
@@ -45,11 +45,11 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 
 ## Rollout
 
-The reach-test readout this waited on has passed ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)), and an installation sets `tiktok_settings.video_made_with_ai` in its overlay. A render type that shows a realistic synthetic person needs the label back on. The optional AI-role statement ships off behind its config key.
+The reach-test readout this waited on has passed ([decision 0014](../decisions/0014-the-reach-test-hold-ends-when-its-posts-are-queued.md)), and an installation sets `tiktok_settings.video_made_with_ai` in its overlay. A render type that shows a realistic synthetic person needs the label back on. The optional AI-role statement is a manual profile-bio step in the compliance guide, with no config key.
 
-Remove the switch when: never; it is a lasting option, because the AI-role statement is truthful only where a person reviews each video, which differs from operator to operator.
+Remove the switch when: never; `tiktok_settings.video_made_with_ai` is a lasting option, because whether a render needs the label depends on what an installation renders (a realistic synthetic person or a recognisable voice needs it).
 
 ## Open questions
 
 - Checked: no C2PA manifest is carried. The voice comes from Gemini TTS (the Charon voice) through the Google Cloud Text-to-Speech API, and `exiftool` finds no C2PA or JUMBF data in a pipeline voiceover WAV or in a delivered MP4, whose only tags are the container's and the `Lavf` encoder's. An inaudible watermark in the waveform itself can't be detected without the vendor's own detector, so whether a platform could recognise the audio as synthetic stays open.
-- The spec names no config key for the AI-role statement.
+- The AI-role statement has no config key: it is a profile-bio line set by hand (compliance guide, "Manual steps").
