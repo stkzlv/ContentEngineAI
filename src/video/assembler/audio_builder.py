@@ -5,7 +5,8 @@ support for voiceover and background music. Source video audio is not carried
 into the render.
 
 Tracks are combined with fixed-level mixing (FFmpeg amix, normalize off).
-Voice-keyed ducking is available behind `music_ducking_enabled` and is off by
+Voice-keyed ducking is available behind `music_ducking_enabled`, and the music
+lift (`music_lift`) pairs a louder gap level with its own duck; both are off by
 default, so the fixed-level mix is what a stock config produces.
 
 The mix is then mastered to a loudness target with `loudnorm` (EBU R128),
