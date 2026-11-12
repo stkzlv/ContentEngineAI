@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.243.1] - 2026-11-12
+
+### Changed
+
+- The music lift's requirement, design and audio explanation record that a listening A/B kept the fixed music level, so the lift stays off.
+
 ## [0.243.0] - 2026-11-12
 
 ### Added
