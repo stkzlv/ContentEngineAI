@@ -77,7 +77,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-042** `shipped` If the data a template needs is missing, the publisher skips that first comment with a warning and still publishes the post.
 - **REQ-PUB-043** `shipped` The publisher posts first comments in both unified and platform-specific publishing modes.
 - **REQ-PUB-161** `shipped` Where first comments are on, a post's `metadata.json` can set its own first comment per platform in `first_comment`: a string replaces the template, and `null` or an empty string posts none; a platform it doesn't name keeps the template, in both publishing modes.
-- **REQ-PUB-166** `shipped` A correction's first comment, on each platform that takes one, names the post it corrects by title and gives its URL on that platform, read through the publish history; on YouTube Shorts the URL shows as plain text.
+- **REQ-PUB-166** `shipped` A correction's first comment, on each platform that takes one, names the post it corrects by title and gives its URL on that platform, read through the publish history; while that post is still scheduled, or its URL can't be read, the comment names it by title alone. On YouTube Shorts the URL shows as plain text.
 - **REQ-PUB-044** `shipped` The `verify-comments` command checks recent published posts on each platform and warns on every YouTube or Instagram post missing its first comment; a leg the provider reports as sent without one is counted apart, as sent without a comment, not as missing.
   - Why: the provider reports a post published without confirming that its comment posted.
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.7] - 2026-11-12
+
+### Fixed
+
+- Four requirements state what their releases shipped (the image-data colour, off switch and video order, the one result-page limit and its pause, the fact check's refusal of a physical-act claim, a correction comment that names a scheduled post by title alone), a new requirement covers the video file check, and the tests of five requirements cite them with the `req` marker, so the coverage report counts them.
+
 ## [0.239.6] - 2026-11-12
 
 ### Fixed

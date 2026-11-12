@@ -16,12 +16,16 @@ from __future__ import annotations
 import ast
 from types import SimpleNamespace
 
+import pytest
+
 from src.scraper.amazon.product_extractor import (
     CARD_FACTS_JS,
     CARD_LOOKUP_WAIT,
     extract_serp_product_info,
 )
 from src.utils.outputs_paths import get_project_root
+
+pytestmark = pytest.mark.req("REQ-SCR-029")
 
 _DEFAULT = object()
 PRODUCT_URL = "https://www.amazon.com/dp/B0TEST00001?ref=x"

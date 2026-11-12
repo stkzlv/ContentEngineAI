@@ -27,7 +27,7 @@ from src.scraper.base.throttle import (
 )
 from src.scraper.config_models import ScraperConfig
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.req("REQ-SCR-044", "REQ-SCR-046")]
 
 
 def _tracker(**kwargs) -> ThrottleTracker:

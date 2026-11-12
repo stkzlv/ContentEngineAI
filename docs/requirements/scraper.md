@@ -37,7 +37,8 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-022** `shipped` Where the target profile uses no video, the scraper ignores downloaded videos when it checks the media minimums.
 - **REQ-SCR-023** `shipped` If a product fails the media minimums, the scraper removes its output directory and logs the reason.
 - **REQ-SCR-024** `shipped` The media counts in the scraper's summaries are validated files on disk per product, not URLs found on the page.
-- **REQ-SCR-086** `shipped` The scraper reads a product page's gallery images and listing videos from the page's embedded image data, in gallery order, taking each image's high-resolution version and falling back to its large one where no high-resolution version is given, with the page's image elements as the fallback.
+- **REQ-SCR-086** `shipped` The scraper reads a product page's gallery images and listing videos from the page's embedded image data, in gallery order, taking each image's high-resolution version and falling back to its large one where no high-resolution version is given, with the page's image elements as the fallback. Only the gallery of the colour the page opens on is read, and a gallery with no high-resolution entry at all uses the fallback. The listing's own videos are the first video candidates. `image_config.use_image_data` (on in the bundled config) turns the image data off, leaving the page scans.
+- **REQ-SCR-088** `shipped` A downloaded MP4 or MOV passes the video file check whatever its file-type box size and brand.
 - **REQ-SCR-067** `shipped` The scraper extracts at most `image_config.max_images_per_product` images (15 in the bundled config) and `video_config.max_videos_per_product` videos (default 10) per product.
 - **REQ-SCR-068** `shipped` Where `video_config.enable_m3u8_monitoring` is on (off by default), the scraper also captures product videos from the HLS streams the page loads when its video player starts.
 
@@ -51,7 +52,7 @@ Ids use the prefix `REQ-SCR`. The format and the statuses are described in [the 
 - **REQ-SCR-030** `shipped` The configured `scrapers.amazon.default_search_parameters` (price, rating, Prime) apply to the standalone scraper and the batch alike.
 - **REQ-SCR-031** `shipped` When a filter flag is passed on the command line, it overrides that field of the default search parameters.
 - **REQ-SCR-032** `shipped` The scraper's search log line states the filters in force.
-- **REQ-SCR-033** `shipped` When a keyword search yields fewer validated products than its per-keyword target, the scraper searches further result pages, up to a configured page limit.
+- **REQ-SCR-033** `shipped` When a keyword search yields fewer validated products than its per-keyword target, the scraper searches further result pages, up to `batch_processing.max_pages`, the one limit for the standalone scraper and the global batch alike; each later page waits the same pause as a new input.
 - **REQ-SCR-069** `shipped` If the resolved search parameters are invalid, such as a price or rating out of range, the scraper logs each error and refuses to run.
 - **REQ-SCR-080** `shipped` The search request carries each keyword's words as typed, encoded once.
 - **REQ-SCR-085** `shipped` If a search page is not a results page, the scraper gives it up within a configured bound (a few seconds), without trying each result-card selector in turn.
