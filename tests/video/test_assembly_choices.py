@@ -111,6 +111,7 @@ def test_the_assembler_names_each_effect_it_placed(tmp_path: Path) -> None:
         "sound_effects": None,
         "step_card_layout": None,
         "step_visuals": None,
+        "listing_video_opens": None,
     }
 
 
@@ -139,6 +140,7 @@ CHOICES = {
     "sound_effects": ["hook:hit_1.wav"],
     "step_card_layout": "left",
     "step_visuals": 5,
+    "listing_video_opens": True,
 }
 
 
@@ -159,6 +161,7 @@ def test_the_row_carries_the_assembly_choices(tmp_path: Path, state) -> None:
     assert row["sound_effects"] == ["hook:hit_1.wav"]
     assert row["step_card_layout"] == "left"
     assert row["step_visuals"] == 5
+    assert row["listing_video_opens"] is True
 
 
 @pytest.mark.req("REQ-PUB-083")

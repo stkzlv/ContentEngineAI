@@ -1,6 +1,6 @@
 # 0012. Prefer clean product images over seller infographics
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #554
 - **Requirements:** REQ-VID-015, REQ-VID-016
 
@@ -40,7 +40,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - Curation runs in `gather_visuals` after media validation, and never trims below the image minimum or the part of `min_total_media` the clips and stock media leave to images, so it cannot fail a render validation passed.
 - The cache sits beside each image as `<image>.text_score.json`, keyed to the file's size and modification time, because the scraper rewrites images under stable names.
 - The assembly step shuffles the visuals, so the "clean first" order matters only for which images are kept; the order is recorded but not used.
-- Preferring the product video (REQ-VID-016) is not built: profiles that take scraped video already build from the clips through their assembly mode.
+- Preferring the product video (REQ-VID-016) means opening on it: profiles that take scraped video already build from the clips through their assembly mode, so `video_settings.lead_with_listing_video` moves the first scraped clip's first segment to the start of that timeline, where the hook plays. The scraper downloads the listing's own videos ahead of the clips its page scans find (REQ-SCR-086), so the first scraped clip is the listing's when the page lists one.
 
 ## Alternatives considered
 

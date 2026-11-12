@@ -65,3 +65,18 @@ def test_the_gather_step_uses_the_helper() -> None:
 
     source = inspect.getsource(steps.step_gather_visuals)
     assert "_scraped_media(" in source and '"outputs" / ctx.product.asin' not in source
+
+
+@pytest.mark.req("REQ-VID-016")
+def test_a_scan_puts_the_first_download_first(tmp_path: Path) -> None:
+    videos = tmp_path / "scratch-out" / "B0X" / "videos"
+    for name in ("B0X_video_1.mp4", "B0X_video_10.mp4", "B0X_video_0.mp4"):
+        _touch(videos / name)
+
+    found = _scraped_media(_ctx(tmp_path, []), [], "videos", ("*.mp4",))
+
+    assert [path.name for path in found] == [
+        "B0X_video_0.mp4",
+        "B0X_video_1.mp4",
+        "B0X_video_10.mp4",
+    ]

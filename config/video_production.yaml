@@ -131,6 +131,14 @@ video_settings:
     # plain shots from marketing images; flash could.
     model: gemini-2.5-flash
 
+  # Open a product render on the listing's own video. The scraper downloads
+  # the listing's videos ahead of any other clip, so the first scraped clip
+  # is the listing's when the page has one; its first segment moves to the
+  # start of the timeline, after the assembly mode has placed it. A render
+  # whose assembly mode leaves the clip out (single_best picking a longer
+  # one) is unchanged.
+  lead_with_listing_video: true
+
   # How a render ends. "outro" adds outro_duration_sec (config/core.yaml)
   # after the voiceover and fades the music over music_fade_out_duration.
   # "peak" ends peak_margin_sec after the last spoken word and fades the

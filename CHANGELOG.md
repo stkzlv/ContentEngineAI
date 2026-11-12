@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.0] - 2026-11-12
+
+### Added
+
+- `video_settings.lead_with_listing_video`, on in the bundled config, opens a product render on the listing's own video by moving the first scraped clip to the start of the timeline.
+
 ## [0.240.0] - 2026-11-12
 
 ### Added

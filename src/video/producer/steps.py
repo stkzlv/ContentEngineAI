@@ -317,7 +317,11 @@ def _scraped_media(
     if found or not asin:
         return found
     media_dir = outputs_root / asin / subdir
-    return [p for pattern in patterns for p in media_dir.glob(pattern) if p.is_file()]
+    # Sorted, so the scraper's first download (index 0) leads, as it does in
+    # the recorded list.
+    return sorted(
+        p for pattern in patterns for p in media_dir.glob(pattern) if p.is_file()
+    )
 
 
 async def step_gather_visuals(ctx: PipelineContext):
@@ -1990,6 +1994,20 @@ def _step_visuals(
     )
 
 
+def _listing_video(ctx: PipelineContext) -> Path | None:
+    """The product's first scraped clip, the listing's own when it has one.
+
+    The scraper downloads the listing's videos ahead of the clips its page
+    scans find (REQ-SCR-086), and the gathered list keeps download order.
+    None without a scraped clip or a gathered-visuals record.
+    """
+    path = ctx.run_paths.get("gathered_visuals_file")
+    if path is None or not Path(path).exists():
+        return None
+    _, scraped_videos, _ = load_visuals_info(Path(path))
+    return scraped_videos[0] if scraped_videos else None
+
+
 def _word_timings(ctx: PipelineContext) -> list[dict[str, Any]] | None:
     """Whisper's word timings for this run, or None when there are none."""
     path = ctx.run_paths.get("whisper_transcript_file")
@@ -2192,6 +2210,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 spoken_words=_spoken_words(ctx),
                 step_cards=_step_cards(ctx),
                 step_visuals=_step_visuals(ctx, total_duration),
+                lead_video=_listing_video(ctx),
             )
             if not final_video_path:
                 raise PipelineError("Video assembly process failed.")
