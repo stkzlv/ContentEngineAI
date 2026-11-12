@@ -175,7 +175,7 @@ Beyond the table:
 
 ## Visuals that show the spoken step
 
-Built in part, behind `video_settings.step_visuals.enabled` (default false, on in the bundled config; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not built. In order of preference:
+Built in part, behind `video_settings.step_visuals.enabled` (default false, on in the bundled config; [design 0018](../design/0018-tutorial-step-visuals.md), REQ-VID-123): each step is shown on a UI mockup with the step's exact labels, timed to its narration from the Whisper word timings, not from a keyword search over the whole script. Screen capture and diagrams are not planned ([design 0019](../design/0019-tutorial-graphics.md#alternatives-considered)). The order of preference the evidence gives:
 
 1. **A real screen capture** where it can be automated. On Android, an emulator driven over adb records with `screenrecord` (MP4, 180 s maximum) and draws each touch with Developer options > Show taps. Stock Android differs from Samsung and Pixel skins, and routers, Windows and iOS need another source.
 2. **A rendered UI mockup** with the exact labels from the source page, rendered in the headless Chromium the caption engine already runs, generic in its phone chrome and exact in its labels.
@@ -188,7 +188,7 @@ Why: temporal contiguity (d = 1.30) and coherence (d = 0.70) in [What makes a sh
 
 ## Explanatory graphics
 
-Built in part, behind `video_settings.graphics.enabled` (default false, on in the bundled config; [design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124): the step card, a counter over the step's menu path, timed to the step's narration, and the checklist, built off (`graphics.checklist`, REQ-VID-164). Neither is drawn on a render that draws step screens, which carry the counter themselves. The other types below are planned. Graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
+Built in part, behind `video_settings.graphics.enabled` (default false, on in the bundled config; [design 0019](../design/0019-tutorial-graphics.md), REQ-VID-124): the step card, a counter over the step's menu path, timed to the step's narration, and the checklist, built off (`graphics.checklist`, REQ-VID-164). Neither is drawn on a render that draws step screens, which carry the counter themselves. The other types below are not planned ([design 0019](../design/0019-tutorial-graphics.md#alternatives-considered)). Graphics when they explain, never when they decorate. HTML and CSS templates are rendered to transparent images in the existing Chromium and animated with FFmpeg overlays, driven by a validated JSON spec from the script step. One graphic on screen at a time, about eight words at most, at least 1.5 s for each text segment that appears, and a failed graphic is skipped rather than losing the render. No AI image generation for anything the viewer must read: it garbles text and invents UI.
 
 Why:
 
@@ -199,18 +199,18 @@ Why:
 - **Decorative graphics hurt [A].** Interesting but irrelevant material lowers learning. Every graphic encodes a fact from the script.
 - **Graphics count as transformation [A].** YouTube credits substantive edits, and Instagram counts unique text and creative edits, as original ([TechCrunch](https://techcrunch.com/2026/04/30/instagram-restricts-reach-of-content-aggregators-in-new-crackdown/)). No retention data exists for arrows or circles. The same five cards with swapped words in every video would read as a template, so the layout varies and the geometry follows the content.
 
-The graphic types, in build order:
+The graphic types the evidence supports:
 
 | Type | Why | Data | Note |
 |---|---|---|---|
-| Menu-path breadcrumb | Signaling plus segmenting | The path segments | Revealed segment by segment with the voice |
-| Step card with counter | Segmenting | Step number, total, a short action | Doubles as progress |
-| Callout on a real screenshot | Signaling on real content | A box on a known capture | Never guessed on stock footage |
-| Spec or comparison card | Signaling on numbers | Values from the scraped data | For product videos; never LLM-invented specs |
-| Before/after split | A concrete comparison | Two real states | Speed test, cluttered and clean menu |
-| Checklist ("do this, not that") | Segmenting, coherence | Items with a state | Low risk |
-| Simulated phone tap path | Procedural animation | Screens and taps | Later; generic chrome, exact labels |
-| Parametric concept diagram | Build-on animation | Numbers only | Later; the template draws, the LLM supplies numbers |
+| Menu-path breadcrumb | Signaling plus segmenting | The path segments | Not planned: the step screens show the path |
+| Step card with counter | Segmenting | Step number, total, a short action | Built; doubles as progress |
+| Callout on a real screenshot | Signaling on real content | A box on a known capture | Not planned: no capture source |
+| Spec or comparison card | Signaling on numbers | Values from the scraped data | Not planned: listing prices and ratings can't stay current |
+| Before/after split | A concrete comparison | Two real states | Not planned: no image source |
+| Checklist ("do this, not that") | Segmenting, coherence | Items with a state | Built, off |
+| Simulated phone tap path | Procedural animation | Screens and taps | The step screens draw each step's screen with a tap ring |
+| Parametric concept diagram | Build-on animation | Numbers only | Not planned |
 
 ## Gaps in the evidence
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.2] - 2026-11-12
+
+### Fixed
+
+- The tutorial requirements state what is built: step screens are UI mockups, and the explanatory graphics are the step card and the checklist; screen capture, diagrams, the breadcrumb, the callout, the spec card and before/after are recorded as not planned, with the reasons.
+
 ## [0.241.1] - 2026-11-12
 
 ### Fixed
