@@ -40,7 +40,7 @@ A read-only check of the publishing provider's API found these available and unu
   - Net follows are the count at `--until` minus the count the day before `--since`.
   - Views are those of posts published in the range, as the provider groups them.
   - A rate whose inputs are missing prints `-`, and the summed row is unknown when any platform's input is.
-  - Shares plus saves counts the fields a platform exposes, so it is unknown on YouTube. The summed figure leaves out a platform that exposes neither, along with its views, and names the platforms it counts; it is unknown only when a platform has no stored day in the range or none exposes either.
+  - Shares plus saves counts the fields a platform exposes, so it is unknown on YouTube. The summed figure leaves out a platform that exposes neither, along with its views, and names the platforms it counts when it leaves one out; it is unknown only when a platform has no stored day in the range or none exposes either.
   - Instagram profile views per 1,000 views needs profile figures for every day of the range: a partial sum over the whole range's views would read low.
 
 ## Alternatives considered
