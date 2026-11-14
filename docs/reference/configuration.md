@@ -119,8 +119,8 @@ The configuration system uses **9 specialized files** instead of a monolithic co
 - **`config/ai_services.yaml`** - TTS, LLM, and AI providers
 - **`config/subtitles.yaml`** - Subtitle positioning and styling
 - **`config/performance.yaml`** - Resource limits and optimization
-- **`config/scraper.yaml`** - Web scraping and browser settings
-- **`config/pipeline.yaml`** - Batch processing and global pipeline settings
+- **`config/scraper.yaml`** - Web scraping and browser settings, and `batch.keywords`, a short starter keyword pool that an installation replaces in `config/scraper.private.yaml`
+- **`config/pipeline.yaml`** - Batch processing and global pipeline settings, including `global_batch.shuffle_keywords` (default `false`; the bundled config ships it on), which searches a run's keywords in random order (keys in the [global batch reference](global-batch.md))
 - **`config/publisher.yaml`** - Social media publishing via Zernio (published via the legacy Late SDK), plus the `analytics` sweep size and the `--by-arm` readout's platforms (`readout_platforms`) and breakout multiple (`breakout_multiple`), and the YouTube early-retention read's age and second (`retention_curve_min_age_days`, `early_retention_sec`), and `youtube_profile_pointer` (default `false`), which says the profiles carry a link: on, a product video's YouTube description ends on "Link in bio." and the metadata prompts ask for it, and `covers.enabled` (default `false`; the bundled config ships it on), which sends each render's cover with its post, and `instagram_ai_label` (default `false`), which sends Instagram's AI-generated-media label on every Instagram post, and `instagram_paid_partnership` (default `false`), which sends Instagram's paid-partnership label from each render's material connection
 - **`config/url_shortener.yaml`** - URL shortening providers and integration
 

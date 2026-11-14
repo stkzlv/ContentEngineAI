@@ -17,6 +17,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 |---|---|---|---|
 | `--product-ids` | one or more `ASIN` | none | Products to scrape, render and publish. |
 | `--keywords` | one or more `KEYWORD` | none | Keywords to search for products. |
+| `--shuffle-keywords` / `--no-shuffle-keywords` | switch | `global_batch.shuffle_keywords` | Search the keywords in random order; a run without `--keywords` draws them at random from the pool. |
 | `--topic` | `TITLE` | none | Renders a video about a topic instead of a scraped product. Skips scraping; the record is built from the title. |
 | `--topic-description` | `TEXT` | none | Source material the topic script is written from, with `--topic`. |
 | `--topic-keywords` | `TERMS` | none | Comma-separated stock media search terms for the topic. |
@@ -89,7 +90,8 @@ The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds unt
 |---|---|---|
 | `product_ids` | `[]` | Products every run scrapes. |
 | `keywords` | `{}` | Keywords grouped by content pillar, or a flat list with no pillar. Empty means the run draws from `batch.keywords` in `config/scraper.yaml`; a value here replaces that pool for batch runs. |
-| `keywords_per_run` | unset | How many keywords one run searches, taken in rotation by date. Unset, it is what the run consumes, `max_products` divided by `products_per_keyword`. |
+| `keywords_per_run` | unset | How many keywords one run searches, taken in rotation by date (at random when `shuffle_keywords` is on). Unset, it is what the run consumes, `max_products` divided by `products_per_keyword`. |
+| `shuffle_keywords` | `true` | Search the keywords in random order. A run with no input flags draws `keywords_per_run` keywords at random from the whole pool instead of the date slice; `--keywords` are all searched, in shuffled order. `--shuffle-keywords` / `--no-shuffle-keywords` override it for one run. |
 | `topics` | two sample topics | Topics rendered without scraping, each a `title` with an optional `description`, `keywords`, `search` and `kind`. Same shape as `--topics-file`. |
 | `topics_file` | `null` | A file whose topics replace `topics`. A relative path resolves against `config/`. `PIPELINE_TOPICS_FILE` overrides it; a missing file is an error. |
 | `topics_per_run` | `1` | How many topics a run with no input flags includes, taken in rotation by date. `0` renders products only. Topics on the command line ignore it. |

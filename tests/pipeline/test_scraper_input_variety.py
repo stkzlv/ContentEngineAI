@@ -96,10 +96,19 @@ class TestTheBatchDrawsTheScraperPool:
         )
 
     def test_the_scraper_pool_is_the_larger_one(self):
-        """States the asymmetry the fallback exists for."""
-        pool, pillars = _scraper_keyword_pool()
+        """States the asymmetry the fallback exists for.
 
-        assert len(pool) > 20
+        The shipped pool is a short starter list; an installation's overlay
+        carries its own. It still has to outnumber what one run searches, or
+        neither the rotation nor the shuffle has anything to choose from.
+        """
+        import yaml
+
+        pool, pillars = _scraper_keyword_pool()
+        with open("config/pipeline.yaml", encoding="utf-8") as handle:
+            batch = yaml.safe_load(handle)["global_batch"]
+
+        assert len(pool) > batch["max_products"]
         assert pillars
 
     def test_a_no_flag_run_reaches_the_wide_pool(self):
@@ -111,13 +120,13 @@ class TestTheBatchDrawsTheScraperPool:
             config = load_global_batch_config(argparse.Namespace())
 
         assert config.keywords
-        assert len(config.keyword_pillar_map) > 20
+        assert len(config.keyword_pillar_map) == len(_scraper_keyword_pool()[0])
         # The run takes a slice, not the whole pool, or there is no rotation.
         assert len(config.keywords) < len(_scraper_keyword_pool()[0])
 
     def test_cli_keywords_are_not_rotated(self):
         """A keyword typed on the command line was asked for by name."""
-        args = argparse.Namespace(keywords=["one", "two"])
+        args = argparse.Namespace(keywords=["one", "two"], shuffle_keywords=False)
 
         config = load_global_batch_config(args)
 
@@ -1054,3 +1063,96 @@ class TestBothSummaryRoutesAgree:
                 f"{expression.strip()} counts a set, which de-dupes, while "
                 "the list beside it does not"
             )
+
+
+def _pipeline_with(tmp_path: Path, keywords: list[str], **batch) -> str:
+    import yaml
+
+    (tmp_path / "pipeline.yaml").write_text(
+        yaml.safe_dump({"global_batch": batch}), encoding="utf-8"
+    )
+    (tmp_path / "scraper.yaml").write_text(
+        yaml.safe_dump({"batch": {"keywords": {"value": keywords}}}),
+        encoding="utf-8",
+    )
+    return str(tmp_path / "pipeline.yaml")
+
+
+@pytest.mark.unit
+class TestShuffledKeywords:
+    """REQ-BAT-089: `shuffle_keywords` puts a different keyword first.
+
+    The batch stops at the first keyword that yields a product, so a date
+    slice shared by two runs, or a fixed `--keywords` list, kept landing on
+    the same head keyword.
+    """
+
+    POOL = [f"kw{i}" for i in range(30)]
+
+    def test_a_no_flag_run_samples_the_whole_pool(self, tmp_path):
+        path = _pipeline_with(
+            tmp_path, self.POOL, shuffle_keywords=True, keywords_per_run=5
+        )
+
+        firsts = set()
+        seen: set[str] = set()
+        for _ in range(40):
+            config = load_global_batch_config(argparse.Namespace(), path)
+            assert len(config.keywords) == 5
+            assert len(set(config.keywords)) == 5
+            assert set(config.keywords) <= set(self.POOL)
+            firsts.add(config.keywords[0])
+            seen |= set(config.keywords)
+
+        # A date slice would give one head and five keywords all day.
+        assert len(firsts) > 1
+        assert len(seen) > 5
+
+    def test_typed_keywords_are_all_searched_in_a_new_order(self, tmp_path):
+        path = _pipeline_with(tmp_path, ["unused"], shuffle_keywords=True)
+        typed = [f"t{i}" for i in range(8)]
+
+        orders = set()
+        for _ in range(20):
+            config = load_global_batch_config(
+                argparse.Namespace(keywords=list(typed)), path
+            )
+            assert sorted(config.keywords) == sorted(typed)
+            orders.add(tuple(config.keywords))
+
+        assert len(orders) > 1
+
+    def test_the_cli_flag_turns_it_off_for_one_run(self, tmp_path):
+        path = _pipeline_with(tmp_path, ["unused"], shuffle_keywords=True)
+        typed = [f"t{i}" for i in range(8)]
+
+        config = load_global_batch_config(
+            argparse.Namespace(keywords=list(typed), shuffle_keywords=False), path
+        )
+
+        assert config.keywords == typed
+
+    def test_off_by_default_keeps_the_date_rotation(self, tmp_path):
+        path = _pipeline_with(tmp_path, self.POOL, keywords_per_run=5)
+
+        first = load_global_batch_config(argparse.Namespace(), path).keywords
+        again = load_global_batch_config(argparse.Namespace(), path).keywords
+
+        assert first == again
+
+    def test_a_zero_width_run_still_searches_nothing(self, tmp_path):
+        path = _pipeline_with(
+            tmp_path, self.POOL, shuffle_keywords=True, keywords_per_run=0
+        )
+
+        config = load_global_batch_config(argparse.Namespace(), path)
+
+        assert config.keywords == []
+
+    def test_the_bundled_config_ships_it_on(self):
+        import yaml
+
+        with open("config/pipeline.yaml", encoding="utf-8") as handle:
+            batch = yaml.safe_load(handle)["global_batch"]
+
+        assert batch["shuffle_keywords"] is True

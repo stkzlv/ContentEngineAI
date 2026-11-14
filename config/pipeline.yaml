@@ -42,6 +42,15 @@ global_batch:
   # re-serving the head of the list.
   # keywords_per_run: 10
 
+  # Search the keywords in random order. The batch takes the first keyword
+  # that yields a product, so with this off a run given a fixed list, or two
+  # runs on the same rotation slice, keep landing on its first keyword. On, a
+  # run without input flags draws `keywords_per_run` keywords at random from
+  # the whole pool instead of the date slice, and `--keywords` are all
+  # searched in shuffled order. The order is logged. `--no-shuffle-keywords`
+  # turns it off for one run.
+  shuffle_keywords: true
+
   # Topics to render without scraping. A topic has no listing, so it produces
   # a video from a title and a description instead of from product data.
   #

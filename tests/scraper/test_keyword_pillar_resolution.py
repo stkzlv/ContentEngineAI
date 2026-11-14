@@ -192,8 +192,9 @@ class TestEveryLoaderAndLookupAgrees:
                 side_effect=lambda ks, _n, **_kw: ks,
             ),
         ):
+            # Shuffling draws a random sample and bypasses the stub.
             config = load_global_batch_config(
-                argparse.Namespace(), "config/pipeline.yaml"
+                argparse.Namespace(shuffle_keywords=False), "config/pipeline.yaml"
             )
 
         assert set(config.keywords) == set(
