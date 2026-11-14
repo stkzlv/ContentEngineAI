@@ -28,6 +28,7 @@ import json
 import logging
 import math
 import os
+import random
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, date, datetime
 from enum import Enum
@@ -1235,6 +1236,9 @@ def load_global_batch_config(
     # keywords and no more. Rotating by that width makes consecutive days
     # disjoint; rotating by the whole pool would be no rotation at all, since
     # a start offset of a multiple of the length is zero.
+    shuffle_keywords = _flag(
+        cli_args, "shuffle_keywords", yaml_config, "shuffle_keywords"
+    )
     if rotate_keywords and keywords:
         # Read with a sentinel rather than `or`, so that 0 means "search no
         # keywords" here as it means "render no topics" for `topics_per_run`,
@@ -1248,12 +1252,21 @@ def load_global_batch_config(
         # On an alternated product day the compressed ordinal keeps
         # consecutive product days on consecutive slices (see above); on an
         # ordinary mixed run the helper reads today's ordinal itself.
-        if alternated_format == "product":
+        if shuffle_keywords:
+            # The batch takes the first keyword that yields a product, so a
+            # date slice put the same head first on every run that shared it.
+            keywords = random.sample(keywords, min(per_run, len(keywords)))
+        elif alternated_format == "product":
             keywords = keywords_for_run(
                 keywords, per_run, day_ordinal=alternated_day_ordinal
             )
         else:
             keywords = keywords_for_run(keywords, per_run)
+    elif shuffle_keywords and keywords:
+        # Typed keywords are all searched; only their order changes.
+        keywords = random.sample(keywords, len(keywords))
+    if shuffle_keywords and keywords:
+        logger.info("Keywords in shuffled order: %s", ", ".join(keywords))
 
     scraper_filters = resolve_scraper_filters(
         cli_args, yaml_config.get("scraper_filters") or {}

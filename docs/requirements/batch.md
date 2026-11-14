@@ -63,7 +63,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-031** `shipped` Where `global_batch.alternate_formats` is on and no input flags are given, the batch runs either its topics or its products on a given day, chosen by date parity.
 - **REQ-BAT-032** `shipped` If the side chosen for the day has nothing configured, the batch runs the other side and logs a warning.
 - **REQ-BAT-033** `shipped` When inputs are passed on the command line, the batch runs them without alternation.
-- **REQ-BAT-034** `shipped` When no input flags are given, the batch rotates its configured keyword pool by date, so consecutive runs search different keywords.
+- **REQ-BAT-034** `shipped` When no input flags are given and `global_batch.shuffle_keywords` is off, the batch rotates its configured keyword pool by date, so consecutive runs search different keywords.
 - **REQ-BAT-035** `shipped` The batch takes each search filter (`min_price`, `max_price`, `min_rating`, `prime_only`) from the CLI flag first, then `global_batch.scraper_filters`, then the scraper's default search parameters.
   - Check: a `null` in `scraper_filters` applies the scraper's default, not "no filter".
 - **REQ-BAT-036** `shipped` When `--clean` is passed with `--product-ids`, the batch removes only those products' directories before running.
@@ -71,6 +71,7 @@ Ids use the prefix `REQ-BAT`. The format and the statuses are described in [the 
 - **REQ-BAT-068** `shipped` When `global_batch.keywords` is empty, the batch rotates the scraper's `batch.keywords` pool from `scraper.yaml`.
 - **REQ-BAT-069** `shipped` `global_batch.keywords_per_run` sets how many pool keywords a no-flag run searches, 0 means none, and without it the count is `max_products` divided by `products_per_keyword`, rounded up.
 - **REQ-BAT-070** `shipped` If `global_batch.keywords_per_run` is not a non-negative integer, the batch refuses to start, whatever inputs the run has.
+- **REQ-BAT-089** `shipped` Where `global_batch.shuffle_keywords` is on (the bundled default), a run with no input flags searches `keywords_per_run` keywords drawn at random from the whole pool, and a run given `--keywords` searches all of them in random order; the run logs the order, and `--no-shuffle-keywords` turns it off for one run.
 
 ## Profile randomization
 

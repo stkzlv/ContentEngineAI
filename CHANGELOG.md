@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.245.0] - 2026-11-14
+
+### Added
+
+- `global_batch.shuffle_keywords`, on by default, makes a batch run search its keywords in random order, drawing a no-flag run's keywords at random from the whole pool, with `--shuffle-keywords` / `--no-shuffle-keywords` to override it for one run.
+
+### Changed
+
+- The shipped keyword pool in `config/scraper.yaml` is a short generic starter list; an installation keeps its own pool in `config/scraper.private.yaml`.
+
 ## [0.244.0] - 2026-11-12
 
 ### Added

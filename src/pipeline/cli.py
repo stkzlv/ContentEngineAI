@@ -76,6 +76,15 @@ Examples:
         metavar="KEYWORD",
         help="Keywords to search for products (e.g., 'wireless earbuds' 'smart watch')",
     )
+    input_group.add_argument(
+        "--shuffle-keywords",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Search keywords in random order; a run without --keywords draws "
+            "them at random from the pool (default: global_batch.shuffle_keywords)"
+        ),
+    )
     # Same names and semantics as the producer CLI, per the Module/Batch
     # Alignment Rule. A topic run skips the scraping phase: there is no listing
     # behind it, so the input is the record rather than a search for one.

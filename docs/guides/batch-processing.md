@@ -281,12 +281,18 @@ adding to it, so a single entry there narrows every batch run to one keyword.
 
 A run does not search the whole pool. It searches `keywords_per_run`, which
 defaults to what the run will actually consume (`max_products` divided by
-`products_per_keyword`), taken in rotation by date. Consecutive days are
-disjoint while that number is at most half the pool -- which the bundled 10
-of 54 is -- so a daily cadence works through the pool instead of re-serving
-the head of the list. Past half the pool consecutive days must overlap.
-Keywords passed with `--keywords` are used exactly as given
-and are not rotated.
+`products_per_keyword`). With `shuffle_keywords` on, the bundled default,
+they are drawn at random from the whole pool, and keywords passed with
+`--keywords` are all searched in a random order. The batch takes the first
+keyword that yields a product, so this is what puts a different keyword
+first on each run; the log line `Keywords in shuffled order:` shows the
+order. With it off, the keywords are taken in rotation by date: consecutive
+days are disjoint while that number is at most half the pool, and keywords
+passed with `--keywords` are used exactly as given.
+
+The shipped `batch.keywords` is a short starter pool. Keep your own in
+`config/scraper.private.yaml`: the overlay merges pillar by pillar and a list
+there replaces the shipped list, so use the same pillar names.
 
 ### Usage Examples
 
@@ -514,6 +520,7 @@ global_batch:
   # narrows every run to one keyword.
   keywords: {}
   # keywords_per_run: 10  # default: max_products / products_per_keyword
+  shuffle_keywords: true  # random order; --no-shuffle-keywords for one run
 
   # Product Limits (Two-Tier System)
   max_products: 10        # Global cap across all keywords
