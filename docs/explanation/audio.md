@@ -111,7 +111,7 @@ On: a voice processing chain ([design 0004](../design/0004-voice-processing-chai
 
 ## Synthesized sound effects with Earshot
 
-Not adopted: [Earshot](https://github.com/Leonxlnx/earshot) (MIT) is a candidate source of sound effects, recorded here so the evaluation isn't repeated. The pipeline's effects remain the CC0 files under `static/sfx`.
+Planned: [Earshot](https://github.com/Leonxlnx/earshot) (MIT) is the candidate source for the pipeline's sound effects, to adopt in a later change. Until then the effects are the CC0 files under `static/sfx`.
 
 What it is:
 
@@ -123,13 +123,13 @@ What it is:
 
 Where it would fit: the effects a narrated short uses are abstract UI sounds (a tick when a counter lands, a pop when a card appears, a whoosh on a scale cut), and these have no real-world reference. That is where listening tests found synthesis holds up against recordings [A] ([QMUL listening tests](https://qmro.qmul.ac.uk/xmlui/handle/123456789/36964)). A chart beat knows the frame each value lands on, so the beat could emit a cue list for a kit render, and the take's measured peak could be placed on that frame.
 
-Why not adopted:
+What adopting it takes:
 
-- **No evidence that effects help retention.** No study isolates sound effects in short-form video, and heavy effects lower engagement past a point [B] ([design 0003](../design/0003-sparse-sound-effects.md) has the source). An effect source is worth changing only after an A/B shows effects pay at all.
-- **The licence of rendered audio is unstated.** The code is MIT, but no document states the terms of the audio a recipe renders. The bank's newer members were also tuned toward a private set of licensed film clips, with originality checked only by a model's similarity score.
-- **Output changes with the bank.** A bank upgrade re-renders every kit take, so an integration pins a commit and keeps its switch ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)).
-- **Its tuning lacks listening tests.** No blind listening test covers the current bank, and the density figures in its own docs disagree with each other.
-- **Heavy install.** The package requires PyTorch and Transformers even for the model-free commands, so it belongs in an isolated tool environment, not the project's.
+- **An A/B on effects.** No study isolates sound effects in short-form video, and heavy effects lower engagement past a point [B] ([design 0003](../design/0003-sparse-sound-effects.md) has the source), so the first batch with Earshot effects runs against one without.
+- **Settling the licence of rendered audio.** The code is MIT, but no document states the terms of the audio a recipe renders. The bank's newer members were also tuned toward a private set of licensed film clips, with originality checked only by a model's similarity score. Confirm the terms with the project before shipping its takes.
+- **A pinned commit and a switch.** A bank upgrade re-renders every kit take, so the integration pins a commit and keeps its switch ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)).
+- **A listen before use.** No blind listening test covers the current bank, and the density figures in its own docs disagree with each other, so each take is picked by ear and density comes from the A/B.
+- **An isolated install.** The package requires PyTorch and Transformers even for the model-free commands, so it goes in its own tool environment (`uv tool install`), not the project's.
 
 Rules that hold for any effect source, whichever is used:
 
