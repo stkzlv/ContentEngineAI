@@ -109,6 +109,36 @@ Why:
 
 On: a voice processing chain ([design 0004](../design/0004-voice-processing-chain.md), `REQ-CNT-073`). On: visual cuts snapped to music beats ([design 0005](../design/0005-beat-snapped-cuts.md), `REQ-VID-013`). Planned: an evaluation of a distinctive or owned narrator voice ([design 0015](../design/0015-narrator-voice-evaluation.md)).
 
+## Synthesized sound effects with Earshot
+
+Planned: [Earshot](https://github.com/Leonxlnx/earshot) (MIT) is the candidate source for the pipeline's sound effects, to adopt in a later change. Until then the effects are the CC0 files under `static/sfx`.
+
+What it is:
+
+- **A bank of 252 effects synthesized in code**: clicks, ticks, pops, whooshes, risers, hits, stings and plucks. No audio is stored; each entry is a recipe with a fixed seed, so a render is deterministic. `earshot sfx render <id>` takes `--dur`, `--apex` (when a whoosh peaks), `--pitch` and `--seed` (a new take of the same sound), and `earshot sfx check` audits a take for clicks, clipping and cut tails.
+- **Kits**: `earshot kit render` renders a set of roles (tick, pop, hit, short whoosh, riser) to cached WAV takes, plus a lock file with each take's measured onset, peak and end. Those are the numbers a mixer needs to land an effect on a frame.
+- **Measurement**: `earshot measure` reports integrated loudness, true peak and loudness range. `sfx`, `kit` and `measure` need no models and no network.
+- **Listening**: `timeline`, `realness` and `critique` load two models of about 1.1 GB (CLAP and AST) and take about 1.5 minutes per minute of audio. `timeline` can check a mix against a cue list for sync.
+- **A bundled `real-sound` skill** builds soundtracks from licensed recordings (Freesound, Mixkit, Pixabay): a licence audit, a three-bus mixer and measured QA. It has no voice bus and no ducking under narration, so it suits a music-led film, not a narrated one.
+
+Where it would fit: the effects a narrated short uses are abstract UI sounds (a tick when a counter lands, a pop when a card appears, a whoosh on a scale cut), and these have no real-world reference. That is where listening tests found synthesis holds up against recordings [A] ([QMUL listening tests](https://qmro.qmul.ac.uk/xmlui/handle/123456789/36964)). A chart beat knows the frame each value lands on, so the beat could emit a cue list for a kit render, and the take's measured peak could be placed on that frame.
+
+What adopting it takes:
+
+- **An A/B on effects.** No study isolates sound effects in short-form video, and heavy effects lower engagement past a point [B] ([design 0003](../design/0003-sparse-sound-effects.md) has the source), so the first batch with Earshot effects runs against one without.
+- **Settling the licence of rendered audio.** The code is MIT, but no document states the terms of the audio a recipe renders. The bank's newer members were also tuned toward a private set of licensed film clips, with originality checked only by a model's similarity score. Confirm the terms with the project before shipping its takes.
+- **A pinned commit and a switch.** A bank upgrade re-renders every kit take, so the integration pins a commit and keeps its switch ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)).
+- **A listen before use.** No blind listening test covers the current bank, and the density figures in its own docs disagree with each other, so each take is picked by ear and density comes from the A/B.
+- **An isolated install.** The package requires PyTorch and Transformers even for the model-free commands, so it goes in its own tool environment (`uv tool install`), not the project's.
+
+Rules that hold for any effect source, whichever is used:
+
+- Audio more than 45 ms ahead of its picture, or 125 ms behind it, is detectable (ITU-R BT.1359) [A]. Land a transient 0-40 ms after its visual, and a riser's peak on the cut.
+- Keep effects and music at least 4 LU under dialogue (UK DPP) [B], and out of the 2-4 kHz consonant band while the voice speaks [B/C].
+- No source gives an effects-per-minute figure [C]; the pipeline's own A/B decides density.
+- For a monetized video, use CC0, CC BY (credited), Pixabay, Mixkit or self-made effects. Never CC BY-NC or Sampling+ ([Freesound FAQ](https://freesound.org/help/faq/)) [A].
+- Openverse is a search over Freesound and Jamendo, not a separate source. Its `license_type=commercial` filter admits Sampling+, so a query passes `license=cc0,by` instead. Its links are Freesound's low-bitrate previews, while the Freesound provider already downloads originals.
+
 ## Trimming is not a level
 
 `silence_min_duration_sec` in `config/ai_services.yaml` (`audio_processing`, default 0.1) trims silence from the voiceover; it does not set a level. Larger values trim more, not less, and eat short trailing words. [The audio module notes](../notes/audio.md) explain why; keep it at 0.1 seconds or below.
