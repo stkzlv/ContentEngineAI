@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.245.2] - 2026-11-25
+
+### Documentation
+
+- Design 0040 and requirements REQ-CNT-179 to REQ-CNT-185 specify performed voice delivery: a delivery plan written from the script, checked against it word for word, and voiced segment by segment on the Gemini API speech model, plus sending a profile's style prompt to the Cloud TTS voice.
+
 ## [0.245.1] - 2026-11-25
 
 ### Documentation
