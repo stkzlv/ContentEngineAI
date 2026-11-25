@@ -198,3 +198,105 @@ def test_a_disabled_kind_records_nothing(step_ctx):
 
     row = choices_from_context(step_ctx)
     assert row["structure"] is None and row["structure_variant"] is None
+
+
+@pytest.mark.req("REQ-CNT-189")
+@pytest.mark.asyncio
+async def test_a_failed_labelling_call_records_no_beats_and_the_step_completes(
+    step_ctx,
+):
+    from src.ai import script_generator
+    from src.ai.script_generator import ScriptGenerationError
+    from src.video.producer import steps
+
+    async def fake(product, settings, *a, **k):
+        return SCRIPT, "classic_promo", ""
+
+    failing = AsyncMock(side_effect=ScriptGenerationError("Gemini API error: 503"))
+    with (
+        patch.object(steps, "generate_ai_script", fake),
+        patch.object(steps, "_ensure_fact_checked", AsyncMock()),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+        patch.object(script_generator, "_call_llm_api_with_retry", failing),
+    ):
+        await steps.step_generate_script(step_ctx)
+
+    record = json.loads(step_ctx.state["structure"])
+    assert record["labels"] == {"turn": None, "payoff": None}
+    assert step_ctx.state["script_template"] == "classic_promo"
+
+
+@pytest.mark.req("REQ-CNT-189")
+@pytest.mark.asyncio
+async def test_labels_index_the_script_after_the_fact_check(step_ctx):
+    from src.ai import script_generator
+    from src.video.producer import steps
+
+    revised = "Dark mode saves battery. But only on bright OLED screens."
+    seen = {}
+
+    async def fake(product, settings, *a, **k):
+        return SCRIPT, "classic_promo", ""
+
+    async def fact_check(ctx, pillar):
+        ctx.script = revised
+
+    async def label(prompt, *a, **k):
+        seen["prompt"] = prompt
+        return '{"turn": 2, "payoff": null}'
+
+    with (
+        patch.object(steps, "generate_ai_script", fake),
+        patch.object(steps, "_ensure_fact_checked", fact_check),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+        patch.object(script_generator, "_call_llm_api_with_retry", label),
+    ):
+        await steps.step_generate_script(step_ctx)
+
+    assert "2. But only on bright OLED screens." in seen["prompt"]
+    assert "Most people think" not in seen["prompt"]
+
+
+@pytest.mark.req("REQ-CNT-190")
+def test_an_edited_script_makes_the_record_stale(step_ctx):
+    from src.video.producer.steps import script_digest
+    from src.video.render_choices import choices_from_context
+
+    step_ctx.script = "One two three four. Five six."
+    step_ctx.state["structure"] = json.dumps(
+        {"labels": {"turn": 1}, "targets": {}, "script": script_digest("Older text.")}
+    )
+    path = step_ctx.run_paths["whisper_transcript_file"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    words = [
+        {"word": w, "start": float(i), "end": i + 0.5} for i, w in enumerate("abcdef")
+    ]
+    path.write_text(json.dumps({"segments": [{"words": words}]}))
+
+    record = choices_from_context(step_ctx)["structure"]
+
+    assert record["stale"] is True and "measured" not in record
+
+
+@pytest.mark.req("REQ-CNT-190")
+def test_the_signoff_is_measured_before_the_call_to_action():
+    # "That's the take." (0.3 s a word) then "Would you buy it?" (0.6 s a word).
+    words, t = [], 0.0
+    for w, d in [("That's", 0.3), ("the", 0.3), ("take.", 0.3)] + [
+        (w, 0.6) for w in ("Would", "you", "buy", "it?")
+    ]:
+        words.append({"word": w, "start_time": t, "end_time": t + d})
+        t += d
+    assert signoff_length(words, "That's the take.", "Would you buy it?") == 0.9
+
+
+@pytest.mark.req("REQ-CNT-190")
+def test_numbers_count_as_one_word_like_the_transcript():
+    sentences = ["It costs $29.99 for 5,000 mAh.", "But the cable is short."]
+    words = [
+        {"word": w, "start": float(i)}
+        for i, w in enumerate(
+            "It costs $29.99 for 5,000 mAh. But the cable is short.".split()
+        )
+    ]
+    assert measure_starts(sentences, {"turn": 1}, words) == {"turn": 6.0}

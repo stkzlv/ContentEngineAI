@@ -156,6 +156,7 @@ def _structure(ctx: Any) -> dict[str, Any] | None:
         return None
     record: dict[str, Any] = loaded
     from src.video.config.structure_models import StructureTargets
+    from src.video.producer.steps import script_digest
     from src.video.script_structure import (
         measure_starts,
         misses,
@@ -165,11 +166,17 @@ def _structure(ctx: Any) -> dict[str, Any] | None:
 
     words = _transcript_words(ctx.run_paths.get("whisper_transcript_file"))
     labels = record.get("labels") or {}
+    if record.get("script") and record["script"] != script_digest(ctx.script):
+        # The script changed after it was labelled (an edit before a resume).
+        record["stale"] = True
+        words = []
     if words:
         sentences = sentences_of(ctx.script or "")
         record["measured"] = measure_starts(sentences, labels, words)
         record["signoff_sec"] = signoff_length(
-            words, _script_state(ctx.state, "signoff")
+            words,
+            _script_state(ctx.state, "signoff"),
+            _script_state(ctx.state, "cta"),
         )
         targets = StructureTargets(**(record.get("targets") or {}))
         record["misses"] = misses(record["measured"], targets)

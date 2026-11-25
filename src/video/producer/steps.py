@@ -637,7 +637,12 @@ async def _label_structure(ctx: PipelineContext, structure: ScriptStructure) -> 
     Stored as JSON strings: the state loader reads a dict as a step record.
     A failed labelling call records the variant and no beats (REQ-CNT-189).
     """
-    from src.ai.script_generator import _call_llm_api_with_retry
+    from aiohttp import ClientError
+
+    from src.ai.script_generator import (
+        ScriptGenerationError,
+        _call_llm_api_with_retry,
+    )
 
     variant = draw_variant(structure, ctx.product.asin or ctx.product.title or "")
     targets = targets_for(structure, variant)
@@ -657,7 +662,14 @@ async def _label_structure(ctx: PipelineContext, structure: ScriptStructure) -> 
                 ctx.config.api_settings,
             )
             labels = parse_labels(reply, len(sentences))
-        except (RuntimeError, ValueError, OSError) as e:
+        except (
+            ScriptGenerationError,
+            ClientError,
+            TimeoutError,
+            RuntimeError,
+            ValueError,
+            OSError,
+        ) as e:
             logger.warning("Script beats not labelled: %s", e)
     estimated = estimate_starts(sentences, labels, structure.wpm)
     for miss in misses(estimated, targets):
@@ -669,6 +681,8 @@ async def _label_structure(ctx: PipelineContext, structure: ScriptStructure) -> 
             "estimated": estimated,
             "targets": targets.model_dump(),
             "wpm": structure.wpm,
+            # The script the labels index; a later edit makes them stale.
+            "script": script_digest(ctx.script),
         }
     )
 
@@ -764,8 +778,6 @@ async def step_generate_script(ctx: PipelineContext):
             )
             ensure_dirs_exist(ctx.run_paths["script_file"].parent)
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
-            if structure.enabled:
-                await _label_structure(ctx, structure)
             used = used_bit(ctx.script, bit)
             if used:
                 # A top-level string, recorded in the render-choices row so the
@@ -806,6 +818,10 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.run_paths["script_file"].name,
             )
             await _ensure_fact_checked(ctx, pillar)
+            # After the fact check, which can drop or rewrite sentences, so
+            # the labels index the script that is voiced (REQ-CNT-189).
+            if structure.enabled:
+                await _label_structure(ctx, structure)
             # Variety check (REQ-PUB-083): warn when the new script repeats
             # a recent one. A reused script was checked when it was written.
             warn_if_similar(

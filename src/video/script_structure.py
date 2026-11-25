@@ -106,7 +106,10 @@ def _end(word: dict[str, Any]) -> float | None:
 
 
 def _words(text: str) -> int:
-    return len(re.findall(r"\b\w[\w'%-]*\b", text))
+    """Words as a transcript groups them: split on spaces, so "5,000" and
+    "$29.99" count once each, as Whisper returns them.
+    """
+    return len([t for t in text.split() if re.search(r"\w", t)])
 
 
 def estimate_starts(
@@ -148,14 +151,21 @@ def measure_starts(
     return out
 
 
-def signoff_length(words: list[dict[str, Any]], signoff: str | None) -> float | None:
-    """Seconds the sign-off takes at the end of the transcript, or None."""
-    n = _words(signoff or "")
+def signoff_length(
+    words: list[dict[str, Any]], signoff: str | None, cta: str | None = None
+) -> float | None:
+    """Seconds the sign-off takes, or None.
+
+    The sign-off sits just before the closing call to action (REQ-CNT-045),
+    so the CTA's words are skipped from the end of the transcript first.
+    """
+    n, m = _words(signoff or ""), _words(cta or "")
     timed = [w for w in words if _start(w) is not None]
-    if not n or len(timed) < n:
+    if not n or len(timed) < n + m:
         return None
-    first = _start(timed[-n]) or 0.0
-    end = _end(timed[-1]) or _start(timed[-1]) or first
+    span = timed[len(timed) - m - n : len(timed) - m]
+    first = _start(span[0]) or 0.0
+    end = _end(span[-1]) or _start(span[-1]) or first
     return round(end - first, 2)
 
 
