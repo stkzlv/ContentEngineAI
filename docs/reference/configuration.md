@@ -1081,7 +1081,7 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 | `tts_config.google_cloud.api_max_retries` | int | 2 | Retries after the first synthesis attempt, for Google Cloud and Gemini TTS; a credentials error stops at once. |
 | `tts_config.google_cloud.api_retry_delay_sec` | int | 5 | Seconds between those retries. |
 | `tts_config.google_cloud.last_word_buffer_sec` | float | 0.5 | Silence appended to Google Cloud speech so the last word isn't cut; Gemini ignores it. |
-| `voice_profiles.<name>.provider` | string | `google_cloud` | `google_cloud`, `gemini` (Cloud TTS Gemini voices) or `gemini_api` (the Gemini API speech model, such as `gemini-3.8-flash-tts`, voiced per delivery segment with its style; without a delivery plan the script is one segment in the profile's `style_prompt`). |
+| `voice_profiles.<name>.provider` | string | `google_cloud` | `google_cloud`, `gemini` (Cloud TTS Gemini voices) or `gemini_api` (the Gemini API speech model, such as `gemini-3.8-flash-tts`, voiced per delivery segment with its style; without a delivery plan the script is one segment in the profile's `style_prompt`; it ignores `markup_rules` and `pause_plan`). |
 | `voice_profiles.<name>.gemini_model_name` | string | `gemini-2.5-flash-tts` | Gemini TTS model. |
 | `voice_profiles.<name>.voice_name` | string | none | The voice a `gemini_api` profile asks for by name (`Orus`); unset, the model's default voice. |
 | `voice_profiles.<name>.voice_criteria` | list | per profile | Voice filter (`language_code`, `name_contains`, `ssml_gender`); a gemini profile picks its Gemini voice with it. |

@@ -304,6 +304,12 @@ class TestRetries:
         assert audio.startswith(b"RIFF") and session.calls == 2
 
     @pytest.mark.asyncio
+    async def test_a_rate_limit_is_retried(self):
+        session = _Session([429, 200])
+        audio = await gemini_api_tts._voice_one(session, "u", "k", {}, 1, 0)
+        assert audio.startswith(b"RIFF") and session.calls == 2
+
+    @pytest.mark.asyncio
     async def test_with_no_retries_one_failure_raises(self):
         session = _Session([500, 200])
         with pytest.raises(GeminiApiTTSError):
