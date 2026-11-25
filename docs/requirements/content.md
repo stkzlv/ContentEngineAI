@@ -152,7 +152,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
   - Why: an edited script with a stale plan would otherwise voice the old text.
 - **REQ-CNT-181** `partial` Where a voice profile sets `provider: gemini_api`, the producer voices a delivery plan through the Gemini API speech model, one request per segment carrying its style as a `speech_metadata` annotation and its event as an inline tag, and joins the segments with their planned gaps before the voice chain.
   - Gap: the producer passes no delivery plan until REQ-CNT-179, so a render voices the script as one segment in the profile's `style_prompt`.
-- **REQ-CNT-182** `planned #855` The tag probe measures the Gemini API speech model's angle-bracket tags and records, per tag, the gap it adds and any word the transcript carries; tags that make a sound and leave no tag text form the performed-tag allowlist.
+- **REQ-CNT-182** `shipped` The tag probe measures the Gemini API speech model's angle-bracket tags and records, per tag, the gap it adds and any word the transcript carries; tags that make a sound and leave no tag text form the performed-tag allowlist.
 - **REQ-CNT-183** `planned #855` When a word in the transcript falls within a vocal event's window and matches a transcription the probe recorded for that tag, the producer drops it from the caption words; a word that is in the script is never dropped.
   - Why: Whisper can hear a sigh as "ugh".
 - **REQ-CNT-184** `shipped` The delivery plan's tags and styles reach only the requests sent to the Gemini API speech model; a fallback provider receives the script without them, and the script file, the captions and the metadata never carry them.
