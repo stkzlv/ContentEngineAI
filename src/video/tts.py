@@ -926,8 +926,13 @@ class TTSManager:
 
         # A pause plan replaces the profile's markup rules; otherwise apply
         # the rules if the profile defines them.
-        markup_rules = profile.markup_rules if profile else []
-        pause_plan = profile.pause_plan if profile else None
+        # A gemini_api profile voices the written script and its plan's gaps;
+        # the pause plan and markup rules are for the Cloud TTS models.
+        markup_profile = (
+            profile if profile and profile.provider != "gemini_api" else None
+        )
+        markup_rules = markup_profile.markup_rules if markup_profile else []
+        pause_plan = markup_profile.pause_plan if markup_profile else None
         # The voice's copy only: the caller's script, the script file and
         # the state keep the written form.
         processed_text = normalise_for_tts(text, self.config.tts_normalisation)
@@ -973,7 +978,9 @@ class TTSManager:
                 profile, text, delivery_plan, output_path
             )
             if path:
-                self.selected_voice_name = profile.voice_name
+                self.selected_voice_name = (
+                    profile.voice_name or f"{profile.gemini_model_name} default"
+                )
                 logger.info("Gemini API TTS succeeded (profile: %s).", profile_name)
                 return path
 

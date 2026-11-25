@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A `gemini_api` voice profile voices through the Gemini API speech model, one request per delivery segment with its style and inline vocal tags, joined with the planned gaps; without a delivery plan it voices the script as one segment in the profile's style.
+- A `gemini_api` voice profile voices the script through the Gemini API speech model in the profile's style, with the provider order as its fallback; it can also voice a delivery plan segment by segment, which renders will pass once plans are generated.
 
 ## [0.253.0] - 2026-11-25
 

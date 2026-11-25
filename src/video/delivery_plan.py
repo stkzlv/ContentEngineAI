@@ -7,6 +7,8 @@ and its tags exist only in the text sent to the Gemini API speech model
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field
 
 
@@ -33,8 +35,10 @@ class DeliveryPlan(BaseModel):
 
 
 def text_with_tags(segment: DeliverySegment) -> str:
-    """The segment's text with its events inserted as inline tags."""
-    words = segment.text.split()
+    """The segment's text with its events inserted as inline tags.
+
+    The text's own whitespace is kept, paragraph breaks included.
+    """
     before: dict[int, list[str]] = {}
     tail: list[str] = []
     for event in segment.events:
@@ -43,8 +47,13 @@ def text_with_tags(segment: DeliverySegment) -> str:
         else:
             before.setdefault(event.before_word, []).append(event.tag)
     out: list[str] = []
-    for i, word in enumerate(words):
-        out.extend(before.get(i, []))
-        out.append(word)
-    out.extend(tail)
-    return " ".join(out)
+    index = 0
+    for token in re.split(r"(\s+)", segment.text.strip()):
+        if not token or token.isspace():
+            out.append(token)
+            continue
+        out.extend(tag + " " for tag in before.get(index, []))
+        out.append(token)
+        index += 1
+    text = "".join(out)
+    return " ".join([text, *tail]) if tail else text

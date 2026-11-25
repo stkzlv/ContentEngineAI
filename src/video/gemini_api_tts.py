@@ -28,6 +28,14 @@ class GeminiApiTTSError(RuntimeError):
     """A segment could not be voiced; the whole voice fails."""
 
 
+class _NotRetried(Exception):  # noqa: N818 - a carrier, not an error type
+    """A client error a retry can't fix (bad key, bad request)."""
+
+    def __init__(self, error: GeminiApiTTSError) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
 def request_body(
     text: str, style: str, voice: str | None, model: str
 ) -> dict[str, Any]:
@@ -46,15 +54,18 @@ def request_body(
 
 def audio_of(reply: dict[str, Any]) -> bytes:
     """The WAV bytes of an Interactions reply (`steps[].content[].data`)."""
-    for step in reply.get("steps") or []:
-        for part in (step or {}).get("content") or []:
-            data = (part or {}).get("data")
+    steps = reply.get("steps") if isinstance(reply, dict) else None
+    for step in steps if isinstance(steps, list) else []:
+        parts = step.get("content") if isinstance(step, dict) else None
+        for part in parts if isinstance(parts, list) else []:
+            data = part.get("data") if isinstance(part, dict) else None
             if isinstance(data, str) and data:
                 try:
                     return base64.b64decode(data, validate=True)
                 except (binascii.Error, ValueError) as e:
                     raise GeminiApiTTSError(f"undecodable audio: {e}") from e
-    raise GeminiApiTTSError(f"no audio in reply (status {reply.get('status')!r})")
+    status = reply.get("status") if isinstance(reply, dict) else None
+    raise GeminiApiTTSError(f"no audio in reply (status {status!r})")
 
 
 def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> None:
@@ -75,7 +86,8 @@ def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> None
         frames.append(data)
         if i < len(parts) - 1 and gaps_ms[i] > 0:
             channels, width, rate = params
-            frames.append(b"\x00" * (rate * gaps_ms[i] // 1000) * channels * width)
+            silence = b"\x80" if width == 1 else b"\x00"  # 8-bit WAV is unsigned
+            frames.append(silence * (rate * gaps_ms[i] // 1000) * channels * width)
     if params is None:
         raise GeminiApiTTSError("no segments")
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,13 +116,18 @@ async def _voice_one(
             ) as resp:
                 if resp.status != 200:
                     detail = (await resp.text())[:300]
-                    raise GeminiApiTTSError(f"HTTP {resp.status}: {detail}")
+                    error = GeminiApiTTSError(f"HTTP {resp.status}: {detail}")
+                    if 400 <= resp.status < 500 and resp.status != 429:
+                        raise _NotRetried(error)
+                    raise error
                 return audio_of(await resp.json())
         except (aiohttp.ClientError, TimeoutError, ValueError, GeminiApiTTSError) as e:
             last = e
             logger.warning("Gemini API speech attempt %d failed: %s", attempt + 1, e)
             if attempt < retries:
                 await asyncio.sleep(retry_delay_sec)
+        except _NotRetried as e:
+            raise e.error from None
     raise GeminiApiTTSError(str(last))
 
 

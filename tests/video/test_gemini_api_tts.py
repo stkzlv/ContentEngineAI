@@ -263,3 +263,146 @@ async def test_each_request_is_normalised_once(tmp_path, plan):
             SCRIPT, tmp_path / "v.wav", _plan() if plan else None
         )
     assert bodies[-1].endswith("the twist twist.")
+
+
+class _Resp:
+    def __init__(self, status, payload=None):
+        self.status = status
+        self._payload = payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def text(self):
+        return "error"
+
+    async def json(self):
+        return self._payload
+
+
+class _Session:
+    def __init__(self, statuses):
+        self.statuses = list(statuses)
+        self.calls = 0
+
+    def post(self, *args, **kwargs):
+        self.calls += 1
+        status = self.statuses.pop(0)
+        data = base64.b64encode(_wav(5)).decode()
+        return _Resp(status, {"steps": [{"content": [{"data": data}]}]})
+
+
+@pytest.mark.req("REQ-CNT-181")
+class TestRetries:
+    @pytest.mark.asyncio
+    async def test_a_server_error_is_retried(self):
+        session = _Session([500, 200])
+        audio = await gemini_api_tts._voice_one(session, "u", "k", {}, 1, 0)
+        assert audio.startswith(b"RIFF") and session.calls == 2
+
+    @pytest.mark.asyncio
+    async def test_with_no_retries_one_failure_raises(self):
+        session = _Session([500, 200])
+        with pytest.raises(GeminiApiTTSError):
+            await gemini_api_tts._voice_one(session, "u", "k", {}, 0, 0)
+        assert session.calls == 1
+
+    @pytest.mark.asyncio
+    async def test_a_client_error_is_not_retried(self):
+        session = _Session([403, 200])
+        with pytest.raises(GeminiApiTTSError, match="403"):
+            await gemini_api_tts._voice_one(session, "u", "k", {}, 3, 0)
+        assert session.calls == 1
+
+    @pytest.mark.asyncio
+    async def test_the_session_carries_the_timeout(self, tmp_path):
+        seen = {}
+
+        class FakeSession:
+            def __init__(self, timeout=None):
+                seen["timeout"] = timeout
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+        async def fake(*args):
+            return _wav(5)
+
+        with (
+            patch.object(gemini_api_tts.aiohttp, "ClientSession", FakeSession),
+            patch.object(gemini_api_tts, "_voice_one", side_effect=fake),
+        ):
+            await synthesize_segments(
+                [DeliverySegment(text="Hi.")],
+                tmp_path / "v.wav",
+                api_key="k",
+                model="m",
+                voice=None,
+                endpoint="u",
+                timeout_sec=7,
+            )
+        assert seen["timeout"].total == 7
+
+    @pytest.mark.parametrize(
+        "reply",
+        [{"steps": {"a": 1}}, {"steps": ["x"]}, [], {"steps": [{"content": 3}]}],
+    )
+    def test_an_unexpected_reply_is_a_voice_error(self, reply):
+        with pytest.raises(GeminiApiTTSError):
+            audio_of(reply)
+
+
+@pytest.mark.req("REQ-CNT-181")
+class TestTheRecordAndText:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("voice", "expected"),
+        [("Orus", "Orus"), (None, "gemini-3.8-flash-tts default")],
+    )
+    async def test_the_voice_is_recorded(self, tmp_path, voice, expected):
+        profile = PROFILE.model_copy(update={"voice_name": voice})
+        manager = _manager(profile)
+        with patch("src.video.tts.synthesize_segments", new_callable=AsyncMock) as s:
+            s.return_value = tmp_path / "v.wav"
+            await manager.generate_speech(SCRIPT, tmp_path / "v.wav")
+        assert manager.selected_voice_name == expected
+
+    def test_paragraph_breaks_are_kept(self):
+        seg = DeliverySegment(
+            text="One two.\n\nThree four.",
+            events=[DeliveryEvent(tag="<sigh>", before_word=2)],
+        )
+        assert text_with_tags(seg) == "One two.\n\n<sigh> Three four."
+
+    @pytest.mark.asyncio
+    async def test_a_pause_plan_is_not_applied_or_logged(self, tmp_path, caplog):
+        from src.video.config.audio_models import PausePlan
+
+        profile = PROFILE.model_copy(update={"pause_plan": PausePlan(jitter=0)})
+        with patch("src.video.tts.synthesize_segments", new_callable=AsyncMock) as s:
+            s.return_value = tmp_path / "v.wav"
+            with caplog.at_level("INFO"):
+                await _manager(profile).generate_speech(SCRIPT, tmp_path / "v.wav")
+        assert s.call_args.args[0][0].text == SCRIPT
+        assert "pause plan" not in caplog.text
+
+    def test_an_8_bit_gap_is_unsigned_silence(self, tmp_path):
+        def wav8():
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(1)
+                w.setframerate(1000)
+                w.writeframes(b"\x90" * 4)
+            return buf.getvalue()
+
+        out = tmp_path / "v.wav"
+        join_wavs([wav8(), wav8()], [10, 0], out)
+        with wave.open(str(out)) as w:
+            assert w.readframes(w.getnframes())[4:14] == b"\x80" * 10
