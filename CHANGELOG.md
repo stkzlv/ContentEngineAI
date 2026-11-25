@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.245.1] - 2026-11-25
+
+### Documentation
+
+- The audio explanation describes Earshot as the planned source of synthesized sound effects, what adopting it takes, and the sync, level and licence rules any effect source follows.
+
 ## [0.245.0] - 2026-11-14
 
 ### Added
