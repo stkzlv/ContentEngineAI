@@ -746,7 +746,9 @@ async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
     path = Path(ctx.run_paths["script_file"]).with_name(PLAN_FILE)
     # An earlier plan must not outlive a failed write: the voice step would
     # take it for a hand-written one.
+    digest_file = path.with_name(PLAN_FILE + ".digest")
     path.unlink(missing_ok=True)
+    digest_file.unlink(missing_ok=True)
     prompt = plan_prompt(sentences, sorted(PERFORMED_TTS_TAGS), settings.max_events)
     for attempt in range(settings.retry_on_invalid + 1):
         try:
@@ -775,6 +777,9 @@ async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
             text = plan.model_dump_json(indent=1)
             path.write_text(text, encoding="utf-8")
             digest = _plan_digest(text)
+            # Beside the plan too: a run that fails later never saves its
+            # state, and the next run must still know the plan was generated.
+            digest_file.write_text(digest, encoding="utf-8")
             ctx.state["delivery_plan"] = digest
             # Also in the script step's entry, which a truncating resume keeps:
             # a plan written at the voice step is not recorded with that step.
@@ -810,7 +815,11 @@ async def _delivery_plan_for_voice(ctx: PipelineContext) -> DeliveryPlan | None:
     text = path.read_text(encoding="utf-8")
     # Read through the script step's entry too: a truncating resume keeps
     # only step entries.
-    generated = _recorded(ctx, "delivery_plan") == _plan_digest(text)
+    digest = _plan_digest(text)
+    digest_file = path.with_name(PLAN_FILE + ".digest")
+    generated = _recorded(ctx, "delivery_plan") == digest or (
+        digest_file.exists() and digest_file.read_text(encoding="utf-8") == digest
+    )
     try:
         plan = DeliveryPlan.model_validate_json(text)
         failures = validate_plan(

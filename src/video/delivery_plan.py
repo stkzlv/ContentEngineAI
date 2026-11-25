@@ -169,7 +169,11 @@ def validate_plan(
 
 
 QUOTE_RUN = 6
-_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
+_QUOTED = re.compile(
+    '["\u201c]([^"\u201c\u201d]+)["\u201d]'
+    # Single quotes not inside a word, so contractions don't count.
+    "|(?<!\\w)'([^']+)'(?!\\w)"
+)
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
@@ -186,7 +190,8 @@ def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
     """Whether a style quotes the script: a span in double quotes that is a
     run of its words, or `QUOTE_RUN` of its words in a row.
     """
-    for span in _QUOTED.findall(style):
+    for groups in _QUOTED.findall(style):
+        span = next((g for g in groups if g), "")
         span_words = [w for w in _words(span) if w]
         if _has_run(span_words, script_words, len(span_words)):
             return True

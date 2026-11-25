@@ -82,7 +82,12 @@ class TestTheCheck:
         assert "2 events, more than 1" in _check(plan, max_events=1)
 
     @pytest.mark.parametrize(
-        "style", ['read "on purpose" slowly', "slow, stop on purpose here is the end"]
+        "style",
+        [
+            'read "on purpose" slowly',
+            "read 'on purpose' slowly",
+            "slow, stop on purpose here is the end",
+        ],
     )
     def test_a_style_that_quotes_the_script(self, style):
         plan = _good()
@@ -326,3 +331,21 @@ async def test_a_failed_write_leaves_no_old_plan_behind(ctx):
     assert not _plan_path(ctx).exists()
     with _llm(BAD_REPLY, BAD_REPLY):
         assert await steps._delivery_plan_for_voice(ctx) is None
+
+
+@pytest.mark.req("REQ-CNT-180")
+@pytest.mark.asyncio
+async def test_a_plan_whose_state_was_never_saved_is_still_known_as_generated(ctx):
+    """A run that fails after the plan is written saves no state; the next
+    run must still rewrite a stale generated plan, not stop on it.
+    """
+    from src.video.producer import steps
+
+    with _llm(GOOD_REPLY):
+        await steps._write_delivery_plan(ctx)
+    ctx.state = {}
+    ctx.script = "The clocks stop. On purpose. Here is a twist."
+    new = json.dumps({"segments": [{"sentences": [1, 2, 3], "style": "dry"}]})
+    with _llm(new):
+        plan = await steps._delivery_plan_for_voice(ctx)
+    assert plan is not None and plan.segments[0].text == ctx.script
