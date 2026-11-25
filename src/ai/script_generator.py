@@ -1102,6 +1102,21 @@ def validate_script_completeness(
 
 # Near misses that failed only a check a retry may pass: kept as a last
 # resort instead of handing the script to a fallback model (REQ-CNT-164).
+def _with_running_bit(narrator: str, hint: str) -> str:
+    """The script prompt's narrator text, offering a running bit when set.
+
+    Only the script prompt gets it (REQ-CNT-188); the other prompts that read
+    the narrator text don't.
+    """
+    if not hint:
+        return narrator
+    rule = (
+        "A running bit you may use once, only where it fits a line naturally, "
+        f"and never forced: {hint}"
+    )
+    return f"{narrator}\n\n{rule}" if narrator else rule
+
+
 SOFT_NEAR_MISSES = (
     "physical",
     "figure",
@@ -1427,7 +1442,10 @@ async def generate_script(
 
     prompt = apply_prompt_preambles(
         prompt,
-        settings.script_templates.narrator_for(is_topic, target_length),
+        _with_running_bit(
+            settings.script_templates.narrator_for(is_topic, target_length),
+            settings.script_templates.running_bit_hint,
+        ),
         pillar,
         settings.script_templates.preambles_for(is_topic),
     )

@@ -295,6 +295,9 @@ class ScriptTemplateConfig(BaseModel):
     # Set from a narrator identity's `opening: claim_first` (REQ-CNT-186): the
     # narrator text gains CLAIM_FIRST_RULE.
     claim_first_opening: bool = False
+    # The running bit the script step offers this render (REQ-CNT-188), set
+    # on the record's config copy; empty: none is offered.
+    running_bit_hint: str = ""
     # From a narrator identity's `self_intro_patterns` (REQ-CNT-187): a first
     # sentence matching one fails as a soft check, kept after the lint.
     self_intro_patterns: list[str] = Field(default_factory=list)

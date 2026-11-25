@@ -95,7 +95,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-152** `shipped` While `script_templates.signature.enabled` is false, no signature line is drawn and the script prompt is unchanged, whatever the pools hold.
 - **REQ-CNT-186** `shipped` Where a narrator identity sets `opening: claim_first`, the kind's script prompt asks for the take's claim, with one concrete number or name where the detail has one, as the first sentence, with no greeting or setup before it.
 - **REQ-CNT-187** `shipped` Where a narrator identity lists `self_intro_patterns`, the script step treats a first sentence matching one as a failed soft check, checked after every other check and kept after the script lint in REQ-CNT-164's keep order; when only drafts missing their closing line remain, one whose opening matches no pattern is preferred; the shipped list is empty, and an entry that isn't a valid regex fails config loading.
-- **REQ-CNT-188** `planned #857` Where a narrator identity lists `running_bits`, the script prompt offers one bit's hint only while `running_bit_cap` allows (`per_batch` uses in the batch run, `min_gap` renders of the kind since the last use), and the render record stores the id of a bit the script used.
+- **REQ-CNT-188** `shipped` Where a narrator identity lists `running_bits`, the script prompt offers one bit's hint, the one used longest ago, only while `running_bit_cap` allows (`per_batch` uses since the producer or batch process started, `min_gap` renders of the kind since the last use), and the render-choices row stores the id of a bit whose `cues` the script contains.
   - Why: a running bit builds recognition until it wears out; the cap keeps it occasional.
 
 ## Script checks

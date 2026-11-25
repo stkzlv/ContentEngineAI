@@ -29,6 +29,7 @@ from src.utils.script_sanitizer import sanitize_script
 from src.utils.script_signoff import place_signoff, signature_in_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
+from src.video.config.identity_models import RunningBit, content_kind
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -69,6 +70,7 @@ from src.video.producer.utils import (
     validate_media_requirements,
 )
 from src.video.render_choices import warn_if_similar
+from src.video.running_bits import select_running_bit, used_bit
 from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
@@ -607,6 +609,20 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
     return step_list
 
 
+def _offer_running_bit(ctx: PipelineContext) -> RunningBit | None:
+    """Pick the running bit the cap allows and offer it in the script prompt."""
+    kind = content_kind(ctx.product)
+    identity = ctx.config.narrator_identity.for_kind(kind)
+    if not identity.running_bits:
+        return None
+    bit = select_running_bit(identity, Path(ctx.run_paths["run_root"]).parent, kind)
+    # The identity pins the record, so this is the record's own config copy.
+    ctx.config.llm_settings.script_templates.running_bit_hint = bit.hint if bit else ""
+    if bit:
+        logger.info("Offering running bit '%s'", bit.id)
+    return bit
+
+
 async def step_generate_script(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "generate_script",
@@ -638,6 +654,7 @@ async def step_generate_script(ctx: PipelineContext):
         else:
             step_list = await _topic_step_list(ctx)
             written_by: dict[str, str] = {}
+            bit = _offer_running_bit(ctx)
             try:
                 script_text, template_name, cta_line = await generate_ai_script(
                     ctx.product,
@@ -681,6 +698,11 @@ async def step_generate_script(ctx: PipelineContext):
             )
             ensure_dirs_exist(ctx.run_paths["script_file"].parent)
             ctx.run_paths["script_file"].write_text(ctx.script, encoding="utf-8")
+            used = used_bit(ctx.script, bit)
+            if used:
+                # A top-level string, recorded in the render-choices row so the
+                # cap can count it (REQ-CNT-188).
+                ctx.state["running_bit"] = used
             if template_name:
                 ctx.state["script_template"] = template_name
             if written_by.get("model"):

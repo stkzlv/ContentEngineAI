@@ -52,10 +52,11 @@ No study tests any of these levers on organic short-form, so every feature ships
 
 ### Running bit (narrator identity)
 
-`narrator_identity.<kind>.running_bits`: a list of `{id, hint}` (default empty), with `running_bit_cap: {per_batch, min_gap}` (defaults 1 and 2).
+`narrator_identity.<kind>.running_bits`: a list of `{id, hint, cues}` (default empty), with `running_bit_cap: {per_batch, min_gap}` (defaults 1 and 2).
 
-- While the cap allows, the script prompt offers one bit's hint and asks the model to use it only where it fits the line; the render record stores the bit's id when the model reports using it.
-- `per_batch` counts uses in the current batch run; `min_gap` is the number of renders of the kind since the last use, read from the render-choices records.
+- While the cap allows, the script prompt (only it, not the other prompts that read the narrator text) offers one bit's hint and asks the model to use it only where it fits a line. The bit used longest ago, or never, is offered.
+- A script containing one of the bit's `cues` (any case) counts as a use, and the render-choices row stores the bit's id. A cue is checkable where a model's own report of using the bit is not: the script step gets plain text back.
+- `per_batch` counts uses recorded since the producer or batch process started; `min_gap` is the number of renders of the kind needed since the last use, read from the render-choices records.
 
 ### Script shape (structure targets)
 
