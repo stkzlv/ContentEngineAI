@@ -71,7 +71,7 @@ A profile selects it with `provider: gemini_api` and the existing `gemini_model_
 
 ### Tag allowlist
 
-`tools/tts_tag_probe.py` (REQ-CNT-130) gains the Gemini API provider and the angle-bracket tags. Its results set `PERFORMED_TTS_TAGS`, beside `SILENT_TTS_TAGS` in `src/video/config/audio_models.py`: tags that make a sound and are never transcribed as their own text. A tag Whisper hears as a word may stay on the list, since the caption filter handles it, and the probe records the word it produced.
+`tools/tts_tag_probe.py` (REQ-CNT-130) gains the Gemini API provider and the angle-bracket tags. Its results set `PERFORMED_TTS_TAGS`, beside `SILENT_TTS_TAGS` in `src/video/config/audio_models.py`: tags that change the delivery (a sound or a gap) and are never transcribed as their own text. A tag Whisper hears as a word may stay on the list, since the caption filter handles it, and the probe records the word it produced.
 
 ### Captions
 
