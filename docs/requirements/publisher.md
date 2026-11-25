@@ -62,7 +62,7 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-122** `shipped` A slot fails schedule validation when the local schedule already holds `schedule_validation.max_posts_per_day` posts (default 10, 0 sets no limit) on that calendar day.
 - **REQ-PUB-123** `shipped` If any product fails, the `schedule` command exits non-zero, with or without `--immediate`.
 - **REQ-PUB-124** `shipped` If the provider cannot be reached, `calendar` warns that the list is local state only and may be incomplete.
-- **REQ-PUB-168** `shipped` Where a series sets `queue_file`, the publisher sets a series post's claim row to `scheduled` with the post id when it records the post, and to `live` when the delivery sweep sees the post published; a live row is never moved back, and a queue it can't read or write never fails a publish.
+- **REQ-PUB-168** `shipped` Where a series sets `queue_file`, the publisher sets a series post's claim row to `scheduled` with the post id when it records the post, and to `live` when the delivery sweep sees the post live on any platform; a live row is never moved back, and a queue it can't read or write never fails a publish.
 - **REQ-PUB-169** `planned #857` After a series post goes live, the publisher adds it to the series' configured YouTube and TikTok playlists and links it to the previous Instagram episode where the publishing provider exposes the call, and otherwise logs the manual step with the post's URL.
 
 ## First comment

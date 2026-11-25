@@ -88,8 +88,7 @@ async def test_the_sweep_makes_no_extra_call_without_a_series(tmp_path):
 
     publisher = MagicMock()
     publisher.list_posts = AsyncMock(return_value=[])
-    with patch("src.publisher.tracking.DEFAULT_OUTPUTS_DIR", tmp_path):
-        await partial_post_sweep._mark_live_series(publisher, 25)
+    await partial_post_sweep._mark_live_series(publisher, tmp_path)
     publisher.list_posts.assert_not_awaited()
 
 
@@ -104,13 +103,12 @@ async def test_the_sweep_marks_live_when_a_series_is_configured(outputs):
     publisher.list_posts = AsyncMock(
         return_value=[{"id": "post-9", "status": "published"}]
     )
-    with patch("src.publisher.tracking.DEFAULT_OUTPUTS_DIR", root):
-        await partial_post_sweep._mark_live_series(publisher, 25)
+    await partial_post_sweep._mark_live_series(publisher, root)
     assert _row(queue)["status"] == "live"
 
 
 @pytest.mark.asyncio
-async def test_the_delivery_sweep_runs_the_live_marks(outputs):
+async def test_the_delivery_sweep_runs_the_live_marks(tmp_path):
     from src.publisher import partial_post_sweep
     from src.publisher.models import DeliverySweepConfig
 
@@ -122,9 +120,9 @@ async def test_the_delivery_sweep_runs_the_live_marks(outputs):
         patch.object(partial_post_sweep, "_mark_live_series", AsyncMock()) as live,
     ):
         await partial_post_sweep.run_delivery_sweep(
-            publisher, DeliverySweepConfig(enabled=True, limit=10)
+            publisher, DeliverySweepConfig(enabled=True, limit=10), tmp_path
         )
-    live.assert_awaited_once_with(publisher, 10)
+    live.assert_awaited_once_with(publisher, tmp_path)
 
 
 def test_a_bad_series_record_changes_nothing(outputs):
@@ -147,3 +145,33 @@ def test_the_producer_leaves_the_series_record(tmp_path):
         SeriesConfig(queue_file=queue), SimpleNamespace(claim=CLAIM), tmp_path
     )
     assert series_queue.series_record(".", tmp_path) == (queue, CLAIM)
+
+
+def test_live_survives_cleanup_and_counts_a_partial_post(outputs):
+    """Cleanup removes the render directory after publishing; the live mark
+    reads publish history, and a partial post is live somewhere.
+    """
+    import shutil
+
+    from src.publisher.tracking import record_publish
+
+    root, queue = outputs
+    record_publish("B0TEST0168", "youtube", "post-9", root)
+    shutil.rmtree(root / "B0TEST0168")
+    assert series_queue.has_series_posts(root)
+    assert series_queue.mark_live([{"id": "post-9", "status": "partial"}], root) == 1
+    assert _row(queue)["status"] == "live"
+
+
+def test_the_series_record_stores_an_absolute_queue_path(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from src.video.config.series_models import SeriesConfig
+    from src.video.series import write_series_record
+
+    monkeypatch.chdir(tmp_path)
+    write_series_record(
+        SeriesConfig(queue_file="q.csv"), SimpleNamespace(claim=CLAIM), tmp_path
+    )
+    found = series_queue.series_record(".", tmp_path)
+    assert found is not None and found[0].is_absolute()

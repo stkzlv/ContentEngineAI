@@ -35,37 +35,48 @@ def series_record(product_id: str, outputs_dir: Path) -> tuple[Path, str] | None
     return Path(queue), claim
 
 
-def mark_scheduled(product_id: str, post_id: str, outputs_dir: Path) -> None:
+def mark_scheduled(found: tuple[Path, str], post_id: str) -> None:
     """Set a series render's claim row to `scheduled` with its post id."""
-    found = series_record(product_id, outputs_dir)
-    if found:
-        set_published(found[0], found[1], "scheduled", post_id)
+    set_published(found[0], found[1], "scheduled", post_id)
 
 
-def has_series_renders(outputs_dir: Path) -> bool:
-    """Whether any render under the outputs root is a series episode."""
-    try:
-        return any(outputs_dir.glob(f"*/{SERIES_FILE}"))
-    except OSError:
-        return False
+# A partial post is live on at least one platform.
+LIVE_STATUSES = frozenset({"published", "partial"})
+
+
+def _history_series(outputs_dir: Path) -> dict[str, dict[str, str]]:
+    """Post id -> {claim, queue_file} from publish history's series rows."""
+    from src.publisher.tracking import load_tracking
+
+    found: dict[str, dict[str, str]] = {}
+    for record in load_tracking(outputs_dir).get("posts", {}).values():
+        series = record.get("series") if isinstance(record, dict) else None
+        if (
+            isinstance(series, dict)
+            and series.get("claim")
+            and series.get("queue_file")
+        ):
+            found[str(record.get("post_id"))] = series
+    return found
+
+
+def has_series_posts(outputs_dir: Path) -> bool:
+    """Whether publish history holds any series post."""
+    return bool(_history_series(outputs_dir))
 
 
 def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
-    """Set each published series post's claim row to `live`; returns how many."""
-    from src.publisher.tracking import load_tracking
+    """Set each live series post's claim row to `live`; returns how many.
 
-    published = {
-        str(p.get("id"))
-        for p in posts
-        if str(p.get("status") or "").lower() == "published"
-    }
-    marked = set()
-    for key, record in load_tracking(outputs_dir).get("posts", {}).items():
-        product_id = key.rpartition(":")[0]
-        if str(record.get("post_id")) not in published or product_id in marked:
-            continue
-        found = series_record(product_id, outputs_dir)
-        if found:
-            set_published(found[0], found[1], "live")
-            marked.add(product_id)
-    return len(marked)
+    Read from publish history, not the render directory, which cleanup
+    removes after publishing.
+    """
+    series_by_post = _history_series(outputs_dir)
+    marked = 0
+    for post in posts:
+        post_id = str(post.get("id"))
+        series = series_by_post.get(post_id)
+        if series and str(post.get("status") or "").lower() in LIVE_STATUSES:
+            set_published(Path(series["queue_file"]), series["claim"], "live")
+            marked += 1
+    return marked

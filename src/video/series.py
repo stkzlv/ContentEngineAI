@@ -81,7 +81,7 @@ def write_series_record(series: SeriesConfig, product: Any, run_root: Path) -> N
         return
     record = {
         "claim": getattr(product, "claim", "") or "",
-        "queue_file": str(series.queue_file),
+        "queue_file": str(series.queue_file.resolve()),
     }
     try:
         (run_root / "series.json").write_text(json.dumps(record), encoding="utf-8")
