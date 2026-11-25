@@ -201,3 +201,18 @@ async def test_the_hint_is_in_the_prompt_sent_to_the_model():
             product, settings, {settings.api_key_env_var: "k"}, AsyncMock(), {}, False
         )
     assert "An aside about A." in call.await_args_list[0].args[0]
+
+
+@pytest.mark.asyncio
+async def test_a_truncating_resume_keeps_the_recorded_use(step_ctx):
+    from src.video.producer.state import STEP_GENERATE_SCRIPT, _update_state_after_step
+    from src.video.render_choices import choices_from_context
+
+    await _run_step(step_ctx, "The alpha aside lands here. Link in bio.")
+    await _update_state_after_step(step_ctx, STEP_GENERATE_SCRIPT)
+    # A truncating resume keeps only the step entries.
+    step_ctx.state = {
+        k: v for k, v in step_ctx.state.items() if k == STEP_GENERATE_SCRIPT
+    }
+
+    assert choices_from_context(step_ctx)["running_bit"] == "a"

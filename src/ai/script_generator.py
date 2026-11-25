@@ -1100,8 +1100,6 @@ def validate_script_completeness(
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
 
-# Near misses that failed only a check a retry may pass: kept as a last
-# resort instead of handing the script to a fallback model (REQ-CNT-164).
 def _with_running_bit(narrator: str, hint: str) -> str:
     """The script prompt's narrator text, offering a running bit when set.
 
@@ -1117,6 +1115,8 @@ def _with_running_bit(narrator: str, hint: str) -> str:
     return f"{narrator}\n\n{rule}" if narrator else rule
 
 
+# Near misses that failed only a check a retry may pass: kept as a last
+# resort instead of handing the script to a fallback model (REQ-CNT-164).
 SOFT_NEAR_MISSES = (
     "physical",
     "figure",

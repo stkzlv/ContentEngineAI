@@ -701,7 +701,8 @@ async def step_generate_script(ctx: PipelineContext):
             used = used_bit(ctx.script, bit)
             if used:
                 # A top-level string, recorded in the render-choices row so the
-                # cap can count it (REQ-CNT-188).
+                # cap can count it, and mirrored into the step entry like `cta`
+                # so a truncating resume keeps it (REQ-CNT-188).
                 ctx.state["running_bit"] = used
             if template_name:
                 ctx.state["script_template"] = template_name

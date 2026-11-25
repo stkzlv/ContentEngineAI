@@ -181,7 +181,8 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "content_kind": content_kind(getattr(ctx, "product", None)),
         "pinned": _pinned(ctx),
         # The running bit the script used, if any (REQ-CNT-188).
-        "running_bit": state.get("running_bit"),
+        "running_bit": state.get("running_bit")
+        or (state.get("generate_script") or {}).get("running_bit"),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),
