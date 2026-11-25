@@ -26,6 +26,8 @@ One identity block per content kind (voice, a sign-off on every render, sting, m
 
 **Done when:** two renders of the kind on different subjects share every pinned element, and the variety report doesn't alert on them.
 
+The opening rule, motif, running bits and script-shape targets per kind are specified in [design 0041](design/0041-signature-style-and-series.md), #857.
+
 ### H.3 Audience metrics
 
 Daily follower counts and views per account, YouTube average percentage viewed and subscribers gained, and Instagram profile views, reported as rates per 1,000 views over a date range. #781.
@@ -242,9 +244,9 @@ A cover image per render, set as the poster where the platform accepts one: an i
 
 ### 4.8 Episodic series framing
 
-A named recurring series as config, each with its own episode counter and title prefix, chosen per render, with each episode standing alone.
+A named recurring series as config, with a title prefix, an opening line, a verdict beat and optional numbering, chosen per topic, with each episode standing alone. [Design 0041](design/0041-signature-style-and-series.md), #857.
 
-**Done when:** a series name and episode number reach the script, the title and the caption. No issue yet.
+**Done when:** a series name, its opening line and, where numbering is on, an episode number reach the script, the title and the caption.
 
 ### 4.9 Product titles per platform
 
