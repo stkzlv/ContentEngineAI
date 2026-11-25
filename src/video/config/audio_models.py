@@ -392,6 +392,14 @@ class GeminiApiTTSSettings(BaseModel):
     api_retry_delay_sec: float = Field(2, ge=0)
 
 
+class PerformedDeliverySettings(BaseModel):
+    """A delivery plan per script, voiced by a `gemini_api` profile (design 0040)."""
+
+    enabled: bool = Field(False)
+    max_events: int = Field(4, ge=0)
+    retry_on_invalid: int = Field(1, ge=0)
+
+
 class TTSConfig(BaseModel):
     provider_order: list[str] = Field(..., min_length=1)
     google_cloud: GoogleCloudTTSSettings | None = Field(None)
@@ -403,6 +411,9 @@ class TTSConfig(BaseModel):
     # Send a Gemini profile's style_prompt in the request's prompt field on
     # models that accept one (REQ-CNT-185). Off: the text is sent alone.
     send_style_prompt: bool = Field(False)
+    performed_delivery: PerformedDeliverySettings = Field(
+        default_factory=PerformedDeliverySettings  # type: ignore[arg-type]
+    )
     gemini_api: GeminiApiTTSSettings = Field(
         default_factory=GeminiApiTTSSettings  # type: ignore[arg-type]
     )
