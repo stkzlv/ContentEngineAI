@@ -72,9 +72,9 @@ def test_episode_numbering_needs_a_queue_file():
         SeriesConfig(numbering="episode")
 
 
-def _record(series: str, verdict: str):
+def _record(series: str, verdict: str, kind: str = "commentary"):
     return build_topic_product(
-        _spec(series=series, claim="A magnet wipes a phone", verdict=verdict)
+        _spec(series=series, claim="A magnet wipes a phone", verdict=verdict, kind=kind)
     )
 
 
@@ -89,6 +89,9 @@ def test_an_unconfigured_series_or_verdict_is_refused():
     with pytest.raises(PipelineError, match="isn't one of"):
         config_for_record(cfg, _record("myth", "MAYBE"))
     assert config_for_record(cfg, _record("myth", "NO")) is not None
+    # A tutorial topic with no identity pins takes the early return.
+    with pytest.raises(PipelineError, match="isn't one of"):
+        config_for_record(cfg, _record("myth", "MAYBE", kind="tutorial"))
 
 
 def test_an_unquoted_yaml_boolean_label_is_refused_with_the_fix():
@@ -101,3 +104,13 @@ def test_an_unquoted_yaml_boolean_label_is_refused_with_the_fix():
         "YES",
         "NO",
     ]
+
+
+def test_an_unquoted_yaml_boolean_in_a_topic_is_refused_with_the_fix():
+    import yaml
+
+    entry = yaml.safe_load(
+        "title: T\nkind: commentary\nseries: myth\nclaim: c\nverdict: NO"
+    )
+    with pytest.raises(TopicInputError, match="quote values"):
+        specs_from_mappings([entry], "topics.yaml")

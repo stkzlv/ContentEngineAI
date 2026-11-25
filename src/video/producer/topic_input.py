@@ -228,6 +228,11 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     series_fields = {}
     for name in ("series", "claim", "verdict", "credit"):
         value = entry.get(name, "")
+        if isinstance(value, bool):
+            raise TopicInputError(
+                f"{where}: '{name}' was read as true/false: quote values such as "
+                '"YES", "NO", "TRUE" and "FALSE" in YAML'
+            )
         if not isinstance(value, str):
             raise TopicInputError(f"{where}: '{name}' must be a string")
         series_fields[name] = value
