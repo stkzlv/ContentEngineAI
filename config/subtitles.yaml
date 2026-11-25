@@ -425,6 +425,15 @@ tts_config:
   # profile gets an instruction-form prompt. Off: none is sent (REQ-CNT-185).
   send_style_prompt: false
 
+  # A delivery plan per script (design 0040): one extra script-model call
+  # writes delivery_plan.json beside the script, the plan is checked against
+  # the script before TTS, and a voice profile with `provider: gemini_api`
+  # voices it segment by segment. No bundled profile uses that provider.
+  performed_delivery:
+    enabled: false
+    max_events: 4
+    retry_on_invalid: 1
+
   # Google Cloud Text-to-Speech Settings
   # Setup: Requires GOOGLE_APPLICATION_CREDENTIALS environment variable
   # Pricing: ~$16 per 1 million characters (check current rates)

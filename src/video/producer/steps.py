@@ -30,8 +30,16 @@ from src.utils.script_sanitizer import sanitize_script
 from src.utils.script_signoff import place_signoff, signature_in_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
+from src.video.config.audio_models import PERFORMED_TTS_TAGS
 from src.video.config.identity_models import RunningBit, content_kind
 from src.video.config.structure_models import ScriptStructure
+from src.video.delivery_plan import (
+    PLAN_FILE,
+    DeliveryPlan,
+    parse_plan,
+    plan_prompt,
+    validate_plan,
+)
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -710,6 +718,108 @@ def _offer_running_bit(ctx: PipelineContext) -> RunningBit | None:
     return bit
 
 
+def _plan_digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
+    """Write a delivery plan beside the script (REQ-CNT-179): one model call,
+    retried `retry_on_invalid` times on a plan that fails its check, else none.
+
+    Its digest goes in state, so a hand edit is told from the generated plan.
+    """
+    from aiohttp import ClientError
+
+    from src.ai.script_generator import (
+        ScriptGenerationError,
+        _call_llm_api_with_retry,
+    )
+
+    settings = ctx.config.tts_config.performed_delivery
+    script = ctx.script or ""
+    sentences = sentences_of(script)
+    llm = ctx.config.llm_settings.for_scripts()
+    model = next(iter(llm.models), None)
+    api_key = ctx.secrets.get(llm.api_key_env_var, "")
+    if not (model and api_key and sentences):
+        return None
+    prompt = plan_prompt(sentences, sorted(PERFORMED_TTS_TAGS), settings.max_events)
+    for attempt in range(settings.retry_on_invalid + 1):
+        try:
+            reply = await _call_llm_api_with_retry(
+                prompt, model, llm, api_key, ctx.session, ctx.config.api_settings
+            )
+        except (
+            ScriptGenerationError,
+            ClientError,
+            TimeoutError,
+            RuntimeError,
+            ValueError,
+            OSError,
+        ) as e:
+            logger.warning("Delivery plan not written: %s", e)
+            return None
+        plan = parse_plan(reply, sentences)
+        failures = (
+            validate_plan(
+                plan, script, sentences, PERFORMED_TTS_TAGS, settings.max_events
+            )
+            if plan
+            else ["the reply holds no plan"]
+        )
+        if plan and not failures:
+            text = plan.model_dump_json(indent=1)
+            path = Path(ctx.run_paths["script_file"]).with_name(PLAN_FILE)
+            path.write_text(text, encoding="utf-8")
+            ctx.state["delivery_plan"] = _plan_digest(text)
+            logger.info(
+                "Delivery plan written: %d segments, %d events",
+                len(plan.segments),
+                sum(len(s.events) for s in plan.segments),
+            )
+            return plan
+        logger.warning(
+            "Delivery plan attempt %d rejected: %s", attempt + 1, "; ".join(failures)
+        )
+    logger.warning("No delivery plan: the voice uses the profile's single style")
+    return None
+
+
+async def _delivery_plan_for_voice(ctx: PipelineContext) -> DeliveryPlan | None:
+    """The plan to voice, checked against the script before TTS (REQ-CNT-180).
+
+    A generated plan that fails is regenerated, then dropped; a hand-written or
+    edited plan that fails stops the render, naming the failed check.
+    """
+    settings = ctx.config.tts_config.performed_delivery
+    if not settings.enabled:
+        return None
+    path = Path(ctx.run_paths["script_file"]).with_name(PLAN_FILE)
+    script = ctx.script or ""
+    if not path.exists():
+        return await _write_delivery_plan(ctx)
+    text = path.read_text(encoding="utf-8")
+    generated = ctx.state.get("delivery_plan") == _plan_digest(text)
+    try:
+        plan = DeliveryPlan.model_validate_json(text)
+        failures = validate_plan(
+            plan, script, sentences_of(script), PERFORMED_TTS_TAGS, settings.max_events
+        )
+    except ValueError as e:
+        plan, failures = None, [f"the file is not a delivery plan ({e})"]
+    if plan and not failures:
+        return plan
+    if not generated:
+        raise PipelineError(
+            f"Delivery plan {path.name} rejected: {'; '.join(failures)}"
+        )
+    logger.warning(
+        "Delivery plan rejected (%s); writing a new one", "; ".join(failures)
+    )
+    path.unlink(missing_ok=True)
+    return await _write_delivery_plan(ctx)
+
+
 async def step_generate_script(ctx: PipelineContext):
     async with ctx.performance.measure_step(
         "generate_script",
@@ -839,6 +949,8 @@ async def step_generate_script(ctx: PipelineContext):
             # the labels index the script that is voiced (REQ-CNT-189).
             if structure.enabled:
                 await _label_structure(ctx, structure)
+            if ctx.config.tts_config.performed_delivery.enabled:
+                await _write_delivery_plan(ctx)
             # Variety check (REQ-PUB-083): warn when the new script repeats
             # a recent one. A reused script was checked when it was written.
             warn_if_similar(
@@ -1512,6 +1624,9 @@ async def step_create_voiceover(ctx: PipelineContext):
                 raise FileNotFoundError(f"Missing required file: {script_path.name}.")
             ctx.script = script_path.read_text(encoding="utf-8")
 
+        # Checked before TTS and outside its error wrapper, so a rejected
+        # hand-written plan stops the render naming the check (REQ-CNT-180).
+        delivery_plan = await _delivery_plan_for_voice(ctx)
         try:
             tts_manager = TTSManager(
                 ctx.config.tts_config,
@@ -1520,7 +1635,9 @@ async def step_create_voiceover(ctx: PipelineContext):
                 voice_profile_override=ctx.cli_overrides.get("voice_profile"),
             )
             vo_path = await tts_manager.generate_speech(
-                ctx.script, ctx.run_paths["voiceover_file"]
+                ctx.script,
+                ctx.run_paths["voiceover_file"],
+                delivery_plan,
             )
         except (RuntimeError, OSError) as e:
             raise PipelineError(f"TTS generation failed: {e}") from e

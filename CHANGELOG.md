@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.256.0] - 2026-11-25
+
+### Added
+
+- With `tts_config.performed_delivery.enabled`, the script step writes a delivery plan beside the script, which is checked against the script before TTS and voiced segment by segment on a `gemini_api` profile; a generated plan that fails is written again once, and an edited one that fails stops the render.
+
 ## [0.255.0] - 2026-11-25
 
 ### Added
