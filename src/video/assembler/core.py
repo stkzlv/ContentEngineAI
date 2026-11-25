@@ -122,6 +122,7 @@ class VideoAssembler:
         self.visual_builder: VisualFilterBuilder | None = None
         # The effects the last render placed, as "kind:file" (design 0006).
         self.sound_effects_placed: list[str] = []
+        self.motif_at: list[float] = []
         # The step-card layout the last render drew, None with no cards.
         self.step_card_layout: str | None = None
         self.step_visual_count: int | None = None
@@ -736,6 +737,8 @@ class VideoAssembler:
             "still_moves": (list(builder.still_moves) or None) if builder else None,
             "beat_snap_moved": builder.beat_snap_moved if builder else None,
             "sound_effects": list(self.sound_effects_placed) or None,
+            # Where the motif was placed, in seconds (REQ-CNT-192).
+            "motif_at": list(self.motif_at) or None,
             "step_card_layout": self.step_card_layout,
             "step_visuals": self.step_visual_count,
             "listing_video_opens": builder.lead_video_opened if builder else None,
@@ -766,6 +769,7 @@ class VideoAssembler:
         step_cards: list[StepCard] | None = None,
         step_visuals: list[tuple[Path, float, float]] | None = None,
         lead_video: Path | None = None,
+        motif_times: list[float] | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -802,6 +806,7 @@ class VideoAssembler:
                 not drawn over them.
             lead_video: The listing's own clip, which opens the timeline when
                 `lead_with_listing_video` is on (REQ-VID-016).
+            motif_times: Seconds at which the motif plays (REQ-CNT-192).
 
         Returns:
         -------
@@ -957,6 +962,12 @@ class VideoAssembler:
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end_sec,
                 sound_effects=self._sound_effects(total_video_duration, spoken_words),
+                motif_times=motif_times,
+            )
+            self.motif_at = (
+                list(motif_times or [])
+                if self.config.audio_settings.motif is not None
+                else []
             )
 
             # FFmpeg writes here, not to the finished name. A killed encode

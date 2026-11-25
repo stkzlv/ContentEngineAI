@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.video.config.audio_models import SignatureSting
+from src.video.config.audio_models import Motif, SignatureSting
 
 
 class RunningBit(BaseModel):
@@ -74,6 +74,8 @@ class NarratorIdentity(BaseModel):
     # Recurring bits offered one at a time under `running_bit_cap`
     # (REQ-CNT-188). Not a pinned dimension.
     running_bits: list[RunningBit] = Field(default_factory=list)
+    # A short motif under the first word and the turn (REQ-CNT-192).
+    motif: Motif | None = None
     running_bit_cap: RunningBitCap = Field(
         default_factory=RunningBitCap  # type: ignore[arg-type]
     )

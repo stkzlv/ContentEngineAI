@@ -54,6 +54,28 @@ class VoiceChainSettings(BaseModel):
     limiter: bool = Field(True)
 
 
+MotifPlacement = Literal["first_word", "turn"]
+_ALL_MOTIF_PLACEMENTS: tuple[MotifPlacement, ...] = ("first_word", "turn")
+
+
+class Motif(BaseModel):
+    """A short recurring motif mixed under the voice (REQ-CNT-192).
+
+    Placed under the first spoken word and under the first word of the
+    script's turn sentence, each copy trimmed to `max_sec` with a short fade,
+    and mastered with the rest of the programme.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    path: Path
+    at: list[MotifPlacement] = Field(
+        default_factory=lambda: list(_ALL_MOTIF_PLACEMENTS)
+    )
+    volume_db: float = Field(-14.0, le=6.0)
+    max_sec: float = Field(1.5, gt=0.0, le=5.0)
+
+
 class SignatureSting(BaseModel):
     """A short recurring audio mark mixed into every render.
 
@@ -161,6 +183,8 @@ class AudioSettings(BaseModel):
     music_fade_out_duration: float = Field(3.0)
     # Recurring audio identity mark. None (the default) mixes nothing.
     signature_sting: SignatureSting | None = Field(None)
+    # Set from a narrator identity's `motif` on the record's copy (REQ-CNT-192).
+    motif: Motif | None = Field(None)
     sound_effects: SoundEffectsSettings = Field(
         default_factory=SoundEffectsSettings  # type: ignore[arg-type]
     )

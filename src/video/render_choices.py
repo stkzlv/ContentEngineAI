@@ -240,6 +240,7 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         "still_moves": assembly.get("still_moves"),
         "beat_snap_moved": assembly.get("beat_snap_moved"),
         "sound_effects": assembly.get("sound_effects"),
+        "motif_at": assembly.get("motif_at"),
         "step_card_layout": assembly.get("step_card_layout"),
         "step_visuals": assembly.get("step_visuals"),
         "listing_video_opens": assembly.get("listing_video_opens"),
