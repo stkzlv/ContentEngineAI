@@ -45,6 +45,9 @@ from src.video.config import (
 )
 
 # Configure module logger
+from src.video.delivery_plan import DeliveryPlan, DeliverySegment
+from src.video.gemini_api_tts import GeminiApiTTSError, synthesize_segments
+
 logger = logging.getLogger(__name__)
 
 # Provider availability flags - set dynamically during import
@@ -861,8 +864,58 @@ class TTSManager:
         """Remove Gemini inline markup tags so they aren't spoken literally."""
         return cls._MARKUP_PATTERN.sub("", text)
 
-    async def generate_speech(self, text: str, output_path: Path) -> Path | None:
-        """Generate speech from text, selecting voice profile and provider."""
+    async def _generate_gemini_api(
+        self,
+        profile: VoiceProfileConfig,
+        text: str,
+        plan: DeliveryPlan | None,
+        output_path: Path,
+    ) -> Path | None:
+        """Voice through the Gemini API speech model (REQ-CNT-181): the plan's
+        segments, or the script as one segment with the profile's style.
+
+        The plan's tags are inserted here, in the request text only
+        (REQ-CNT-184); nothing returned carries them.
+        """
+        settings = self.config.gemini_api
+        api_key = self.secrets.get(settings.api_key_env_var)
+        if not api_key:
+            logger.warning(
+                "Gemini API voice skipped: %s is not set", settings.api_key_env_var
+            )
+            return None
+        if plan is not None and plan.segments:
+            segments = plan.segments
+        else:
+            segments = [DeliverySegment(text=text, style=profile.style_prompt or "")]
+        try:
+            return await synthesize_segments(
+                segments,
+                output_path,
+                api_key=api_key,
+                model=profile.gemini_model_name,
+                voice=profile.voice_name,
+                endpoint=settings.endpoint,
+                timeout_sec=settings.api_timeout_sec,
+                retries=settings.api_max_retries,
+                retry_delay_sec=settings.api_retry_delay_sec,
+                prepare=lambda t: normalise_for_tts(t, self.config.tts_normalisation),
+            )
+        except GeminiApiTTSError as e:
+            logger.warning("Gemini API voice failed, falling back: %s", e)
+            output_path.unlink(missing_ok=True)
+            return None
+
+    async def generate_speech(
+        self,
+        text: str,
+        output_path: Path,
+        delivery_plan: DeliveryPlan | None = None,
+    ) -> Path | None:
+        """Generate speech from text, selecting voice profile and provider.
+
+        A `delivery_plan` is used only by a `gemini_api` profile.
+        """
         if not text.strip():
             logger.warning("Empty text provided to TTS.")
             return None
@@ -873,8 +926,13 @@ class TTSManager:
 
         # A pause plan replaces the profile's markup rules; otherwise apply
         # the rules if the profile defines them.
-        markup_rules = profile.markup_rules if profile else []
-        pause_plan = profile.pause_plan if profile else None
+        # A gemini_api profile voices the written script and its plan's gaps;
+        # the pause plan and markup rules are for the Cloud TTS models.
+        markup_profile = (
+            profile if profile and profile.provider != "gemini_api" else None
+        )
+        markup_rules = markup_profile.markup_rules if markup_profile else []
+        pause_plan = markup_profile.pause_plan if markup_profile else None
         # The voice's copy only: the caller's script, the script file and
         # the state keep the written form.
         processed_text = normalise_for_tts(text, self.config.tts_normalisation)
@@ -911,6 +969,20 @@ class TTSManager:
                     return path
             except Exception as e:
                 logger.warning("Gemini TTS failed, falling back: %s", e)
+
+        if profile and profile.provider == "gemini_api":
+            # The written script: the provider normalises each segment once,
+            # and the pause plan's square tags are for the Cloud TTS model,
+            # while this model reads text strictly.
+            path = await self._generate_gemini_api(
+                profile, text, delivery_plan, output_path
+            )
+            if path:
+                self.selected_voice_name = (
+                    profile.voice_name or f"{profile.gemini_model_name} default"
+                )
+                logger.info("Gemini API TTS succeeded (profile: %s).", profile_name)
+                return path
 
         # Strip markup before falling back to non-Gemini providers
         # (SSML and Coqui would speak "[short pause]" literally)

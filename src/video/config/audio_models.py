@@ -332,6 +332,8 @@ class VoiceProfileConfig(BaseModel):
     style_prompt: str | None = Field(None)
     gemini_model_name: str = Field("gemini-2.5-flash-tts")
     voice_criteria: list[GoogleCloudVoiceCriteria] | None = Field(None)
+    # The voice a `provider: gemini_api` profile asks for by name (REQ-CNT-181).
+    voice_name: str | None = Field(None)
     speaking_rate: float | None = Field(None)
     pitch: float | None = Field(None)
     markup_rules: list[TextMarkupRule] = Field(default_factory=list)
@@ -356,6 +358,18 @@ class TTSNormalisationSettings(BaseModel):
     lexicon: dict[str, str] = Field(default_factory=dict)
 
 
+class GeminiApiTTSSettings(BaseModel):
+    """The Gemini API speech endpoint a `gemini_api` profile calls."""
+
+    api_key_env_var: str = Field("GEMINI_API_KEY")
+    endpoint: str = Field(
+        "https://generativelanguage.googleapis.com/v1beta/interactions"
+    )
+    api_timeout_sec: float = Field(120, gt=0)
+    api_max_retries: int = Field(1, ge=0)
+    api_retry_delay_sec: float = Field(2, ge=0)
+
+
 class TTSConfig(BaseModel):
     provider_order: list[str] = Field(..., min_length=1)
     google_cloud: GoogleCloudTTSSettings | None = Field(None)
@@ -367,6 +381,9 @@ class TTSConfig(BaseModel):
     # Send a Gemini profile's style_prompt in the request's prompt field on
     # models that accept one (REQ-CNT-185). Off: the text is sent alone.
     send_style_prompt: bool = Field(False)
+    gemini_api: GeminiApiTTSSettings = Field(
+        default_factory=GeminiApiTTSSettings  # type: ignore[arg-type]
+    )
     tts_normalisation: TTSNormalisationSettings = Field(
         default_factory=TTSNormalisationSettings  # type: ignore[arg-type]
     )

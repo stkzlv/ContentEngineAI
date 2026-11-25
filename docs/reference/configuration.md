@@ -1072,13 +1072,18 @@ A voice profile is a named preset under `tts_config.voice_profiles`. One is chos
 | `tts_config.default_voice_profile` | string | `charon_varied` | Profile used when no flag or pool picks one. An unknown name logs a warning and falls back to a pick from all profiles. |
 | `tts_config.voice_profile_pool` | list | empty | Profiles to pick from per product. Unknown names are dropped, and if none remain no profile is used; `default_voice_profile` is not consulted. |
 | `tts_config.send_style_prompt` | bool | false | Send a Gemini profile's `style_prompt` in the Cloud TTS request's `prompt` field on models that take one (`gemini-2.5-flash-tts`, `gemini-2.5-pro-tts`), only when it ends in a colon; the text stays the script alone. No bundled profile's prompt ends in one. |
+| `tts_config.gemini_api.api_key_env_var` | string | `GEMINI_API_KEY` | Key for the Gemini API speech model a `gemini_api` profile uses; collected only when a profile sets that provider. Without it the profile is skipped and the provider order applies. |
+| `tts_config.gemini_api.endpoint` | string | the Gemini API Interactions URL | Endpoint the `gemini_api` profile posts to, one request per delivery segment. |
+| `tts_config.gemini_api.api_timeout_sec` / `api_max_retries` / `api_retry_delay_sec` | number | 120 / 1 / 2 | Per-request timeout, retries after the first attempt, and seconds between them; a client error other than 429 is not retried. A segment that still fails fails the whole voice, which then falls back. |
 | `tts_config.tts_normalisation.enabled` | bool | false (bundled true) | Rewrite the `units` and `lexicon` entries in the text sent to the voice only; the script file, state and captions keep the written form. |
 | `tts_config.tts_normalisation.units` | mapping | empty | Unit spelling to spoken form (`mAh: milliamp hours`), applied only straight after a digit, with an optional space or hyphen between, never inside a word. |
 | `tts_config.tts_normalisation.lexicon` | mapping | empty | Whole term to spoken form, for model names and codes. |
 | `tts_config.google_cloud.api_max_retries` | int | 2 | Retries after the first synthesis attempt, for Google Cloud and Gemini TTS; a credentials error stops at once. |
 | `tts_config.google_cloud.api_retry_delay_sec` | int | 5 | Seconds between those retries. |
 | `tts_config.google_cloud.last_word_buffer_sec` | float | 0.5 | Silence appended to Google Cloud speech so the last word isn't cut; Gemini ignores it. |
+| `voice_profiles.<name>.provider` | string | `google_cloud` | `google_cloud`, `gemini` (Cloud TTS Gemini voices) or `gemini_api` (the Gemini API speech model, such as `gemini-3.8-flash-tts`, voiced per delivery segment with its style; without a delivery plan the script is one segment in the profile's `style_prompt`; it ignores `markup_rules` and `pause_plan`). |
 | `voice_profiles.<name>.gemini_model_name` | string | `gemini-2.5-flash-tts` | Gemini TTS model. |
+| `voice_profiles.<name>.voice_name` | string | none | The voice a `gemini_api` profile asks for by name (`Orus`); unset, the model's default voice. |
 | `voice_profiles.<name>.voice_criteria` | list | per profile | Voice filter (`language_code`, `name_contains`, `ssml_gender`); a gemini profile picks its Gemini voice with it. |
 | `voice_profiles.<name>.style_prompt` | string | per profile | Sent in the request's `prompt` field when `tts_config.send_style_prompt` is on, the model takes one and the prompt is an instruction ending in a colon ("Say the following calmly:"); otherwise logged only. |
 | `voice_profiles.<name>.markup_rules` | list | none; most bundled profiles add `[short pause]` after sentence punctuation | Regex rules that insert tags such as `[short pause]` into the script before synthesis. |
