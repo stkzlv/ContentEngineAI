@@ -441,6 +441,8 @@ def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
         signature.pools(is_topic).pinned_signoff = identity.signoff
     if identity.sting is not None:
         record.audio_settings.signature_sting = identity.sting
+    if identity.motif is not None:
+        record.audio_settings.motif = identity.motif
     if identity.music_files:
         # The beds come from the list only: every provider is switched off
         # rather than removed, since an empty list makes the music step

@@ -2048,6 +2048,55 @@ def _spoken_words(ctx: PipelineContext) -> list[dict[str, Any]] | None:
     return _word_timings(ctx)
 
 
+def _motif_times(ctx: PipelineContext) -> list[float] | None:
+    """When the motif plays: under the first spoken word and under the turn
+    sentence's first word, as the motif's `at` lists (REQ-CNT-192).
+
+    The turn comes from the script-shape labels (REQ-CNT-189): a missing or
+    stale label skips the turn copy; without word timings nothing is mixed.
+    """
+    motif = ctx.config.audio_settings.motif
+    if motif is None:
+        return None
+    words = _word_timings(ctx) or []
+    if not words:
+        logger.info("Motif: no word timings, mixing none")
+        return None
+    from src.video.script_structure import measure_starts, sentences_of
+
+    times: list[float] = []
+    if "first_word" in motif.at:
+        first = measure_starts(["x"], {"first": 0}, words)["first"]
+        if first is not None:
+            times.append(first)
+    if "turn" in motif.at:
+        raw = ctx.state.get("structure") or (
+            ctx.state.get(STEP_GENERATE_SCRIPT) or {}
+        ).get("structure")
+        try:
+            record = json.loads(raw) if raw else {}
+        except ValueError:
+            record = {}
+        if not isinstance(record, dict):
+            record = {}
+        turn = (record.get("labels") or {}).get("turn")
+        # Labels for a script edited since are stale, as the row reads them.
+        if record.get("script") and record["script"] != script_digest(ctx.script):
+            turn = None
+        start = (
+            measure_starts(sentences_of(ctx.script or ""), {"turn": turn}, words)[
+                "turn"
+            ]
+            if isinstance(turn, int)
+            else None
+        )
+        if start is None:
+            logger.info("Motif: no turn sentence, skipping that placement")
+        elif start not in times:
+            times.append(start)
+    return times or None
+
+
 def _step_cards(ctx: PipelineContext) -> list[Any] | None:
     """A topic render's step cards, when graphics are on (REQ-VID-124).
 
@@ -2315,6 +2364,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 music_fade_out_sec=music_fade_out_sec,
                 speech_end_sec=speech_end,
                 spoken_words=_spoken_words(ctx),
+                motif_times=_motif_times(ctx),
                 step_cards=_step_cards(ctx),
                 step_visuals=_step_visuals(ctx, total_duration),
                 lead_video=_listing_video(ctx),

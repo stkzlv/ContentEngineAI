@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.250.0] - 2026-11-25
+
+### Added
+
+- A narrator identity's `motif` mixes a short clip under the first spoken word and under the script's turn sentence, and the render-choices row records where it played.
+
 ## [0.249.0] - 2026-11-25
 
 ### Added

@@ -65,6 +65,8 @@ class AudioFilterBuilder:
 
         """
         self.config = config
+        # The motif times the last mix placed (REQ-CNT-192).
+        self.motif_placed: list[float] = []
 
     def sting_path(self) -> Path | None:
         """The configured sting file, or None when unset or missing.
@@ -116,6 +118,7 @@ class AudioFilterBuilder:
         music_fade_out_sec: float | None = None,
         speech_end_sec: float | None = None,
         sound_effects: list[tuple[Path, float]] | None = None,
+        motif_times: list[float] | None = None,
     ) -> tuple[list[str], str]:
         """Add the audio inputs and build the whole mix, the sting included.
 
@@ -135,6 +138,15 @@ class AudioFilterBuilder:
         for path, start in sound_effects or []:
             effect_inputs.append((input_cmd_parts.count("-i"), start))
             input_cmd_parts.extend(["-i", str(path)])
+        motif = self.config.audio_settings.motif
+        motif_inputs = []
+        if motif is not None and motif_times and not motif.path.is_file():
+            logger.warning("Motif %s not found; mixing none", motif.path)
+        elif motif is not None:
+            for start in motif_times or []:
+                motif_inputs.append((input_cmd_parts.count("-i"), start))
+                input_cmd_parts.extend(["-i", str(motif.path)])
+        self.motif_placed = [start for _, start in motif_inputs]
         delay = 0.0
         if sting_path is not None:
             # A `peak` ending measures where the speech ends; the file can run
@@ -158,6 +170,7 @@ class AudioFilterBuilder:
             sting_delay_sec=delay,
             music_fade_out_sec=music_fade_out_sec,
             effect_inputs=effect_inputs,
+            motif_inputs=motif_inputs,
         )
 
     def prepare_audio_inputs(
@@ -204,6 +217,7 @@ class AudioFilterBuilder:
         sting_delay_sec: float = 0.0,
         music_fade_out_sec: float | None = None,
         effect_inputs: list[tuple[int, float]] | None = None,
+        motif_inputs: list[tuple[int, float]] | None = None,
     ) -> tuple[list[str], str]:
         """Build audio processing filters for FFmpeg.
 
@@ -219,6 +233,8 @@ class AudioFilterBuilder:
                 `music_fade_out_duration`
             effect_inputs: (input index, start second) of each sound effect,
                 mixed at the voice level plus `sound_effects.level_db`
+            motif_inputs: (input index, start second) of each motif copy,
+                trimmed to `motif.max_sec` and mixed at `motif.volume_db`
 
         Returns:
         -------
@@ -305,6 +321,20 @@ class AudioFilterBuilder:
                 f"adelay={int(round(start * 1000))}:all=1[a_sfx_{n}]"
             )
             audio_to_mix.append(f"[a_sfx_{n}]")
+
+        # The motif joins like the sting: after the duck, before `loudnorm`,
+        # each copy trimmed with a short fade (REQ-CNT-192).
+        motif = audio_settings.motif
+        for n, (index, start) in enumerate(motif_inputs or [] if motif else []):
+            assert motif is not None
+            fade = min(0.15, motif.max_sec / 2)
+            audio_filters.append(
+                f"[{index}:a]atrim=end={motif.max_sec:g},"
+                f"afade=t=out:st={motif.max_sec - fade:g}:d={fade:g},"
+                f"volume={motif.volume_db:g}dB,"
+                f"adelay={int(round(start * 1000))}:all=1[a_motif_{n}]"
+            )
+            audio_to_mix.append(f"[a_motif_{n}]")
 
         if not audio_to_mix:
             return audio_filters, ""
