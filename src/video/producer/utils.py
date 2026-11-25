@@ -60,6 +60,9 @@ def collect_producer_secrets(config: "VideoConfig") -> dict[str, str]:
             env_var = ap.settings.get(key)
             if env_var and env_var not in secret_names:
                 secret_names.append(env_var)
+    tts = config.tts_config
+    if any(p.provider == "gemini_api" for p in tts.voice_profiles.values()):
+        secret_names.append(tts.gemini_api.api_key_env_var)
     if config.llm_settings.fallback_provider:
         secret_names.append(config.llm_settings.fallback_provider.api_key_env_var)
     return {name: value for name in secret_names if name and (value := os.getenv(name))}
