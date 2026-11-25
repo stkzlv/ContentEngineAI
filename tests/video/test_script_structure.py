@@ -300,3 +300,26 @@ def test_numbers_count_as_one_word_like_the_transcript():
         )
     ]
     assert measure_starts(sentences, {"turn": 1}, words) == {"turn": 6.0}
+
+
+@pytest.mark.req("REQ-CNT-190")
+def test_a_signoff_the_script_left_out_is_not_measured(step_ctx):
+    from src.video.render_choices import choices_from_context
+
+    step_ctx.script = "Battery lasts two days. Would you buy it?"
+    step_ctx.state["signoff"] = "That's the take."
+    step_ctx.state["cta"] = "Would you buy it?"
+    step_ctx.state["structure"] = json.dumps(
+        {"labels": {}, "targets": {"signoff_max_sec": 1.0}}
+    )
+    path = step_ctx.run_paths["whisper_transcript_file"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    words = [
+        {"word": w, "start": i * 0.5, "end": i * 0.5 + 0.4}
+        for i, w in enumerate(step_ctx.script.split())
+    ]
+    path.write_text(json.dumps({"segments": [{"words": words}]}))
+
+    record = choices_from_context(step_ctx)["structure"]
+
+    assert record["signoff_sec"] is None and record["misses"] == []

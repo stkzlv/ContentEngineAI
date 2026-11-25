@@ -155,6 +155,7 @@ def _structure(ctx: Any) -> dict[str, Any] | None:
     if not isinstance(loaded, dict):
         return None
     record: dict[str, Any] = loaded
+    from src.utils.script_signoff import signature_in_script
     from src.video.config.structure_models import StructureTargets
     from src.video.producer.steps import script_digest
     from src.video.script_structure import (
@@ -173,10 +174,13 @@ def _structure(ctx: Any) -> dict[str, Any] | None:
     if words:
         sentences = sentences_of(ctx.script or "")
         record["measured"] = measure_starts(sentences, labels, words)
+        # Only a sign-off the script says is timed; a drawn one the model left
+        # out would time the end of a body sentence.
+        signoff = _script_state(ctx.state, "signoff")
+        if signoff and not signature_in_script(signoff, ctx.script or ""):
+            signoff = None
         record["signoff_sec"] = signoff_length(
-            words,
-            _script_state(ctx.state, "signoff"),
-            _script_state(ctx.state, "cta"),
+            words, signoff, _script_state(ctx.state, "cta")
         )
         targets = StructureTargets(**(record.get("targets") or {}))
         record["misses"] = misses(record["measured"], targets)
