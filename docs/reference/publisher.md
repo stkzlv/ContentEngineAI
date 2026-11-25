@@ -386,6 +386,8 @@ A template needs data only for the placeholders it uses (`REQ-PUB-039`).
 | `enabled` | bool | `true` | Check recent posts for failed platform legs after each publish run. |
 | `limit` | int | `25` | Number of recent posts to check. |
 
+A series render leaves `series.json` (its claim and absolute queue path) beside its video. Recording such a post moves its claim queue row to `scheduled` with the post id and copies the claim into the publish history row, since cleanup removes the render directory. The sweep then moves each series post the provider reports `published` or `partial` to `live`, reading the run's outputs directory (REQ-PUB-168). The publisher reads none of the video config.
+
 ### `tiktok_settings`
 
 Shipped commented out. A section with an unknown key falls back to all defaults with a warning.

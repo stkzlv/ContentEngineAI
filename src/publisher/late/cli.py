@@ -1032,7 +1032,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
                         outputs_dir,
                         replace(config.link_in_bio_config, enabled=True),
                     )
-                await run_delivery_sweep(publisher, config.delivery_sweep_config)
+                await run_delivery_sweep(
+                    publisher, config.delivery_sweep_config, args.outputs_dir
+                )
                 return
 
             # Publish (unified or platform-specific mode)
@@ -1134,7 +1136,9 @@ async def cmd_single(args: argparse.Namespace, config, session: aiohttp.ClientSe
             await run_blob_retention(publisher, config.blob_retention_config)
 
             # Sweep recent posts for silently-failed legs (non-blocking)
-            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+            await run_delivery_sweep(
+                publisher, config.delivery_sweep_config, args.outputs_dir
+            )
 
         except Exception as e:
             logger.error("Failed to publish video: %s", e, exc_info=args.debug)
@@ -1291,7 +1295,9 @@ async def cmd_schedule_auto(
         # Sweep before the early return: a run with nothing new to schedule
         # is the day earlier posts fire, which is what the sweep is for.
         if not args.dry_run:
-            await run_delivery_sweep(publisher, config.delivery_sweep_config)
+            await run_delivery_sweep(
+                publisher, config.delivery_sweep_config, args.outputs_dir
+            )
 
         if not unpublished_videos:
             return
@@ -1534,7 +1540,7 @@ async def _run_immediate_batch(
         await run_blob_retention(publisher, config.blob_retention_config)
 
     # Sweep recent posts for silently-failed legs (non-blocking)
-    await run_delivery_sweep(publisher, config.delivery_sweep_config)
+    await run_delivery_sweep(publisher, config.delivery_sweep_config, args.outputs_dir)
 
     if summary.failed > 0:
         sys.exit(1)

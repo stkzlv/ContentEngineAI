@@ -440,7 +440,9 @@ async def run_publishing_phase(
     from src.publisher.partial_post_sweep import run_delivery_sweep
 
     if isinstance(publisher, LatePublisher):
-        await run_delivery_sweep(publisher, published.delivery_sweep_config)
+        await run_delivery_sweep(
+            publisher, published.delivery_sweep_config, batch_config.outputs_dir
+        )
 
     # Generate summary
     duration = time.monotonic() - phase_start
