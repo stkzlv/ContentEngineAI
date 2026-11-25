@@ -158,3 +158,25 @@ async def run_delivery_sweep(
         len(results),
         config.limit,
     )
+    await _mark_live_series(publisher, config.limit)
+
+
+async def _mark_live_series(publisher: LatePublisher, limit: int) -> None:
+    """Move published series posts' claim rows to `live` (REQ-PUB-168).
+
+    Only when a series render exists under the outputs root, so other
+    installations make no extra call. Never raises, like the sweep.
+    """
+    from src.publisher.series_queue import has_series_renders, mark_live
+    from src.publisher.tracking import DEFAULT_OUTPUTS_DIR
+
+    if not has_series_renders(DEFAULT_OUTPUTS_DIR):
+        return
+    try:
+        posts = (await publisher.list_posts())[:limit]
+        marked = mark_live(posts, DEFAULT_OUTPUTS_DIR)
+    except Exception as exc:  # noqa: BLE001 - a hook must not fail the publish
+        logger.warning("Claim queue live marks skipped: %s", exc)
+        return
+    if marked:
+        logger.info("Claim queue: %d series post(s) marked live", marked)

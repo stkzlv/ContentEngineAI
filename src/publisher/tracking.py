@@ -78,6 +78,9 @@ def record_publish(
     }
     save_tracking(tracking, outputs_dir)
     logger.info("Recorded publish: %s -> %s", key, post_id)
+    from src.publisher.series_queue import mark_scheduled
+
+    mark_scheduled(product_id, post_id, outputs_dir)
 
 
 def has_any_publish_record(

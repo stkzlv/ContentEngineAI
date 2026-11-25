@@ -323,3 +323,4 @@ def test_only_a_whole_render_marks_the_row():
     source = inspect.getsource(orchestration.create_video_for_product)
     guard = source.index("if debug_step_target is None:")
     assert guard < source.index("mark_rendered(") < guard + 600
+    assert guard < source.index("write_series_record(") < guard + 800

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.253.0] - 2026-11-25
+
+### Added
+
+- The publisher marks a series episode's claim queue row `scheduled` with the post id when it records the post, and `live` when the delivery sweep sees the post published.
+
 ## [0.252.0] - 2026-11-25
 
 ### Added
