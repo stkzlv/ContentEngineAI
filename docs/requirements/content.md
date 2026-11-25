@@ -154,7 +154,8 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-183** `planned #855` When a word in the transcript falls within a vocal event's window and matches a transcription the probe recorded for that tag, the producer drops it from the caption words; a word that is in the script is never dropped.
   - Why: Whisper can hear a sigh as "ugh".
 - **REQ-CNT-184** `planned #855` The delivery plan's tags and styles reach only the requests sent to the Gemini API speech model; a fallback provider receives the script without them, and the script file, the captions and the metadata never carry them.
-- **REQ-CNT-185** `planned #855` Where `tts_config.send_style_prompt` is on and the profile's model accepts a prompt, the Cloud TTS request carries the profile's `style_prompt` in its `prompt` field and leaves the text unchanged.
+- **REQ-CNT-185** `shipped` Where `tts_config.send_style_prompt` is on and the profile's model accepts a prompt, the Cloud TTS request carries the profile's `style_prompt` in its `prompt` field and leaves the text unchanged, provided the prompt ends in a colon; a prompt that doesn't is not sent, and a warning says so.
+  - Why: on `gemini-2.5-flash-tts` a descriptive prompt ("Warm but grounded. Like a friend.") was read aloud in each of four probe takes, and an instruction ending in a colon ("Say the following calmly:") in none of three.
   - Why: the request sends the text alone, so a profile's style direction never reaches the voice.
 - **REQ-CNT-072** `shipped` Google Cloud voice choice falls back through ranked voice families (by default Chirp3, then Chirp, then Neural2, then any en-US voice).
 - **REQ-CNT-131** `shipped` Where the Coqui TTS package is installed and `coqui` is listed in `tts_config.provider_order`, the producer can synthesise speech locally with Coqui TTS; the bundled order leaves it out.
