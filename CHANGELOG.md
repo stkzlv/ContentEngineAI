@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.247.0] - 2026-11-25
+
+### Added
+
+- A narrator identity can set `opening: claim_first`, which asks the kind's scripts to open on the take's claim with no greeting or setup.
+- A narrator identity's `self_intro_patterns` retry a script whose first sentence greets or introduces the narrator, shipping one such draft only when every attempt does.
+- A narrator identity's `title_card: false` renders its kind without the hook title card.
+
 ## [0.246.0] - 2026-11-25
 
 ### Added

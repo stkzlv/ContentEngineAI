@@ -694,6 +694,10 @@ stock_media_settings:
 #   music_files:      local beds used instead of the provider chain
 #   music_queries:    provider search queries, when music_files is empty
 #   caption_template: a pycaps template, instead of the pool
+#   virtual:          the narrator never claims a physical act (REQ-CNT-173)
+#   opening:          claim_first opens on the take's claim (REQ-CNT-186)
+#   self_intro_patterns: regexes a first sentence must not match (REQ-CNT-187)
+#   title_card:       false drops the hook title card (REQ-VID-166)
 # A commentary topic is `commentary`, not `topic`.
 narrator_identity:
   product: {}

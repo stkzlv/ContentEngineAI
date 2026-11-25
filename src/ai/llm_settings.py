@@ -292,6 +292,12 @@ class ScriptTemplateConfig(BaseModel):
     # (REQ-CNT-173): the narrator text gains VIRTUAL_NARRATOR_RULE, and the
     # script step refuses a first-person claim of a physical act.
     virtual_narrator: bool = False
+    # Set from a narrator identity's `opening: claim_first` (REQ-CNT-186): the
+    # narrator text gains CLAIM_FIRST_RULE.
+    claim_first_opening: bool = False
+    # From a narrator identity's `self_intro_patterns` (REQ-CNT-187): a first
+    # sentence matching one fails as a soft check, kept after the lint.
+    self_intro_patterns: list[str] = Field(default_factory=list)
     # Templates used when the record came from a topic rather than a scraped
     # product. Selected instead of the pillar pool, because a pillar narrows
     # which product angle to take while this decides whether the script is
@@ -399,6 +405,8 @@ class ScriptTemplateConfig(BaseModel):
             )
         if self.virtual_narrator:
             text = _join(text, VIRTUAL_NARRATOR_RULE)
+        if self.claim_first_opening:
+            text = _join(text, CLAIM_FIRST_RULE)
         return target.fill(text)
 
     def _topic_text(self, profile_topic: str, rules_topic: str) -> str:
@@ -772,6 +780,12 @@ class LLMSettings(BaseModel):
 
 LLMSettings.model_rebuild()
 
+
+CLAIM_FIRST_RULE = (
+    "Open with the take's claim as the first sentence, with one concrete number "
+    "or name from the detail where it has one. No greeting, no introduction of "
+    "yourself, and no setup before it."
+)
 
 VIRTUAL_NARRATOR_RULE = (
     "You are a synthetic narrator. Never say you bought, ordered, held, tried, "

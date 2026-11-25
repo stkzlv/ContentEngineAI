@@ -458,6 +458,14 @@ def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
         record.audio_settings.freesound_search_query = identity.music_queries[0]
     if identity.virtual:
         record.llm_settings.script_templates.virtual_narrator = True
+    if identity.opening == "claim_first":
+        record.llm_settings.script_templates.claim_first_opening = True
+    if identity.self_intro_patterns:
+        record.llm_settings.script_templates.self_intro_patterns = list(
+            identity.self_intro_patterns
+        )
+    if identity.title_card is False:
+        record.video_settings.hook_overlay.enabled = False
     if identity.caption_template:
         pycaps = record.subtitle_settings.setdefault("pycaps", {})
         pycaps["template_name"] = identity.caption_template

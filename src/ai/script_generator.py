@@ -1302,6 +1302,11 @@ async def generate_script(
         if settings.script_templates.virtual_narrator
         else []
     )
+    # A first sentence that greets or introduces the narrator (REQ-CNT-187).
+    self_intro = [
+        re.compile(p, re.IGNORECASE)
+        for p in settings.script_templates.self_intro_patterns
+    ]
     record_kind = getattr(product, "topic_kind", None)
     # A correction (REQ-CNT-175) and a reply (REQ-CNT-176) keep to their
     # detail's figures too, but close on no question: neither is a debate.
@@ -1407,6 +1412,11 @@ async def generate_script(
             # Last, so this near miss has passed every other check.
             near_miss.setdefault("question", script)
             return False, "Script has no closing question before its call to action"
+        # After every other check, so its near miss passed them all.
+        opening = next(iter(_sentences(script)), "") if ok and self_intro else ""
+        if opening and any(p.search(opening) for p in self_intro):
+            near_miss.setdefault("self_intro", script)
+            return False, f"Script opens with a self-introduction: {opening!r}"
         return ok, reason
 
     prompt = apply_prompt_preambles(
@@ -1653,6 +1663,13 @@ async def generate_script(
         logger.warning("No attempt passed the script lint; using one that failed it")
         _record(near_model.get("lint"))
         return near_miss["lint"], template_name, cta_line
+
+    if "self_intro" in near_miss:
+        # Passed every other check, the lint included; only the opening
+        # greets or introduces the narrator.
+        logger.warning("No attempt avoided a self-introduction; using one with it")
+        _record(near_model.get("self_intro"))
+        return near_miss["self_intro"], template_name, cta_line
 
     if "script" not in near_miss and "script_unasked" in near_miss:
         near_miss["script"] = near_miss["script_unasked"]

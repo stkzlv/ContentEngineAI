@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -37,6 +38,27 @@ class NarratorIdentity(BaseModel):
     # The narrator is synthetic: its scripts never claim a physical act
     # (REQ-CNT-173). Not a pinned dimension; it fixes no drawn choice.
     virtual: bool = False
+    # `claim_first`: the script opens on the take's claim, with no greeting
+    # or setup before it (REQ-CNT-186). Not a pinned dimension.
+    opening: Literal["claim_first"] | None = None
+    # A first sentence matching one of these fails as a soft check
+    # (REQ-CNT-187); case-insensitive regular expressions.
+    self_intro_patterns: list[str] = Field(default_factory=list)
+    # False renders the kind without the hook title card (REQ-VID-166);
+    # None leaves `video_settings.hook_overlay` as it is.
+    title_card: bool | None = None
+
+    @field_validator("self_intro_patterns")
+    @classmethod
+    def _patterns_compile(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                re.compile(pattern, re.IGNORECASE)
+            except re.error as e:
+                raise ValueError(
+                    f"self_intro_patterns entry {pattern!r} is not a regex: {e}"
+                ) from e
+        return value
 
     @field_validator("signoff")
     @classmethod
