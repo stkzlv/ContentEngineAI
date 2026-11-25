@@ -1100,19 +1100,22 @@ def validate_script_completeness(
     return True, f"Script validation passed ({len(words)} words, {len(script)} chars)"
 
 
-def _with_running_bit(narrator: str, hint: str) -> str:
-    """The script prompt's narrator text, offering a running bit when set.
+def _with_running_bit(narrator: str, hint: str, structure_rules: str = "") -> str:
+    """The script prompt's narrator text, with its script-only rules.
 
-    Only the script prompt gets it (REQ-CNT-188); the other prompts that read
-    the narrator text don't.
+    A running bit when one is offered (REQ-CNT-188) and the script-shape
+    rules (REQ-CNT-189): only the script prompt gets them; the other prompts
+    that read the narrator text don't.
     """
-    if not hint:
-        return narrator
-    rule = (
-        "A running bit you may use once, only where it fits a line naturally, "
-        f"and never forced: {hint}"
-    )
-    return f"{narrator}\n\n{rule}" if narrator else rule
+    rules = []
+    if hint:
+        rules.append(
+            "A running bit you may use once, only where it fits a line "
+            f"naturally, and never forced: {hint}"
+        )
+    if structure_rules:
+        rules.append(structure_rules)
+    return "\n\n".join([r for r in [narrator, *rules] if r])
 
 
 # Near misses that failed only a check a retry may pass: kept as a last
@@ -1445,6 +1448,7 @@ async def generate_script(
         _with_running_bit(
             settings.script_templates.narrator_for(is_topic, target_length),
             settings.script_templates.running_bit_hint,
+            settings.script_templates.structure_rules,
         ),
         pillar,
         settings.script_templates.preambles_for(is_topic),

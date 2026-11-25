@@ -30,6 +30,7 @@ from src.utils.script_signoff import place_signoff, signature_in_script
 from src.video.assembler import VideoAssembler
 from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.config.identity_models import RunningBit, content_kind
+from src.video.config.structure_models import ScriptStructure
 from src.video.producer.artifact_registry import register_artifact_loader
 from src.video.producer.constants import (
     DEFAULT_VIDEO_HEIGHT,
@@ -71,6 +72,16 @@ from src.video.producer.utils import (
 )
 from src.video.render_choices import warn_if_similar
 from src.video.running_bits import select_running_bit, used_bit
+from src.video.script_structure import (
+    draw_variant,
+    estimate_starts,
+    label_prompt,
+    misses,
+    parse_labels,
+    prompt_rules,
+    sentences_of,
+    targets_for,
+)
 from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
@@ -609,6 +620,73 @@ async def _topic_step_list(ctx: PipelineContext) -> Any:
     return step_list
 
 
+def _with_structure_rules(llm_settings: Any, structure: ScriptStructure) -> Any:
+    """A copy of the settings whose script prompt carries the shape rules."""
+    rules = prompt_rules(structure) if structure.enabled else ""
+    if not rules:
+        return llm_settings
+    templates = llm_settings.script_templates.model_copy(
+        update={"structure_rules": rules}
+    )
+    return llm_settings.model_copy(update={"script_templates": templates})
+
+
+async def _label_structure(ctx: PipelineContext, structure: ScriptStructure) -> None:
+    """Name the turn and payoff sentences and estimate when they start.
+
+    Stored as JSON strings: the state loader reads a dict as a step record.
+    A failed labelling call records the variant and no beats (REQ-CNT-189).
+    """
+    from aiohttp import ClientError
+
+    from src.ai.script_generator import (
+        ScriptGenerationError,
+        _call_llm_api_with_retry,
+    )
+
+    variant = draw_variant(structure, ctx.product.asin or ctx.product.title or "")
+    targets = targets_for(structure, variant)
+    sentences = sentences_of(ctx.script or "")
+    labels: dict[str, int | None] = {"turn": None, "payoff": None}
+    settings = ctx.config.llm_settings.for_scripts()
+    model = next(iter(settings.models), None)
+    api_key = ctx.secrets.get(settings.api_key_env_var, "")
+    if model and api_key and sentences:
+        try:
+            reply = await _call_llm_api_with_retry(
+                label_prompt(sentences),
+                model,
+                settings,
+                api_key,
+                ctx.session,
+                ctx.config.api_settings,
+            )
+            labels = parse_labels(reply, len(sentences))
+        except (
+            ScriptGenerationError,
+            ClientError,
+            TimeoutError,
+            RuntimeError,
+            ValueError,
+            OSError,
+        ) as e:
+            logger.warning("Script beats not labelled: %s", e)
+    estimated = estimate_starts(sentences, labels, structure.wpm)
+    for miss in misses(estimated, targets):
+        logger.warning("Script shape, estimated: %s", miss)
+    ctx.state["structure_variant"] = variant or ""
+    ctx.state["structure"] = json.dumps(
+        {
+            "labels": labels,
+            "estimated": estimated,
+            "targets": targets.model_dump(),
+            "wpm": structure.wpm,
+            # The script the labels index; a later edit makes them stale.
+            "script": script_digest(ctx.script),
+        }
+    )
+
+
 def _offer_running_bit(ctx: PipelineContext) -> RunningBit | None:
     """Pick the running bit the cap allows and offer it in the script prompt."""
     kind = content_kind(ctx.product)
@@ -655,10 +733,12 @@ async def step_generate_script(ctx: PipelineContext):
             step_list = await _topic_step_list(ctx)
             written_by: dict[str, str] = {}
             bit = _offer_running_bit(ctx)
+            structure = ctx.config.script_structure.for_kind(content_kind(ctx.product))
+            llm_settings = _with_structure_rules(ctx.config.llm_settings, structure)
             try:
                 script_text, template_name, cta_line = await generate_ai_script(
                     ctx.product,
-                    ctx.config.llm_settings,
+                    llm_settings,
                     ctx.secrets,
                     ctx.session,
                     {
@@ -738,6 +818,10 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.run_paths["script_file"].name,
             )
             await _ensure_fact_checked(ctx, pillar)
+            # After the fact check, which can drop or rewrite sentences, so
+            # the labels index the script that is voiced (REQ-CNT-189).
+            if structure.enabled:
+                await _label_structure(ctx, structure)
             # Variety check (REQ-PUB-083): warn when the new script repeats
             # a recent one. A reused script was checked when it was written.
             warn_if_similar(

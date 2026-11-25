@@ -583,6 +583,10 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     # for the product would drop the use and the cap would stop counting it.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("running_bit"):
         step_state["running_bit"] = ctx.state["running_bit"]
+    # The script-shape labels and estimate (REQ-CNT-189), for the same reason.
+    for key in ("structure", "structure_variant"):
+        if step_name == STEP_GENERATE_SCRIPT and ctx.state.get(key):
+            step_state[key] = ctx.state[key]
     # The drawn sign-off, for the same reason: the first-comment extractor
     # reads it to strip the sign-off before taking the closing beat.
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("signoff"):

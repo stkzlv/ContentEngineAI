@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.249.0] - 2026-11-25
+
+### Added
+
+- `script_structure` sets per-kind timing targets for a script's turn, first payoff and sign-off, with prompt rules for the setup and the recap, an estimate before voicing, a measurement from the word timings in the render-choices row, and named variants drawn per product; every kind ships disabled.
+
 ## [0.248.0] - 2026-11-25
 
 ### Added

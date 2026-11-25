@@ -707,6 +707,23 @@ narrator_identity:
   commentary: {}
 
 # ============================================================================
+# SCRIPT SHAPE
+# ============================================================================
+# Timing targets for a kind's scripts (REQ-CNT-189 to REQ-CNT-191), off for
+# every kind here; an installation sets its own in its overlay.
+#   enabled:          ask for the shape rules and label and time the beats
+#   turn_by_sec, payoff_by_sec, signoff_max_sec: targets, logged when missed
+#   wpm:              words a minute for the estimate (150; set your voice's)
+#   setup:            any | misconception (background as the common belief)
+#   no_recap:         ask for no summary before the closing question
+#   variants:         {name: {turn_by_sec, payoff_by_sec, signoff_max_sec}},
+#                     one drawn per product and recorded as structure_variant
+script_structure:
+  product: {}
+  topic: {}
+  commentary: {}
+
+# ============================================================================
 # VIDEO PROFILES
 # ============================================================================
 video_profiles:
