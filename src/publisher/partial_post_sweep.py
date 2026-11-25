@@ -119,7 +119,7 @@ def _hint(post: PartialPost) -> str:
 async def run_delivery_sweep(
     publisher: LatePublisher,
     config: DeliverySweepConfig | None,
-    outputs_dir: Path | None = None,
+    outputs_dir: Path,
 ) -> None:
     """Sweep a trailing window of posts after a publish run and WARN per miss.
 
@@ -164,18 +164,15 @@ async def run_delivery_sweep(
     await _mark_live_series(publisher, outputs_dir)
 
 
-async def _mark_live_series(
-    publisher: LatePublisher, outputs_dir: Path | None = None
-) -> None:
-    """Move published series posts' claim rows to `live` (REQ-PUB-168).
+async def _mark_live_series(publisher: LatePublisher, outputs_dir: Path) -> None:
+    """Move series posts live on any platform to `live` (REQ-PUB-168).
 
     Only when publish history holds a series post, so other installations
     make no extra call. Never raises, like the sweep.
     """
     from src.publisher.series_queue import has_series_posts, mark_live
-    from src.publisher.tracking import DEFAULT_OUTPUTS_DIR
 
-    root = outputs_dir or DEFAULT_OUTPUTS_DIR
+    root = outputs_dir
     if not has_series_posts(root):
         return
     try:

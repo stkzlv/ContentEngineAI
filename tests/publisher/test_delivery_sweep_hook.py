@@ -53,7 +53,9 @@ class TestTheHook:
         )
 
         with caplog.at_level(logging.WARNING):
-            await run_delivery_sweep(client, DeliverySweepConfig(limit=10))
+            await run_delivery_sweep(
+                client, DeliverySweepConfig(limit=10), Path("outputs")
+            )
 
         text = caplog.text
         assert "p1" in text
@@ -81,7 +83,7 @@ class TestTheHook:
         )
 
         with caplog.at_level(logging.WARNING):
-            await run_delivery_sweep(client, DeliverySweepConfig())
+            await run_delivery_sweep(client, DeliverySweepConfig(), Path("outputs"))
 
         assert "posts.update('p2'" in caplog.text
 
@@ -98,7 +100,7 @@ class TestTheHook:
         leg = [{"platform": "tiktok", "status": "failed"}]
         client = _client(posts, {"p0": leg, "p7": leg})
 
-        await run_delivery_sweep(client, DeliverySweepConfig(limit=7))
+        await run_delivery_sweep(client, DeliverySweepConfig(limit=7), Path("outputs"))
 
         client.get_post_platforms.assert_awaited_once_with("p0")
 
@@ -111,7 +113,7 @@ class TestTheHook:
         )
 
         with caplog.at_level(logging.WARNING):
-            await run_delivery_sweep(client, DeliverySweepConfig())
+            await run_delivery_sweep(client, DeliverySweepConfig(), Path("outputs"))
 
         assert "posts.retry" not in caplog.text
         assert "posts.get('stale')" in caplog.text
@@ -121,7 +123,7 @@ class TestTheHook:
     async def test_it_does_nothing_when_off(self, config):
         client = _client([], {})
 
-        await run_delivery_sweep(client, config)
+        await run_delivery_sweep(client, config, Path("outputs"))
 
         client.list_posts.assert_not_awaited()
 
@@ -132,7 +134,7 @@ class TestTheHook:
         client.list_posts = AsyncMock(side_effect=RuntimeError("502 from Zernio"))
 
         with caplog.at_level(logging.WARNING):
-            await run_delivery_sweep(client, DeliverySweepConfig())
+            await run_delivery_sweep(client, DeliverySweepConfig(), Path("outputs"))
 
         assert "Delivery sweep failed" in caplog.text
 

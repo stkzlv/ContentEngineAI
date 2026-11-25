@@ -87,16 +87,23 @@ def update_row(path: Path, claim: str, update: Any) -> dict[str, str] | None:
 
 def set_published(
     queue_file: Path, claim: str, status: str, post_id: str | None = None
-) -> None:
+) -> bool:
     """Set the claim's row to `scheduled` (with its post id) or `live`
-    (REQ-PUB-168); a live row is never moved back to scheduled.
+    (REQ-PUB-168); a live row is never moved back to scheduled. Returns
+    whether the row changed.
     """
+    changed = False
 
     def set_status(row: dict[str, str], rows: list[dict[str, str]]) -> None:
-        if status == "scheduled" and (row.get("status") or "").strip() == "live":
+        nonlocal changed
+        current = (row.get("status") or "").strip()
+        if status == "scheduled" and current == "live":
             return
+        new_id = bool(post_id) and row.get("post_id") != post_id
+        changed = current != status or new_id
         row["status"] = status
         if post_id:
             row["post_id"] = post_id
 
     update_row(queue_file, claim, set_status)
+    return changed

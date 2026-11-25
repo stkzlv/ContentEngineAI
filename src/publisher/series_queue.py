@@ -4,7 +4,7 @@ A series render leaves `series.json` beside its video (the claim and the
 queue file, written by the producer), so the publisher needs no video
 config. The claim row goes to `scheduled` with its post id when the
 publisher records the post, and to `live` when the delivery sweep sees the
-post published. Bookkeeping: nothing here raises into a publish.
+post live on any platform. Bookkeeping: nothing here raises into a publish.
 """
 
 from __future__ import annotations
@@ -76,7 +76,11 @@ def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
     for post in posts:
         post_id = str(post.get("id"))
         series = series_by_post.get(post_id)
-        if series and str(post.get("status") or "").lower() in LIVE_STATUSES:
-            set_published(Path(series["queue_file"]), series["claim"], "live")
+        live = str(post.get("status") or "").lower() in LIVE_STATUSES
+        if (
+            series
+            and live
+            and set_published(Path(series["queue_file"]), series["claim"], "live")
+        ):
             marked += 1
     return marked

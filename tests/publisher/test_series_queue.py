@@ -175,3 +175,13 @@ def test_the_series_record_stores_an_absolute_queue_path(tmp_path, monkeypatch):
     )
     found = series_queue.series_record(".", tmp_path)
     assert found is not None and found[0].is_absolute()
+
+
+def test_a_repeat_live_mark_counts_nothing(outputs):
+    from src.publisher.tracking import record_publish
+
+    root, queue = outputs
+    record_publish("B0TEST0168", "youtube", "post-9", root)
+    posts = [{"id": "post-9", "status": "published"}]
+    assert series_queue.mark_live(posts, root) == 1
+    assert series_queue.mark_live(posts, root) == 0
