@@ -183,7 +183,7 @@ The bundled `puck`, `charon`, `fenrir`, and `orus` named profiles exist as A/B c
 
 ## Voice character and the `style_prompt` field
 
-Tone and character come from the voice you pick by name (Charon, Puck, Kore, and so on), not from a text prompt. The `style_prompt` field on each profile is documentation only and is not wired to the Gemini API. Early versions passed it as `SynthesisInput.prompt`, but the model reads that text aloud as spoken content instead of treating it as a style directive, so it is no longer sent. Keep `style_prompt` in config to describe a profile's intended character for readers; to change how a profile sounds, select a different voice name.
+Tone and character come first from the voice you pick by name (Charon, Puck, Kore, and so on). A Gemini profile's `style_prompt` reaches the voice only where `tts_config.send_style_prompt` is on and the profile's model takes a prompt (`gemini-2.5-flash-tts`, `gemini-2.5-pro-tts`): it goes in the request's own `SynthesisInput.prompt` field, beside the script text, never inside it. Its form decides whether it is heard: on `gemini-2.5-flash-tts` a descriptive prompt ("Warm but grounded. Like a friend.") was read aloud in each of four probe takes, while an instruction ending in a colon ("Say the following calmly and confidently:") was read in none of three. So only a prompt ending in a colon is sent; any other is skipped with a warning, and the switch ships off. With the switch off, `style_prompt` only describes a profile's intended character for readers.
 
 **Parameters that adjust output:**
 

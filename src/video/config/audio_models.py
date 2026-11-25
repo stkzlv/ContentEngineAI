@@ -340,6 +340,9 @@ class TTSConfig(BaseModel):
     voice_profiles: dict[str, VoiceProfileConfig] = Field(default_factory=dict)
     voice_profile_pool: list[str] = Field(default_factory=list)
     default_voice_profile: str | None = Field(None)
+    # Send a Gemini profile's style_prompt in the request's prompt field on
+    # models that accept one (REQ-CNT-185). Off: the text is sent alone.
+    send_style_prompt: bool = Field(False)
     tts_normalisation: TTSNormalisationSettings = Field(
         default_factory=TTSNormalisationSettings  # type: ignore[arg-type]
     )

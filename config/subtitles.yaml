@@ -416,6 +416,15 @@ tts_config:
   # settings block below is kept so the config side stays a one-line change.
   provider_order: ["google_cloud"]
 
+  # Send a Gemini voice profile's style_prompt in the Cloud TTS request's
+  # prompt field, on models that take one (gemini-2.5-flash-tts and
+  # gemini-2.5-pro-tts); the text stays the script alone. Only a prompt in
+  # instruction form, ending in a colon ("Say the following calmly:"), is
+  # sent: a descriptive one was read aloud in every probe take. The bundled
+  # profiles' prompts are descriptive, so on alone changes nothing until a
+  # profile gets an instruction-form prompt. Off: none is sent (REQ-CNT-185).
+  send_style_prompt: false
+
   # Google Cloud Text-to-Speech Settings
   # Setup: Requires GOOGLE_APPLICATION_CREDENTIALS environment variable
   # Pricing: ~$16 per 1 million characters (check current rates)

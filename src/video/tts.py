@@ -467,6 +467,30 @@ async def _generate_google_cloud_speech(
     return None, None
 
 
+# Cloud TTS models that take a style prompt in SynthesisInput.prompt.
+STYLE_PROMPT_MODELS = frozenset({"gemini-2.5-flash-tts", "gemini-2.5-pro-tts"})
+
+
+def _style_prompt_to_send(profile: VoiceProfileConfig) -> str | None:
+    """Return the profile's style prompt when it is safe to send, else None.
+
+    Safe means a model that takes a prompt and a prompt in instruction form,
+    ending in a colon ("Say the following calmly:"); a descriptive one
+    ("Warm but grounded.") is read aloud, so it is skipped with a warning.
+    """
+    prompt = (profile.style_prompt or "").strip()
+    if not prompt or profile.gemini_model_name not in STYLE_PROMPT_MODELS:
+        return None
+    if not prompt.endswith(":"):
+        logger.warning(
+            "Style prompt not sent: it doesn't end in a colon, and a "
+            "descriptive prompt is read aloud (%s)",
+            prompt[:60],
+        )
+        return None
+    return prompt
+
+
 @google_stt_circuit_breaker
 async def _generate_gemini_speech(
     text: str,
@@ -474,6 +498,7 @@ async def _generate_gemini_speech(
     settings: GoogleCloudTTSSettings,
     profile: VoiceProfileConfig,
     product_id: str | None = None,
+    send_style_prompt: bool = False,
 ) -> tuple[Path | None, str | None]:
     """Generate speech using Gemini TTS (same API, with prompt field for style).
 
@@ -522,12 +547,14 @@ async def _generate_gemini_speech(
 
     ensure_dirs_exist(output_path)
 
-    # Gemini TTS uses text only. The style_prompt field is NOT passed as
-    # the SynthesisInput prompt parameter because the Gemini TTS model
-    # reads it aloud as spoken content instead of treating it as a style
-    # directive. Voice character is controlled by the voice name selection
-    # (Charon, Puck, etc.) rather than the prompt field.
-    synthesis_input = texttospeech.SynthesisInput(text=text)
+    # The style prompt goes in the request's own `prompt` field, never into
+    # the text (REQ-CNT-185). Only an instruction ending in a colon is sent:
+    # a descriptive prompt was read aloud in every probe take.
+    prompt = _style_prompt_to_send(profile) if send_style_prompt else None
+    if prompt:
+        synthesis_input = texttospeech.SynthesisInput(text=text, prompt=prompt)
+    else:
+        synthesis_input = texttospeech.SynthesisInput(text=text)
 
     voice_params = texttospeech.VoiceSelectionParams(
         language_code=selected_voice.language_codes[0],
@@ -876,6 +903,7 @@ class TTSManager:
                     self.config.google_cloud,
                     profile,
                     product_id=self.product_id,
+                    send_style_prompt=self.config.send_style_prompt,
                 )
                 if path:
                     self.selected_voice_name = voice_name

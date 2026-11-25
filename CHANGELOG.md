@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.246.0] - 2026-11-25
+
+### Added
+
+- `tts_config.send_style_prompt`, off by default, sends a Gemini voice profile's `style_prompt` in the Cloud TTS request's own prompt field on models that take one, only when the prompt is an instruction ending in a colon, since a descriptive prompt is read aloud.
+
 ## [0.245.3] - 2026-11-25
 
 ### Documentation
