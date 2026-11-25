@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.245.3] - 2026-11-25
+
+### Documentation
+
+- Design 0041 and requirements REQ-CNT-186 to REQ-CNT-195, REQ-VID-166 to REQ-VID-168, REQ-PUB-168 and REQ-PUB-169 specify a signature style per content kind (a claim-first opening, a motif, running bits, script-shape targets) and recurring series (a title prefix, an opening line, a verdict beat, a claim queue), all off or empty in the shipped config.
+
 ## [0.245.2] - 2026-11-25
 
 ### Documentation

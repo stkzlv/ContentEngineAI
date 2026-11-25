@@ -99,3 +99,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0038](0038-music-lift.md) | Music that rises between voice lines | #592 | Held |
 | [0039](0039-instagram-paid-partnership.md) | Instagram's paid-partnership label from the material connection | #789 | Held |
 | [0040](0040-performed-voice-delivery.md) | Performed voice delivery aligned with the script | #855 | Accepted |
+| [0041](0041-signature-style-and-series.md) | Signature style and recurring series | #857 | Accepted |

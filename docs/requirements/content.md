@@ -93,6 +93,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-047** `shipped` Where a sign-off is spoken, the first comment and the platform captions quote the closing line, not the sign-off.
 - **REQ-CNT-153** `shipped` Where a signature pool lists `opener_templates`, an opener is drawn only for a script written from one of those templates; the bundled topic pool lists the templates that open on the task (`topic_from_steps`, `topic_answer_first`), so a symptom-first or mistake-first script keeps its opening.
 - **REQ-CNT-152** `shipped` While `script_templates.signature.enabled` is false, no signature line is drawn and the script prompt is unchanged, whatever the pools hold.
+- **REQ-CNT-186** `planned #857` Where a narrator identity sets `opening: claim_first`, the kind's script prompt asks for the take's claim, with one concrete number or name where the detail has one, as the first sentence, with no greeting or setup before it.
+- **REQ-CNT-187** `planned #857` Where a narrator identity lists `self_intro_patterns`, the script step treats a first sentence matching one as a failed soft check, ranked after the script lint in REQ-CNT-164's keep order; the shipped list is empty.
+- **REQ-CNT-188** `planned #857` Where a narrator identity lists `running_bits`, the script prompt offers one bit's hint only while `running_bit_cap` allows (`per_batch` uses in the batch run, `min_gap` renders of the kind since the last use), and the render record stores the id of a bit the script used.
+  - Why: a running bit builds recognition until it wears out; the cap keeps it occasional.
 
 ## Script checks
 
@@ -111,6 +115,10 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-164** `shipped` When any primary-model draft fails only a soft check (a borrowed prompt example, a placeholder or the script lint) and none passes, the script step tries no fallback model and keeps one such draft, in the order borrowed example, placeholder, lint; with no such draft, a failure still falls back.
 - **REQ-CNT-054** `shipped` Where the hook rules are enabled, the hook headline and every platform caption lead with the search phrase: a topic's title, or a product's search keyword, which a product id or URL the product was scraped from is not.
 - **REQ-CNT-055** `shipped` A report shows, per render, whether the search phrase appears in the first spoken sentence, the hook headline and the start of each platform caption.
+- **REQ-CNT-189** `planned #857` Where `script_structure.<kind>.enabled` is on, the script step asks the model to name the turn and first-payoff sentences, frames the setup as the common belief when `setup: misconception`, asks for no recap when `no_recap` is true, and, before voicing, estimates each named sentence's start from its word count and `wpm`, logging a miss against `turn_by_sec` or `payoff_by_sec`, or retrying it as a soft check with `on_miss: retry`, ranked after the self-introduction check in REQ-CNT-164's keep order.
+- **REQ-CNT-190** `planned #857` After transcription, the producer measures the named turn, first-payoff and sign-off times from the word timings and records them with their targets in the render record.
+- **REQ-CNT-191** `planned #857` Where `script_structure.<kind>.variants` names alternatives, the producer draws one per render, applies its targets, and records its name as a render-choices dimension that the variety report shows.
+  - Why: no study tests a second-by-second shape for short video, so the targets are judged on the channel's own retention, variant against variant.
 
 ## Voice profiles
 
@@ -199,6 +207,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
 - **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video, or within `peak_margin_sec` where the ending is `peak` or `loop`.
 - **REQ-CNT-134** `shipped` Where the ending is `outro` (the default), the video runs `outro_duration_sec` (bundled 1 s) past the end of the voiceover, so the music fade ends after the last spoken word.
+- **REQ-CNT-192** `planned #857` Where a narrator identity sets a `motif`, the producer mixes the clip, trimmed to `max_sec` with a short fade, under the first spoken word and under the turn sentence's first word as `at` lists, at `volume_db`, before mastering; a missing turn sentence skips that placement and logs it.
 
 ## Captions and metadata
 
@@ -239,6 +248,13 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-121** `shipped` Subtitle styling and the TTS voice are the same for every pillar.
 - **REQ-CNT-122** `shipped` The bundled pillar preambles frame a `value` video around the deal, a `novelty` video around discovery and a `utility` video around the problem and its solution.
 - **REQ-CNT-123** `shipped` The bundled audience hints target budget-conscious shoppers for `value`, curious early discoverers for `novelty` and practical problem-solvers for `utility`.
+
+## Recurring series
+
+- **REQ-CNT-193** `planned #857` The config holds named series (empty in the shipped config), and a topic that marks `series`, `claim` and `verdict` is rejected when the series isn't configured or the verdict isn't one of its `verdicts`.
+- **REQ-CNT-194** `planned #857` A series render's script opens with the series' `opening_line` filled in word for word, and its title and platform captions start with the series' `title_prefix`, then the episode number under `numbering: episode` (which requires a `queue_file`), then the search phrase of REQ-CNT-054; with `numbering: none` (the default) nothing is numbered.
+  - Why: standalone episodes have to read cold; YouTube calls the any-order show type the most common.
+- **REQ-CNT-195** `planned #857` Where a series sets `queue_file`, under `numbering: episode` the producer fills a claim's empty `episode` when it loads the series topic, before the script and description steps, with one more than the highest in the file, writing it under a file lock; a successful series render sets the row to `rendered` with its `output_id`; every other status is left to whoever edits the file.
 
 ## Prompt hygiene
 
