@@ -126,10 +126,10 @@ Where it would fit: the effects a narrated short uses are abstract UI sounds (a 
 What adopting it takes:
 
 - **An A/B on effects.** No study isolates sound effects in short-form video, and heavy effects lower engagement past a point [B] ([design 0003](../design/0003-sparse-sound-effects.md) has the source), so the first batch with Earshot effects runs against one without.
-- **Settling the licence of rendered audio.** The code is MIT, but no document states the terms of the audio a recipe renders. The bank's newer members were also tuned toward a private set of licensed film clips, with originality checked only by a model's similarity score. Confirm the terms with the project before shipping its takes.
+- **Checking the licence at the pinned commit.** Its README states that everything it renders "belongs to whoever rendered it: free for any use, commercial too, without credit", and that its learned sounds come from public-domain recordings; a sound fitted to your own recording keeps that recording's licence. Its critic is evaluated against licensed reference recordings that aren't in the repository. Re-read the licence section at the commit the integration pins.
 - **A pinned commit and a switch.** A bank upgrade re-renders every kit take, so the integration pins a commit and keeps its switch ([decision 0002](../decisions/0002-output-changes-ship-off-by-default.md)).
 - **A listen before use.** No blind listening test covers the current bank, and the density figures in its own docs disagree with each other, so each take is picked by ear and density comes from the A/B.
-- **An isolated install.** The package requires PyTorch and Transformers even for the model-free commands, so it goes in its own tool environment (`uv tool install`), not the project's.
+- **A model-free install.** The base package needs only NumPy, SciPy, soundfile, soxr and Numba; the listening commands need its `listen` extra (PyTorch, Transformers, librosa), which the effects path doesn't use.
 
 Rules that hold for any effect source, whichever is used:
 
