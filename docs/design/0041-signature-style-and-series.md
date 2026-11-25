@@ -77,7 +77,7 @@ series:
   <id>:
     title_prefix: ""          # e.g. "Myth check: "
     opening_line: ""          # e.g. "Myth check: {claim}." ; {claim} is the topic's claim; empty = none
-    verdicts: []              # e.g. [YES, NO, PARTLY]
+    verdicts: []              # e.g. ["YES", "NO", "PARTLY"] (quoted: YAML reads YES/NO as booleans)
     verdict_beat: {enabled: false, colours: null}
     numbering: none           # none | episode
     serial: false

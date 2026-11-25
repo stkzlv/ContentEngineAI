@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.251.0] - 2026-11-25
+
+### Added
+
+- `series` in the video config names recurring series, and a topic joins one with `series`, `claim`, `verdict` and an optional `credit`; a series or verdict the config doesn't define stops the render.
+
 ## [0.250.0] - 2026-11-25
 
 ### Added

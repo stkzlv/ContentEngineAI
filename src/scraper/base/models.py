@@ -121,6 +121,12 @@ class BaseProductData:
     reply_comment: str | None = None
     reply_author: str | None = None
     reply_to: str | None = None
+    # A series episode (REQ-CNT-193): the series id, the claim it checks, its
+    # verdict and, optionally, the handle of the commenter who suggested it.
+    series: str | None = None
+    claim: str | None = None
+    verdict: str | None = None
+    credit: str | None = None
 
     def __post_init__(self):
         """Post-initialization validation and setup."""
@@ -169,6 +175,10 @@ class BaseProductData:
             "reply_comment": self.reply_comment,
             "reply_author": self.reply_author,
             "reply_to": self.reply_to,
+            "series": self.series,
+            "claim": self.claim,
+            "verdict": self.verdict,
+            "credit": self.credit,
         }
 
 

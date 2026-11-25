@@ -33,6 +33,7 @@ from src.video.config.constants import (
     FONT_REGULAR_SUFFIXES,
 )
 from src.video.config.identity_models import NarratorIdentities
+from src.video.config.series_models import SeriesConfig
 from src.video.config.structure_models import ScriptStructures
 from src.video.config.subtitle_models import (
     ColorPoolEntry,
@@ -653,6 +654,8 @@ class VideoConfig(BaseModel):
     # Script-shape targets per content kind (REQ-CNT-189); off in the bundled
     # config.
     script_structure: ScriptStructures = Field(default_factory=ScriptStructures)
+    # Named recurring series (REQ-CNT-193); none in the bundled config.
+    series: dict[str, SeriesConfig] = Field(default_factory=dict)
     aspect_ratio: dict[str, Any] = Field(
         default_factory=lambda: {"smart_scale_tolerance": 0.10}
     )

@@ -703,6 +703,22 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 | `no_recap` | bool | Ask for no summary before the closing question. Default `false`. |
 | `variants` | mapping | Named target overrides; one is drawn per product and recorded as `structure_variant` in the render-choices row, where the variety report counts it (REQ-CNT-191). |
 
+`series` in `config/video_production.yaml` names recurring series ([design 0041](../design/0041-signature-style-and-series.md)); the bundled config has none. A topic joins one with `series`, `claim` and `verdict`; a topic naming a series the config doesn't define, or a verdict outside its `verdicts`, stops the render when its config is made (REQ-CNT-193).
+
+| Key | Type | Effect |
+|---|---|---|
+| `title_prefix` | string | Starts the title and the platform captions. |
+| `opening_line` | string | The script's first sentence, with `{claim}` filled in. |
+| `verdicts` | list | The labels a topic's `verdict` must be one of. Quote labels such as `"YES"`, `"NO"`, `"TRUE"` and `"FALSE"`: YAML reads them unquoted as booleans, and config loading refuses them. |
+| `verdict_beat` | block | `enabled` (default false) and `colours`, the stamp card on the verdict sentence. |
+| `numbering` | string | `none` (default) or `episode`, which requires `queue_file`. |
+| `serial` | bool | Episodes are meant to be watched in order. Default `false`. |
+| `queue_file` | path | The claim queue CSV. |
+| `credit_commenter` | bool | Name the topic's `credit` on screen. Default `false`. |
+| `groups` | block | `youtube_playlist_id`, `tiktok_playlist`, `instagram_link`. |
+
+The keys after `verdicts` are read by later parts of the design; until then they validate and do nothing.
+
 The variety report marks a pinned dimension (the voice, the caption template, a single music file) as pinned and leaves those renders out of its dominance alert (REQ-CNT-170).
 
 </details>
