@@ -691,6 +691,17 @@ Fitting is automatic. Text wraps to at most `max_lines` lines, each kept within 
 | `running_bits` | list | Recurring bits, each `{id, hint, cues}` (`cues` needs at least one entry). While the cap allows, the script prompt offers the hint of the bit used longest ago; a script containing one of its cues (any case) counts as a use, recorded as `running_bit` in the render-choices row. Default empty; not a pinned dimension (REQ-CNT-188). |
 | `running_bit_cap` | block | `per_batch` (default 1): uses allowed since the producer or batch process started; `min_gap` (default 2): renders of the kind needed after the last use before another offer. |
 
+`script_structure` in `config/video_production.yaml` sets timing targets for a kind's scripts ([design 0041](../design/0041-signature-style-and-series.md)), with the same three kinds. Every kind ships disabled.
+
+| Key | Type | Effect |
+|---|---|---|
+| `enabled` | bool | Ask the script prompt for the shape rules, label the turn and first-payoff sentences with a small call to the script model, estimate their starts and log a miss. Default `false` (REQ-CNT-189). |
+| `turn_by_sec`, `payoff_by_sec`, `signoff_max_sec` | float | Targets in seconds; unset means no target. |
+| `wpm` | float | Words a minute for the estimate before voicing. Default 150, a generic rate; set the voice's measured rate. |
+| `setup` | string | `any` (default) or `misconception`, which asks for the background framed as what most people believe. |
+| `no_recap` | bool | Ask for no summary before the closing question. Default `false`. |
+| `variants` | mapping | Named target overrides; one is drawn per product and recorded as `structure_variant` in the render-choices row, where the variety report counts it (REQ-CNT-191). |
+
 The variety report marks a pinned dimension (the voice, the caption template, a single music file) as pinned and leaves those renders out of its dominance alert (REQ-CNT-170).
 
 </details>

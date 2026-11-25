@@ -65,9 +65,9 @@ No study tests any of these levers on organic short-form, so every feature ships
 - `turn_by_sec`, `payoff_by_sec` and `signoff_max_sec`: timing targets for the turn sentence, the first payoff sentence and the sign-off.
 - `setup`: `any` (default) or `misconception`, which asks for the setup framed as what most people believe, not as a chronology.
 - `no_recap: true` asks for no summary line before the closing question.
-- The script step asks the model to name the turn and first-payoff sentences by index; both are stored in state.
-- **Before voicing**, the producer estimates each named sentence's start from the word count and the block's `wpm` (bundled 150, a generic speaking rate; an installation sets its voice's measured rate). A miss is logged, or, with `on_miss: retry`, treated as a soft check ranked after the self-introduction check in REQ-CNT-164's keep order.
-- **After transcription**, the producer measures the same starts from the word timings and records them, with the targets, in the render record.
+- After the script, a small labelling call to the script model names the turn and first-payoff sentences by number; the script prompt itself returns plain text, so it can't carry the indices. A failed call records no beats.
+- **Before voicing**, the producer estimates each named sentence's start from the word count and the block's `wpm` (bundled 150, a generic speaking rate; an installation sets its voice's measured rate). A miss is logged. Retrying a draft on a miss (`on_miss: retry`, a soft check ranked after the self-introduction check) is not built: it would need the labelling call inside the validation loop.
+- **When the render finishes**, the producer measures the same starts and the sign-off's length from the voiceover's word timings, matched to the script by word count, and records them with the estimate, the targets and each miss in the render-choices row.
 - `variants`: named overrides of the targets (for example a payoff at 12 s against 25 s). One is drawn per render, and its name is recorded as a render-choices dimension, so a retention read compares variants.
 
 ### Series

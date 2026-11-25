@@ -50,6 +50,8 @@ DIMENSIONS = (
     "caption_template",
     "music",
     "cold_open_variant",
+    # The script-shape variant drawn for the render (REQ-CNT-191).
+    "structure_variant",
     "assembly_mode",
     "pre_motion",
     "transition_sec",
@@ -134,6 +136,60 @@ def _pinned(ctx: Any) -> list[str]:
     return pinned
 
 
+def _script_state(state: dict[str, Any], key: str) -> Any:
+    """A script-step value, top-level or kept in the step entry."""
+    return state.get(key) or (state.get("generate_script") or {}).get(key)
+
+
+def _structure(ctx: Any) -> dict[str, Any] | None:
+    """The script-shape record with the beats measured from the voiceover's
+    word timings (REQ-CNT-190), or None when the kind has no targets.
+    """
+    raw = _script_state(ctx.state, "structure")
+    if not raw:
+        return None
+    try:
+        loaded = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(loaded, dict):
+        return None
+    record: dict[str, Any] = loaded
+    from src.video.config.structure_models import StructureTargets
+    from src.video.script_structure import (
+        measure_starts,
+        misses,
+        sentences_of,
+        signoff_length,
+    )
+
+    words = _transcript_words(ctx.run_paths.get("whisper_transcript_file"))
+    labels = record.get("labels") or {}
+    if words:
+        sentences = sentences_of(ctx.script or "")
+        record["measured"] = measure_starts(sentences, labels, words)
+        record["signoff_sec"] = signoff_length(
+            words, _script_state(ctx.state, "signoff")
+        )
+        targets = StructureTargets(**(record.get("targets") or {}))
+        record["misses"] = misses(record["measured"], targets)
+        limit = targets.signoff_max_sec
+        if limit is not None and (record["signoff_sec"] or 0) > limit:
+            record["misses"].append(f"signoff {record['signoff_sec']} s, max {limit} s")
+    return record
+
+
+def _transcript_words(path: Any) -> list[dict[str, Any]]:
+    if not path or not Path(path).exists():
+        return []
+    try:
+        from src.video.stt_functions import _extract_word_timings
+
+        return _extract_word_timings(json.loads(Path(path).read_text("utf-8"))) or []
+    except (OSError, ValueError):
+        return []
+
+
 def choices_from_context(ctx: Any) -> dict[str, Any]:
     """The row for one finished render, read off its pipeline context."""
     state = ctx.state
@@ -183,6 +239,8 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         # The running bit the script used, if any (REQ-CNT-188).
         "running_bit": state.get("running_bit")
         or (state.get("generate_script") or {}).get("running_bit"),
+        "structure_variant": _script_state(state, "structure_variant") or None,
+        "structure": _structure(ctx),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),

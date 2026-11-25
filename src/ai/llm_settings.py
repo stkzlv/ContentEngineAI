@@ -298,6 +298,8 @@ class ScriptTemplateConfig(BaseModel):
     # The running bit the script step offers this render (REQ-CNT-188), set
     # on the record's config copy; empty: none is offered.
     running_bit_hint: str = ""
+    # Script-shape rules (REQ-CNT-189), set on a per-call copy; empty: none.
+    structure_rules: str = ""
     # From a narrator identity's `self_intro_patterns` (REQ-CNT-187): a first
     # sentence matching one fails as a soft check, kept after the lint.
     self_intro_patterns: list[str] = Field(default_factory=list)
