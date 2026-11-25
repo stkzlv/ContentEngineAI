@@ -98,4 +98,4 @@ The evidence was gathered in September 2026. The tutorial designs draw on [the t
 | [0037](0037-scraper-block-resilience.md) | Scraper block resilience | #812 | Implemented |
 | [0038](0038-music-lift.md) | Music that rises between voice lines | #592 | Held |
 | [0039](0039-instagram-paid-partnership.md) | Instagram's paid-partnership label from the material connection | #789 | Held |
-| [0040](0040-performed-voice-delivery.md) | Performed voice delivery aligned with the script | #855 | Draft |
+| [0040](0040-performed-voice-delivery.md) | Performed voice delivery aligned with the script | #855 | Accepted |

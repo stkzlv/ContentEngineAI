@@ -1,6 +1,6 @@
 # 0040. Performed voice delivery aligned with the script
 
-- **Status:** Draft
+- **Status:** Accepted
 - **Issue:** #855
 - **Requirements:** REQ-CNT-179, REQ-CNT-180, REQ-CNT-181, REQ-CNT-182, REQ-CNT-183, REQ-CNT-184, REQ-CNT-185
 
@@ -46,7 +46,7 @@ A JSON file beside the script, `delivery_plan.json`:
 
 ### Alignment check
 
-Validation rejects a plan, and the render stops before TTS, when:
+Validation rejects a plan before TTS when:
 
 - the segments' `text`, joined with single spaces, differs from the script after whitespace normalisation;
 - a segment starts or ends inside a sentence;
@@ -58,7 +58,7 @@ Validation rejects a plan, and the render stops before TTS, when:
 
 The script step writes the plan with one extra model call after the script passes its checks. The prompt gives the script and the event allowlist, and asks for groups that change delivery only where the meaning changes, a style per group from its lines, and events only where a line earns one (an absurd number, a turn, an aside). Most segments carry none. A plan that fails validation is retried once and otherwise dropped: the render falls back to the single-style path.
 
-When a run stops after the script for review (roadmap H.4, REQ-VID-165), the plan is written beside the script and reviewed with it. A run resumed over an edited script or plan validates the plan again, and an edited script with a stale plan fails the alignment check rather than voicing the old text. A hand-written plan is accepted the same way.
+When a run stops after the script for review (roadmap H.4, REQ-VID-165), the plan is written beside the script and reviewed with it. A run resumed over an edited script or plan validates the plan again, and an edited script with a stale plan fails the alignment check rather than voicing the old text. A hand-written or edited plan that fails validation stops the render before TTS, naming the failed check, since it was approved as written; only a generated plan is retried and then dropped.
 
 ### Provider
 
@@ -67,7 +67,7 @@ A `gemini_api` provider calls the Interactions endpoint with `GEMINI_API_KEY`, w
 - one request per segment: the segment text with its events inserted as inline tags, a `speech_metadata` annotation carrying the style, and the profile's voice;
 - the WAV responses joined with `gap_after_ms` of silence, then the existing voice chain (REQ-CNT-073) and silence trim.
 
-A profile selects it with `provider: gemini_api` and `model_name: gemini-3.8-flash-tts`. A failed segment fails the whole voice. The provider order then falls back with tags stripped (REQ-CNT-071) and a single style.
+A profile selects it with `provider: gemini_api` and the existing `gemini_model_name: gemini-3.8-flash-tts`. A failed segment fails the whole voice, and the provider order then falls back with a single style. The fallback receives the script text without the plan's tags: REQ-CNT-071's stripper only matches square-bracket tags, so the angle-bracket tags are never written into text a fallback could receive.
 
 ### Tag allowlist
 
