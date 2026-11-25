@@ -10,7 +10,7 @@ The voice reads every line the same way. A profile sets one style for the whole 
 
 Three findings shape the design:
 
-- **The profile's style prompt never reaches the voice.** `src/video/tts.py` built `SynthesisInput(text=...)` and nothing else, because an earlier attempt had the prompt read aloud. Probes on `gemini-2.5-flash-tts` show it depends on the prompt's form: a descriptive prompt in the request's `prompt` field was read aloud in four of four takes, an instruction ending in a colon in none of three (C: our probes, small samples). REQ-CNT-185 sends only the instruction form. On `gemini-2.5-flash-tts`, the Cloud TTS request's separate `prompt` field steers the delivery and isn't spoken: a listening probe sent the prompt there, and a transcript of the take carried none of it (grade A for the field, from Google's Cloud TTS documentation; the probe is one take).
+- **The profile's style prompt never reaches the voice.** `src/video/tts.py` built `SynthesisInput(text=...)` and nothing else, because an earlier attempt had the prompt read aloud. Probes on `gemini-2.5-flash-tts` show it depends on the prompt's form: a descriptive prompt in the request's `prompt` field was read aloud in four of four takes, an instruction ending in a colon in none of three (C: our probes, small samples). REQ-CNT-185 sends only the instruction form (grade A for the field itself, from Google's Cloud TTS documentation).
 - **Gemini 3.8 Flash TTS takes a style per request and a wider tag set.** It is served on the Gemini API's Interactions endpoint, not on Cloud TTS. A request carries the text with a `speech_metadata` annotation holding a natural-language style, and the text may contain inline non-verbal tags in angle brackets: `<sigh>`, `<laugh>`, `<breath>`, `<gasp>`, `<cough>`, `<throat-clearing>`, `<short pause>`, `<long pause>`. The model reads text strictly as a transcript, so any direction left in the text can be spoken (grade A, Google's Gemini API speech documentation). It bills output audio tokens, a few tenths of a cent per take at the listed rate.
 - **A non-verbal sound can reach the captions as a word.** In a three-way listening probe (today's voice, 2.5 with tags and the prompt field, 3.8 with tags and a style per sentence group), Whisper transcribed a `<sigh>` on 3.8 as "ugh". The 2.5 take's tags were not transcribed. Both scripts otherwise matched their transcripts (one take each, grade C).
 
@@ -83,7 +83,7 @@ The REQ-CNT-052 cleaner runs on the script, before the plan exists. Tags are ins
 
 ### Style prompt fix
 
-The Cloud TTS path sends a profile's `style_prompt` in `SynthesisInput.prompt` on models that accept it (`gemini-2.5-flash-tts`, `gemini-2.5-pro-tts`) and leaves the text unchanged. Because the bundled profile then sounds different, this sits behind its own switch, `tts_config.send_style_prompt`, which ships off.
+The Cloud TTS path sends a profile's `style_prompt` in `SynthesisInput.prompt` on models that accept it (`gemini-2.5-flash-tts`, `gemini-2.5-pro-tts`) and leaves the text unchanged, but only a prompt ending in a colon; any other is skipped with a warning. It sits behind its own switch, `tts_config.send_style_prompt`, which ships off. Every bundled profile's prompt is descriptive, so turning the switch on changes nothing until a profile gets an instruction-form prompt.
 
 ### Config
 

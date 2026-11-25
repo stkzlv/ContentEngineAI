@@ -420,8 +420,9 @@ tts_config:
   # prompt field, on models that take one (gemini-2.5-flash-tts and
   # gemini-2.5-pro-tts); the text stays the script alone. Only a prompt in
   # instruction form, ending in a colon ("Say the following calmly:"), is
-  # sent: a descriptive one was read aloud in every probe take. Off: the
-  # style prompt isn't sent (REQ-CNT-185).
+  # sent: a descriptive one was read aloud in every probe take. The bundled
+  # profiles' prompts are descriptive, so on alone changes nothing until a
+  # profile gets an instruction-form prompt. Off: none is sent (REQ-CNT-185).
   send_style_prompt: false
 
   # Google Cloud Text-to-Speech Settings
