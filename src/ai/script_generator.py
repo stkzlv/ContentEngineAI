@@ -1109,6 +1109,7 @@ SOFT_NEAR_MISSES = (
     "placeholder",
     "question",
     "lint",
+    "self_intro",
 )
 
 
@@ -1302,6 +1303,11 @@ async def generate_script(
         if settings.script_templates.virtual_narrator
         else []
     )
+    # A first sentence that greets or introduces the narrator (REQ-CNT-187).
+    self_intro = [
+        re.compile(p, re.IGNORECASE)
+        for p in settings.script_templates.self_intro_patterns
+    ]
     record_kind = getattr(product, "topic_kind", None)
     # A correction (REQ-CNT-175) and a reply (REQ-CNT-176) keep to their
     # detail's figures too, but close on no question: neither is a debate.
@@ -1402,11 +1408,21 @@ async def generate_script(
         asked = not commentary_checks or has_closing_question(_body(script))
         if not ok and reason == NO_CTA_REASON and not short:
             # The CTA-append last resort prefers a draft that asked its question.
-            near_miss.setdefault("script" if asked else "script_unasked", script)
+            # A draft that greets (REQ-CNT-187) is the last choice for it.
+            greets = bool(self_intro) and any(
+                p.search(next(iter(_sentences(script)), "")) for p in self_intro
+            )
+            key = "script_greets" if greets else "script" if asked else "script_unasked"
+            near_miss.setdefault(key, script)
         if ok and not asked:
             # Last, so this near miss has passed every other check.
             near_miss.setdefault("question", script)
             return False, "Script has no closing question before its call to action"
+        # After every other check, so its near miss passed them all.
+        opening = next(iter(_sentences(script)), "") if ok and self_intro else ""
+        if opening and any(p.search(opening) for p in self_intro):
+            near_miss.setdefault("self_intro", script)
+            return False, f"Script opens with a self-introduction: {opening!r}"
         return ok, reason
 
     prompt = apply_prompt_preambles(
@@ -1654,9 +1670,19 @@ async def generate_script(
         _record(near_model.get("lint"))
         return near_miss["lint"], template_name, cta_line
 
+    if "self_intro" in near_miss:
+        # Passed every other check, the lint included; only the opening
+        # greets or introduces the narrator.
+        logger.warning("No attempt avoided a self-introduction; using one with it")
+        _record(near_model.get("self_intro"))
+        return near_miss["self_intro"], template_name, cta_line
+
     if "script" not in near_miss and "script_unasked" in near_miss:
         near_miss["script"] = near_miss["script_unasked"]
         near_model.setdefault("script", near_model.get("script_unasked", ""))
+    if "script" not in near_miss and "script_greets" in near_miss:
+        near_miss["script"] = near_miss["script_greets"]
+        near_model.setdefault("script", near_model.get("script_greets", ""))
     if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing
         # the render over that is the worse outcome; a bolted-on closing line

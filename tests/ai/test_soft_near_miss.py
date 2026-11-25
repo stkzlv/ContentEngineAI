@@ -142,3 +142,17 @@ async def test_an_openrouter_primary_discovers_no_free_model_after_a_near_miss()
         )
 
     assert discover.await_count == 0 and call.await_count == 2 and out == draft
+
+
+@pytest.mark.req("REQ-CNT-164")
+@pytest.mark.req("REQ-CNT-187")
+@pytest.mark.asyncio
+async def test_a_self_introduction_near_miss_is_kept_without_a_fallback_call() -> None:
+    settings = _settings(lint=False)
+    settings.script_templates.self_intro_patterns = [r"^\W*hey\b"]
+    greeting = _script("Hey, it's me again. ")
+
+    out, call, written_by = await _generate(settings, [greeting, greeting, _script("")])
+
+    assert [c.args[1] for c in call.await_args_list] == ["primary-m", "primary-m"]
+    assert out == greeting and written_by == {"model": "primary-m"}
