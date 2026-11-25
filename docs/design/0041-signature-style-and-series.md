@@ -40,7 +40,7 @@ No study tests any of these levers on organic short-form, so every feature ships
 
 - `opening`: `null` (default) or `claim_first`. With `claim_first`, the script prompt asks for the take's claim, with one concrete number or name where the detail has one, as the first sentence, and no greeting or setup before it.
 - `self_intro_patterns`: a list of regular expressions (default empty). A first sentence matching one is rejected like any soft check, ranked after the script lint in REQ-CNT-164's keep order. The shipped list is empty; an installation adds its greeting forms and its narrator's name.
-- `title_card`: `null` (default, the profile decides) or `false`, which renders the kind without the hook title card whatever the profile says.
+- `title_card`: `null` (default, `video_settings.hook_overlay` decides) or `false`, which renders the kind without the hook title card whatever that setting says.
 
 ### Motif (narrator identity)
 
