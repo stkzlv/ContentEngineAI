@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.248.0] - 2026-11-25
+
+### Added
+
+- A narrator identity's `running_bits` offer the script prompt one recurring bit at a time under `running_bit_cap`, and the render-choices row records a bit the script used, found by its cues.
+
 ## [0.247.0] - 2026-11-25
 
 ### Added

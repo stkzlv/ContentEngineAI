@@ -18,6 +18,30 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.video.config.audio_models import SignatureSting
 
 
+class RunningBit(BaseModel):
+    """A recurring bit the script may use once where it fits (REQ-CNT-188)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    # What the prompt offers the model: the bit, and where it fits.
+    hint: str = Field(min_length=1)
+    # Words that show the bit was used; a script containing one (any case)
+    # counts as a use.
+    cues: list[str] = Field(min_length=1)
+
+
+class RunningBitCap(BaseModel):
+    """How often a kind's running bits are offered."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Uses of any bit allowed in one producer or batch run.
+    per_batch: int = Field(1, ge=0)
+    # Renders of the kind needed after the last use before another offer.
+    min_gap: int = Field(2, ge=0)
+
+
 class NarratorIdentity(BaseModel):
     """What one content kind pins. Every field is optional."""
 
@@ -47,6 +71,12 @@ class NarratorIdentity(BaseModel):
     # False renders the kind without the hook title card (REQ-VID-166);
     # None leaves `video_settings.hook_overlay` as it is.
     title_card: bool | None = None
+    # Recurring bits offered one at a time under `running_bit_cap`
+    # (REQ-CNT-188). Not a pinned dimension.
+    running_bits: list[RunningBit] = Field(default_factory=list)
+    running_bit_cap: RunningBitCap = Field(
+        default_factory=RunningBitCap  # type: ignore[arg-type]
+    )
 
     @field_validator("self_intro_patterns")
     @classmethod

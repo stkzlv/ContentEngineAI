@@ -698,6 +698,8 @@ stock_media_settings:
 #   opening:          claim_first opens on the take's claim (REQ-CNT-186)
 #   self_intro_patterns: regexes a first sentence must not match (REQ-CNT-187)
 #   title_card:       false drops the hook title card (REQ-VID-166)
+#   running_bits:     [{id, hint, cues}] offered under running_bit_cap
+#                     {per_batch, min_gap} (REQ-CNT-188)
 # A commentary topic is `commentary`, not `topic`.
 narrator_identity:
   product: {}

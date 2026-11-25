@@ -180,6 +180,9 @@ def choices_from_context(ctx: Any) -> dict[str, Any]:
         # pinned dimension as a setting rather than drift (REQ-CNT-170).
         "content_kind": content_kind(getattr(ctx, "product", None)),
         "pinned": _pinned(ctx),
+        # The running bit the script used, if any (REQ-CNT-188).
+        "running_bit": state.get("running_bit")
+        or (state.get("generate_script") or {}).get("running_bit"),
         "search_phrase": _search_phrase_placement(ctx),
         "video_duration_sec": state.get("video_duration_sec")
         or (state.get("assemble_video") or {}).get("video_duration_sec"),
