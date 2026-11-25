@@ -168,15 +168,26 @@ def validate_plan(
     return failures
 
 
+QUOTE_RUN = 6
+_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
+
+
+def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
+    """Whether `words` holds `size` consecutive words of the script."""
+    if size < 1 or len(words) < size:
+        return False
+    runs = {
+        tuple(script_words[i : i + size]) for i in range(len(script_words) - size + 1)
+    }
+    return any(tuple(words[i : i + size]) in runs for i in range(len(words) - size + 1))
+
+
 def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
-    """Whether a style quotes the script: a quoted span found in it, or four
-    of its words in a row.
+    """Whether a style quotes the script: a span in double quotes that is a
+    run of its words, or `QUOTE_RUN` of its words in a row.
     """
-    for span in re.findall(r"[\"“']([^\"”']{3,})[\"”']", style):
-        if _norm(span).lower() in _norm(script).lower():
+    for span in _QUOTED.findall(style):
+        span_words = [w for w in _words(span) if w]
+        if _has_run(span_words, script_words, len(span_words)):
             return True
-    style_words = _words(style)
-    runs = {tuple(script_words[i : i + 4]) for i in range(len(script_words) - 3)}
-    return any(
-        tuple(style_words[i : i + 4]) in runs for i in range(len(style_words) - 3)
-    )
+    return _has_run(_words(style), script_words, QUOTE_RUN)

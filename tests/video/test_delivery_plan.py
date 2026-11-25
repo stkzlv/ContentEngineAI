@@ -82,12 +82,26 @@ class TestTheCheck:
         assert "2 events, more than 1" in _check(plan, max_events=1)
 
     @pytest.mark.parametrize(
-        "style", ['read "on purpose" slowly', "slow on here is the twist"]
+        "style", ['read "on purpose" slowly', "slow, stop on purpose here is the end"]
     )
     def test_a_style_that_quotes_the_script(self, style):
         plan = _good()
         plan.segments[1].style = style
         assert "segment 2's style quotes the script" in _check(plan)
+
+    @pytest.mark.parametrize(
+        ("style", "script"),
+        [
+            ("Deadpan, it's what's expected", "That is what you get for ten bucks."),
+            ("Build up, one of the best moments", "This is one of the best mounts."),
+            ("Slow down at the end of the line", "At the end of the day it holds."),
+            ('read "is wh" slowly', "That is what you get."),
+        ],
+    )
+    def test_a_style_that_quotes_nothing_passes(self, style, script):
+        sentences = [script]
+        plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
+        assert validate_plan(plan, script, sentences, PERFORMED_TTS_TAGS, 4) == []
 
 
 @pytest.mark.req("REQ-CNT-179")
@@ -275,3 +289,40 @@ async def test_the_digest_survives_a_truncating_resume(ctx):
     ctx.state["delivery_plan"] = "abc"
     await _update_state_after_step(ctx, STEP_GENERATE_SCRIPT)
     assert ctx.state[STEP_GENERATE_SCRIPT]["delivery_plan"] == "abc"
+
+
+@pytest.mark.req("REQ-CNT-180")
+@pytest.mark.asyncio
+async def test_a_stale_generated_plan_after_a_truncating_resume_is_rewritten(ctx):
+    from src.video.producer import steps
+    from src.video.producer.state import STEP_GENERATE_SCRIPT
+
+    with _llm(GOOD_REPLY):
+        await steps._write_delivery_plan(ctx)
+    # A truncating resume keeps only step entries.
+    ctx.state = {STEP_GENERATE_SCRIPT: {"delivery_plan": ctx.state["delivery_plan"]}}
+    ctx.script = "The clocks stop. On purpose. Here is a twist."
+    new = json.dumps({"segments": [{"sentences": [1, 2, 3], "style": "dry"}]})
+    with _llm(new):
+        plan = await steps._delivery_plan_for_voice(ctx)
+    assert plan is not None and plan.segments[0].text == ctx.script
+    # The rewritten plan is recorded in the entry that survives the next cut.
+    assert ctx.state[STEP_GENERATE_SCRIPT]["delivery_plan"] == steps._plan_digest(
+        _plan_path(ctx).read_text()
+    )
+
+
+@pytest.mark.req("REQ-CNT-180")
+@pytest.mark.asyncio
+async def test_a_failed_write_leaves_no_old_plan_behind(ctx):
+    from src.video.producer import steps
+
+    with _llm(GOOD_REPLY):
+        await steps._write_delivery_plan(ctx)
+    ctx.state = {}
+    ctx.script = "The clocks stop. On purpose. Here is a twist."
+    with _llm(BAD_REPLY, BAD_REPLY):
+        assert await steps._write_delivery_plan(ctx) is None
+    assert not _plan_path(ctx).exists()
+    with _llm(BAD_REPLY, BAD_REPLY):
+        assert await steps._delivery_plan_for_voice(ctx) is None

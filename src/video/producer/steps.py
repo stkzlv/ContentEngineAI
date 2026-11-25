@@ -743,6 +743,10 @@ async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
     api_key = ctx.secrets.get(llm.api_key_env_var, "")
     if not (model and api_key and sentences):
         return None
+    path = Path(ctx.run_paths["script_file"]).with_name(PLAN_FILE)
+    # An earlier plan must not outlive a failed write: the voice step would
+    # take it for a hand-written one.
+    path.unlink(missing_ok=True)
     prompt = plan_prompt(sentences, sorted(PERFORMED_TTS_TAGS), settings.max_events)
     for attempt in range(settings.retry_on_invalid + 1):
         try:
@@ -769,9 +773,14 @@ async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
         )
         if plan and not failures:
             text = plan.model_dump_json(indent=1)
-            path = Path(ctx.run_paths["script_file"]).with_name(PLAN_FILE)
             path.write_text(text, encoding="utf-8")
-            ctx.state["delivery_plan"] = _plan_digest(text)
+            digest = _plan_digest(text)
+            ctx.state["delivery_plan"] = digest
+            # Also in the script step's entry, which a truncating resume keeps:
+            # a plan written at the voice step is not recorded with that step.
+            entry = ctx.state.get(STEP_GENERATE_SCRIPT)
+            if isinstance(entry, dict):
+                entry["delivery_plan"] = digest
             logger.info(
                 "Delivery plan written: %d segments, %d events",
                 len(plan.segments),
@@ -799,7 +808,9 @@ async def _delivery_plan_for_voice(ctx: PipelineContext) -> DeliveryPlan | None:
     if not path.exists():
         return await _write_delivery_plan(ctx)
     text = path.read_text(encoding="utf-8")
-    generated = ctx.state.get("delivery_plan") == _plan_digest(text)
+    # Read through the script step's entry too: a truncating resume keeps
+    # only step entries.
+    generated = _recorded(ctx, "delivery_plan") == _plan_digest(text)
     try:
         plan = DeliveryPlan.model_validate_json(text)
         failures = validate_plan(
