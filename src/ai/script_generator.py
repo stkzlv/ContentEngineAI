@@ -1109,6 +1109,7 @@ SOFT_NEAR_MISSES = (
     "placeholder",
     "question",
     "lint",
+    "self_intro",
 )
 
 
@@ -1407,7 +1408,12 @@ async def generate_script(
         asked = not commentary_checks or has_closing_question(_body(script))
         if not ok and reason == NO_CTA_REASON and not short:
             # The CTA-append last resort prefers a draft that asked its question.
-            near_miss.setdefault("script" if asked else "script_unasked", script)
+            # A draft that greets (REQ-CNT-187) is the last choice for it.
+            greets = bool(self_intro) and any(
+                p.search(next(iter(_sentences(script)), "")) for p in self_intro
+            )
+            key = "script_greets" if greets else "script" if asked else "script_unasked"
+            near_miss.setdefault(key, script)
         if ok and not asked:
             # Last, so this near miss has passed every other check.
             near_miss.setdefault("question", script)
@@ -1674,6 +1680,9 @@ async def generate_script(
     if "script" not in near_miss and "script_unasked" in near_miss:
         near_miss["script"] = near_miss["script_unasked"]
         near_model.setdefault("script", near_model.get("script_unasked", ""))
+    if "script" not in near_miss and "script_greets" in near_miss:
+        near_miss["script"] = near_miss["script_greets"]
+        near_model.setdefault("script", near_model.get("script_greets", ""))
     if "script" in near_miss and cta_options:
         # A script that was complete in every respect but its ending. Losing
         # the render over that is the worse outcome; a bolted-on closing line

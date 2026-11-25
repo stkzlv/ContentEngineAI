@@ -138,3 +138,23 @@ def test_the_lint_near_miss_is_kept_before_a_self_introduction() -> None:
     assert src.index('if "lint" in near_miss') < src.index(
         'if "self_intro" in near_miss'
     )
+
+
+@pytest.mark.req("REQ-CNT-187")
+@pytest.mark.asyncio
+async def test_the_cta_fallback_prefers_a_draft_that_does_not_greet() -> None:
+    body = "The stand tilts back far enough for a video call at a desk. " * 6
+    greeting, clean = f"Hey, my name is Sam. {body}", f"This stand tilts. {body}"
+
+    out, _ = await _generate([greeting, clean], PATTERNS)
+
+    assert out is not None and out.startswith("This stand tilts.")
+
+
+@pytest.mark.req("REQ-CNT-187")
+def test_the_internal_key_validates_its_patterns_too() -> None:
+    templates = config.llm_settings.script_templates
+    with pytest.raises(ValidationError, match="not a regex"):
+        templates.model_validate(
+            templates.model_dump() | {"self_intro_patterns": ["(unclosed"]}
+        )

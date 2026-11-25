@@ -298,6 +298,19 @@ class ScriptTemplateConfig(BaseModel):
     # From a narrator identity's `self_intro_patterns` (REQ-CNT-187): a first
     # sentence matching one fails as a soft check, kept after the lint.
     self_intro_patterns: list[str] = Field(default_factory=list)
+
+    @field_validator("self_intro_patterns")
+    @classmethod
+    def _patterns_compile(cls, value: list[str]) -> list[str]:
+        for pattern in value:
+            try:
+                re.compile(pattern, re.IGNORECASE)
+            except re.error as e:
+                raise ValueError(
+                    f"self_intro_patterns entry {pattern!r} is not a regex: {e}"
+                ) from e
+        return value
+
     # Templates used when the record came from a topic rather than a scraped
     # product. Selected instead of the pillar pool, because a pillar narrows
     # which product angle to take while this decides whether the script is
