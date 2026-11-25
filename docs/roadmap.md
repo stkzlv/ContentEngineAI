@@ -106,6 +106,8 @@ Selection spreads renders across the variant dimensions a content kind doesn't p
 
 Conversational naturalism, context-varied pauses and an author signature are on (#540).
 
+Performed delivery, a style per group of sentences and a few vocal events planned from the script, is specified in [design 0040](design/0040-performed-voice-delivery.md), #855.
+
 **Done when:** each piece is enabled with a measured setting or left off with the reason recorded.
 
 ### 1.12 Motion on every still
