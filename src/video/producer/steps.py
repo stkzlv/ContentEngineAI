@@ -2074,8 +2074,12 @@ def _motif_times(ctx: PipelineContext) -> list[float] | None:
             ctx.state.get(STEP_GENERATE_SCRIPT) or {}
         ).get("structure")
         try:
-            turn = (json.loads(raw).get("labels") or {}).get("turn") if raw else None
+            record = json.loads(raw) if raw else {}
         except ValueError:
+            record = {}
+        turn = (record.get("labels") or {}).get("turn")
+        # Labels for a script edited since are stale, as the row reads them.
+        if record.get("script") and record["script"] != script_digest(ctx.script):
             turn = None
         start = (
             measure_starts(sentences_of(ctx.script or ""), {"turn": turn}, words)[

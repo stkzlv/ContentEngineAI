@@ -209,7 +209,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-132** `shipped` The mix plays the voiceover at `voiceover_volume_db` and the music at `music_volume_db` (bundled +3 dB and -24 dB).
 - **REQ-CNT-133** `shipped` The music fades in over `music_fade_in_duration` (bundled 2 s) and out over the last `music_fade_out_duration` (bundled 3 s) of the video, or within `peak_margin_sec` where the ending is `peak` or `loop`.
 - **REQ-CNT-134** `shipped` Where the ending is `outro` (the default), the video runs `outro_duration_sec` (bundled 1 s) past the end of the voiceover, so the music fade ends after the last spoken word.
-- **REQ-CNT-192** `shipped` Where a narrator identity sets a `motif`, the producer mixes the clip, cut to `max_sec` with a short fade, under the first spoken word and under the first word of the turn sentence the script-shape labels name (REQ-CNT-189), as `at` lists, at `volume_db`, before mastering, and records the times as `motif_at` in the render-choices row; a missing turn label or word timings skip that placement and log it, and a missing file mixes nothing.
+- **REQ-CNT-192** `shipped` Where a narrator identity sets a `motif`, the producer mixes the clip, cut to `max_sec` with a short fade, under the first spoken word and under the first word of the turn sentence the script-shape labels name (REQ-CNT-189), as `at` lists, at `volume_db`, before mastering, and records the times as `motif_at` in the render-choices row; a missing or stale turn label skips that placement and logs it; without word timings, which only the pycaps caption engine writes, and with a missing file, nothing is mixed.
 
 ## Captions and metadata
 

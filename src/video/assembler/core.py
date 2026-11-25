@@ -964,11 +964,7 @@ class VideoAssembler:
                 sound_effects=self._sound_effects(total_video_duration, spoken_words),
                 motif_times=motif_times,
             )
-            self.motif_at = (
-                list(motif_times or [])
-                if self.config.audio_settings.motif is not None
-                else []
-            )
+            self.motif_at = list(self.audio_builder.motif_placed)
 
             # FFmpeg writes here, not to the finished name. A killed encode
             # leaves a truncated file, and a timeout kills it: both attempts

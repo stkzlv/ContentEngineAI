@@ -65,6 +65,8 @@ class AudioFilterBuilder:
 
         """
         self.config = config
+        # The motif times the last mix placed (REQ-CNT-192).
+        self.motif_placed: list[float] = []
 
     def sting_path(self) -> Path | None:
         """The configured sting file, or None when unset or missing.
@@ -144,6 +146,7 @@ class AudioFilterBuilder:
             for start in motif_times or []:
                 motif_inputs.append((input_cmd_parts.count("-i"), start))
                 input_cmd_parts.extend(["-i", str(motif.path)])
+        self.motif_placed = [start for _, start in motif_inputs]
         delay = 0.0
         if sting_path is not None:
             # A `peak` ending measures where the speech ends; the file can run

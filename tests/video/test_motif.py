@@ -143,3 +143,49 @@ def test_no_motif_gives_no_times(tmp_path):
     from src.video.producer.steps import _motif_times
 
     assert _motif_times(_ctx(tmp_path, None, None, WORDS)) is None
+
+
+def test_a_stale_turn_label_is_skipped(tmp_path, caplog):
+    from src.video.producer.steps import _motif_times, script_digest
+
+    caplog.set_level("INFO")
+    ctx = _ctx(
+        tmp_path,
+        Motif(path=tmp_path / "m.wav"),
+        {"labels": {"turn": 1}, "script": script_digest("An older script.")},
+        WORDS,
+    )
+    assert _motif_times(ctx) == [0.5]
+    assert "no turn sentence" in caplog.text
+
+
+def test_the_turn_label_is_read_from_the_step_entry(tmp_path):
+    from src.video.producer.steps import _motif_times
+
+    ctx = _ctx(tmp_path, Motif(path=tmp_path / "m.wav"), None, WORDS)
+    ctx.state = {"generate_script": {"structure": json.dumps({"labels": {"turn": 1}})}}
+    assert _motif_times(ctx) == [0.5, 3.5]
+
+
+@needs_ffmpeg
+def test_motif_at_records_only_what_was_mixed(tmp_path, tone):
+    import asyncio
+
+    from src.video.assembler.media_inspector import MediaInspector
+
+    config = load_video_config_modular()
+    config.audio_settings.signature_sting = None
+    builder = AudioFilterBuilder(config)
+    voice = _source(tmp_path / "voice.wav", "anullsrc=r=48000:cl=mono", 6.0)
+
+    config.audio_settings.motif = Motif(path=tmp_path / "absent.wav")
+    asyncio.run(
+        builder.build_mix([], voice, None, 6.0, MediaInspector(), motif_times=[1.0])
+    )
+    assert builder.motif_placed == []
+
+    config.audio_settings.motif = Motif(path=tone)
+    asyncio.run(
+        builder.build_mix([], voice, None, 6.0, MediaInspector(), motif_times=[1.0])
+    )
+    assert builder.motif_placed == [1.0]
