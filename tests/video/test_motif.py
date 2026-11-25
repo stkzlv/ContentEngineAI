@@ -189,3 +189,12 @@ def test_motif_at_records_only_what_was_mixed(tmp_path, tone):
         builder.build_mix([], voice, None, 6.0, MediaInspector(), motif_times=[1.0])
     )
     assert builder.motif_placed == [1.0]
+
+
+def test_the_assembler_records_what_the_builder_placed():
+    import inspect
+
+    from src.video.assembler import core
+
+    source = inspect.getsource(core.VideoAssembler.assemble_video)
+    assert "self.motif_at = list(self.audio_builder.motif_placed)" in source

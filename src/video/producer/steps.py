@@ -2052,8 +2052,8 @@ def _motif_times(ctx: PipelineContext) -> list[float] | None:
     """When the motif plays: under the first spoken word and under the turn
     sentence's first word, as the motif's `at` lists (REQ-CNT-192).
 
-    The turn comes from the script-shape labels (REQ-CNT-189); without them,
-    or without word timings, that placement is skipped and logged.
+    The turn comes from the script-shape labels (REQ-CNT-189): a missing or
+    stale label skips the turn copy; without word timings nothing is mixed.
     """
     motif = ctx.config.audio_settings.motif
     if motif is None:
@@ -2076,6 +2076,8 @@ def _motif_times(ctx: PipelineContext) -> list[float] | None:
         try:
             record = json.loads(raw) if raw else {}
         except ValueError:
+            record = {}
+        if not isinstance(record, dict):
             record = {}
         turn = (record.get("labels") or {}).get("turn")
         # Labels for a script edited since are stale, as the row reads them.
