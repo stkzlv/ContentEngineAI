@@ -187,8 +187,9 @@ def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
 
 
 def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
-    """Whether a style quotes the script: a span in double quotes that is a
-    run of its words, or `QUOTE_RUN` of its words in a row.
+    """Whether a style quotes the script: a quoted span (double quotes, or
+    single quotes not inside a word) that is a run of its words, or
+    `QUOTE_RUN` of its words in a row.
     """
     for groups in _QUOTED.findall(style):
         span = next((g for g in groups if g), "")

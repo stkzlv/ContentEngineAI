@@ -726,7 +726,8 @@ async def _write_delivery_plan(ctx: PipelineContext) -> DeliveryPlan | None:
     """Write a delivery plan beside the script (REQ-CNT-179): one model call,
     retried `retry_on_invalid` times on a plan that fails its check, else none.
 
-    Its digest goes in state, so a hand edit is told from the generated plan.
+    Its digest goes in state and in `delivery_plan.json.digest`, so a hand
+    edit is told from the generated plan.
     """
     from aiohttp import ClientError
 
