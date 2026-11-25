@@ -289,6 +289,28 @@ SILENT_TTS_TAGS = frozenset(
     {"[short pause]", "[medium pause]", "[long pause]", "[sigh]"}
 )
 
+# Gemini API speech model tags measured as changing the delivery without their
+# own word being spoken (REQ-CNT-182); the performed-delivery allowlist.
+# Re-measure with `tools/tts_tag_probe.py --gemini-api`.
+PERFORMED_TTS_TAGS = frozenset(
+    {
+        "<short pause>",
+        "<long pause>",
+        "<sigh>",
+        "<laugh>",
+        "<breath>",
+        "<gasp>",
+        "<cough>",
+        "<throat-clearing>",
+    }
+)
+# Words the transcript carried for a tag's sound, for the caption filter
+# (REQ-CNT-183): the probe's extra words plus a listening probe's "ugh".
+PERFORMED_TAG_TRANSCRIPTIONS: dict[str, frozenset[str]] = {
+    "<sigh>": frozenset({"ugh", "but"}),
+    "<breath>": frozenset({"but"}),
+}
+
 
 class PausePlan(BaseModel):
     """Context-dependent pauses in place of one pause after every sentence.

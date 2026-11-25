@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.255.0] - 2026-11-25
+
+### Added
+
+- The TTS tag probe measures the Gemini API speech model's angle-bracket tags, and its results set the performed-delivery tag allowlist and the words each tag's sound is transcribed as.
+
 ## [0.254.0] - 2026-11-25
 
 ### Added

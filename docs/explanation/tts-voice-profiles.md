@@ -87,7 +87,7 @@ Only tags measured as silent are safe, because the captions are transcribed from
 | `[sigh]` | 0.9-1.1 s | no |
 | `[uhm]` | 0.6-0.8 s | as "Um," in one of four samples |
 
-The adjective tags (`[scared]`, `[curious]`, `[bored]`) are spoken by design. Re-measure with `python -m tools.tts_tag_probe --repeat 3` when the model or voice changes.
+The adjective tags (`[scared]`, `[curious]`, `[bored]`) are spoken by design. Re-measure with `python -m tools.tts_tag_probe --repeat 3` when the model or voice changes, and the Gemini API speech model's angle-bracket tags with `--gemini-api`.
 
 ### Pause plan
 
