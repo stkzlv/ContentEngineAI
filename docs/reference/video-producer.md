@@ -370,7 +370,7 @@ Files a render leaves for inspection:
 
 | File | Contents |
 |---|---|
-| `pipeline_state.json` | Completed steps, `hook_headline` and `hook_headline_script` (a digest of the script it was derived from), `running_bit` (also kept in the `generate_script` entry), `assemble_video.cold_open_variant`. |
+| `pipeline_state.json` | Completed steps, `hook_headline` and `hook_headline_script` (a digest of the script it was derived from), `running_bit` and `series_episode` (also kept in the `generate_script` entry), `assemble_video.cold_open_variant`. |
 | `temp/gathered_visuals.json` | Each stock item's search phrase and `relevance_score`. |
 | `temp/script_fact_check.json` | The script fact-check outcome. |
 | `temp/step_list.json` | A topic's sourced step list, with refused steps, when step lists are on. |

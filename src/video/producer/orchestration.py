@@ -78,6 +78,7 @@ from src.video.producer.utils import (
     validate_media_requirements,
 )
 from src.video.render_choices import choices_from_context, record_render_choices
+from src.video.series import mark_rendered, series_for
 
 logger = logging.getLogger(__name__)
 
@@ -734,6 +735,10 @@ async def create_video_for_product(
                 record_render_choices(
                     Path(run_paths["run_root"]).parent, choices_from_context(ctx)
                 )
+                series = series_for(ctx.config, ctx.product)
+                if series is not None:
+                    # The claim queue row (REQ-CNT-195).
+                    mark_rendered(series, ctx.product, Path(run_paths["run_root"]).name)
 
             # Save performance metrics for successful runs
             if debug_mode:

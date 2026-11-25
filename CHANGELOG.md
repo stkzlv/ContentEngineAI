@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.252.0] - 2026-11-25
+
+### Added
+
+- A series episode opens on its series' `opening_line`, its title and captions start with the `title_prefix` and, under `numbering: episode`, the episode number from the claim queue, and the queue row is marked `rendered` with the output id when the render succeeds.
+
 ## [0.251.0] - 2026-11-25
 
 ### Added
