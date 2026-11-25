@@ -834,6 +834,7 @@ async def step_generate_script(ctx: PipelineContext):
                 ctx.run_paths["script_file"].name,
             )
             await _ensure_fact_checked(ctx, pillar)
+            _reapply_opening(ctx)
             # After the fact check, which can drop or rewrite sentences, so
             # the labels index the script that is voiced (REQ-CNT-189).
             if structure.enabled:
@@ -1253,6 +1254,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         # Save metadata to individual platform files
         saved_count = 0
         pre = _series_prefix(ctx)
+        saved: dict[str, Any] = {}
         for platform, metadata in metadata_results.items():
             if metadata:
                 # A series episode's prefix leads the title and the caption
@@ -1271,6 +1273,7 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
                     disclosure=ctx.config.disclosure_text(),
                 )
                 logger.info("Saved %s metadata to %s", platform, metadata_file.name)
+                saved[platform] = metadata
                 saved_count += 1
 
         if saved_count == 0:
@@ -1289,7 +1292,8 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
         # Generate upload instructions (non-critical)
         try:
             instructions_text = format_upload_instructions(
-                metadata_results=metadata_results,
+                # The saved copies, which carry a series prefix.
+                metadata_results=saved,
                 product_id=ctx.product.asin or "unknown",
                 video_filename=Path(ctx.run_paths["final_video_output"]).name,
                 product_name=ctx.product.title or "Product",
@@ -1319,6 +1323,22 @@ async def _generate_optimized_metadata(ctx: PipelineContext) -> bool:
             exc_info=ctx.debug_mode,
         )
         return False
+
+
+def _reapply_opening(ctx: PipelineContext) -> None:
+    """Put a series opening line back if the fact check dropped or rewrote it.
+
+    The line states the claim the episode tests, so for a false claim it is
+    exactly the sentence a fact check flags (REQ-CNT-194).
+    """
+    series = series_for(ctx.config, ctx.product)
+    if series is None or not ctx.script:
+        return
+    placed = place_opening(ctx.script, opening_line(series, ctx.product))
+    if placed != ctx.script:
+        logger.info("Put the series opening line back after the fact check")
+        ctx.script = placed
+        ctx.run_paths["script_file"].write_text(placed, encoding="utf-8")
 
 
 def _assign_series_episode(ctx: PipelineContext) -> None:

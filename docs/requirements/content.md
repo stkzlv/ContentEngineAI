@@ -254,9 +254,9 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 ## Recurring series
 
 - **REQ-CNT-193** `shipped` The config holds named series (empty in the shipped config), and a topic that marks `series`, `claim` and `verdict` is rejected when the series isn't configured or the verdict isn't one of its `verdicts`.
-- **REQ-CNT-194** `shipped` A series render's script opens with the series' `opening_line` filled in word for word, and its title and platform captions start with the series' `title_prefix`, then the episode number under `numbering: episode` (which requires a `queue_file`), then the search phrase of REQ-CNT-054; with `numbering: none` (the default) nothing is numbered.
+- **REQ-CNT-194** `shipped` A series render's script opens with the series' `opening_line` filled in word for word (inserted when the draft doesn't, and put back when the fact check drops or rewrites it), and its title and platform captions start with the series' `title_prefix`, then the episode number under `numbering: episode` (which requires a `queue_file`), then the search phrase of REQ-CNT-054; with `numbering: none` (the default) nothing is numbered.
   - Why: standalone episodes have to read cold; YouTube calls the any-order show type the most common.
-- **REQ-CNT-195** `shipped` Where a series sets `queue_file`, under `numbering: episode` the producer fills a claim's empty `episode` when it loads the series topic, before the script and description steps, with one more than the highest in the file, writing it under a file lock; a successful series render sets the row to `rendered` with its `output_id`; every other status is left to whoever edits the file.
+- **REQ-CNT-195** `shipped` Where a series sets `queue_file`, under `numbering: episode` the producer fills a claim's empty `episode` when it loads the series topic, before the script and description steps, with one more than the highest in the file, writing it under a file lock; a successful series render sets the row to `rendered` with its `output_id`, unless the row is already `scheduled` or `live`; every other status is left to whoever edits the file, and a queue the producer can't read or write logs a warning without failing the render.
 
 ## Prompt hygiene
 

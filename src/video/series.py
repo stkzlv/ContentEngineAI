@@ -75,7 +75,9 @@ def with_prefix(text: str | None, pre: str) -> str | None:
 def _rows(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
-    with path.open(newline="", encoding="utf-8") as f:
+    # utf-8-sig: a spreadsheet's "CSV UTF-8" export starts with a BOM, which
+    # would otherwise become part of the first column's name.
+    with path.open(newline="", encoding="utf-8-sig") as f:
         return [dict(row) for row in csv.DictReader(f)]
 
 
@@ -92,18 +94,36 @@ def _write(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def _update_row(path: Path, claim: str, update: Any) -> dict[str, str] | None:
-    """Apply `update(row, rows)` to the claim's row under a file lock."""
+    """Apply `update(row, rows)` to the claim's row under a file lock.
+
+    Bookkeeping, so a queue it can't read or write logs a warning and never
+    fails the render that called it.
+    """
+    if not path.exists():
+        logger.warning("Claim queue %s not found", path)
+        return None
     lock = path.with_suffix(path.suffix + ".lock")
-    with lock.open("w") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        rows = _rows(path)
-        row = next((r for r in rows if _norm(r.get("claim", "")) == _norm(claim)), None)
-        if row is None:
-            logger.warning("Claim queue %s has no row for claim %r", path, claim)
-            return None
-        update(row, rows)
-        _write(path, rows)
-        return row
+    try:
+        with lock.open("w") as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            rows = _rows(path)
+            if any(None in row for row in rows):
+                # A row with more cells than the header (an unquoted comma):
+                # rewriting it would shift every cell after the extra one.
+                logger.warning("Claim queue %s has a row with extra cells", path)
+                return None
+            row = next(
+                (r for r in rows if _norm(r.get("claim") or "") == _norm(claim)), None
+            )
+            if row is None:
+                logger.warning("Claim queue %s has no row for claim %r", path, claim)
+                return None
+            update(row, rows)
+            _write(path, rows)
+            return row
+    except (OSError, ValueError, csv.Error) as e:
+        logger.warning("Claim queue %s not updated: %s", path, e)
+        return None
 
 
 def assign_episode(series: SeriesConfig, product: Any) -> int | None:
@@ -113,9 +133,8 @@ def assign_episode(series: SeriesConfig, product: Any) -> int | None:
 
     def fill(row: dict[str, str], rows: list[dict[str, str]]) -> None:
         if not (row.get("episode") or "").strip().isdigit():
-            numbers = [
-                int(r["episode"]) for r in rows if (r.get("episode") or "").isdigit()
-            ]
+            values = [(r.get("episode") or "").strip() for r in rows]
+            numbers = [int(v) for v in values if v.isdigit()]
             row["episode"] = str(max(numbers, default=0) + 1)
 
     row = _update_row(series.queue_file, getattr(product, "claim", "") or "", fill)
@@ -128,6 +147,10 @@ def mark_rendered(series: SeriesConfig, product: Any, output_id: str) -> None:
         return
 
     def done(row: dict[str, str], rows: list[dict[str, str]]) -> None:
+        # A knowing re-render of an episode already scheduled or live leaves
+        # the row where the publisher put it.
+        if (row.get("status") or "").strip() in ("scheduled", "live"):
+            return
         row["status"] = "rendered"
         row["output_id"] = output_id
 

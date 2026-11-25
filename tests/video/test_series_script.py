@@ -190,3 +190,136 @@ async def test_unified_metadata_leads_with_the_prefix(step_ctx):
     )
     assert data["title"].startswith("Myth check: 3 ")
     assert data["description"].startswith("Myth check: 3 Magnets are fine.")
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_a_bom_csv_from_a_spreadsheet_keeps_its_columns(tmp_path):
+    queue = tmp_path / "q.csv"
+    queue.write_text(
+        "﻿" + ",".join(QUEUE_COLUMNS) + "\n" + f"m1,{CLAIM},NO,s,queued,,,\n",
+        encoding="utf-8",
+    )
+    assert (
+        assign_episode(SeriesConfig(numbering="episode", queue_file=queue), PRODUCT)
+        == 1
+    )
+    rows = _read(queue)
+    assert rows[0]["id"] == "m1" and list(rows[0]) == QUEUE_COLUMNS
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_a_row_with_extra_cells_is_left_untouched(tmp_path, caplog):
+    queue = tmp_path / "q.csv"
+    text = (
+        ",".join(QUEUE_COLUMNS) + "\n" + f"m1,{CLAIM},NO,http://a,http://b,queued,,,\n"
+    )
+    queue.write_text(text, encoding="utf-8")
+    mark_rendered(SeriesConfig(queue_file=queue), PRODUCT, "out1")
+    assert queue.read_text(encoding="utf-8") == text
+    assert "extra cells" in caplog.text
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_padded_episode_numbers_count(tmp_path):
+    queue = _queue(
+        tmp_path / "q.csv", [{"claim": "Other", "episode": " 5"}, {"claim": CLAIM}]
+    )
+    assert (
+        assign_episode(SeriesConfig(numbering="episode", queue_file=queue), PRODUCT)
+        == 6
+    )
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_a_missing_queue_warns_and_never_raises(tmp_path, caplog):
+    series = SeriesConfig(queue_file=tmp_path / "absent" / "q.csv")
+    mark_rendered(series, PRODUCT, "out1")
+    assert "not found" in caplog.text
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_a_rerender_leaves_a_scheduled_row_alone(tmp_path):
+    queue = _queue(
+        tmp_path / "q.csv",
+        [{"claim": CLAIM, "status": "scheduled", "output_id": "old"}],
+    )
+    mark_rendered(SeriesConfig(queue_file=queue), PRODUCT, "new")
+    assert (_read(queue)[0]["status"], _read(queue)[0]["output_id"]) == (
+        "scheduled",
+        "old",
+    )
+
+
+@pytest.mark.req("REQ-CNT-194")
+@pytest.mark.asyncio
+async def test_the_opening_line_survives_the_fact_check(step_ctx):
+    from src.video.producer import steps
+
+    async def drop_first_sentence(ctx, pillar):
+        ctx.script = ctx.script.split(". ", 1)[1]
+
+    with (
+        patch.object(
+            steps,
+            "generate_ai_script",
+            AsyncMock(return_value=("It doesn't. Tell me.", "t", "")),
+        ),
+        patch.object(steps, "_ensure_fact_checked", drop_first_sentence),
+        patch.object(steps, "_ensure_hook_headline", AsyncMock()),
+    ):
+        await steps.step_generate_script(step_ctx)
+
+    assert step_ctx.script.startswith("Myth check: A magnet wipes a phone.")
+    saved = step_ctx.run_paths["script_file"].read_text(encoding="utf-8")
+    assert saved == step_ctx.script
+
+
+@pytest.mark.req("REQ-CNT-194")
+@pytest.mark.asyncio
+async def test_optimized_metadata_and_instructions_carry_the_prefix(step_ctx):
+    import json
+
+    from src.ai.platform_metadata.models import PlatformMetadata
+    from src.video.producer import steps
+
+    step_ctx.state["series_episode"] = "2"
+    Path(step_ctx.run_paths["run_root"]).mkdir(parents=True, exist_ok=True)
+    step_ctx.run_paths["description_file"].parent.mkdir(parents=True, exist_ok=True)
+    meta = PlatformMetadata(
+        platform="youtube",
+        description="Magnets are fine.",
+        hashtags=[],
+        keywords=[],
+        character_counts={},
+        generated_at="2026-01-01T00:00:00",
+        product_id="B0TEST0194",
+        validation_status="valid",
+        validation_messages=[],
+        title="Magnets and phones",
+    )
+    step_ctx.config.description_settings.metadata_mode = "optimized"
+    with patch(
+        "src.ai.platform_metadata.PlatformMetadataFactory.generate_multi_platform",
+        AsyncMock(return_value={"youtube": meta}),
+    ):
+        ok = await steps._generate_optimized_metadata(step_ctx)
+
+    if not ok:
+        pytest.skip("platform metadata is off in this config")
+    root = Path(step_ctx.run_paths["run_root"])
+    data = json.loads((root / "metadata_youtube.json").read_text())
+    assert data["title"].startswith("Myth check: 2 Magnets")
+    text_dir = step_ctx.run_paths["description_file"].parent
+    instructions = (text_dir / "UPLOAD_INSTRUCTIONS.txt").read_text()
+    assert "Myth check: 2 Magnets" in instructions
+
+
+@pytest.mark.req("REQ-CNT-195")
+def test_only_a_whole_render_marks_the_row():
+    import inspect
+
+    from src.video.producer import orchestration
+
+    source = inspect.getsource(orchestration.create_video_for_product)
+    guard = source.index("if debug_step_target is None:")
+    assert guard < source.index("mark_rendered(") < guard + 600
