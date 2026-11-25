@@ -726,6 +726,24 @@ script_structure:
   commentary: {}
 
 # ============================================================================
+# SERIES
+# ============================================================================
+# Named recurring series (REQ-CNT-193); none here, an installation names its
+# own in its overlay. A topic joins one with `series`, `claim` and `verdict`.
+#   <id>:
+#     title_prefix:   starts the title and captions ("Myth check: ")
+#     opening_line:   the script's first sentence, "{claim}" filled in
+#     verdicts:       the labels a topic's verdict must be one of; quote
+#                     YES/NO/TRUE/FALSE, which YAML reads as booleans
+#     verdict_beat:   {enabled, colours}
+#     numbering:      none | episode (episode needs queue_file)
+#     serial:         episodes meant to be watched in order (false)
+#     queue_file:     the claim queue CSV
+#     credit_commenter, groups: {youtube_playlist_id, tiktok_playlist,
+#                     instagram_link}
+series: {}
+
+# ============================================================================
 # VIDEO PROFILES
 # ============================================================================
 video_profiles:

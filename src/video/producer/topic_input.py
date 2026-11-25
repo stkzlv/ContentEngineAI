@@ -89,6 +89,12 @@ class TopicSpec:
     search: str = ""
     kind: str = "tutorial"
     corrects: str = ""
+    # A series episode (REQ-CNT-193); checked against the config's series
+    # when the render's config is made.
+    series: str = ""
+    claim: str = ""
+    verdict: str = ""
+    credit: str = ""
 
     def __post_init__(self) -> None:
         """Validate here so `--topic` and a topics file behave identically.
@@ -109,6 +115,12 @@ class TopicSpec:
             raise TopicInputError("A correction names the record it corrects")
         if self.corrects and self.kind != "correction":
             raise TopicInputError("'corrects' applies to a topic of kind correction")
+        for name in ("series", "claim", "verdict", "credit"):
+            setattr(self, name, (getattr(self, name) or "").strip())
+        if self.series and not (self.claim and self.verdict):
+            raise TopicInputError("A series topic names its claim and verdict")
+        if not self.series and (self.claim or self.verdict or self.credit):
+            raise TopicInputError("'claim', 'verdict' and 'credit' need a series")
 
 
 def topic_slug(title: str) -> str:
@@ -172,6 +184,10 @@ def build_topic_product(spec: TopicSpec) -> ProductData:
         topic=spec.title,
         topic_kind=spec.kind if spec.kind in ("commentary", "correction") else None,
         corrects=spec.corrects or None,
+        series=spec.series or None,
+        claim=spec.claim or None,
+        verdict=spec.verdict or None,
+        credit=spec.credit or None,
     )
 
 
@@ -209,7 +225,30 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
     if not isinstance(corrects, str):
         raise TopicInputError(f"{where}: 'corrects' must be a string")
 
-    allowed = {"title", "description", "keywords", "search", "kind", "corrects"}
+    series_fields = {}
+    for name in ("series", "claim", "verdict", "credit"):
+        value = entry.get(name, "")
+        if isinstance(value, bool):
+            raise TopicInputError(
+                f"{where}: '{name}' was read as true/false: quote values such as "
+                '"YES", "NO", "TRUE" and "FALSE" in YAML'
+            )
+        if not isinstance(value, str):
+            raise TopicInputError(f"{where}: '{name}' must be a string")
+        series_fields[name] = value
+
+    allowed = {
+        "title",
+        "description",
+        "keywords",
+        "search",
+        "kind",
+        "corrects",
+        "series",
+        "claim",
+        "verdict",
+        "credit",
+    }
     unknown = set(entry) - allowed
     if unknown:
         # Strict, because a typo in a hand-written file would otherwise cost a
@@ -226,6 +265,7 @@ def _spec_from_mapping(entry: Any, index: int, source: str | Path) -> TopicSpec:
             search=search.strip(),
             kind=kind.strip(),
             corrects=corrects,
+            **series_fields,
         )
     except TopicInputError as exc:
         raise TopicInputError(f"{where}: {exc}") from None

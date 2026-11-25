@@ -381,6 +381,7 @@ def config_for_record(config: Any, product: Any) -> Any:
     """
     kind = content_kind(product)
     identity = config.narrator_identity.for_kind(kind)
+    _check_series(config, product)
     pins = identity.model_dump(exclude_defaults=True)
     if kind != "commentary" and not pins:
         return config
@@ -427,6 +428,22 @@ def config_for_record(config: Any, product: Any) -> Any:
         _apply_identity(record, identity, is_topic=kind != "product")
         logger.info("Narrator identity for %s pins %s", kind, ", ".join(sorted(pins)))
     return record
+
+
+def _check_series(config: Any, product: Any) -> None:
+    """Refuse a series topic the config can't render (REQ-CNT-193)."""
+    series_id = getattr(product, "series", None)
+    if not series_id:
+        return
+    series = config.series.get(series_id)
+    if series is None:
+        raise PipelineError(f"Topic names series {series_id!r}, which isn't configured")
+    verdict = getattr(product, "verdict", None)
+    if verdict not in series.verdicts:
+        raise PipelineError(
+            f"Verdict {verdict!r} isn't one of series {series_id!r}'s verdicts "
+            f"({', '.join(series.verdicts) or 'none configured'})"
+        )
 
 
 def _apply_identity(record: Any, identity: Any, is_topic: bool) -> None:
