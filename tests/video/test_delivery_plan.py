@@ -105,6 +105,9 @@ class TestTheCheck:
             "read \u2018it\u2019s on purpose\u2019 slowly",
             "an \u201880s vibe, read \u2018it\u2019s on purpose\u2019 slowly",
             "('it's on purpose')",
+            "read 'on purpose'-style",
+            "slow down\u2014'on purpose'\u2014slowly",
+            "read 'on purpose'\u2026 then stop",
         ],
     )
     def test_curly_apostrophes_and_elisions_still_match(self, style):
@@ -124,6 +127,7 @@ class TestTheCheck:
             ("'Easy,' match the brands' tone", "We match the brands on price."),
             ("Read 'calm,' like the kids' show", "Like the kids show, it sells."),
             ("rock 'n' roll, the boys' 'tick'", "The boys run along."),
+            ("say 'x ' on purpose' now", "It's on purpose."),
         ],
     )
     def test_a_style_that_quotes_nothing_passes(self, style, script):

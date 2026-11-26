@@ -174,17 +174,20 @@ def validate_plan(
 
 QUOTE_RUN = 6
 _DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
-_OPENS_AFTER = ' \t\n([{"\u201c'
-_CLOSES_BEFORE = ' \t\n.,;:!?)]}"\u201d'
+
+
+def _is_word_char(ch: str) -> bool:
+    return ch.isalnum() or ch == "_"
 
 
 def _single_quoted(style: str) -> list[str]:
     """The single-quoted spans of a style, straight or curly, paired by
-    position: an opening quote follows the start, a space or an opening
-    bracket, a closing one is followed by the end, a space or punctuation,
-    and each closing quote takes the latest unmatched opening. An apostrophe
-    inside a word ("it's") is neither, and a stray one ("'90s", "brands'")
-    pairs with nothing.
+    position: a quote not preceded by a word character opens, one not
+    followed by a word character closes (closing wins), and each closing
+    quote takes the latest unmatched opening. An apostrophe inside a word
+    ("it's") is neither, so a stray "'90s" before a real quote doesn't
+    swallow it; a stray opening and a later stray closing ("'90s ...
+    brands'") still pair, as a pattern would.
     """
     spans: list[str] = []
     openings: list[int] = []
@@ -193,11 +196,11 @@ def _single_quoted(style: str) -> list[str]:
             continue
         after = style[i + 1] if i + 1 < len(style) else " "
         before = style[i - 1] if i else " "
-        if ch in "'\u2019" and after in _CLOSES_BEFORE and openings:
+        if ch in "'\u2019" and not _is_word_char(after) and openings:
             start = openings.pop()
             if i > start + 1:
                 spans.append(style[start + 1 : i])
-        elif ch in "'\u2018" and before in _OPENS_AFTER:
+        elif ch in "'\u2018" and not _is_word_char(before):
             openings.append(i)
     return spans
 
