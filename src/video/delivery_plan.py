@@ -174,9 +174,32 @@ def validate_plan(
 
 QUOTE_RUN = 6
 _DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
-# Single quotes, straight or curly, not inside a word, so contractions don't
-# count.
-_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018]([^'\u2018\u2019]+)['\u2019](?!\\w)")
+_OPENS_AFTER = ' \t\n([{"\u201c'
+_CLOSES_BEFORE = ' \t\n.,;:!?)]}"\u201d'
+
+
+def _single_quoted(style: str) -> list[str]:
+    """The single-quoted spans of a style, straight or curly, paired by
+    position: an opening quote follows the start, a space or an opening
+    bracket, a closing one is followed by the end, a space or punctuation,
+    and each closing quote takes the latest unmatched opening. An apostrophe
+    inside a word ("it's") is neither, and a stray one ("'90s", "brands'")
+    pairs with nothing.
+    """
+    spans: list[str] = []
+    openings: list[int] = []
+    for i, ch in enumerate(style):
+        if ch not in "'\u2018\u2019":
+            continue
+        after = style[i + 1] if i + 1 < len(style) else " "
+        before = style[i - 1] if i else " "
+        if ch in "'\u2019" and after in _CLOSES_BEFORE and openings:
+            start = openings.pop()
+            if i > start + 1:
+                spans.append(style[start + 1 : i])
+        elif ch in "'\u2018" and before in _OPENS_AFTER:
+            openings.append(i)
+    return spans
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
@@ -197,7 +220,7 @@ def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
     """
     # Searched separately, so a single-quoted phrase inside a double-quoted
     # span is tested on its own.
-    spans = _DOUBLE_QUOTED.findall(style) + _SINGLE_QUOTED.findall(style)
+    spans = _DOUBLE_QUOTED.findall(style) + _single_quoted(style)
     for span in spans:
         span_words = [w for w in _words(span) if w]
         if _has_run(span_words, script_words, len(span_words)):
