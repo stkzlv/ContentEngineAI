@@ -75,7 +75,7 @@ A profile selects it with `provider: gemini_api` and the existing `gemini_model_
 
 ### Captions
 
-After transcription, a word whose time falls within an event's window and that matches the probe's recorded transcriptions ("ugh", "but") is dropped from the caption words. The window comes from the segment offsets: the voice step records each event's segment span, gap included, in `temp/vocal_events.json`, shifted by what the trim's first stage cuts, measured by running that stage alone. A word in the script is never dropped: the transcript is aligned to the script's words, and only a word the alignment leaves unmatched, of which the transcript holds more copies than the script, can go, so an "ugh" at an event is dropped and one the script says is kept.
+After transcription, a word whose time falls within an event's window and that matches the probe's recorded transcriptions ("ugh", "but") is dropped from the caption words. The window comes from the segment offsets: the voice step records each event's segment span, gap included, in `temp/vocal_events.json`, shifted by what the trim's first stage cuts, measured by running that stage alone. A word the script says is never left out of the captions, which keep at least as many copies of each word as the script: the transcript is aligned to the script's words, and only a word the alignment leaves unmatched, of which the transcript holds more copies than the script, can go, so an "ugh" at an event is dropped and one the script says is kept. With two events near a repeated phrase, the alignment can pair the event's copy with the script and drop the spoken one: the caption text keeps the word, at the event's time.
 
 ### Script cleaning
 

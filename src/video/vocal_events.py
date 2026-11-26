@@ -4,8 +4,9 @@ A performed take voices each delivery segment separately, so the time span of
 every segment that carries a vocal event is known. After transcription, a word
 inside such a span that matches what the tag was heard as in the probe
 (`PERFORMED_TAG_TRANSCRIPTIONS`) is dropped from the caption words, but only
-when aligning the transcript to the script leaves it unmatched: a word the
-script says is never dropped.
+when aligning the transcript to the script leaves it unmatched and the
+transcript holds a copy more than the script: the captions keep at least as
+many copies of each word as the script.
 """
 
 from __future__ import annotations
@@ -132,7 +133,7 @@ def words_to_drop(
     script's words, and only a word the alignment leaves unmatched can go: it
     is dropped when it overlaps an event's padded window, is one of that
     tag's recorded transcriptions, and the transcript holds more copies of it
-    than the script. A word matched to the script stays.
+    than the script, so no word falls below the script's count.
     """
     if not windows:
         return set()

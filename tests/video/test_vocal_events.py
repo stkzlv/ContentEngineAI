@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import io
 import json
+import random
 import shutil
 import wave
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -162,6 +164,34 @@ class TestTheFilter:
         heard = "go go but but go no no go".split()
         words = [(w, 2.0 + i * 0.2, 2.1 + i * 0.2) for i, w in enumerate(heard)]
         assert len(words_to_drop(words, SIGH, "go no go but")) == 1
+
+    def test_no_word_falls_below_its_script_count(self):
+        rng = random.Random(183)  # noqa: S311 -- a seeded fuzz
+        vocab = ["but", "ugh", "it", "loud", "go", "no", "the", "clocks"]
+        for _ in range(2000):
+            script = [rng.choice(vocab) for _ in range(rng.randint(3, 10))]
+            heard = [
+                rng.choice(vocab) if rng.random() < 0.15 else w
+                for w in script
+                if rng.random() > 0.05
+            ]
+            for _ in range(rng.randint(0, 2)):
+                heard.insert(rng.randint(0, len(heard)), rng.choice(["but", "ugh"]))
+            words = [(w, 2.0 + i * 0.1, 2.05 + i * 0.1) for i, w in enumerate(heard)]
+            drop = words_to_drop(words, SIGH, " ".join(script))
+            kept = Counter(w for i, w in enumerate(heard) if i not in drop)
+            for word, n in Counter(heard).items():
+                assert kept[word] >= min(n, script.count(word)), (script, heard)
+
+    @pytest.mark.xfail(reason="alignment can pair an event's copy with the script")
+    def test_two_events_near_a_repeated_phrase_keep_the_spoken_copy(self):
+        heard = "but ugh it but it but cloud".split()
+        words = [(w, i * 1.0, i * 1.0 + 0.5) for i, w in enumerate(heard)]
+        windows = [
+            {"tag": "<sigh>", "start": 0.0, "end": 1.5},
+            {"tag": "<breath>", "start": 5.0, "end": 5.5},
+        ]
+        assert words_to_drop(words, windows, "but it but it cloud") == {1, 5}
 
     def test_a_word_glued_to_punctuation_still_counts_as_scripted(self):
         words = [("slow", 2.1, 2.2), ("but", 2.3, 2.4), ("works", 2.5, 2.6)]
