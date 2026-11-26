@@ -63,7 +63,8 @@ Ids use the prefix `REQ-PUB`. The format and the statuses are described in [the 
 - **REQ-PUB-123** `shipped` If any product fails, the `schedule` command exits non-zero, with or without `--immediate`.
 - **REQ-PUB-124** `shipped` If the provider cannot be reached, `calendar` warns that the list is local state only and may be incomplete.
 - **REQ-PUB-168** `shipped` Where a series sets `queue_file`, the publisher sets a series post's claim row to `scheduled` with the post id when it records the post, and to `live` when the delivery sweep sees the post live on any platform; a live row is never moved back, and a queue it can't read or write never fails a publish.
-- **REQ-PUB-169** `planned #857` After a series post goes live, the publisher adds it to the series' configured YouTube and TikTok playlists and links it to the previous Instagram episode where the publishing provider exposes the call, and otherwise logs the manual step with the post's URL.
+- **REQ-PUB-169** `partial` After a series post goes live, the publisher adds it to the series' configured YouTube and TikTok playlists and links it to the previous Instagram episode where the publishing provider exposes the call, and otherwise logs the manual step with the post's URL. The provider takes a YouTube playlist id per post, so the YouTube leg is added on upload; it has no call for TikTok playlists or Instagram links, so each is logged once, for the post's TikTok or Instagram leg, when that leg is live with its URL.
+  - Gap: a live TikTok leg the provider reports with no URL is never logged (#880).
 
 ## First comment
 

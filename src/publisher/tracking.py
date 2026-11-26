@@ -69,7 +69,11 @@ def record_publish(
     if "posts" not in tracking:
         tracking["posts"] = {}
 
-    from src.publisher.series_queue import mark_scheduled, series_record
+    from src.publisher.series_queue import (
+        mark_scheduled,
+        series_groups,
+        series_record,
+    )
 
     key = f"{product_id}:{platform}"
     row: dict[str, object] = {
@@ -81,8 +85,14 @@ def record_publish(
     # The claim and queue, kept in durable history: cleanup removes the
     # render directory, and the delivery sweep reads them later (REQ-PUB-168).
     found = series_record(product_id, outputs_dir)
+    series: dict[str, object] = {}
     if found:
-        row["series"] = {"claim": found[1], "queue_file": str(found[0])}
+        series = {"claim": found[1], "queue_file": str(found[0])}
+    groups = series_groups(product_id, outputs_dir)
+    if groups:
+        series["groups"] = groups
+    if series:
+        row["series"] = series
     tracking["posts"][key] = row
     save_tracking(tracking, outputs_dir)
     logger.info("Recorded publish: %s -> %s", key, post_id)

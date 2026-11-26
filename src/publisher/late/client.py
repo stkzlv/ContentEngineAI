@@ -829,6 +829,8 @@ class LatePublisher(BasePublisher):
                                     "publishedAt": _as_utc(
                                         getattr(p, "publishedAt", None)
                                     ),
+                                    # Empty for a leg not live yet.
+                                    "url": getattr(p, "platformPostUrl", None) or None,
                                 }
                                 for p in post.platforms
                             ]
@@ -1304,6 +1306,9 @@ class LatePublisher(BasePublisher):
                     }
                     if pc.get("title"):
                         yt_psd["title"] = pc["title"]
+                    # A series episode joins its playlist on upload (REQ-PUB-169).
+                    if pc.get("playlist_id"):
+                        yt_psd["playlistId"] = pc["playlist_id"]
                     platform_entry["platformSpecificData"] = yt_psd
                 if platform_name == "tiktok":
                     platform_entry["platformSpecificData"] = {

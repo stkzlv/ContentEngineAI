@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from src.publisher.first_comment import build_first_comment, resolve_correction_links
 from src.publisher.metadata import METADATA_PLATFORM_ORDER, load_platform_metadata
 from src.publisher.models import Platform
+from src.publisher.series_queue import series_groups, with_playlist
 from src.publisher.youtube_caption import youtube_metadata
 
 if TYPE_CHECKING:
@@ -229,7 +230,9 @@ async def _publish_unified(
         platforms=platforms,
         content=content,
         scheduled_time=schedule_time,
-        platform_contents=platform_contents,
+        platform_contents=with_playlist(
+            platform_contents, series_groups(product_id, outputs_dir)
+        ),
         carries_affiliate_content=metadata.carries_affiliate_content,
     )
 
@@ -306,7 +309,9 @@ async def _publish_platform_specific(
             platforms=[p_info],
             content=content,
             scheduled_time=schedule_time,
-            platform_contents=platform_contents,
+            platform_contents=with_playlist(
+                platform_contents, series_groups(product_id, outputs_dir)
+            ),
             carries_affiliate_content=metadata.carries_affiliate_content,
         )
 

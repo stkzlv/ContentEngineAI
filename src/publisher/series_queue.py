@@ -1,10 +1,13 @@
-"""Keep a series claim queue in step with publishing (REQ-PUB-168).
+"""Keep a series claim queue and grouping in step with publishing.
 
-A series render leaves `series.json` beside its video (the claim and the
-queue file, written by the producer), so the publisher needs no video
-config. The claim row goes to `scheduled` with its post id when the
+A series render leaves `series.json` beside its video (the claim, the queue
+file and the grouping, written by the producer), so the publisher needs no
+video config. The claim row goes to `scheduled` with its post id when the
 publisher records the post, and to `live` when the delivery sweep sees the
-post live on any platform. Bookkeeping: nothing here raises into a publish.
+post live on any platform (REQ-PUB-168). A YouTube leg joins the series
+playlist on upload; the groupings the provider has no call for are logged as
+manual steps with the post's URL once it is live (REQ-PUB-169).
+Bookkeeping: nothing here raises into a publish.
 """
 
 from __future__ import annotations
@@ -15,20 +18,45 @@ from pathlib import Path
 from typing import Any
 
 from src.utils.claim_queue import set_published
+from src.utils.outputs_paths import durable_state_path
 
 logger = logging.getLogger(__name__)
 
 SERIES_FILE = "series.json"
+# `post:platform` keys whose manual grouping step was logged, so each is
+# logged once.
+GROUPING_LOG = "series_grouping_logged.json"
+
+
+def _read(product_id: str, outputs_dir: Path) -> dict[str, Any]:
+    try:
+        data = json.loads((outputs_dir / product_id / SERIES_FILE).read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def series_groups(product_id: str, outputs_dir: Path) -> dict[str, Any]:
+    """The render's series grouping, or {} for none."""
+    groups = _read(product_id, outputs_dir).get("groups")
+    return groups if isinstance(groups, dict) else {}
+
+
+def with_playlist(
+    platform_contents: dict[str, dict[str, Any]] | None, groups: dict[str, Any]
+) -> dict[str, dict[str, Any]] | None:
+    """`platform_contents` with the YouTube playlist id added, when set."""
+    playlist = groups.get("youtube_playlist_id")
+    if not playlist:
+        return platform_contents
+    contents = dict(platform_contents or {})
+    contents["youtube"] = {**contents.get("youtube", {}), "playlist_id": playlist}
+    return contents
 
 
 def series_record(product_id: str, outputs_dir: Path) -> tuple[Path, str] | None:
     """The render's queue file and claim, or None for a non-series render."""
-    try:
-        data = json.loads((outputs_dir / product_id / SERIES_FILE).read_text("utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(data, dict):
-        return None
+    data = _read(product_id, outputs_dir)
     queue, claim = data.get("queue_file"), data.get("claim")
     if not isinstance(queue, str) or not isinstance(claim, str) or not claim:
         return None
@@ -44,17 +72,15 @@ def mark_scheduled(found: tuple[Path, str], post_id: str) -> None:
 LIVE_STATUSES = frozenset({"published", "partial"})
 
 
-def _history_series(outputs_dir: Path) -> dict[str, dict[str, str]]:
-    """Post id -> {claim, queue_file} from publish history's series rows."""
+def _history_series(outputs_dir: Path) -> dict[str, dict[str, Any]]:
+    """Post id -> its series data (claim, queue_file, groups) from history."""
     from src.publisher.tracking import load_tracking
 
-    found: dict[str, dict[str, str]] = {}
+    found: dict[str, dict[str, Any]] = {}
     for record in load_tracking(outputs_dir).get("posts", {}).values():
         series = record.get("series") if isinstance(record, dict) else None
-        if (
-            isinstance(series, dict)
-            and series.get("claim")
-            and series.get("queue_file")
+        if isinstance(series, dict) and (
+            (series.get("claim") and series.get("queue_file")) or series.get("groups")
         ):
             found[str(record.get("post_id"))] = series
     return found
@@ -65,22 +91,75 @@ def has_series_posts(outputs_dir: Path) -> bool:
     return bool(_history_series(outputs_dir))
 
 
-def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
-    """Set each live series post's claim row to `live`; returns how many.
+def manual_step(groups: dict[str, Any], platform: str, url: str) -> str | None:
+    """A live leg's grouping the provider has no call for, as a step to do by
+    hand, or None when that platform needs none.
+    """
+    tiktok = groups.get("tiktok_playlist")
+    if platform == "tiktok" and tiktok:
+        return f"add the TikTok post {url} to the playlist {tiktok!r}"
+    if platform == "instagram" and groups.get("instagram_link"):
+        return f"link the Instagram post {url} to the previous episode"
+    return None
 
-    Read from publish history, not the render directory, which cleanup
-    removes after publishing.
+
+def _logged(outputs_dir: Path) -> set[str]:
+    try:
+        data = json.loads(durable_state_path(outputs_dir, GROUPING_LOG).read_text())
+    except (OSError, ValueError):
+        return set()
+    return {str(x) for x in data} if isinstance(data, list) else set()
+
+
+def _save_logged(outputs_dir: Path, keys: set[str]) -> None:
+    path = durable_state_path(outputs_dir, GROUPING_LOG)
+    temp = path.with_suffix(".tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp.write_text(json.dumps(sorted(keys)))
+        temp.replace(path)
+    except OSError as e:
+        logger.warning("Series grouping log not saved: %s", e)
+
+
+def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
+    """Set each live series post's claim row to `live`, and log the manual
+    grouping step of each of its legs once that leg has a URL; returns how
+    many rows changed.
+
+    Steps are kept per post and platform, so a leg that goes live later, or
+    reports its URL later, is logged then. Read from publish history, not
+    the render directory, which cleanup removes after publishing.
     """
     series_by_post = _history_series(outputs_dir)
+    logged = _logged(outputs_dir)
+    newly_logged = set()
     marked = 0
     for post in posts:
         post_id = str(post.get("id"))
         series = series_by_post.get(post_id)
-        live = str(post.get("status") or "").lower() in LIVE_STATUSES
+        if not series or str(post.get("status") or "").lower() not in LIVE_STATUSES:
+            continue
         if (
-            series
-            and live
+            series.get("claim")
+            and series.get("queue_file")
             and set_published(Path(series["queue_file"]), series["claim"], "live")
         ):
             marked += 1
+        groups = series.get("groups")
+        if not isinstance(groups, dict):
+            continue
+        for leg in post.get("platforms") or []:
+            if not isinstance(leg, dict) or not leg.get("url"):
+                continue
+            platform = str(leg.get("platform"))
+            key = f"{post_id}:{platform}"
+            step = manual_step(groups, platform, str(leg["url"]))
+            if step and key not in logged:
+                logger.info(
+                    "Series grouping, manual step for post %s: %s", post_id, step
+                )
+                newly_logged.add(key)
+    if newly_logged:
+        _save_logged(outputs_dir, logged | newly_logged)
     return marked
