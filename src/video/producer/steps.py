@@ -104,7 +104,7 @@ from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager, spoken_script
 from src.video.vocal_events import (
-    leading_silence_sec,
+    leading_trim_sec,
     read_windows,
     shift_windows,
     write_windows,
@@ -1697,21 +1697,21 @@ async def step_create_voiceover(ctx: PipelineContext):
         windows = tts_manager.vocal_event_windows
         if audio_proc and audio_proc.silence_removal_enabled:
             trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
-            lead_sec = (
-                leading_silence_sec(vo_path, audio_proc.silence_threshold_db)
-                if windows
-                else 0.0
-            )
 
             try:
                 # Build silenceremove filter with config settings
                 threshold_db = audio_proc.silence_threshold_db
                 min_duration = audio_proc.silence_min_duration_sec
-                silence_filter = (
-                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
-                    f"areverse,"
-                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
-                    f"areverse"
+                start_stage = (
+                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB"
+                    f":start_duration={min_duration}"
+                )
+                silence_filter = f"{start_stage},areverse,{start_stage},areverse"
+                # What the start stage cuts moves every event window earlier.
+                lead_sec = (
+                    leading_trim_sec(ffmpeg_path, vo_path, start_stage)
+                    if windows
+                    else 0.0
                 )
                 trim_cmd = [
                     ffmpeg_path,

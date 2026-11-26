@@ -4,7 +4,7 @@ A performed take voices each delivery segment separately, so the time span of
 every segment that carries a vocal event is known. After transcription, a word
 inside such a span that matches what the tag was heard as in the probe
 (`PERFORMED_TAG_TRANSCRIPTIONS`) is dropped from the caption words, but only
-while the transcript holds more of that word than the script does: a word the
+when aligning the transcript to the script leaves it unmatched: a word the
 script says is never dropped.
 """
 
@@ -13,8 +13,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import subprocess
+import tempfile
 import wave
-from collections import Counter
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +26,9 @@ from src.video.delivery_plan import DeliverySegment
 logger = logging.getLogger(__name__)
 
 EVENTS_FILE = "vocal_events.json"
-# Whisper's word times are coarse and the silence trim is estimated, so a
-# window reaches this far past each end of its segment.
-WINDOW_PAD_SEC = 0.3
+# Whisper's raw word starts ran 0.26-0.38 s before the recorded segment
+# start in real takes, so a window reaches this far past each end.
+WINDOW_PAD_SEC = 0.5
 
 _WORD = re.compile(r"[a-z0-9']+")
 
@@ -53,18 +55,39 @@ def event_windows(
     return windows
 
 
-def leading_silence_sec(wav_path: Path, threshold_db: float) -> float:
-    """Seconds before the first sample louder than `threshold_db` (dBFS)."""
-    import numpy as np
+def leading_trim_sec(ffmpeg_path: str, wav_path: Path, start_stage: str) -> float:
+    """Seconds the trim's first `silenceremove` stage cuts from the start.
 
-    with wave.open(str(wav_path)) as w:
-        width, channels, rate = w.getsampwidth(), w.getnchannels(), w.getframerate()
-        data = w.readframes(w.getnframes())
-    if width != 2 or not data:
-        return 0.0
-    samples = np.abs(np.frombuffer(data, dtype="<i2").astype(np.int32))
-    loud = np.nonzero(samples > 32768 * 10 ** (threshold_db / 20))[0]
-    return float(loud[0] // channels) / rate if loud.size else 0.0
+    Measured by running that stage alone rather than estimated: its RMS window
+    and `start_duration` decide the cut. 0.0 when the run fails.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        cut = Path(tmp) / "cut.wav"
+        try:
+            subprocess.run(
+                [
+                    ffmpeg_path,
+                    "-v",
+                    "error",
+                    "-i",
+                    str(wav_path),
+                    "-af",
+                    start_stage,
+                    "-y",
+                    str(cut),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            return max(0.0, _wav_seconds(wav_path) - _wav_seconds(cut))
+        except (OSError, subprocess.CalledProcessError, wave.Error, EOFError) as exc:
+            logger.warning("Vocal events: trim length not measured: %s", exc)
+            return 0.0
+
+
+def _wav_seconds(path: Path) -> float:
+    with wave.open(str(path)) as w:
+        return float(w.getnframes()) / float(w.getframerate())
 
 
 def shift_windows(
@@ -104,29 +127,33 @@ def words_to_drop(
 ) -> set[int]:
     """Indexes of transcript words heard from a vocal event, not spoken.
 
-    `words` holds (text, start, end). A word is a candidate when it overlaps
-    an event's padded window and is one of that tag's recorded transcriptions.
-    Candidates are dropped only while the transcript holds more of the word
-    than the script.
+    `words` holds (text, start, end). The transcript is aligned to the
+    script's words, and only a word the alignment leaves unmatched can go: it
+    is dropped when it overlaps an event's padded window and is one of that
+    tag's recorded transcriptions. A word matched to the script stays.
     """
     if not windows:
         return set()
-    script_counts = Counter(_norm(w) for w in script.split())
-    heard_counts = Counter(_norm(w[0]) for w in words)
+    heard = [_norm(w[0]) for w in words]
+    matcher = SequenceMatcher(None, _WORD.findall(script.lower()), heard, False)
+    matched = {
+        block.b + k
+        for block in matcher.get_matching_blocks()
+        for k in range(block.size)
+    }
     drop: set[int] = set()
-    for i, (text, start, end) in enumerate(words):
-        word = _norm(text)
+    for i, (_, start, end) in enumerate(words):
+        if i in matched:
+            continue
         for window in windows:
             heard_as = PERFORMED_TAG_TRANSCRIPTIONS.get(window["tag"], frozenset())
-            if word not in heard_as:
+            if heard[i] not in heard_as:
                 continue
             if end < window["start"] - WINDOW_PAD_SEC:
                 continue
             if start > window["end"] + WINDOW_PAD_SEC:
                 continue
-            if heard_counts[word] > script_counts[word]:
-                drop.add(i)
-                heard_counts[word] -= 1
+            drop.add(i)
             break
     return drop
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import io
 import json
+import shutil
 import wave
 from pathlib import Path
 from typing import Any
@@ -23,7 +24,7 @@ from src.video.vocal_events import (
     event_windows,
     filter_result,
     filter_timings,
-    leading_silence_sec,
+    leading_trim_sec,
     read_windows,
     shift_windows,
     words_to_drop,
@@ -95,14 +96,20 @@ class TestTheWindows:
             )
         assert durations == [1.0, 1.0, 1.0]
 
-    def test_a_trimmed_start_moves_the_windows_earlier(self, tmp_path):
+    def test_a_trimmed_start_moves_the_windows_earlier(self):
+        assert shift_windows(SIGH, 0.5) == [{"tag": "<sigh>", "start": 1.5, "end": 3.5}]
+
+    @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+    def test_the_trim_is_measured_by_running_its_start_stage(self, tmp_path):
         path = tmp_path / "v.wav"
-        path.write_bytes(_wav(100, value=20000, lead=12000))
-        lead = leading_silence_sec(path, -50.0)
-        assert lead == pytest.approx(0.5)
-        assert shift_windows(SIGH, lead) == [
-            {"tag": "<sigh>", "start": 1.5, "end": 3.5}
-        ]
+        path.write_bytes(_wav(24000, value=20000, lead=12000))
+        stage = "silenceremove=start_periods=1:start_threshold=-50dB:start_duration=0"
+        assert leading_trim_sec("ffmpeg", path, stage) == pytest.approx(0.5, abs=0.03)
+
+    def test_a_failed_measure_is_no_shift(self, tmp_path):
+        path = tmp_path / "v.wav"
+        path.write_bytes(_wav(10))
+        assert leading_trim_sec(str(tmp_path / "no-ffmpeg"), path, "anull") == 0.0
 
     def test_the_file_round_trips_and_a_bad_one_reads_as_none(self, tmp_path):
         path = tmp_path / "vocal_events.json"
@@ -131,16 +138,44 @@ class TestTheFilter:
         assert words_to_drop(words, SIGH, "But no.") == {2}
 
     def test_two_copies_in_the_window_keep_the_one_the_script_says(self):
-        words = [("but", 2.1, 2.2), ("but", 2.5, 2.6), ("no", 2.8, 2.9)]
-        assert len(words_to_drop(words, SIGH, "But no.")) == 1
+        words = [("but", 2.1, 2.2), ("no", 2.5, 2.6), ("but", 2.8, 2.9)]
+        assert words_to_drop(words, SIGH, "But no.") == {2}
+
+    def test_the_spoken_copy_stays_when_the_sigh_follows_it(self):
+        words = [
+            ("It's", 2.0, 2.1),
+            ("slow,", 2.1, 2.3),
+            ("but", 2.3, 2.4),
+            ("it", 2.4, 2.5),
+            ("works.", 2.5, 2.8),
+            ("But", 3.0, 3.2),
+        ]
+        assert words_to_drop(words, SIGH, "It's slow, but it works.") == {5}
+
+    def test_a_word_glued_to_punctuation_still_counts_as_scripted(self):
+        words = [("slow", 2.1, 2.2), ("but", 2.3, 2.4), ("works", 2.5, 2.6)]
+        assert words_to_drop(words, SIGH, "Slow\u2014but works.") == set()
+        assert (
+            words_to_drop([("Ugh", 2.1, 2.2), ("the", 2.3, 2.4)], SIGH, "Ugh...the")
+            == set()
+        )
+
+    def test_a_stray_copy_elsewhere_does_not_cost_the_spoken_one(self):
+        words = [
+            ("but", 0.1, 0.2),
+            ("fine", 0.3, 0.4),
+            ("but", 2.3, 2.4),
+            ("ok", 2.5, 2.6),
+        ]
+        assert words_to_drop(words, SIGH, "Fine, but ok.") == set()
 
     def test_a_tag_with_no_recorded_word_drops_nothing(self):
         laugh = [{"tag": "<laugh>", "start": 2.0, "end": 4.0}]
         assert words_to_drop([("ugh", 2.1, 2.3)], laugh, "Fine.") == set()
 
     def test_the_window_reaches_a_little_past_its_ends(self):
-        assert words_to_drop([("ugh", 4.1, 4.2)], SIGH, "Fine.") == {0}
-        assert words_to_drop([("ugh", 4.5, 4.6)], SIGH, "Fine.") == set()
+        assert words_to_drop([("ugh", 4.4, 4.5)], SIGH, "Fine.") == {0}
+        assert words_to_drop([("ugh", 4.6, 4.7)], SIGH, "Fine.") == set()
 
     def test_the_flat_timings_lose_the_word(self):
         timings = [
@@ -296,6 +331,7 @@ class TestTheVoiceoverStep:
             patch.object(steps.TTSManager, "generate_speech", voice),
             patch.object(steps, "_get_video_duration", AsyncMock(return_value=2.0)),
             patch.object(steps.subprocess, "run"),
+            patch.object(steps, "leading_trim_sec", return_value=0.5),
         ):
             await steps.step_create_voiceover(ctx)
 
