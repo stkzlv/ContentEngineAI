@@ -36,6 +36,7 @@ from src.video.assembler.overlay_builder import (
     apply_step_card_overlay,
     apply_step_visuals,
     apply_upper_line_overlay,
+    apply_verdict_card,
     pick_step_card_layout,
     resolve_hook_line,
 )
@@ -46,6 +47,7 @@ from src.video.assembler.visual_builder import VisualFilterBuilder
 from src.video.config import VideoConfig
 from src.video.config.visual_models import DisclosureSettings, MergedProfileSettings
 from src.video.step_cards import StepCard
+from src.video.verdict_card import VerdictCard
 
 logger = logging.getLogger(__name__)
 
@@ -770,6 +772,7 @@ class VideoAssembler:
         step_visuals: list[tuple[Path, float, float]] | None = None,
         lead_video: Path | None = None,
         motif_times: list[float] | None = None,
+        verdict_card: VerdictCard | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -807,6 +810,8 @@ class VideoAssembler:
             lead_video: The listing's own clip, which opens the timeline when
                 `lead_with_listing_video` is on (REQ-VID-016).
             motif_times: Seconds at which the motif plays (REQ-CNT-192).
+            verdict_card: A series episode's verdict stamp and its time
+                (REQ-VID-167); None draws none.
 
         Returns:
         -------
@@ -918,6 +923,17 @@ class VideoAssembler:
                 )
                 if video_filters != unchanged
                 else None
+            )
+
+            # A series episode's verdict stamp (REQ-VID-167), before the
+            # disclosure so the disclosure keeps the top of the z-order.
+            video_filters = apply_verdict_card(
+                video_filters,
+                verdict_card,
+                self.config.video_settings.hook_overlay,
+                subtitle_font_size_pixels,
+                self.config.video_settings.resolution[0],
+                temp_dir,
             )
 
             # The static upper line, before the disclosure so the disclosure

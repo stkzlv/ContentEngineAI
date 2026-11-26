@@ -735,7 +735,8 @@ script_structure:
 #     opening_line:   the script's first sentence, "{claim}" filled in
 #     verdicts:       the labels a topic's verdict must be one of; quote
 #                     YES/NO/TRUE/FALSE, which YAML reads as booleans
-#     verdict_beat:   {enabled, colours}
+#     verdict_beat:   {enabled, colours: {text, background}, duration_sec,
+#                     size_factor, y_percent}: the stamp card (REQ-VID-167)
 #     numbering:      none | episode (episode needs queue_file)
 #     serial:         episodes meant to be watched in order (false)
 #     queue_file:     the claim queue CSV
