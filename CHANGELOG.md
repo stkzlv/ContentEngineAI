@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.0] - 2026-11-26
+
+### Added
+
+- A series episode's YouTube leg joins the series' configured playlist on upload, and once the post is live the delivery sweep logs the TikTok playlist and Instagram link steps, which the publishing provider has no call for, with the post's URL.
+
 ## [0.259.0] - 2026-11-26
 
 ### Added

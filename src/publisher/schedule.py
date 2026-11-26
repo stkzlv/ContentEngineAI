@@ -38,6 +38,7 @@ from src.publisher.models import (
 )
 from src.publisher.product_registry import add_to_registry
 from src.publisher.schedule_validator import ScheduleValidator
+from src.publisher.series_queue import series_groups, with_playlist
 from src.publisher.tracking import is_already_published, record_publish
 from src.publisher.youtube_caption import youtube_metadata
 from src.scraper.base.models import carries_affiliate_content
@@ -1098,6 +1099,7 @@ class ScheduleManager:
         product_id: str,
         next_time: datetime,
         next_idx: int,
+        groups: dict[str, Any] | None = None,
     ) -> list[tuple[str, str]]:
         """One post per platform, each with its own metadata."""
         scheduled_legs: list[tuple[str, str]] = []
@@ -1128,7 +1130,7 @@ class ScheduleManager:
                 media_id=media_id,
                 platforms=[platform_dict],
                 content=p_content,
-                platform_contents={p_name: p_content_data},
+                platform_contents=with_playlist({p_name: p_content_data}, groups or {}),
                 scheduled_time=next_time,
                 carries_affiliate_content=carries_affiliate.get(p_name, True),
             )
@@ -1167,6 +1169,7 @@ class ScheduleManager:
         product_id: str,
         next_time: datetime,
         next_idx: int,
+        groups: dict[str, Any] | None = None,
     ) -> list[tuple[str, str]]:
         """One post carrying one caption to every platform."""
         scheduled_legs: list[tuple[str, str]] = []
@@ -1217,7 +1220,7 @@ class ScheduleManager:
             media_id=media_id,
             platforms=platform_dicts,  # All platforms in one post
             content=unified_content,
-            platform_contents=unified_platform_contents,
+            platform_contents=with_playlist(unified_platform_contents, groups or {}),
             scheduled_time=next_time,
             # One post covers every platform, so it discloses if any leg has
             # something to disclose.
@@ -1370,6 +1373,7 @@ class ScheduleManager:
                 product_id=product_id,
                 next_time=next_time,
                 next_idx=next_idx,
+                groups=series_groups(product_id, outputs_dir) if outputs_dir else {},
             )
             occupied_slot_times.add(next_time.replace(second=0, microsecond=0))
 

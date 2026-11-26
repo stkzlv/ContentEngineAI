@@ -74,15 +74,17 @@ def assign_episode(series: SeriesConfig, product: Any) -> int | None:
 
 
 def write_series_record(series: SeriesConfig, product: Any, run_root: Path) -> None:
-    """Leave the claim and queue file beside the render for the publisher,
-    which doesn't read the video config (REQ-PUB-168).
+    """Leave the claim, queue file and grouping beside the render for the
+    publisher, which doesn't read the video config (REQ-PUB-168, REQ-PUB-169).
     """
-    if series.queue_file is None:
+    groups = series.groups.model_dump(exclude_defaults=True)
+    if series.queue_file is None and not groups:
         return
-    record = {
-        "claim": getattr(product, "claim", "") or "",
-        "queue_file": str(series.queue_file.resolve()),
-    }
+    record: dict[str, object] = {"claim": getattr(product, "claim", "") or ""}
+    if series.queue_file is not None:
+        record["queue_file"] = str(series.queue_file.resolve())
+    if groups:
+        record["groups"] = groups
     try:
         (run_root / "series.json").write_text(json.dumps(record), encoding="utf-8")
     except OSError as e:
