@@ -65,6 +65,10 @@ class TestTheSpokenMention:
         words = _words("it is fine not quite right")
         assert mention_start(words, "NOT QUITE", 0) == pytest.approx(3 * 0.3)
 
+    def test_a_label_written_as_one_word_matches(self):
+        words = _words("it is half-true. sadly")
+        assert mention_start(words, "HALF-TRUE", 0) == pytest.approx(2 * 0.3)
+
     def test_no_mention_is_none(self):
         assert mention_start(_words("nothing here"), "TRUE", 0) is None
 
@@ -286,6 +290,18 @@ class TestTheCard:
         # The opening's "false" is word 3; the verdict's is word 11 (0-based 10).
         assert card is not None and card.start == pytest.approx(10 * 0.3)
         assert card.end == pytest.approx(card.start + 2.5)
+
+    def test_a_card_on_the_opening_waits_for_the_hook(self, ctx):
+        from src.video.producer import steps
+
+        hook = ctx.config.video_settings.hook_overlay
+        hook.enabled, hook.duration_sec = True, 2.0
+        ctx.state["verdict_label"] = json.dumps(
+            {"index": 0, "script": steps.script_digest(SCRIPT)}
+        )
+        with self._with_words(ctx):
+            card = steps._verdict_card(ctx)
+        assert card is not None and card.start == pytest.approx(2.0)
 
     def test_neither_skips_the_card(self, ctx, caplog):
         from src.video.producer import steps

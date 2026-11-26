@@ -808,6 +808,10 @@ def _verdict_card(ctx: PipelineContext) -> VerdictCard | None:
     if start is None:
         logger.info("Verdict card skipped: no verdict sentence or spoken label")
         return None
+    # Never under the hook overlay, which holds the opening seconds.
+    hook = ctx.config.video_settings.hook_overlay
+    if hook.enabled:
+        start = max(start, hook.duration_sec)
     return VerdictCard(
         label=label, start=start, end=start + settings.duration_sec, beat=settings
     )
