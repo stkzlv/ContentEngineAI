@@ -126,8 +126,9 @@ def _save_logged(outputs_dir: Path, keys: set[str]) -> None:
 
 def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
     """Set each live series post's claim row to `live`, and log the manual
-    grouping step of each of its legs once that leg has a URL; returns how
-    many rows changed.
+    grouping step of each of its legs once that leg has a URL, or, for a
+    TikTok leg that never reports one, once the whole post is published;
+    returns how many rows changed.
 
     Steps are kept per post and platform, so a leg that goes live later, or
     reports its URL later, is logged then. Read from publish history, not
@@ -155,9 +156,11 @@ def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
         # no URL at all, so it is named by its post instead of waited for.
         all_live = str(post.get("status") or "").lower() == "published"
         for leg in post.get("platforms") or []:
-            if not isinstance(leg, dict) or not (leg.get("url") or all_live):
+            if not isinstance(leg, dict):
                 continue
             platform = str(leg.get("platform"))
+            if not (leg.get("url") or (all_live and platform == "tiktok")):
+                continue
             key = f"{post_id}:{platform}"
             url = str(leg.get("url") or NO_URL)
             step = manual_step(groups, platform, url)

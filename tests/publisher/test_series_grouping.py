@@ -193,6 +193,18 @@ class TestTheManualSteps:
             "(no URL from the provider; find it on the account) to the playlist 'Myths'"
         ]
 
+    def test_a_published_instagram_leg_waits_for_its_url(self, tmp_path, caplog):
+        _render(tmp_path, groups={"instagram_link": True})
+        record_publish(PID, "all", "post1", tmp_path)
+        post = {
+            "id": "post1",
+            "status": "published",
+            "platforms": [{"platform": "instagram", "url": None}],
+        }
+        with caplog.at_level(logging.INFO, logger="src.publisher.series_queue"):
+            mark_live([post], tmp_path)
+        assert "manual step" not in caplog.text
+
     def test_a_post_listed_twice_logs_its_step_once(self, tmp_path, caplog):
         _render(tmp_path)
         record_publish(PID, "all", "post1", tmp_path)
