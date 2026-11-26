@@ -152,6 +152,17 @@ class TestTheFilter:
         ]
         assert words_to_drop(words, SIGH, "It's slow, but it works.") == {5}
 
+    def test_a_misaligned_scripted_word_is_not_dropped(self):
+        heard = "Sure it's cloud but loud. Fine.".split()
+        words = [(w, 2.0 + i * 0.2, 2.1 + i * 0.2) for i, w in enumerate(heard)]
+        script = "Sure, it's loud, but really loud now. Fine."
+        assert words_to_drop(words, SIGH, script) == set()
+
+    def test_one_surplus_copy_allows_one_drop(self):
+        heard = "go go but but go no no go".split()
+        words = [(w, 2.0 + i * 0.2, 2.1 + i * 0.2) for i, w in enumerate(heard)]
+        assert len(words_to_drop(words, SIGH, "go no go but")) == 1
+
     def test_a_word_glued_to_punctuation_still_counts_as_scripted(self):
         words = [("slow", 2.1, 2.2), ("but", 2.3, 2.4), ("works", 2.5, 2.6)]
         assert words_to_drop(words, SIGH, "Slow\u2014but works.") == set()

@@ -16,6 +16,7 @@ import re
 import subprocess
 import tempfile
 import wave
+from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
@@ -129,13 +130,19 @@ def words_to_drop(
 
     `words` holds (text, start, end). The transcript is aligned to the
     script's words, and only a word the alignment leaves unmatched can go: it
-    is dropped when it overlaps an event's padded window and is one of that
-    tag's recorded transcriptions. A word matched to the script stays.
+    is dropped when it overlaps an event's padded window, is one of that
+    tag's recorded transcriptions, and the transcript holds more copies of it
+    than the script. A word matched to the script stays.
     """
     if not windows:
         return set()
     heard = [_norm(w[0]) for w in words]
-    matcher = SequenceMatcher(None, _WORD.findall(script.lower()), heard, False)
+    script_words = _WORD.findall(script.lower())
+    matcher = SequenceMatcher(None, script_words, heard, False)
+    # Alignment alone can match a repeated word across a scripted one, so a
+    # drop also needs a copy the script doesn't account for.
+    surplus = Counter(heard)
+    surplus.subtract(Counter(script_words))
     matched = {
         block.b + k
         for block in matcher.get_matching_blocks()
@@ -153,7 +160,9 @@ def words_to_drop(
                 continue
             if start > window["end"] + WINDOW_PAD_SEC:
                 continue
-            drop.add(i)
+            if surplus[heard[i]] > 0:
+                drop.add(i)
+                surplus[heard[i]] -= 1
             break
     return drop
 
