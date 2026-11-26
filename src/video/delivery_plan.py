@@ -174,9 +174,35 @@ def validate_plan(
 
 QUOTE_RUN = 6
 _DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
-# Single quotes, straight or curly, not inside a word, so contractions don't
-# count.
-_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018]([^'\u2018\u2019]+)['\u2019](?!\\w)")
+
+
+def _is_word_char(ch: str) -> bool:
+    return ch.isalnum() or ch == "_"
+
+
+def _single_quoted(style: str) -> list[str]:
+    """The single-quoted spans of a style, straight or curly, paired by
+    position: a quote not preceded by a word character opens, one not
+    followed by a word character closes (closing wins), and each closing
+    quote takes the latest unmatched opening. An apostrophe inside a word
+    ("it's") is neither, so a stray "'90s" before a real quote doesn't
+    swallow it; a stray opening and a later stray closing ("'90s ...
+    brands'") still pair, as a pattern would.
+    """
+    spans: list[str] = []
+    openings: list[int] = []
+    for i, ch in enumerate(style):
+        if ch not in "'\u2018\u2019":
+            continue
+        after = style[i + 1] if i + 1 < len(style) else " "
+        before = style[i - 1] if i else " "
+        if ch in "'\u2019" and not _is_word_char(after) and openings:
+            start = openings.pop()
+            if i > start + 1:
+                spans.append(style[start + 1 : i])
+        elif ch in "'\u2018" and not _is_word_char(before):
+            openings.append(i)
+    return spans
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
@@ -197,7 +223,7 @@ def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
     """
     # Searched separately, so a single-quoted phrase inside a double-quoted
     # span is tested on its own.
-    spans = _DOUBLE_QUOTED.findall(style) + _SINGLE_QUOTED.findall(style)
+    spans = _DOUBLE_QUOTED.findall(style) + _single_quoted(style)
     for span in spans:
         span_words = [w for w in _words(span) if w]
         if _has_run(span_words, script_words, len(span_words)):

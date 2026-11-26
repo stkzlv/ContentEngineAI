@@ -101,10 +101,24 @@ class TestTheCheck:
         [
             "read \u201cit\u2019s on purpose\u201d slowly",
             "warm '90s tone, read 'on purpose' slowly",
+            "read 'it's on purpose' slowly",
+            "read \u2018it\u2019s on purpose\u2019 slowly",
+            "an \u201880s vibe, read \u2018it\u2019s on purpose\u2019 slowly",
+            "('it's on purpose')",
+            "read 'on purpose'-style",
+            "slow down\u2014'on purpose'\u2014slowly",
+            "read 'on purpose'\u2026 then stop",
         ],
     )
     def test_curly_apostrophes_and_elisions_still_match(self, style):
         script = "It's on purpose."
+        plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
+        problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
+        assert any("quotes the script" in p for p in problems)
+
+    def test_a_digit_before_an_apostrophe_is_part_of_the_word(self):
+        script = "It's a 90's classic."
+        style = "read 'a 90's classic' slowly"
         plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
         problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
         assert any("quotes the script" in p for p in problems)
@@ -118,6 +132,9 @@ class TestTheCheck:
             ('read "is wh" slowly', "That is what you get."),
             ("Wry, it\u2019s the clock\u2019s fault", "It is the clock face."),
             ("'Easy,' match the brands' tone", "We match the brands on price."),
+            ("Read 'calm,' like the kids' show", "Like the kids show, it sells."),
+            ("rock 'n' roll, the boys' 'tick'", "The boys run along."),
+            ("say 'x ' on purpose' now", "It's on purpose."),
         ],
     )
     def test_a_style_that_quotes_nothing_passes(self, style, script):
