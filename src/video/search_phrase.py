@@ -2,7 +2,8 @@
 
 Platforms read spoken words, on-screen text and the caption for search, so
 the phrase belongs in the first spoken sentence, the hook headline and the
-first 60 characters of each platform caption. This measures where it is;
+first 60 characters of each platform caption; on a series episode, after its
+opening line and caption prefix. This measures where it is;
 nothing here changes a script, a headline or a caption.
 
 The phrase is the product's search keyword, or a topic's title, which is
@@ -148,22 +149,24 @@ def placement(
 
     `question` marks a topic's title, whose question words a spoken answer
     drops. A series episode's captions start with `series_prefix` and its
-    script with `opening` (REQ-CNT-194), so both are skipped: the phrase
-    belongs right after them.
+    script with `opening` (REQ-CNT-194): the caption is measured after the
+    prefix, and the opening line together with the next sentence counts as
+    the first spoken sentence.
     """
     if not phrase or not _terms(phrase, question=question):
         return None
     sentences = split_sentences(script or "")
+    # The opening line and the sentence after it count as the first spoken
+    # sentence: the line's claim slot can carry the phrase itself.
+    first = sentences[:1]
     opening_count = len(split_sentences(opening)) if opening else 0
     if opening_count and _words_of(" ".join(sentences[:opening_count])) == _words_of(
         opening
     ):
-        sentences = sentences[opening_count:]
+        first = sentences[: opening_count + 1]
     return {
         "phrase": phrase,
-        "spoken": contains(
-            sentences[0] if sentences else "", phrase, question=question
-        ),
+        "spoken": contains(" ".join(first), phrase, question=question),
         "headline": contains(headline, phrase, question=question),
         "captions": {
             platform: contains(

@@ -36,7 +36,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - Run inside the existing `_validate` closure, so a failing script re-enters the retry loop like a missing CTA, with its own reason string. The last-resort fallback today rescues only a script whose sole defect is the CTA; extend it so a script that fails only the lint also ships (with a warning) rather than losing the render.
 - Prompt rules for the hook's concreteness and the "but/therefore" chain render into `{CTA_RULE}` after the existing rules, like naturalism, behind `script_templates.hook_rules.enabled` (default false).
 - Search-phrase placement: a prompt rule for the hook headline and each platform caption prompt to lead with the search phrase (the product keyword or the topic keyword), behind the same switch as the hook rules. The first spoken sentence already carries it through the existing audio-keyword rule.
-- Search-phrase report: the phrase checked against the first spoken sentence, the hook headline and the first 60 characters of each platform caption (after a series episode's opening line and caption prefix), counted per render in the [0006](0006-render-choices-and-variety-report.md) report.
+- Search-phrase report: the phrase checked against the first spoken sentence, the hook headline and the first 60 characters of each platform caption (on a series episode, the opening line with the next sentence, and each caption after its series prefix), counted per render in the [0006](0006-render-choices-and-variety-report.md) report.
 
 **Tests.** Each banned shape rejects a fixture script; the length caps reject an over-long script; off leaves `_validate` unchanged; the report counts a fixture where the phrase is missing from the caption.
 

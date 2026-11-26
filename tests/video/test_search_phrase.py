@@ -179,6 +179,19 @@ def test_a_series_prefix_and_opening_line_are_skipped() -> None:
 
 
 @pytest.mark.req("REQ-CNT-055")
+def test_a_phrase_spoken_in_the_openings_claim_counts() -> None:
+    result = placement(
+        "Do desk lamps flicker at night?",
+        "Myth check: desk lamps flicker at night. Here is what tests found. More.",
+        None,
+        {},
+        question=True,
+        opening="Myth check: desk lamps flicker at night.",
+    )
+    assert result is not None and result["spoken"] is True
+
+
+@pytest.mark.req("REQ-CNT-055")
 def test_an_opening_the_script_doesnt_start_with_is_not_skipped() -> None:
     result = placement(
         "desk lamp",
