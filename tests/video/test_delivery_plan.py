@@ -102,6 +102,8 @@ class TestTheCheck:
             "read \u2018it\u2019s on purpose\u2019 slowly",
             "read 'it's on purpose' slowly",
             "read \u201cit\u2019s on purpose\u201d slowly",
+            "warm '90s tone, read 'on purpose' slowly",
+            "an \u201880s vibe, read \u2018it\u2019s on purpose\u2019 slowly",
         ],
     )
     def test_a_quote_with_an_apostrophe_inside_is_caught(self, style):
