@@ -14,7 +14,7 @@ import pytest
 
 from src.publisher.models import Platform, PublishMetadata
 from src.publisher.series_queue import (
-    manual_steps,
+    manual_step,
     mark_live,
     series_groups,
     with_playlist,
@@ -137,17 +137,62 @@ class TestEveryPublishPathPassesIt:
 
 class TestTheManualSteps:
     def test_each_unsupported_grouping_is_a_step_with_the_url(self):
-        steps = manual_steps(
-            {**GROUPS, "instagram_link": True},
-            {"tiktok": "https://example.invalid/t", "instagram": ""},
+        groups = {**GROUPS, "instagram_link": True}
+        assert manual_step(groups, "tiktok", "https://x/t") == (
+            "add the TikTok post https://x/t to the playlist 'Myths'"
         )
+        assert manual_step(groups, "instagram", "https://x/i") == (
+            "link the Instagram post https://x/i to the previous episode"
+        )
+        assert manual_step(groups, "youtube", "https://x/y") is None
+
+    def test_an_unconfigured_grouping_needs_no_step(self):
+        assert manual_step({"youtube_playlist_id": "PLtest"}, "tiktok", "u") is None
+
+    def test_a_post_logs_only_the_legs_it_has(self, tmp_path, caplog):
+        _render(tmp_path, groups={**GROUPS, "instagram_link": True})
+        record_publish(PID, "youtube", "p_yt", tmp_path)
+        record_publish(PID, "tiktok", "p_tt", tmp_path)
+        posts = [
+            {
+                "id": "p_yt",
+                "status": "published",
+                "platforms": [{"platform": "youtube", "url": "https://x/y"}],
+            },
+            {
+                "id": "p_tt",
+                "status": "published",
+                "platforms": [{"platform": "tiktok", "url": "https://x/t"}],
+            },
+        ]
+        with caplog.at_level(logging.INFO, logger="src.publisher.series_queue"):
+            mark_live(posts, tmp_path)
+        steps = [
+            r.getMessage() for r in caplog.records if "manual step" in r.getMessage()
+        ]
         assert steps == [
-            "add the TikTok post https://example.invalid/t to the playlist 'Myths'",
-            "link the Instagram post (no URL yet) to the previous episode",
+            "Series grouping, manual step for post p_tt: add the TikTok post "
+            "https://x/t to the playlist 'Myths'"
         ]
 
-    def test_a_youtube_playlist_alone_needs_no_step(self):
-        assert manual_steps({"youtube_playlist_id": "PLtest"}, {}) == []
+    def test_a_leg_that_gets_its_url_later_is_logged_then(self, tmp_path, caplog):
+        _render(tmp_path)
+        record_publish(PID, "all", "post1", tmp_path)
+        waiting = {
+            "id": "post1",
+            "status": "partial",
+            "platforms": [{"platform": "tiktok", "url": None}],
+        }
+        live = {
+            "id": "post1",
+            "status": "published",
+            "platforms": [{"platform": "tiktok", "url": "https://x/t"}],
+        }
+        with caplog.at_level(logging.INFO, logger="src.publisher.series_queue"):
+            mark_live([waiting], tmp_path)
+            assert "manual step" not in caplog.text
+            mark_live([live], tmp_path)
+        assert "https://x/t to the playlist 'Myths'" in caplog.text
 
     def test_history_keeps_the_groups_and_the_live_post_is_logged_once(
         self, tmp_path, caplog

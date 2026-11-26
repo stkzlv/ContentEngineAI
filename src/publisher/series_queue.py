@@ -23,7 +23,8 @@ from src.utils.outputs_paths import durable_state_path
 logger = logging.getLogger(__name__)
 
 SERIES_FILE = "series.json"
-# Post ids whose manual grouping steps were logged, so each is logged once.
+# `post:platform` keys whose manual grouping step was logged, so each is
+# logged once.
 GROUPING_LOG = "series_grouping_logged.json"
 
 
@@ -90,21 +91,16 @@ def has_series_posts(outputs_dir: Path) -> bool:
     return bool(_history_series(outputs_dir))
 
 
-def manual_steps(groups: dict[str, Any], urls: dict[str, str]) -> list[str]:
-    """The groupings the provider has no call for, as steps to do by hand."""
-    steps = []
+def manual_step(groups: dict[str, Any], platform: str, url: str) -> str | None:
+    """A live leg's grouping the provider has no call for, as a step to do by
+    hand, or None when that platform needs none.
+    """
     tiktok = groups.get("tiktok_playlist")
-    if tiktok:
-        steps.append(
-            f"add the TikTok post {urls.get('tiktok') or '(no URL yet)'} "
-            f"to the playlist {tiktok!r}"
-        )
-    if groups.get("instagram_link"):
-        steps.append(
-            f"link the Instagram post {urls.get('instagram') or '(no URL yet)'} "
-            "to the previous episode"
-        )
-    return steps
+    if platform == "tiktok" and tiktok:
+        return f"add the TikTok post {url} to the playlist {tiktok!r}"
+    if platform == "instagram" and groups.get("instagram_link"):
+        return f"link the Instagram post {url} to the previous episode"
+    return None
 
 
 def _logged(outputs_dir: Path) -> set[str]:
@@ -115,21 +111,25 @@ def _logged(outputs_dir: Path) -> set[str]:
     return {str(x) for x in data} if isinstance(data, list) else set()
 
 
-def _save_logged(outputs_dir: Path, ids: set[str]) -> None:
+def _save_logged(outputs_dir: Path, keys: set[str]) -> None:
     path = durable_state_path(outputs_dir, GROUPING_LOG)
+    temp = path.with_suffix(".tmp")
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(sorted(ids)))
+        temp.write_text(json.dumps(sorted(keys)))
+        temp.replace(path)
     except OSError as e:
         logger.warning("Series grouping log not saved: %s", e)
 
 
 def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
-    """Set each live series post's claim row to `live`, and log its manual
-    grouping steps once; returns how many rows changed.
+    """Set each live series post's claim row to `live`, and log the manual
+    grouping step of each of its legs once that leg has a URL; returns how
+    many rows changed.
 
-    Read from publish history, not the render directory, which cleanup
-    removes after publishing.
+    Steps are kept per post and platform, so a leg that goes live later, or
+    reports its URL later, is logged then. Read from publish history, not
+    the render directory, which cleanup removes after publishing.
     """
     series_by_post = _history_series(outputs_dir)
     logged = _logged(outputs_dir)
@@ -147,17 +147,19 @@ def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
         ):
             marked += 1
         groups = series.get("groups")
-        if isinstance(groups, dict) and post_id not in logged:
-            urls = {
-                str(leg.get("platform")): str(leg.get("url"))
-                for leg in post.get("platforms") or []
-                if isinstance(leg, dict) and leg.get("url")
-            }
-            for step in manual_steps(groups, urls):
+        if not isinstance(groups, dict):
+            continue
+        for leg in post.get("platforms") or []:
+            if not isinstance(leg, dict) or not leg.get("url"):
+                continue
+            platform = str(leg.get("platform"))
+            key = f"{post_id}:{platform}"
+            step = manual_step(groups, platform, str(leg["url"]))
+            if step and key not in logged:
                 logger.info(
                     "Series grouping, manual step for post %s: %s", post_id, step
                 )
-            newly_logged.add(post_id)
+                newly_logged.add(key)
     if newly_logged:
         _save_logged(outputs_dir, logged | newly_logged)
     return marked
