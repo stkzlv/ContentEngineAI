@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.1] - 2026-11-26
+
+### Fixed
+
+- A series post's TikTok playlist step is logged once the post is published even when TikTok reports no URL for the leg, and a post listed twice in one sweep logs its step once.
+
 ## [0.260.0] - 2026-11-26
 
 ### Added

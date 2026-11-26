@@ -23,6 +23,8 @@ from src.utils.outputs_paths import durable_state_path
 logger = logging.getLogger(__name__)
 
 SERIES_FILE = "series.json"
+# Stands in for a live leg's URL when the provider reports none.
+NO_URL = "(no URL from the provider; find it on the account)"
 # `post:platform` keys whose manual grouping step was logged, so each is
 # logged once.
 GROUPING_LOG = "series_grouping_logged.json"
@@ -133,7 +135,7 @@ def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
     """
     series_by_post = _history_series(outputs_dir)
     logged = _logged(outputs_dir)
-    newly_logged = set()
+    newly_logged: set[str] = set()
     marked = 0
     for post in posts:
         post_id = str(post.get("id"))
@@ -149,13 +151,17 @@ def mark_live(posts: list[dict[str, Any]], outputs_dir: Path) -> int:
         groups = series.get("groups")
         if not isinstance(groups, dict):
             continue
+        # Every leg of a published post is live; a TikTok leg often reports
+        # no URL at all, so it is named by its post instead of waited for.
+        all_live = str(post.get("status") or "").lower() == "published"
         for leg in post.get("platforms") or []:
-            if not isinstance(leg, dict) or not leg.get("url"):
+            if not isinstance(leg, dict) or not (leg.get("url") or all_live):
                 continue
             platform = str(leg.get("platform"))
             key = f"{post_id}:{platform}"
-            step = manual_step(groups, platform, str(leg["url"]))
-            if step and key not in logged:
+            url = str(leg.get("url") or NO_URL)
+            step = manual_step(groups, platform, url)
+            if step and key not in logged | newly_logged:
                 logger.info(
                     "Series grouping, manual step for post %s: %s", post_id, step
                 )
