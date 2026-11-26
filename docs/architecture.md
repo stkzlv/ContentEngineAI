@@ -133,7 +133,7 @@ Every module also uses `utils` and the config layer; the dotted lines stand for 
 
 ### Speech, captions and stock media
 
-`src/video/tts.py` synthesises the voiceover (Gemini TTS, then Google Cloud TTS; Coqui is supported but not installed). A `gemini_api` profile voices through the Gemini API speech model instead, segment by segment (`src/video/gemini_api_tts.py`). `src/video/stt_functions.py` transcribes it with Whisper for word timings, with Google Cloud STT and script-based timing as fallbacks on the FFmpeg engine. `src/video/subtitle_utils.py` and `unified_subtitle_generator.py` write SRT or ASS; `src/video/pycaps_engine/renderer.py` burns animated captions after assembly. `src/video/stock_media.py` searches and downloads Pexels media, and `stock_relevance.py` scores each candidate's thumbnail with a multimodal model. Notes: [subtitles.md](notes/subtitles.md).
+`src/video/tts.py` synthesises the voiceover (Gemini TTS, then Google Cloud TTS; Coqui is supported but not installed). A `gemini_api` profile voices through the Gemini API speech model instead, segment by segment (`src/video/gemini_api_tts.py`). `src/video/stt_functions.py` transcribes it with Whisper for word timings, with Google Cloud STT and script-based timing as fallbacks on the FFmpeg engine; on such a take, `src/video/vocal_events.py` drops words heard from its vocal events. `src/video/subtitle_utils.py` and `unified_subtitle_generator.py` write SRT or ASS; `src/video/pycaps_engine/renderer.py` burns animated captions after assembly. `src/video/stock_media.py` searches and downloads Pexels media, and `stock_relevance.py` scores each candidate's thumbnail with a multimodal model. Notes: [subtitles.md](notes/subtitles.md).
 
 ### Assembler
 
