@@ -65,9 +65,9 @@ class TestTheSpokenMention:
         words = _words("it is fine not quite right")
         assert mention_start(words, "NOT QUITE", 0) == pytest.approx(3 * 0.3)
 
-    def test_a_label_written_as_one_word_matches(self):
-        words = _words("it is half-true. sadly")
-        assert mention_start(words, "HALF-TRUE", 0) == pytest.approx(2 * 0.3)
+    def test_a_compound_holding_the_label_does_not_count(self):
+        words = _words("not half-true but true")
+        assert mention_start(words, "TRUE", 0) == pytest.approx(3 * 0.3)
 
     def test_no_mention_is_none(self):
         assert mention_start(_words("nothing here"), "TRUE", 0) is None

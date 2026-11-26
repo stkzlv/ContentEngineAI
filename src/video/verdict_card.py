@@ -69,17 +69,17 @@ def mention_start(
 ) -> float | None:
     """When the label is first spoken after the first `skip_words` words.
 
-    The skip counts transcript words, as the opening line's words are
-    counted; the match runs over every token, so a label Whisper writes as
-    one word ("half-true.") still matches.
+    Each transcript word counts as its first token, so "half-true" never
+    matches TRUE; a label Whisper writes as one word ("half-true.") doesn't
+    match HALF-TRUE either, and its card falls back to being skipped.
     """
     target = _tokens(label)
     if not target:
         return None
     flat = [
-        (tok, _start(w))
+        (toks[0], _start(w))
         for w in words[skip_words:]
-        for tok in _tokens(str(w.get("word", "")))
+        if (toks := _tokens(str(w.get("word", ""))))
     ]
     for i in range(len(flat) - len(target) + 1):
         if [t for t, _ in flat[i : i + len(target)]] == target:
