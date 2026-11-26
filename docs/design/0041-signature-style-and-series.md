@@ -78,7 +78,7 @@ series:
     title_prefix: ""          # e.g. "Myth check: "
     opening_line: ""          # e.g. "Myth check: {claim}." ; {claim} is the topic's claim; empty = none
     verdicts: []              # e.g. ["YES", "NO", "PARTLY"] (quoted: YAML reads YES/NO as booleans)
-    verdict_beat: {enabled: false, colours: null}
+    verdict_beat: {enabled: false, colours: null, duration_sec: 1.5, size_factor: 2.5, y_percent: 0.35}
     numbering: none           # none | episode
     serial: false
     queue_file: null
@@ -90,7 +90,7 @@ The shipped `series` map is empty.
 
 - **Topic fields.** A topic marks `series: <id>`, `claim`, `verdict` and optionally `credit` (a commenter's handle). The producer rejects a verdict outside `verdicts`, and an id that isn't configured.
 - **Script and title.** The opening line is filled in and required word for word as the script's first sentence. The title and the platform captions start with `title_prefix`, then the episode number under `numbering: episode`, then the search phrase the hook rules lead with (REQ-CNT-054), so the two rules agree. `numbering: episode` requires a `queue_file`, and config validation names the series that lacks one. With `none`, nothing is numbered.
-- **Verdict beat.** With `verdict_beat.enabled`, the sentence that states the verdict gets a stamp card showing the verdict label in `verdict_beat.colours` (default: the caption template's colours). The script step names the verdict sentence by index, as it names the turn; the card lands on that sentence's first word, or on the label's first spoken mention after the opening where the script says the label itself. With neither, the card is skipped and the skip is logged.
+- **Verdict beat.** With `verdict_beat.enabled`, the sentence that states the verdict gets a stamp card showing the verdict label in `verdict_beat.colours` (default: the hook overlay's colours, since a pycaps caption template sets its colours in CSS the card can't read). The card is one boxed drawtext gated to its time, like the hook overlay, not the drawn-beat renderer. The script step names the verdict sentence by index in its own call, as it names the turn; the card lands on that sentence's first word, or on the label's first spoken mention after the opening where the script says the label itself. With neither, the card is skipped and the skip is logged.
 - **Commenter credit.** With `credit_commenter` and a `credit` on the topic, a lower-third line names the commenter while the claim is spoken.
 - **Claim queue.** `queue_file` is a CSV with `id, claim, verdict, sources, status, episode, output_id, post_id`. Under `numbering: episode`, the producer fills an empty `episode` when it loads the series topic, before the script and description steps, with one more than the highest in the file, and writes it at once under a file lock, so two renders in one batch never share a number. It sets the row to `rendered` with its `output_id` when the render succeeds. The publisher sets it to `scheduled` with its `post_id`, and to `live` once the delivery sweep sees it published. Other statuses are left alone, so editorial states (`queued`, `picked`, `dropped`) belong to whoever edits the file.
 - **Grouping.** After a series post goes live, the publisher adds it to the configured YouTube playlist and TikTok playlist, and links it to the previous Instagram episode, where the publishing provider exposes that call. Otherwise it logs the manual step with the post's URL. Making the playlist a Shorts series is a one-time Studio setting, outside the pipeline.
@@ -122,6 +122,6 @@ Remove the switch when: the switches stay as lasting options. They describe one 
 
 ## Open questions
 
-- Whether the verdict beat reuses the drawn-beat renderer or a fixed card template.
+- ~~Whether the verdict beat reuses the drawn-beat renderer or a fixed card template.~~ A fixed card: one boxed drawtext, like the hook overlay.
 - Whether the publishing provider exposes playlist and linked-Reel calls, or the grouping stays a logged manual step.
 - Whether `min_gap` should count renders or days.

@@ -586,7 +586,13 @@ async def _update_state_after_step(ctx: PipelineContext, step_name: str):
     if step_name == STEP_GENERATE_SCRIPT and ctx.state.get("running_bit"):
         step_state["running_bit"] = ctx.state["running_bit"]
     # The script-shape labels and estimate (REQ-CNT-189), for the same reason.
-    for key in ("structure", "structure_variant", "series_episode", "delivery_plan"):
+    for key in (
+        "structure",
+        "structure_variant",
+        "series_episode",
+        "delivery_plan",
+        "verdict_label",
+    ):
         if step_name == STEP_GENERATE_SCRIPT and ctx.state.get(key):
             step_state[key] = ctx.state[key]
     # The drawn sign-off, for the same reason: the first-comment extractor

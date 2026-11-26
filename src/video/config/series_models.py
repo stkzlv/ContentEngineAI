@@ -18,8 +18,24 @@ class VerdictBeat(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False
-    # Text and background colours; None takes the caption template's.
+    # `text` and `background` FFmpeg colours; None, or a missing key, takes
+    # the hook overlay's.
     colours: dict[str, str] | None = None
+    duration_sec: float = Field(default=1.5, gt=0.0, le=10.0)
+    # Font size as a multiple of the narration caption font.
+    size_factor: float = Field(default=2.5, gt=0.0, le=6.0)
+    # The card's top edge, as a fraction of the frame height.
+    y_percent: float = Field(default=0.35, ge=0.0, le=0.9)
+
+    @field_validator("colours")
+    @classmethod
+    def _known_colour_keys(cls, value: dict[str, str] | None) -> object:
+        unknown = set(value or {}) - {"text", "background"}
+        if unknown:
+            raise ValueError(
+                f"verdict_beat.colours takes text and background, not {sorted(unknown)}"
+            )
+        return value
 
 
 class SeriesGroups(BaseModel):

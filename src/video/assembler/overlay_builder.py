@@ -39,6 +39,7 @@ from src.video.config.visual_models import (
     UpperLineSettings,
 )
 from src.video.step_cards import StepCard
+from src.video.verdict_card import VerdictCard
 
 logger = logging.getLogger(__name__)
 
@@ -759,6 +760,79 @@ def build_step_card_drawtext(
             )
         )
     return ";".join(drawtexts)
+
+
+def build_verdict_drawtext(
+    card: VerdictCard,
+    hook: HookOverlaySettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    r"""The verdict label as one boxed, centred drawtext for its time.
+
+    Same mechanics as the hook overlay: text through `textfile=` and an
+    `enable=between(t\,a\,b)` gate. Colours come from `beat.colours`, a
+    missing key from the hook overlay's.
+    """
+    beat = card.beat
+    colours = beat.colours or {}
+    text_colour = colours.get("text", hook.font_color)
+    box_colour = colours.get("background", hook.background_color)
+    start_px = max(8, int(subtitle_font_size_pixels * beat.size_factor))
+    font_size = _fit_font(card.label, start_px, int(frame_width * 0.8), 8)
+    label_file = temp_dir / "verdict_label.txt"
+    label_file.write_text(_escape_drawtext_textfile(card.label), encoding="utf-8")
+    text_path = label_file.as_posix().replace(":", r"\:")
+    return "".join(
+        [
+            f"{input_stream}drawtext=",
+            f"textfile='{text_path}':",
+            _fontfile_part(card.label),
+            f"fontsize={font_size}:fontcolor={text_colour}:",
+            f"box=1:boxcolor={box_colour}:boxborderw={max(8, font_size // 4)}:",
+            f"x=(w-text_w)/2:y=h*{beat.y_percent}:",
+            f"enable=between(t\\,{card.start:.3f}\\,{card.end:.3f}){output_stream}",
+        ]
+    )
+
+
+def apply_verdict_card(
+    video_filters: list[str],
+    card: VerdictCard | None,
+    hook: HookOverlaySettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Insert the verdict card before the disclosure's rewrite slot.
+
+    Same contract as :func:`apply_hook_overlay`: the chain keeps its terminal
+    `copy[v_out]`, and it is returned unchanged with no card or when its last
+    filter has an unexpected shape.
+    """
+    if card is None or not video_filters:
+        return video_filters
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "Verdict card skipped: last filter has unexpected shape: %r",
+            video_filters[-1],
+        )
+        return video_filters
+    input_stream = normalized[-1].replace("copy[v_out]", "")
+    card_filter = build_verdict_drawtext(
+        card,
+        hook,
+        subtitle_font_size_pixels,
+        frame_width,
+        temp_dir,
+        input_stream=input_stream,
+        output_stream="[v_verdict]",
+    )
+    return [*normalized[:-1], card_filter, "[v_verdict]copy[v_out]"]
 
 
 def apply_step_card_overlay(

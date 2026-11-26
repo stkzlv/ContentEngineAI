@@ -85,6 +85,7 @@ from src.video.script_structure import (
     draw_variant,
     estimate_starts,
     label_prompt,
+    measure_starts,
     misses,
     parse_labels,
     prompt_rules,
@@ -103,6 +104,12 @@ from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager, spoken_script
+from src.video.verdict_card import (
+    VerdictCard,
+    mention_start,
+    parse_verdict,
+    verdict_prompt,
+)
 from src.video.vocal_events import (
     leading_trim_sec,
     read_windows,
@@ -710,6 +717,102 @@ async def _label_structure(ctx: PipelineContext, structure: ScriptStructure) -> 
     )
 
 
+def _verdict_beat(ctx: PipelineContext) -> tuple[Any, str] | None:
+    """The series' verdict beat and the topic's label, when the beat is on."""
+    series = series_for(ctx.config, ctx.product)
+    label = getattr(ctx.product, "verdict", None)
+    if series is None or not series.verdict_beat.enabled or not label:
+        return None
+    return series.verdict_beat, str(label)
+
+
+async def _label_verdict(ctx: PipelineContext) -> None:
+    """Name the sentence that states the verdict (REQ-VID-167).
+
+    Stored as a JSON string with the script digest, so a later edit makes it
+    stale; a failed call records no sentence and the card falls back to the
+    label's spoken mention.
+    """
+    from aiohttp import ClientError
+
+    from src.ai.script_generator import (
+        ScriptGenerationError,
+        _call_llm_api_with_retry,
+    )
+
+    beat = _verdict_beat(ctx)
+    if beat is None:
+        return
+    sentences = sentences_of(ctx.script or "")
+    settings = ctx.config.llm_settings.for_scripts()
+    model = next(iter(settings.models), None)
+    api_key = ctx.secrets.get(settings.api_key_env_var, "")
+    index: int | None = None
+    if model and api_key and sentences:
+        try:
+            reply = await _call_llm_api_with_retry(
+                verdict_prompt(sentences, beat[1]),
+                model,
+                settings,
+                api_key,
+                ctx.session,
+                ctx.config.api_settings,
+            )
+            index = parse_verdict(reply, len(sentences))
+        except (
+            ScriptGenerationError,
+            ClientError,
+            TimeoutError,
+            RuntimeError,
+            ValueError,
+            OSError,
+        ) as e:
+            logger.warning("Verdict sentence not labelled: %s", e)
+    ctx.state["verdict_label"] = json.dumps(
+        {"index": index, "script": script_digest(ctx.script)}
+    )
+
+
+def _verdict_card(ctx: PipelineContext) -> VerdictCard | None:
+    """The verdict stamp card and its time, or None with the skip logged.
+
+    It starts on the named verdict sentence's first word, else on the
+    label's first spoken mention after the opening line; word timings come
+    from Whisper's transcript, which only the pycaps caption engine writes.
+    """
+    beat = _verdict_beat(ctx)
+    if beat is None:
+        return None
+    settings, label = beat
+    words = _word_timings(ctx) or []
+    if not words:
+        logger.info("Verdict card skipped: no word timings")
+        return None
+    raw = _recorded(ctx, "verdict_label")
+    try:
+        record = json.loads(raw) if raw else {}
+    except ValueError:
+        record = {}
+    if not isinstance(record, dict):
+        record = {}
+    index = record.get("index")
+    if record.get("script") != script_digest(ctx.script):
+        index = None
+    start = None
+    if isinstance(index, int):
+        start = measure_starts(sentences_of(ctx.script or ""), {"v": index}, words)["v"]
+    if start is None:
+        series = series_for(ctx.config, ctx.product)
+        opening = opening_line(series, ctx.product) if series else ""
+        start = mention_start(words, label, len(opening.split()))
+    if start is None:
+        logger.info("Verdict card skipped: no verdict sentence or spoken label")
+        return None
+    return VerdictCard(
+        label=label, start=start, end=start + settings.duration_sec, beat=settings
+    )
+
+
 def _offer_running_bit(ctx: PipelineContext) -> RunningBit | None:
     """Pick the running bit the cap allows and offer it in the script prompt."""
     kind = content_kind(ctx.product)
@@ -976,6 +1079,7 @@ async def step_generate_script(ctx: PipelineContext):
             # the labels index the script that is voiced (REQ-CNT-189).
             if structure.enabled:
                 await _label_structure(ctx, structure)
+            await _label_verdict(ctx)
             if ctx.config.tts_config.performed_delivery.enabled:
                 await _write_delivery_plan(ctx)
             # Variety check (REQ-PUB-083): warn when the new script repeats
@@ -2593,6 +2697,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 speech_end_sec=speech_end,
                 spoken_words=_spoken_words(ctx),
                 motif_times=_motif_times(ctx),
+                verdict_card=_verdict_card(ctx),
                 step_cards=_step_cards(ctx),
                 step_visuals=_step_visuals(ctx, total_duration),
                 lead_video=_listing_video(ctx),

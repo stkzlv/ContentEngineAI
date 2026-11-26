@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.258.0] - 2026-11-26
+
+### Added
+
+- A series with `verdict_beat.enabled` shows a stamp card with the topic's verdict label when the script states the verdict, with its colours, length, size and position configurable.
+
 ## [0.257.1] - 2026-11-26
 
 ### Fixed
