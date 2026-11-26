@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.2] - 2026-11-26
+
+### Fixed
+
+- The search-phrase report counts a series episode's opening line with the next sentence as the first spoken sentence and measures each caption after the series prefix, so a series render no longer reads as a miss.
+
 ## [0.260.1] - 2026-11-26
 
 ### Fixed
