@@ -651,6 +651,7 @@ async def create_unified_subtitles(
     visual_bounds: Any | None = None,
     transcript_out_path: Path | None = None,
     engine: str | None = None,
+    vocal_events: list[dict[str, Any]] | None = None,
 ) -> Path | None:
     """Generate subtitles using the unified system with STT integration.
 
@@ -680,6 +681,8 @@ async def create_unified_subtitles(
         engine: The engine this run resolved to, which wins over the settings
             dict. Pass it: the dict is built from config, so on an install
             without pycaps it names an engine the run cannot have.
+        vocal_events: A performed take's event windows; words heard from
+            them are dropped from the caption words (REQ-CNT-183).
 
     Returns:
     -------
@@ -768,6 +771,7 @@ async def create_unified_subtitles(
                 debug_mode,
                 transcript_out_path=whisper_transcript_target,
                 timing_smoothing_config=subtitle_settings.get("timing_smoothing"),
+                vocal_events=vocal_events,
             )
             if stt_timings:
                 whisper_wrote_transcript = _transcript_is_fresh(
@@ -802,6 +806,10 @@ async def create_unified_subtitles(
                 stt_timings = await transcribe_with_google_cloud_stt(
                     audio_path, google_stt_settings, secrets, script, debug_mode
                 )
+                if stt_timings and vocal_events:
+                    from src.video.vocal_events import filter_timings
+
+                    stt_timings = filter_timings(stt_timings, vocal_events, script)
                 if stt_timings:
                     logger.info(
                         "Google Cloud STT successful, got %s word timings.",

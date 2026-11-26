@@ -103,6 +103,12 @@ from src.video.speech_end import speech_end_sec
 from src.video.stock_media import StockMediaFetcher, StockMediaInfo
 from src.video.subtitle_utils import create_unified_subtitles
 from src.video.tts import TTSManager, spoken_script
+from src.video.vocal_events import (
+    leading_trim_sec,
+    read_windows,
+    shift_windows,
+    write_windows,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1648,6 +1654,9 @@ async def step_create_voiceover(ctx: PipelineContext):
         # Checked before TTS and outside its error wrapper, so a rejected
         # hand-written plan stops the render naming the check (REQ-CNT-180).
         delivery_plan = await _delivery_plan_for_voice(ctx)
+        # A new take replaces the last one's event windows (REQ-CNT-183).
+        events_file = Path(ctx.run_paths["vocal_events_file"])
+        events_file.unlink(missing_ok=True)
         try:
             tts_manager = TTSManager(
                 ctx.config.tts_config,
@@ -1685,6 +1694,7 @@ async def step_create_voiceover(ctx: PipelineContext):
         # section at all -- otherwise raised UnboundLocalError here, after the
         # script and the TTS synthesis had already been paid for.
         ffmpeg_path = ctx.config.ffmpeg_settings.executable_path or "ffmpeg"
+        windows = tts_manager.vocal_event_windows
         if audio_proc and audio_proc.silence_removal_enabled:
             trimmed_vo_path = vo_path.parent / f"{vo_path.stem}_trimmed.wav"
 
@@ -1692,11 +1702,16 @@ async def step_create_voiceover(ctx: PipelineContext):
                 # Build silenceremove filter with config settings
                 threshold_db = audio_proc.silence_threshold_db
                 min_duration = audio_proc.silence_min_duration_sec
-                silence_filter = (
-                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
-                    f"areverse,"
-                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB:start_duration={min_duration},"
-                    f"areverse"
+                start_stage = (
+                    f"silenceremove=start_periods=1:start_threshold={threshold_db}dB"
+                    f":start_duration={min_duration}"
+                )
+                silence_filter = f"{start_stage},areverse,{start_stage},areverse"
+                # What the start stage cuts moves every event window earlier.
+                lead_sec = (
+                    leading_trim_sec(ffmpeg_path, vo_path, start_stage)
+                    if windows
+                    else 0.0
                 )
                 trim_cmd = [
                     ffmpeg_path,
@@ -1711,6 +1726,7 @@ async def step_create_voiceover(ctx: PipelineContext):
 
                 # Replace original with trimmed version
                 trimmed_vo_path.replace(vo_path)
+                windows = shift_windows(windows, lead_sec)
                 logger.debug(
                     "Trimmed silence from voiceover (threshold=%sdB, min_duration=%ss)",
                     threshold_db,
@@ -1723,6 +1739,8 @@ async def step_create_voiceover(ctx: PipelineContext):
         else:
             logger.debug("Silence removal disabled, skipping voiceover trimming")
 
+        if windows:
+            write_windows(events_file, windows)
         ctx.voiceover_duration = await _get_video_duration(vo_path, ffmpeg_path)
         ensure_dirs_exist(ctx.run_paths["voiceover_duration_file"].parent)
         ctx.run_paths["voiceover_duration_file"].write_text(str(ctx.voiceover_duration))
@@ -1958,6 +1976,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 product_id,
                 transcript_out_path=transcript_path,
                 engine=subtitle_engine,
+                vocal_events=read_windows(ctx.run_paths.get("vocal_events_file")),
             )
             if not result_path or not result_path.exists():
                 raise PipelineError(
@@ -2012,6 +2031,7 @@ async def step_generate_subtitles(ctx: PipelineContext):
                 / ctx.config.output_structure.product_subdirs.temp,
                 product_id,
                 engine=subtitle_engine,
+                vocal_events=read_windows(ctx.run_paths.get("vocal_events_file")),
             )
             if not srt_path or not srt_path.exists():
                 raise PipelineError("Subtitle generation process failed.")

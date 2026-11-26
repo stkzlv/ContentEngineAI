@@ -399,6 +399,7 @@ class TwoPartSubtitleHandler:
             return None
 
         from src.video.subtitle_utils import create_unified_subtitles
+        from src.video.vocal_events import read_windows
 
         lower = self.config.lower_line
         lower_subtitle_settings = (
@@ -428,6 +429,7 @@ class TwoPartSubtitleHandler:
             product_id,
             visual_bounds,
             engine=self.engine,
+            vocal_events=read_windows(self.ctx.run_paths.get("vocal_events_file")),
         )
 
         if lower_path and lower_path.exists():

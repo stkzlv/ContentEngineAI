@@ -47,6 +47,7 @@ from src.video.config import (
 # Configure module logger
 from src.video.delivery_plan import DeliveryPlan, DeliverySegment
 from src.video.gemini_api_tts import GeminiApiTTSError, synthesize_segments
+from src.video.vocal_events import event_windows
 
 logger = logging.getLogger(__name__)
 
@@ -774,6 +775,9 @@ class TTSManager:
         # Populated after generate_speech() for metadata tracking
         self.selected_profile_name: str | None = None
         self.selected_voice_name: str | None = None
+        # The voiced plan's event windows, set by a gemini_api take only
+        # (REQ-CNT-183).
+        self.vocal_event_windows: list[dict[str, Any]] = []
 
     def _select_voice_profile(self) -> tuple[str | None, VoiceProfileConfig | None]:
         """Select a voice profile, deterministic by product_id when available."""
@@ -888,8 +892,9 @@ class TTSManager:
             segments = plan.segments
         else:
             segments = [DeliverySegment(text=text, style=profile.style_prompt or "")]
+        durations: list[float] = []
         try:
-            return await synthesize_segments(
+            path = await synthesize_segments(
                 segments,
                 output_path,
                 api_key=api_key,
@@ -900,11 +905,14 @@ class TTSManager:
                 retries=settings.api_max_retries,
                 retry_delay_sec=settings.api_retry_delay_sec,
                 prepare=lambda t: normalise_for_tts(t, self.config.tts_normalisation),
+                durations_out=durations,
             )
         except GeminiApiTTSError as e:
             logger.warning("Gemini API voice failed, falling back: %s", e)
             output_path.unlink(missing_ok=True)
             return None
+        self.vocal_event_windows = event_windows(segments, durations)
+        return path
 
     async def generate_speech(
         self,
@@ -916,6 +924,7 @@ class TTSManager:
 
         A `delivery_plan` is used only by a `gemini_api` profile.
         """
+        self.vocal_event_windows = []
         if not text.strip():
             logger.warning("Empty text provided to TTS.")
             return None

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.257.0] - 2026-11-26
+
+### Added
+
+- Captions of a performed take drop a word Whisper heard from a vocal event, such as a sigh heard as "ugh", and keep every word the script says.
+
 ## [0.256.0] - 2026-11-25
 
 ### Added

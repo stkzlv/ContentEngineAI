@@ -1,6 +1,6 @@
 # 0040. Performed voice delivery aligned with the script
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Issue:** #855
 - **Requirements:** REQ-CNT-179, REQ-CNT-180, REQ-CNT-181, REQ-CNT-182, REQ-CNT-183, REQ-CNT-184, REQ-CNT-185
 
@@ -75,7 +75,7 @@ A profile selects it with `provider: gemini_api` and the existing `gemini_model_
 
 ### Captions
 
-After transcription, a word whose time falls within an event's window and that matches the probe's recorded transcriptions ("ugh", "ha", "hm") is dropped from the caption words. The window comes from the segment offsets. A word in the script is never dropped.
+After transcription, a word whose time falls within an event's window and that matches the probe's recorded transcriptions ("ugh", "but") is dropped from the caption words. The window comes from the segment offsets: the voice step records each event's segment span, gap included, in `temp/vocal_events.json`, shifted by what the trim's first stage cuts, measured by running that stage alone. A word the script says is never left out of the captions, which keep at least as many copies of each word as the script: the transcript is aligned to the script's words, and only a word the alignment leaves unmatched, of which the transcript holds more copies than the script, can go, so an "ugh" at an event is dropped and one the script says is kept. With two events near a repeated phrase, the alignment can pair the event's copy with the script and drop the spoken one: the caption text keeps the word, at the event's time.
 
 ### Script cleaning
 

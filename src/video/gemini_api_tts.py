@@ -68,8 +68,12 @@ def audio_of(reply: dict[str, Any]) -> bytes:
     raise GeminiApiTTSError(f"no audio in reply (status {status!r})")
 
 
-def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> None:
-    """Concatenate WAV parts with silence after each, all one format."""
+def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> list[float]:
+    """Concatenate WAV parts with silence after each, all one format.
+
+    Returns each part's length in seconds, gaps excluded.
+    """
+    durations: list[float] = []
     params: tuple[int, int, int] | None = None
     frames: list[bytes] = []
     for i, part in enumerate(parts):
@@ -84,6 +88,7 @@ def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> None
         elif p != params:
             raise GeminiApiTTSError(f"segment {i}: format {p} differs from {params}")
         frames.append(data)
+        durations.append(len(data) / (p[0] * p[1] * p[2]))
         if i < len(parts) - 1 and gaps_ms[i] > 0:
             channels, width, rate = params
             silence = b"\x80" if width == 1 else b"\x00"  # 8-bit WAV is unsigned
@@ -96,6 +101,7 @@ def join_wavs(parts: list[bytes], gaps_ms: list[int], output_path: Path) -> None
         out.setsampwidth(params[1])
         out.setframerate(params[2])
         out.writeframes(b"".join(frames))
+    return durations
 
 
 async def _voice_one(
@@ -143,11 +149,13 @@ async def synthesize_segments(
     retries: int = 1,
     retry_delay_sec: float = 2,
     prepare: Callable[[str], str] | None = None,
+    durations_out: list[float] | None = None,
 ) -> Path:
     """Voice each segment and join them; raises GeminiApiTTSError on failure.
 
     `prepare` rewrites each segment's tagged text for the voice (the
-    normalisation the other providers get) before it is sent.
+    normalisation the other providers get) before it is sent. Each segment's
+    length in seconds is appended to `durations_out` when one is given.
     """
     if not segments:
         raise GeminiApiTTSError("no segments")
@@ -170,5 +178,7 @@ async def synthesize_segments(
                 )
             )
             logger.debug("Voiced segment %d of %d", i + 1, len(segments))
-    join_wavs(parts, [s.gap_after_ms for s in segments], output_path)
+    durations = join_wavs(parts, [s.gap_after_ms for s in segments], output_path)
+    if durations_out is not None:
+        durations_out.extend(durations)
     return output_path
