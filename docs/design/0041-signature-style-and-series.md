@@ -83,6 +83,7 @@ series:
     serial: false
     queue_file: null
     credit_commenter: false
+    credit_line: {format: "Suggested by {credit}", colours: null, size_factor: 0.9, y_percent: 0.62}
     groups: {youtube_playlist_id: null, tiktok_playlist: null, instagram_link: false}
 ```
 
@@ -91,7 +92,7 @@ The shipped `series` map is empty.
 - **Topic fields.** A topic marks `series: <id>`, `claim`, `verdict` and optionally `credit` (a commenter's handle). The producer rejects a verdict outside `verdicts`, and an id that isn't configured.
 - **Script and title.** The opening line is filled in and required word for word as the script's first sentence. The title and the platform captions start with `title_prefix`, then the episode number under `numbering: episode`, then the search phrase the hook rules lead with (REQ-CNT-054), so the two rules agree. `numbering: episode` requires a `queue_file`, and config validation names the series that lacks one. With `none`, nothing is numbered.
 - **Verdict beat.** With `verdict_beat.enabled`, the sentence that states the verdict gets a stamp card showing the verdict label in `verdict_beat.colours` (default: the hook overlay's colours, since a pycaps caption template sets its colours in CSS the card can't read). The card is one boxed drawtext gated to its time, like the hook overlay, not the drawn-beat renderer. The script step names the verdict sentence by index in its own call, as it names the turn; the card lands on that sentence's first word, never before the hook overlay ends, or on the label's first spoken mention after the opening where the script says the label itself. With neither, the card is skipped and the skip is logged.
-- **Commenter credit.** With `credit_commenter` and a `credit` on the topic, a lower-third line names the commenter while the claim is spoken.
+- **Commenter credit.** With `credit_commenter` and a `credit` on the topic, a lower-third line names the commenter while the claim is spoken: `credit_line.format` with `{credit}` filled in, a boxed drawtext like the verdict card, from the claim's first transcript word to its last, found at the opening line's `{claim}` slot. Without that slot or word timings, the line is skipped and logged.
 - **Claim queue.** `queue_file` is a CSV with `id, claim, verdict, sources, status, episode, output_id, post_id`. Under `numbering: episode`, the producer fills an empty `episode` when it loads the series topic, before the script and description steps, with one more than the highest in the file, and writes it at once under a file lock, so two renders in one batch never share a number. It sets the row to `rendered` with its `output_id` when the render succeeds. The publisher sets it to `scheduled` with its `post_id`, and to `live` once the delivery sweep sees it published. Other statuses are left alone, so editorial states (`queued`, `picked`, `dropped`) belong to whoever edits the file.
 - **Grouping.** After a series post goes live, the publisher adds it to the configured YouTube playlist and TikTok playlist, and links it to the previous Instagram episode, where the publishing provider exposes that call. Otherwise it logs the manual step with the post's URL. Making the playlist a Shorts series is a one-time Studio setting, outside the pipeline.
 

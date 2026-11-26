@@ -30,6 +30,7 @@ from src.utils.pipeline_deadline import remaining_pipeline_seconds
 from src.video.assembler.audio_builder import AudioFilterBuilder
 from src.video.assembler.media_inspector import MediaInspector
 from src.video.assembler.overlay_builder import (
+    apply_credit_line,
     apply_disclosure_overlay,
     apply_hook_overlay,
     apply_reply_card_overlay,
@@ -46,6 +47,7 @@ from src.video.assembler.video_strategies import VideoStrategyFactory
 from src.video.assembler.visual_builder import VisualFilterBuilder
 from src.video.config import VideoConfig
 from src.video.config.visual_models import DisclosureSettings, MergedProfileSettings
+from src.video.credit_line import CreditLine
 from src.video.step_cards import StepCard
 from src.video.verdict_card import VerdictCard
 
@@ -773,6 +775,7 @@ class VideoAssembler:
         lead_video: Path | None = None,
         motif_times: list[float] | None = None,
         verdict_card: VerdictCard | None = None,
+        credit_line: CreditLine | None = None,
     ) -> Path | None:
         """Assemble final video from visual inputs, audio, and subtitles.
 
@@ -812,6 +815,8 @@ class VideoAssembler:
             motif_times: Seconds at which the motif plays (REQ-CNT-192).
             verdict_card: A series episode's verdict stamp and its time
                 (REQ-VID-167); None draws none.
+            credit_line: The commenter credit and its time (REQ-VID-168);
+                None draws none.
 
         Returns:
         -------
@@ -930,6 +935,15 @@ class VideoAssembler:
             video_filters = apply_verdict_card(
                 video_filters,
                 verdict_card,
+                self.config.video_settings.hook_overlay,
+                subtitle_font_size_pixels,
+                self.config.video_settings.resolution[0],
+                temp_dir,
+            )
+            # The commenter credit while the claim is spoken (REQ-VID-168).
+            video_filters = apply_credit_line(
+                video_filters,
+                credit_line,
                 self.config.video_settings.hook_overlay,
                 subtitle_font_size_pixels,
                 self.config.video_settings.resolution[0],

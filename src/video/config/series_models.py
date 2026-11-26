@@ -38,6 +38,40 @@ class VerdictBeat(BaseModel):
         return value
 
 
+class CreditLine(BaseModel):
+    """The lower-third line naming the commenter (REQ-VID-168)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # `{credit}` is the topic's credit, such as a commenter's handle.
+    format: str = "Suggested by {credit}"
+    # `text` and `background` FFmpeg colours; a missing key takes the hook
+    # overlay's.
+    colours: dict[str, str] | None = None
+    # Font size as a multiple of the narration caption font.
+    size_factor: float = Field(default=0.9, gt=0.0, le=4.0)
+    # The line's top edge, as a fraction of the frame height; kept above the
+    # captions, which sit low.
+    y_percent: float = Field(default=0.62, ge=0.0, le=0.95)
+
+    @field_validator("format")
+    @classmethod
+    def _names_the_credit(cls, value: str) -> str:
+        if "{credit}" not in value:
+            raise ValueError("credit_line.format must contain {credit}")
+        return value
+
+    @field_validator("colours")
+    @classmethod
+    def _known_colour_keys(cls, value: dict[str, str] | None) -> object:
+        unknown = set(value or {}) - {"text", "background"}
+        if unknown:
+            raise ValueError(
+                f"credit_line.colours takes text and background, not {sorted(unknown)}"
+            )
+        return value
+
+
 class SeriesGroups(BaseModel):
     """Where a live episode is grouped on each platform (REQ-PUB-169)."""
 
@@ -64,6 +98,7 @@ class SeriesConfig(BaseModel):
     serial: bool = False
     queue_file: Path | None = None
     credit_commenter: bool = False
+    credit_line: CreditLine = Field(default_factory=CreditLine)
     groups: SeriesGroups = Field(default_factory=SeriesGroups)
 
     @field_validator("verdicts", mode="before")
