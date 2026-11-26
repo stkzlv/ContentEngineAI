@@ -169,11 +169,10 @@ def validate_plan(
 
 
 QUOTE_RUN = 6
-_QUOTED = re.compile(
-    '["\u201c]([^"\u201c\u201d]+)["\u201d]'
-    # Single quotes not inside a word, so contractions don't count.
-    "|(?<!\\w)'([^']+)'(?!\\w)"
-)
+_DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
+# Single quotes, straight or curly, not inside a word, so contractions don't
+# count.
+_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018]([^'\u2018\u2019]+)['\u2019](?!\\w)")
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
@@ -188,11 +187,14 @@ def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
 
 def _quotes_script(style: str, script: str, script_words: list[str]) -> bool:
     """Whether a style quotes the script: a quoted span (double quotes, or
-    single quotes not inside a word) that is a run of its words, or
+    straight or curly single quotes not inside a word, nested ones included)
+    that is a run of its words, or
     `QUOTE_RUN` of its words in a row.
     """
-    for groups in _QUOTED.findall(style):
-        span = next((g for g in groups if g), "")
+    # Searched separately, so a single-quoted phrase inside a double-quoted
+    # span is tested on its own.
+    spans = _DOUBLE_QUOTED.findall(style) + _SINGLE_QUOTED.findall(style)
+    for span in spans:
         span_words = [w for w in _words(span) if w]
         if _has_run(span_words, script_words, len(span_words)):
             return True

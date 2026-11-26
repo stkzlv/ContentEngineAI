@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.257.1] - 2026-11-26
+
+### Fixed
+
+- The delivery plan check also rejects a style that quotes the script in curly single quotes, or in single quotes inside a double-quoted span.
+- A failed silence trim keeps the untrimmed voiceover instead of stopping the render.
+
 ## [0.257.0] - 2026-11-26
 
 ### Added

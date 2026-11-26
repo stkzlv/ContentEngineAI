@@ -86,6 +86,8 @@ class TestTheCheck:
         [
             'read "on purpose" slowly',
             "read 'on purpose' slowly",
+            "read \u2018on purpose\u2019 slowly",
+            "\"say 'on purpose' slowly\"",
             "slow, stop on purpose here is the end",
         ],
     )
@@ -101,6 +103,7 @@ class TestTheCheck:
             ("Build up, one of the best moments", "This is one of the best mounts."),
             ("Slow down at the end of the line", "At the end of the day it holds."),
             ('read "is wh" slowly', "That is what you get."),
+            ("Wry, it\u2019s the clock\u2019s fault", "It is the clock face."),
         ],
     )
     def test_a_style_that_quotes_nothing_passes(self, style, script):
