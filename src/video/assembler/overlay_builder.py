@@ -38,6 +38,7 @@ from src.video.config.visual_models import (
     ReplyCardSettings,
     UpperLineSettings,
 )
+from src.video.credit_line import CreditLine
 from src.video.step_cards import StepCard
 from src.video.verdict_card import VerdictCard
 
@@ -762,6 +763,66 @@ def build_step_card_drawtext(
     return ";".join(drawtexts)
 
 
+def _timed_box_drawtext(
+    text: str,
+    start: float,
+    end: float,
+    *,
+    colours: Mapping[str, str] | None,
+    size_factor: float,
+    y_percent: float,
+    hook: HookOverlaySettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    text_file: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    r"""One boxed, centred drawtext for its time.
+
+    Same mechanics as the hook overlay: text through `textfile=` and an
+    `enable=between(t\,a\,b)` gate. A colour missing from `colours` takes
+    the hook overlay's.
+    """
+    colours = colours or {}
+    text_colour = colours.get("text", hook.font_color)
+    box_colour = colours.get("background", hook.background_color)
+    start_px = max(8, int(subtitle_font_size_pixels * size_factor))
+    font_size = _fit_font(text, start_px, int(frame_width * 0.8), 8)
+    text_file.write_text(_escape_drawtext_textfile(text), encoding="utf-8")
+    text_path = text_file.as_posix().replace(":", r"\:")
+    return "".join(
+        [
+            f"{input_stream}drawtext=",
+            f"textfile='{text_path}':",
+            _fontfile_part(text),
+            f"fontsize={font_size}:fontcolor={text_colour}:",
+            f"box=1:boxcolor={box_colour}:boxborderw={max(8, font_size // 4)}:",
+            f"x=(w-text_w)/2:y=h*{y_percent}:",
+            f"enable=between(t\\,{start:.3f}\\,{end:.3f}){output_stream}",
+        ]
+    )
+
+
+def _insert_before_terminal(
+    video_filters: list[str], build: Any, name: str, stream: str
+) -> list[str]:
+    """Run `build(input_stream, output_stream)` into the chain's rewrite slot.
+
+    Same contract as :func:`apply_hook_overlay`: the chain keeps its terminal
+    `copy[v_out]`, and it is returned unchanged when its last filter has an
+    unexpected shape.
+    """
+    normalized = _ensure_copy_terminal(video_filters)
+    if normalized is None:
+        logger.warning(
+            "%s skipped: last filter has unexpected shape: %r", name, video_filters[-1]
+        )
+        return video_filters
+    input_stream = normalized[-1].replace("copy[v_out]", "")
+    return [*normalized[:-1], build(input_stream, stream), f"{stream}copy[v_out]"]
+
+
 def build_verdict_drawtext(
     card: VerdictCard,
     hook: HookOverlaySettings,
@@ -771,31 +832,21 @@ def build_verdict_drawtext(
     input_stream: str,
     output_stream: str,
 ) -> str:
-    r"""The verdict label as one boxed, centred drawtext for its time.
-
-    Same mechanics as the hook overlay: text through `textfile=` and an
-    `enable=between(t\,a\,b)` gate. Colours come from `beat.colours`, a
-    missing key from the hook overlay's.
-    """
+    """The verdict label as one boxed, centred drawtext for its time."""
     beat = card.beat
-    colours = beat.colours or {}
-    text_colour = colours.get("text", hook.font_color)
-    box_colour = colours.get("background", hook.background_color)
-    start_px = max(8, int(subtitle_font_size_pixels * beat.size_factor))
-    font_size = _fit_font(card.label, start_px, int(frame_width * 0.8), 8)
-    label_file = temp_dir / "verdict_label.txt"
-    label_file.write_text(_escape_drawtext_textfile(card.label), encoding="utf-8")
-    text_path = label_file.as_posix().replace(":", r"\:")
-    return "".join(
-        [
-            f"{input_stream}drawtext=",
-            f"textfile='{text_path}':",
-            _fontfile_part(card.label),
-            f"fontsize={font_size}:fontcolor={text_colour}:",
-            f"box=1:boxcolor={box_colour}:boxborderw={max(8, font_size // 4)}:",
-            f"x=(w-text_w)/2:y=h*{beat.y_percent}:",
-            f"enable=between(t\\,{card.start:.3f}\\,{card.end:.3f}){output_stream}",
-        ]
+    return _timed_box_drawtext(
+        card.label,
+        card.start,
+        card.end,
+        colours=beat.colours,
+        size_factor=beat.size_factor,
+        y_percent=beat.y_percent,
+        hook=hook,
+        subtitle_font_size_pixels=subtitle_font_size_pixels,
+        frame_width=frame_width,
+        text_file=temp_dir / "verdict_label.txt",
+        input_stream=input_stream,
+        output_stream=output_stream,
     )
 
 
@@ -807,32 +858,69 @@ def apply_verdict_card(
     frame_width: int,
     temp_dir: Path,
 ) -> list[str]:
-    """Insert the verdict card before the disclosure's rewrite slot.
-
-    Same contract as :func:`apply_hook_overlay`: the chain keeps its terminal
-    `copy[v_out]`, and it is returned unchanged with no card or when its last
-    filter has an unexpected shape.
+    """Insert the verdict card before the disclosure's rewrite slot; the
+    chain is returned unchanged with no card.
     """
     if card is None or not video_filters:
         return video_filters
-    normalized = _ensure_copy_terminal(video_filters)
-    if normalized is None:
-        logger.warning(
-            "Verdict card skipped: last filter has unexpected shape: %r",
-            video_filters[-1],
-        )
-        return video_filters
-    input_stream = normalized[-1].replace("copy[v_out]", "")
-    card_filter = build_verdict_drawtext(
-        card,
-        hook,
-        subtitle_font_size_pixels,
-        frame_width,
-        temp_dir,
-        input_stream=input_stream,
-        output_stream="[v_verdict]",
+    return _insert_before_terminal(
+        video_filters,
+        lambda i, o: build_verdict_drawtext(
+            card, hook, subtitle_font_size_pixels, frame_width, temp_dir, i, o
+        ),
+        "Verdict card",
+        "[v_verdict]",
     )
-    return [*normalized[:-1], card_filter, "[v_verdict]copy[v_out]"]
+
+
+def build_credit_drawtext(
+    line: CreditLine,
+    hook: HookOverlaySettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+    input_stream: str,
+    output_stream: str,
+) -> str:
+    """The commenter credit as one boxed lower-third drawtext for its time."""
+    settings = line.settings
+    return _timed_box_drawtext(
+        line.text,
+        line.start,
+        line.end,
+        colours=settings.colours,
+        size_factor=settings.size_factor,
+        y_percent=settings.y_percent,
+        hook=hook,
+        subtitle_font_size_pixels=subtitle_font_size_pixels,
+        frame_width=frame_width,
+        text_file=temp_dir / "credit_line.txt",
+        input_stream=input_stream,
+        output_stream=output_stream,
+    )
+
+
+def apply_credit_line(
+    video_filters: list[str],
+    line: CreditLine | None,
+    hook: HookOverlaySettings,
+    subtitle_font_size_pixels: int,
+    frame_width: int,
+    temp_dir: Path,
+) -> list[str]:
+    """Insert the credit line before the disclosure's rewrite slot; the
+    chain is returned unchanged with no line.
+    """
+    if line is None or not video_filters:
+        return video_filters
+    return _insert_before_terminal(
+        video_filters,
+        lambda i, o: build_credit_drawtext(
+            line, hook, subtitle_font_size_pixels, frame_width, temp_dir, i, o
+        ),
+        "Credit line",
+        "[v_credit]",
+    )
 
 
 def apply_step_card_overlay(

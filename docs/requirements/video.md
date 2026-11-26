@@ -31,7 +31,7 @@ Ids use the prefix `REQ-VID`. The format and the statuses are described in [the 
 - **REQ-VID-146** `shipped` A render applies no colour grade or stylistic filter to product or stock visuals; the only colour change darkens the blurred backdrop behind a visual that doesn't fill the frame.
 - **REQ-VID-166** `shipped` Where a narrator identity sets `title_card: false`, renders of its kind have no hook title card, whatever `video_settings.hook_overlay` sets.
 - **REQ-VID-167** `shipped` Where a series sets `verdict_beat.enabled`, the render shows a stamp card with the topic's verdict label from the first word of the sentence the script step names as the verdict, or the label's first spoken mention after the opening line; with neither, the card is skipped and the skip is logged.
-- **REQ-VID-168** `planned #857` Where a series sets `credit_commenter` and the topic names a `credit`, the render shows a lower-third line naming the commenter while the claim is spoken.
+- **REQ-VID-168** `shipped` Where a series sets `credit_commenter` and the topic names a `credit`, the render shows a lower-third line naming the commenter while the claim is spoken.
 
 ## Image positioning
 

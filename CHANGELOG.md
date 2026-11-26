@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.259.0] - 2026-11-26
+
+### Added
+
+- A series with `credit_commenter` shows a lower-third line naming the topic's credit while the claim is spoken, with its wording, colours, size and position configurable.
+
 ## [0.258.0] - 2026-11-26
 
 ### Added

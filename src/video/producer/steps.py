@@ -33,6 +33,7 @@ from src.video.assembler.overlay_builder import drawable_upper_line
 from src.video.config.audio_models import PERFORMED_TTS_TAGS
 from src.video.config.identity_models import RunningBit, content_kind
 from src.video.config.structure_models import ScriptStructure
+from src.video.credit_line import CreditLine, claim_window
 from src.video.delivery_plan import (
     PLAN_FILE,
     DeliveryPlan,
@@ -814,6 +815,33 @@ def _verdict_card(ctx: PipelineContext) -> VerdictCard | None:
         start = max(start, hook.duration_sec)
     return VerdictCard(
         label=label, start=start, end=start + settings.duration_sec, beat=settings
+    )
+
+
+def _credit_line(ctx: PipelineContext) -> CreditLine | None:
+    """The commenter credit while the claim is spoken (REQ-VID-168).
+
+    Timed from the opening line's `{claim}` slot and Whisper's words, which
+    only the pycaps caption engine writes; skipped and logged without either.
+    """
+    series = series_for(ctx.config, ctx.product)
+    credit = getattr(ctx.product, "credit", None)
+    if series is None or not series.credit_commenter or not credit:
+        return None
+    window = claim_window(
+        series.opening_line,
+        getattr(ctx.product, "claim", "") or "",
+        _word_timings(ctx) or [],
+    )
+    if window is None:
+        logger.info("Credit line skipped: no claim slot or word timings")
+        return None
+    settings = series.credit_line
+    return CreditLine(
+        text=settings.format.replace("{credit}", str(credit)),
+        start=window[0],
+        end=window[1],
+        settings=settings,
     )
 
 
@@ -2702,6 +2730,7 @@ async def step_assemble_video(ctx: PipelineContext):
                 spoken_words=_spoken_words(ctx),
                 motif_times=_motif_times(ctx),
                 verdict_card=_verdict_card(ctx),
+                credit_line=_credit_line(ctx),
                 step_cards=_step_cards(ctx),
                 step_visuals=_step_visuals(ctx, total_duration),
                 lead_video=_listing_video(ctx),
