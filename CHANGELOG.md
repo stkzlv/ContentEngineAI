@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.2] - 2026-11-26
+
+### Fixed
+
+- The search-phrase report skips a series episode's opening line and caption prefix, so a phrase placed right after them counts as present.
+
 ## [0.260.1] - 2026-11-26
 
 ### Fixed

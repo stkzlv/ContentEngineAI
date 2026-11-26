@@ -113,16 +113,21 @@ def _music_name(music_info_file: Path | None) -> str | None:
 
 def _search_phrase_placement(ctx: Any) -> dict[str, Any] | None:
     """Where the render's search phrase appears (design 0007)."""
+    from src.video.producer.steps import _series_prefix
     from src.video.search_phrase import captions, placement, search_phrase
+    from src.video.series import opening_line, series_for
 
     run_root = Path(ctx.run_paths["run_root"])
     product = getattr(ctx, "product", None)
+    series = series_for(ctx.config, product)
     return placement(
         search_phrase(product),
         ctx.script,
         ctx.state.get("hook_headline"),
         captions(run_root),
         question=bool(getattr(product, "topic", None)),
+        series_prefix=_series_prefix(ctx) if series else "",
+        opening=opening_line(series, product) if series else "",
     )
 
 

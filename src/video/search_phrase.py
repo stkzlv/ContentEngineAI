@@ -123,6 +123,17 @@ def _description(path: Path) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _words_of(text: str) -> list[str]:
+    return re.findall(r"[\w']+", text.lower())
+
+
+def _after_prefix(text: str, series_prefix: str) -> str:
+    """The caption after the series prefix, when it starts with it."""
+    if series_prefix and text.startswith(series_prefix):
+        return text[len(series_prefix) :]
+    return text
+
+
 def placement(
     phrase: str | None,
     script: str | None,
@@ -130,15 +141,24 @@ def placement(
     platform_captions: dict[str, str],
     *,
     question: bool = False,
+    series_prefix: str = "",
+    opening: str = "",
 ) -> dict[str, Any] | None:
     """Where the phrase appears; None without a phrase to look for.
 
     `question` marks a topic's title, whose question words a spoken answer
-    drops.
+    drops. A series episode's captions start with `series_prefix` and its
+    script with `opening` (REQ-CNT-194), so both are skipped: the phrase
+    belongs right after them.
     """
     if not phrase or not _terms(phrase, question=question):
         return None
     sentences = split_sentences(script or "")
+    opening_count = len(split_sentences(opening)) if opening else 0
+    if opening_count and _words_of(" ".join(sentences[:opening_count])) == _words_of(
+        opening
+    ):
+        sentences = sentences[opening_count:]
     return {
         "phrase": phrase,
         "spoken": contains(
@@ -146,7 +166,11 @@ def placement(
         ),
         "headline": contains(headline, phrase, question=question),
         "captions": {
-            platform: contains(text[:CAPTION_PREFIX_CHARS], phrase, question=question)
+            platform: contains(
+                _after_prefix(text, series_prefix)[:CAPTION_PREFIX_CHARS],
+                phrase,
+                question=question,
+            )
             for platform, text in platform_captions.items()
         },
     }

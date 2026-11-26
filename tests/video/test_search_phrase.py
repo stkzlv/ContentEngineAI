@@ -150,3 +150,84 @@ def test_a_topic_row_reads_its_title_as_a_question(tmp_path: Path) -> None:
     placed = choices_from_context(ctx)["search_phrase"]
 
     assert placed["spoken"] is True and placed["headline"] is True
+
+
+@pytest.mark.req("REQ-CNT-055")
+def test_a_series_prefix_and_opening_line_are_skipped() -> None:
+    prefix = "A long series prefix that fills nearly all of the sixty: "
+    script = "Myth check: they die in the cold. This desk lamp lasts a day."
+
+    result = placement(
+        "desk lamp",
+        script,
+        None,
+        {
+            "youtube": prefix + "desk lamp batteries",
+            "tiktok": "x" * 60 + " desk lamp",
+        },
+        series_prefix=prefix,
+        opening="Myth check: they die in the cold.",
+    )
+
+    assert result is not None
+    assert result["spoken"] is True
+    assert result["captions"] == {"youtube": True, "tiktok": False}
+    # Without the series values, both fall past the measured places.
+    plain = placement("desk lamp", script, None, {"youtube": prefix + "desk lamp"})
+    assert plain is not None and plain["spoken"] is False
+    assert plain["captions"]["youtube"] is False
+
+
+@pytest.mark.req("REQ-CNT-055")
+def test_an_opening_the_script_doesnt_start_with_is_not_skipped() -> None:
+    result = placement(
+        "desk lamp",
+        "This desk lamp rings. It also tracks sleep.",
+        None,
+        {},
+        opening="Myth check: it rings.",
+    )
+    assert result is not None and result["spoken"] is True
+
+
+@pytest.mark.req("REQ-CNT-055")
+def test_a_series_row_skips_its_prefix_and_opening(tmp_path: Path) -> None:
+    from src.video.config.series_models import SeriesConfig
+
+    root = tmp_path / "topic-y"
+    root.mkdir()
+    (root / "metadata.json").write_text(
+        json.dumps({"description": PREFIX + "desk lamp batteries"})
+    )
+    ctx = SimpleNamespace(
+        state={},
+        config=SimpleNamespace(
+            series={
+                "myth": SeriesConfig(
+                    title_prefix=PREFIX, opening_line="Myth check: {claim}."
+                )
+            },
+            video_settings=SimpleNamespace(
+                first_frame_pre_motion=False, video_transition_duration=0.3
+            ),
+        ),
+        product=SimpleNamespace(
+            keyword="desk lamp", series="myth", claim="they die in the cold"
+        ),
+        profile_name="p",
+        profile=SimpleNamespace(
+            video_assembly_mode="sequential",
+            first_frame_pre_motion=None,
+            video_transition_duration=0.5,
+        ),
+        run_paths={"music_info_file": None, "run_root": root},
+        script="Myth check: they die in the cold. This desk lamp lasts a day.",
+    )
+
+    placed = choices_from_context(ctx)["search_phrase"]
+
+    assert placed["spoken"] is True
+    assert placed["captions"]["youtube"] is True
+
+
+PREFIX = "A long series prefix that fills nearly all of the sixty: "
