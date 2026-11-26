@@ -2,9 +2,9 @@
 
 Platforms read spoken words, on-screen text and the caption for search, so
 the phrase belongs in the first spoken sentence, the hook headline and the
-first 60 characters of each platform caption; on a series episode, after its
-opening line and caption prefix. This measures where it is;
-nothing here changes a script, a headline or a caption.
+first 60 characters of each platform caption; on a series episode, the opening
+line with the next sentence, and each caption after its prefix. This measures
+where it is; nothing here changes a script, a headline or a caption.
 
 The phrase is the product's search keyword, or a topic's title, which is
 already phrased the way people type it. A place counts when every word of the

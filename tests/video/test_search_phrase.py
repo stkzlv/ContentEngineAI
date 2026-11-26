@@ -153,7 +153,7 @@ def test_a_topic_row_reads_its_title_as_a_question(tmp_path: Path) -> None:
 
 
 @pytest.mark.req("REQ-CNT-055")
-def test_a_series_prefix_and_opening_line_are_skipped() -> None:
+def test_a_series_opening_and_prefix_are_accounted_for() -> None:
     prefix = "A long series prefix that fills nearly all of the sixty: "
     script = "Myth check: they die in the cold. This desk lamp lasts a day."
 
@@ -204,7 +204,7 @@ def test_an_opening_the_script_doesnt_start_with_is_not_skipped() -> None:
 
 
 @pytest.mark.req("REQ-CNT-055")
-def test_a_series_row_skips_its_prefix_and_opening(tmp_path: Path) -> None:
+def test_a_series_row_accounts_for_its_prefix_and_opening(tmp_path: Path) -> None:
     from src.video.config.series_models import SeriesConfig
 
     root = tmp_path / "topic-y"
