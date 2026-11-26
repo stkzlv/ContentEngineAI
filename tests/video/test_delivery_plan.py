@@ -86,6 +86,8 @@ class TestTheCheck:
         [
             'read "on purpose" slowly',
             "read 'on purpose' slowly",
+            "read \u2018on purpose\u2019 slowly",
+            "\"say 'on purpose' slowly\"",
             "slow, stop on purpose here is the end",
         ],
     )
@@ -95,12 +97,27 @@ class TestTheCheck:
         assert "segment 2's style quotes the script" in _check(plan)
 
     @pytest.mark.parametrize(
+        "style",
+        [
+            "read \u201cit\u2019s on purpose\u201d slowly",
+            "warm '90s tone, read 'on purpose' slowly",
+        ],
+    )
+    def test_curly_apostrophes_and_elisions_still_match(self, style):
+        script = "It's on purpose."
+        plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
+        problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
+        assert any("quotes the script" in p for p in problems)
+
+    @pytest.mark.parametrize(
         ("style", "script"),
         [
             ("Deadpan, it's what's expected", "That is what you get for ten bucks."),
             ("Build up, one of the best moments", "This is one of the best mounts."),
             ("Slow down at the end of the line", "At the end of the day it holds."),
             ('read "is wh" slowly', "That is what you get."),
+            ("Wry, it\u2019s the clock\u2019s fault", "It is the clock face."),
+            ("'Easy,' match the brands' tone", "We match the brands on price."),
         ],
     )
     def test_a_style_that_quotes_nothing_passes(self, style, script):

@@ -1732,7 +1732,8 @@ async def step_create_voiceover(ctx: PipelineContext):
                     threshold_db,
                     min_duration,
                 )
-            except (RuntimeError, OSError) as e:
+            # A failing ffmpeg raises CalledProcessError, neither of the others.
+            except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
                 logger.warning(
                     "Failed to trim silence from voiceover: %s, using original", e
                 )

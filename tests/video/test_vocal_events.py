@@ -359,7 +359,7 @@ def ctx(tmp_path):
 
 @pytest.mark.asyncio
 class TestTheVoiceoverStep:
-    async def _run(self, ctx, windows):
+    async def _run(self, ctx, windows, run=None):
         from src.video.producer import steps
 
         async def voice(self, text, path, plan):
@@ -371,7 +371,7 @@ class TestTheVoiceoverStep:
         with (
             patch.object(steps.TTSManager, "generate_speech", voice),
             patch.object(steps, "_get_video_duration", AsyncMock(return_value=2.0)),
-            patch.object(steps.subprocess, "run"),
+            patch.object(steps.subprocess, "run", run or MagicMock()),
             patch.object(steps, "leading_trim_sec", return_value=0.5),
         ):
             await steps.step_create_voiceover(ctx)
@@ -384,6 +384,16 @@ class TestTheVoiceoverStep:
         assert read_windows(Path(ctx.run_paths["vocal_events_file"])) == [
             {"tag": "<sigh>", "start": 1.5, "end": 3.5}
         ]
+
+    @pytest.mark.req("REQ-CNT-143")
+    async def test_a_failed_trim_keeps_the_take_and_unshifted_windows(self, ctx):
+        import subprocess
+
+        ctx.config.audio_processing.silence_removal_enabled = True
+        failing = MagicMock(side_effect=subprocess.CalledProcessError(1, "ffmpeg"))
+        await self._run(ctx, SIGH, run=failing)
+        assert Path(ctx.run_paths["voiceover_file"]).exists()
+        assert read_windows(Path(ctx.run_paths["vocal_events_file"])) == SIGH
 
     async def test_a_take_without_events_leaves_no_old_windows(self, ctx):
         events = Path(ctx.run_paths["vocal_events_file"])

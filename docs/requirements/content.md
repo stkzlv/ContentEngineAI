@@ -129,7 +129,7 @@ Ids use the prefix `REQ-CNT`. The format and the statuses are described in [the 
 - **REQ-CNT-059** `shipped` The default voice profile delivers calm, confident speech rather than high energy.
 - **REQ-CNT-060** `shipped` A voice profile can set speaking rate and pitch.
 - **REQ-CNT-061** `shipped` Where a profile has markup rules, the producer inserts pause tags at sentence boundaries (periods, exclamation marks and question marks).
-- **REQ-CNT-143** `shipped` Where `silence_removal_enabled` is on (the bundled default), the producer trims only the leading and trailing silence below `silence_threshold_db` (bundled -50 dB) from the voiceover before transcription, and `silence_min_duration_sec` defaults to 0.1 s.
+- **REQ-CNT-143** `shipped` Where `silence_removal_enabled` is on (the bundled default), the producer trims only the leading and trailing silence below `silence_threshold_db` (bundled -50 dB) from the voiceover before transcription, and `silence_min_duration_sec` defaults to 0.1 s. A trim that fails keeps the untrimmed voiceover.
   - Why: the trim discards the audio inside that window, so a longer value cuts off a short final word.
 - **REQ-CNT-062** `shipped` Where the selected voice profile has a `pause_plan`, the producer places no pause after the opening hook, longer pauses at paragraph breaks and before the closing line, and a reproducible per-product variation elsewhere.
 - **REQ-CNT-063** `shipped` The config rejects a pause plan that uses a tag not measured as silent, so no tag text reaches the captions.
