@@ -120,8 +120,12 @@ def _norm(text: str) -> str:
     return " ".join(text.split())
 
 
+_CURLY = str.maketrans("‘’“”", "''\"\"")
+
+
 def _words(text: str) -> list[str]:
-    return [w.lower().strip(".,!?;:\"'()") for w in text.split()]
+    folded = text.translate(_CURLY)
+    return [w.lower().strip(".,!?;:\"'()") for w in folded.split()]
 
 
 def validate_plan(
@@ -172,7 +176,8 @@ QUOTE_RUN = 6
 _DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
 # Single quotes, straight or curly, not inside a word, so contractions don't
 # count.
-_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018]([^'\u2018\u2019]+)['\u2019](?!\\w)")
+# The body is lazy so it can cross an apostrophe ("'it's on purpose'").
+_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018](.+?)['\u2019](?!\\w)")
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:

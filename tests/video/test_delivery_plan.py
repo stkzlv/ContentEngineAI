@@ -97,6 +97,20 @@ class TestTheCheck:
         assert "segment 2's style quotes the script" in _check(plan)
 
     @pytest.mark.parametrize(
+        "style",
+        [
+            "read \u2018it\u2019s on purpose\u2019 slowly",
+            "read 'it's on purpose' slowly",
+            "read \u201cit\u2019s on purpose\u201d slowly",
+        ],
+    )
+    def test_a_quote_with_an_apostrophe_inside_is_caught(self, style):
+        script = "It's on purpose."
+        plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
+        problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
+        assert any("quotes the script" in p for p in problems)
+
+    @pytest.mark.parametrize(
         ("style", "script"),
         [
             ("Deadpan, it's what's expected", "That is what you get for ten bucks."),
