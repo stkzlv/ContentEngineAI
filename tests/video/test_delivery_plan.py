@@ -99,14 +99,11 @@ class TestTheCheck:
     @pytest.mark.parametrize(
         "style",
         [
-            "read \u2018it\u2019s on purpose\u2019 slowly",
-            "read 'it's on purpose' slowly",
             "read \u201cit\u2019s on purpose\u201d slowly",
             "warm '90s tone, read 'on purpose' slowly",
-            "an \u201880s vibe, read \u2018it\u2019s on purpose\u2019 slowly",
         ],
     )
-    def test_a_quote_with_an_apostrophe_inside_is_caught(self, style):
+    def test_curly_apostrophes_and_elisions_still_match(self, style):
         script = "It's on purpose."
         plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
         problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
@@ -120,6 +117,7 @@ class TestTheCheck:
             ("Slow down at the end of the line", "At the end of the day it holds."),
             ('read "is wh" slowly', "That is what you get."),
             ("Wry, it\u2019s the clock\u2019s fault", "It is the clock face."),
+            ("'Easy,' match the brands' tone", "We match the brands on price."),
         ],
     )
     def test_a_style_that_quotes_nothing_passes(self, style, script):

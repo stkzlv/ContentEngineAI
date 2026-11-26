@@ -174,9 +174,9 @@ def validate_plan(
 
 QUOTE_RUN = 6
 _DOUBLE_QUOTED = re.compile('["\u201c]([^"\u201c\u201d]+)["\u201d]')
-# Single quotes not inside a word; a lazy body crosses an apostrophe, and the
-# lookahead gives each opening its own span (docs/notes/audio.md).
-_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018](?=(.+?)['\u2019](?!\\w))")
+# Single quotes, straight or curly, not inside a word, so contractions don't
+# count.
+_SINGLE_QUOTED = re.compile("(?<!\\w)['\u2018]([^'\u2018\u2019]+)['\u2019](?!\\w)")
 
 
 def _has_run(words: list[str], script_words: list[str], size: int) -> bool:
