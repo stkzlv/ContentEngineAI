@@ -63,6 +63,7 @@ async def generate_subtitles_with_whisper(
     debug_mode: bool = False,
     transcript_out_path: Path | None = None,
     timing_smoothing_config: dict[str, Any] | None = None,
+    vocal_events: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]] | None:
     """Generate subtitle timing data using Whisper STT.
 
@@ -82,6 +83,8 @@ async def generate_subtitles_with_whisper(
             ``hold_last_sec``, ``lead_sec``). When ``None`` or
             ``enabled=True`` (the default), smoothing runs with
             best-practice defaults.
+        vocal_events: A performed take's event windows; words heard from
+            them are dropped (REQ-CNT-183).
 
     Returns:
     -------
@@ -222,6 +225,13 @@ async def generate_subtitles_with_whisper(
         from src.video.subtitle_timing_smoother import join_continuations_in_result
 
         result_w = join_continuations_in_result(result_w)
+
+        # Words heard from a performed take's vocal events, never a script
+        # word (REQ-CNT-183); before both the flat list and the transcript.
+        if vocal_events:
+            from src.video.vocal_events import filter_result
+
+            result_w = filter_result(result_w, vocal_events, script)
 
         # Extract word timing data from transcription result
         word_list_whisper = _extract_word_timings(result_w)

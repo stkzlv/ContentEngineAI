@@ -372,6 +372,7 @@ Files a render leaves for inspection:
 |---|---|
 | `delivery_plan.json` | With `tts_config.performed_delivery.enabled`: the script in segments, each with a style, at most one vocal event and its gap (REQ-CNT-179). Checked against the script before TTS; a generated plan that fails is written again once and otherwise dropped, while an edited plan that fails stops the render naming the check (REQ-CNT-180). Only a `gemini_api` profile voices it. Its digest is kept in state as `delivery_plan` and in `delivery_plan.json.digest`, so an edited plan is told from the generated one. |
 | `pipeline_state.json` | Completed steps, `hook_headline` and `hook_headline_script` (a digest of the script it was derived from), `running_bit` and `series_episode` (also kept in the `generate_script` entry), `assemble_video.cold_open_variant`. |
+| `temp/vocal_events.json` | Written by a `gemini_api` take of a delivery plan: each vocal event's tag and the span of its segment, gap included, in the trimmed voiceover. The subtitle step drops words heard from those events (REQ-CNT-183). A new take deletes it first. |
 | `temp/gathered_visuals.json` | Each stock item's search phrase and `relevance_score`. |
 | `temp/script_fact_check.json` | The script fact-check outcome. |
 | `temp/step_list.json` | A topic's sourced step list, with refused steps, when step lists are on. |

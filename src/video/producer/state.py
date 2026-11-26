@@ -208,6 +208,8 @@ def get_video_run_paths(
             "script_fact_check": paths["script_fact_check"],
             # Pycaps engine artifacts
             "whisper_transcript_file": paths["working_dir"] / "whisper_transcript.json",
+            # Not a step artifact either: absent unless a performed take ran.
+            "vocal_events_file": paths["working_dir"] / "vocal_events.json",
             "pycaps_metadata_file": paths["working_dir"] / "pycaps_metadata.json",
             "pycaps_burn_marker_file": paths["working_dir"] / "pycaps_burned.json",
         }
