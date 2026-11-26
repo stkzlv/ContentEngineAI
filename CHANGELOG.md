@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The delivery plan check catches a style that single-quotes the script with an apostrophe inside the quote, such as 'it's on purpose', and a stray elision like '90s before the real quote no longer hides it.
+- The delivery plan check catches a style that single-quotes the script with an apostrophe inside the quote, such as 'it's on purpose'.
 
 ## [0.260.2] - 2026-11-26
 

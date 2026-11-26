@@ -116,6 +116,13 @@ class TestTheCheck:
         problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
         assert any("quotes the script" in p for p in problems)
 
+    def test_a_digit_before_an_apostrophe_is_part_of_the_word(self):
+        script = "It's a 90's classic."
+        style = "read 'a 90's classic' slowly"
+        plan = DeliveryPlan(segments=[DeliverySegment(text=script, style=style)])
+        problems = validate_plan(plan, script, [script], PERFORMED_TTS_TAGS, 4)
+        assert any("quotes the script" in p for p in problems)
+
     @pytest.mark.parametrize(
         ("style", "script"),
         [
