@@ -38,6 +38,29 @@ class TestTheWindow:
         )
 
     @pytest.mark.parametrize(
+        ("opening", "claim", "heard"),
+        [
+            ('Said: "{claim}". Next.', "it hums", 'Said: "it hums". Next.'),
+            ("Myth or fact - {claim}", "it hums", "Myth or fact it hums"),
+            ("Is it {claim}?", "it \u2014 hums", "Is it it hums? no"),
+        ],
+    )
+    def test_quotes_and_dashes_are_not_words(self, opening, claim, heard):
+        # Whisper gives no word for a lone quote or dash.
+        words = _words(" ".join(t for t in heard.split() if t not in {'"', "-"}))
+        window = claim_window(opening, claim, words)
+        assert window is not None
+        start, end = window
+        texts = [w["word"].strip('".?') for w in words]
+        assert (
+            texts[int(round(start / 0.3))],
+            texts[int(round((end - 0.2) / 0.3))],
+        ) == (
+            "it",
+            "hums",
+        )
+
+    @pytest.mark.parametrize(
         ("opening", "claim", "text"),
         [
             ("Myth check.", CLAIM, SCRIPT),

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.video.config.series_models import CreditLine as CreditLineSettings
+from src.video.script_structure import _words
 
 
 @dataclass(frozen=True)
@@ -40,9 +41,10 @@ def claim_window(
     """
     if "{claim}" not in opening_template or not claim.strip():
         return None
-    before = len(opening_template.split("{claim}", 1)[0].split())
-    count = len(claim.split())
-    if len(words) < before + count:
+    # Counted as the transcript groups words: a stray quote or dash is no word.
+    before = _words(opening_template.split("{claim}", 1)[0])
+    count = _words(claim)
+    if count == 0 or len(words) < before + count:
         return None
     start = _time(words[before], "start_time", "start")
     end = _time(words[before + count - 1], "end_time", "end")
