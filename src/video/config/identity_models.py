@@ -38,7 +38,7 @@ class RunningBitCap(BaseModel):
 
     # Uses of any bit allowed in one producer or batch run.
     per_batch: int = Field(1, ge=0)
-    # Renders of the kind needed after the last use before another offer.
+    # Products of the kind, by latest render, needed after the last use.
     min_gap: int = Field(2, ge=0)
 
 

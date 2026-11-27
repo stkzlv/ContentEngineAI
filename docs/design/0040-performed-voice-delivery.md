@@ -1,6 +1,6 @@
 # 0040. Performed voice delivery aligned with the script
 
-- **Status:** Implemented
+- **Status:** Held
 - **Issue:** #855
 - **Requirements:** REQ-CNT-179, REQ-CNT-180, REQ-CNT-181, REQ-CNT-182, REQ-CNT-183, REQ-CNT-184, REQ-CNT-185
 
@@ -98,6 +98,12 @@ The Cloud TTS path sends a profile's `style_prompt` in `SynthesisInput.prompt` o
 - The provider builds one request per segment with the annotation and inline tags (mocked HTTP), and joins the audio with the gaps.
 - The caption filter drops an "ugh" at an event and keeps one in the script.
 - The Cloud TTS request carries `prompt` when the switch is on, and only then.
+
+## As built
+
+- REQ-CNT-179, 180, 183 and 185 are `held`: the plan, its check and the caption filter run only with `performed_delivery.enabled`, and the prompt only with `send_style_prompt`, both off in the bundled config. The provider (REQ-CNT-181), the tag probe (REQ-CNT-182) and the tag isolation (REQ-CNT-184) are `shipped`, since they work without either switch.
+- The caption filter's window is each event's segment span, gap included, shifted by what the trim's first stage cuts, measured by running that stage alone; a word goes only when the alignment leaves it unmatched and the transcript holds a surplus copy (REQ-CNT-183).
+- The recorded transcriptions include common words ("but"), so an event next to a repeated phrase can keep the event's copy at the event's time; the text still reads right.
 
 ## Alternatives considered
 

@@ -82,7 +82,7 @@ The parser is `create_argument_parser` in `src/pipeline/cli.py`. A full run goes
 
 ## Configuration keys
 
-The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds until a flag says otherwise, in either direction.
+The `global_batch` block of `config/pipeline.yaml`. A boolean set here holds until a flag says otherwise, in either direction. The Default column gives the bundled value, which can differ from the code's default for a key left out of the file (`shuffle_keywords` and `alternate_formats` are off when absent).
 
 ### Inputs
 

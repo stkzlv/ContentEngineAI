@@ -26,7 +26,7 @@ Rollout names what ships off, the setting that turns it on and the condition for
 | `Implemented` | The feature has shipped. |
 | `Superseded by NNNN` | A later design doc replaces this one. |
 
-The pull request that builds a feature behind an off switch sets its design doc to `Held` and appends an `As built` section: what the code does where it differs from the design, and the measurements taken. The pull request that turns the switch on, or ships a feature with no switch, sets the doc to `Implemented` and its requirements to `shipped`. The doc is frozen from then on, and a later change to the feature gets a design doc of its own that supersedes it. `tools/check_docs.py` checks each status against the requirements the doc names.
+The pull request that builds a feature behind an off switch sets its design doc to `Held` and appends an `As built` section: what the code does where it differs from the design, and the measurements taken. The pull request that turns the switch on, or ships a feature with no switch, sets the doc to `Implemented` and its requirements to `shipped`. The doc is frozen from then on, and a later change to the feature gets a design doc of its own that supersedes it. A correction that makes the record true (a stale rollout line, a renamed function) is not a change to the feature and may be made in place. `tools/check_docs.py` checks each status against the requirements the doc names.
 
 ## Rules that apply to every design
 

@@ -177,6 +177,13 @@ class TestSubtitlePositioning:
         assert pos.x == pytest.approx(0.1)
         assert pos.y == pytest.approx(0.9)
 
+    @pytest.mark.req("REQ-VID-056")
+    def test_ass_size_is_capped_at_100_px(self):
+        config = SubtitleSettings(font_size_scale=2.0)
+        assert get_font_size(config, 1920) == 100
+        assert get_font_size(SubtitleSettings(font_size_scale=1.0), 1920) == 76
+
+    @pytest.mark.req("REQ-VID-056")
     def test_get_font_size(self):
         # Default base_font_size_percent is 0.04
         # 1000 * 0.04 = 40.

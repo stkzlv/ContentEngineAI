@@ -219,6 +219,7 @@ class TestTheDrafts:
 
         assert not (old / "stale.txt").exists()
 
+    @pytest.mark.req("REQ-OPS-036")
     def test_nothing_publishes_or_cleans_a_draft(self, tmp_path) -> None:
         from src.publisher.batch import BatchPublisher
 

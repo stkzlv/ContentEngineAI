@@ -40,7 +40,7 @@ Evidence ([evidence grades](README.md#evidence-grades)):
 - Curation runs in `gather_visuals` after media validation, and never trims below the image minimum or the part of `min_total_media` the clips and stock media leave to images, so it cannot fail a render validation passed.
 - The cache sits beside each image as `<image>.text_score.json`, keyed to the file's size and modification time, because the scraper rewrites images under stable names.
 - The assembly step shuffles the visuals, so the "clean first" order matters only for which images are kept; the order is recorded but not used.
-- Preferring the product video (REQ-VID-016) means opening on it: profiles that take scraped video already build from the clips through their assembly mode, so `video_settings.lead_with_listing_video` moves the first scraped clip's first segment to the start of that timeline, where the hook plays. The scraper downloads the listing's own videos ahead of the clips its page scans find (REQ-SCR-086), so the first scraped clip is the listing's when the page lists one.
+- Preferring the product video (REQ-VID-016) means opening on it: profiles that take scraped video already build from the clips through their assembly mode, so `video_settings.lead_with_listing_video` moves the first scraped clip's first segment to the start of that timeline, where the hook plays. The scraper downloads the listing's own videos ahead of the clips its page scans find (REQ-SCR-086), so the first scraped clip is the listing's when the page lists one and `image_config.use_image_data` is on; with it off, or when the listing's video fails to download, the page-scan order decides.
 
 ## Alternatives considered
 
@@ -48,9 +48,9 @@ None recorded.
 
 ## Rollout
 
-Ships off: `video_settings.image_curation.enabled` defaults to false. Set it once a side-by-side review of renders with and without it prefers the curated set, and swipe-away ([0010](0010-first-seconds-metrics.md)) is no worse.
+`video_settings.image_curation.enabled` and `video_settings.lead_with_listing_video` default to false in the model and are on in the bundled config.
 
-Remove the switch when: `video_settings.image_curation.enabled` has been on in the bundled config for two weekly batches with swipe-away ([0010](0010-first-seconds-metrics.md)) no worse than without it; the key and the uncurated-order path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `max_text_share` and `min_clean_images` stay as the tuning.
+Remove the switch when: `video_settings.image_curation.enabled` has been on in the bundled config for two weekly batches with swipe-away ([0010](0010-first-seconds-metrics.md)) no worse than without it; the key and the uncurated-order path then go in a minor release with a `**Breaking**:` CHANGELOG entry, and `max_text_share` and `min_clean_images` stay as the tuning. `lead_with_listing_video` goes the same way once it has been on for two weekly batches with swipe-away no worse.
 
 ## Open questions
 

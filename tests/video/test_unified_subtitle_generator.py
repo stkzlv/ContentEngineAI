@@ -195,6 +195,7 @@ class TestUnifiedSubtitleGenerator:
 
         assert colors1 == colors2
 
+    @pytest.mark.req("REQ-VID-057")
     @patch("src.video.unified_subtitle_generator.get_style_config")
     def test_color_randomization_uses_style_config(self, mock_get_style):
         """Test that colors come from style_config, not legacy randomization.
