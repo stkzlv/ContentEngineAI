@@ -2,7 +2,8 @@
 
 A running bit builds recognition until it wears out, so it is offered only
 while the cap allows: at most `per_batch` uses in one process (a producer or
-batch run), and only after `min_gap` renders of the kind since the last use.
+batch run), and only after `min_gap` products of the kind, by each product's latest
+render, since the last use.
 Uses are read back from the render-choices rows, which record the id of a bit
 the script used.
 """
