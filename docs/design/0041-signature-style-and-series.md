@@ -38,7 +38,7 @@ No study tests any of these levers on organic short-form, so every feature ships
 
 `narrator_identity.<kind>` gains:
 
-- `opening`: `null` (default) or `claim_first`. With `claim_first`, the script prompt asks for the take's claim, with one concrete number or name where the detail has one, as the first sentence, and no greeting or setup before it.
+- `opening`: `null` (default) or `claim_first`. With `claim_first`, the kind's narrator text, which every prompt carrying the narrator reads, asks for the take's claim, with one concrete number or name where the detail has one, as the first sentence, and no greeting or setup before it.
 - `self_intro_patterns`: a list of regular expressions (default empty). A first sentence matching one is rejected like any soft check, ranked after the script lint in REQ-CNT-164's keep order. The shipped list is empty; an installation adds its greeting forms and its narrator's name.
 - `title_card`: `null` (default, `video_settings.hook_overlay` decides) or `false`, which renders the kind without the hook title card whatever that setting says.
 
@@ -56,7 +56,7 @@ No study tests any of these levers on organic short-form, so every feature ships
 
 - While the cap allows, the script prompt (only it, not the other prompts that read the narrator text) offers one bit's hint and asks the model to use it only where it fits a line. The bit used longest ago, or never, is offered.
 - A script containing one of the bit's `cues` (any case) counts as a use, and the render-choices row stores the bit's id. A cue is checkable where a model's own report of using the bit is not: the script step gets plain text back.
-- `per_batch` counts uses recorded since the producer or batch process started; `min_gap` is the number of renders of the kind needed since the last use, read from the render-choices records.
+- `per_batch` counts uses recorded since the producer or batch process started; `min_gap` is the number of products of the kind rendered since the last use, read from each product's latest render-choices record, so a re-render replaces the product's earlier row.
 
 ### Script shape (structure targets)
 

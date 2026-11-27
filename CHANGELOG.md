@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.4] - 2026-11-27
+
+### Documentation
+
+- Performed voice delivery is recorded as held: its design doc and the plan, plan check, caption filter and style prompt requirements, since both switches ship off.
+- Requirements, design docs and reference pages now match the code for the virtual-narrator check, the claim-first opening, the running-bit cap, series grouping, the verdict card and credit line skips, the listing-video order, the scraper's kept identity and the image-data gallery rules.
+- Design docs may take a correction that makes the record true after they are frozen.
+- Tests now cite the caption size, caption colour, hook size, drafts directory and material-connection requirements, and a test pins the 100 px caption size cap.
+
 ## [0.260.3] - 2026-11-26
 
 ### Fixed

@@ -69,6 +69,7 @@ class TestResolveHookLine:
 
 
 class TestBuildHookDrawtext:
+    @pytest.mark.req("REQ-VID-154")
     def test_filter_shape(self, tmp_path) -> None:
         settings = HookOverlaySettings(enabled=True, duration_sec=1.5)
         out = build_hook_drawtext(
